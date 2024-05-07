@@ -1,10 +1,10 @@
-# tdstro
+# tdastro
 
 [![Template](https://img.shields.io/badge/Template-LINCC%20Frameworks%20Python%20Project%20Template-brightgreen)](https://lincc-ppt.readthedocs.io/en/latest/)
 
-[![PyPI](https://img.shields.io/pypi/v/tdstro?color=blue&logo=pypi&logoColor=white)](https://pypi.org/project/tdstro/)
-[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/lincc-frameworks/tdstro/smoke-test.yml)](https://github.com/lincc-frameworks/tdstro/actions/workflows/smoke-test.yml)
-[![Codecov](https://codecov.io/gh/lincc-frameworks/tdstro/branch/main/graph/badge.svg)](https://codecov.io/gh/lincc-frameworks/tdstro)
+[![PyPI](https://img.shields.io/pypi/v/tdastro?color=blue&logo=pypi&logoColor=white)](https://pypi.org/project/tdastro/)
+[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/lincc-frameworks/tdastro/smoke-test.yml)](https://github.com/lincc-frameworks/tdastro/actions/workflows/smoke-test.yml)
+[![Codecov](https://codecov.io/gh/lincc-frameworks/tdastro/branch/main/graph/badge.svg)](https://codecov.io/gh/lincc-frameworks/tdastro)
 
 This project was automatically generated using the LINCC-Frameworks 
 [python-project-template](https://github.com/lincc-frameworks/python-project-template).
