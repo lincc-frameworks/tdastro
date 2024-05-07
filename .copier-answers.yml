@@ -14,7 +14,7 @@ include_docs: false
 mypy_type_checking: none
 package_name: tdastro
 project_license: MIT
-project_name: tdstro
+project_name: tdastro
 project_organization: lincc-frameworks
 python_versions:
 - '3.9'

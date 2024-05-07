@@ -1,5 +1,5 @@
 [project]
-name = "tdstro"
+name = "tdastro"
 license = {file = "LICENSE"}
 readme = "README.md"
 authors = [
@@ -19,7 +19,7 @@ dependencies = [
 ]
 
 [project.urls]
-"Source Code" = "https://github.com/lincc-frameworks/tdstro"
+"Source Code" = "https://github.com/lincc-frameworks/tdastro"
 
 # On a mac, install optional dependencies with `pip install '.[dev]'` (include the single quotes)
 [project.optional-dependencies]
