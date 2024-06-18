@@ -1,1 +1,3 @@
-from .base_models import PhysicalModel
+from .example_module import greetings, meaning
+
+__all__ = ["greetings", "meaning"]
