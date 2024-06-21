@@ -36,7 +36,7 @@ class StaticSource(PhysicalModel):
             # Otherwise assume we were given the parameter itself.
             self.brightness = brightness
 
-    def _evaluate(self, times, bands=None, **kwargs):
+    def _evaluate(self, times, wavelengths=None, **kwargs):
         """Draw effect-free observations for this object.
 
         Parameters
