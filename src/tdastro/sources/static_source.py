@@ -42,15 +42,15 @@ class StaticSource(PhysicalModel):
         Parameters
         ----------
         times : `numpy.ndarray`
-           An array of timestamps.
-        bands : `numpy.ndarray`, optional
-           An array of bands. If ``None`` then does something.
+            A length N array of timestamps.
+        wavelengths : `numpy.ndarray`, optional
+            A length N array of wavelengths.
         **kwargs : `dict`, optional
            Any additional keyword arguments.
 
         Returns
         -------
-        flux : `numpy.ndarray`
-           The results.
+        flux_density : `numpy.ndarray`
+            A length N-array of flux densities.
         """
         return np.full_like(times, self.brightness)
