@@ -1,7 +1,6 @@
 import numpy as np
-import types
 
-from tdastro.base_models import EffectModel, PhysicalModel
+from tdastro.base_models import EffectModel
 
 
 class WhiteNoise(EffectModel):
