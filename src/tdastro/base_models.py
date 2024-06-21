@@ -1,11 +1,25 @@
-import abc
+class PhysicalModel:
+    """A physical model of a source of flux.
 
+    Attributes
+    ----------
+    host : `PhysicalModel`
+        A physical model of the current source's host.
+    effects : `list`
+        A list of effects to apply to an observations.
+    """
 
-class PhysicalModel(abc.ABC):
-    def __init__(self, ra=None, dec=None, distance=None, **kwargs):
-        self.ra = ra
-        self.dec = dec
-        self.distance = distance
+    def __init__(self, host=None, **kwargs):
+        """Create a PhysicalModel object.
+
+        Parameters
+        ----------
+        host : `PhysicalModel`, optional
+            A physical model of the current source's host.
+        **kwargs : `dict`, optional
+           Any additional keyword arguments.
+        """
+        self.host = host
         self.effects = []
 
     def add_effect(self, effect):
@@ -39,6 +53,8 @@ class PhysicalModel(abc.ABC):
             An array of timestamps.
         bands : `numpy.ndarray`, optional
             An array of bands.
+        **kwargs : `dict`, optional
+           Any additional keyword arguments.
 
         Returns
         -------
@@ -56,6 +72,8 @@ class PhysicalModel(abc.ABC):
             An array of timestamps.
         bands : `numpy.ndarray`, optional
             An array of bands.
+        **kwargs : `dict`, optional
+           Any additional keyword arguments.
 
         Returns
         -------
@@ -68,7 +86,9 @@ class PhysicalModel(abc.ABC):
         return flux_density
 
 
-class EffectModel(abc.ABC):
+class EffectModel:
+    """A physical or systematic effect to apply to an observation."""
+
     def __init__(self, **kwargs):
         pass
 
@@ -95,6 +115,8 @@ class EffectModel(abc.ABC):
         physical_model : `PhysicalModel`
             A PhysicalModel from which the effect may query parameters
             such as redshift, position, or distance.
+        **kwargs : `dict`, optional
+           Any additional keyword arguments.
 
         Returns
         -------

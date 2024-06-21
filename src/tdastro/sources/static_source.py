@@ -5,13 +5,30 @@ from tdastro.base_models import PhysicalModel
 
 
 class StaticSource(PhysicalModel):
+    """A static source.
+
+    Attributes
+    ----------
+    brightness : `float`
+        The inherent brightness
+    """
+
     def __init__(self, brightness, **kwargs):
+        """Create a StaticSource object.
+
+        Parameters
+        ----------
+        brightness : `float`, `function`, or `None`
+            The inherent brightness
+        **kwargs : `dict`, optional
+           Any additional keyword arguments.
+        """
         super().__init__(**kwargs)
 
         if brightness is None:
             # If we were not given the parameter, use a default sampling function.
             self.brightness = np.random.rand(10.0, 20.0)
-        elif type(brightness) is types.FunctionType:
+        elif isinstance(brightness, types.FunctionType):
             # If we were given a sampling function, use it.
             self.brightness = brightness(**kwargs)
         else:
@@ -27,6 +44,8 @@ class StaticSource(PhysicalModel):
            An array of timestamps.
         bands : `numpy.ndarray`, optional
            An array of bands. If ``None`` then does something.
+        **kwargs : `dict`, optional
+           Any additional keyword arguments.
 
         Returns
         -------
