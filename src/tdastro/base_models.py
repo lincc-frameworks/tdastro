@@ -29,7 +29,7 @@ class PhysicalModel(abc.ABC):
 
             self.effects.append(effect)
 
-       def _observe(self, times, bands=None, **kwargs):
+       def _evaluate(self, times, bands=None, **kwargs):
             """Draw effect-free observations for this object.
 
             Parameters
@@ -46,7 +46,7 @@ class PhysicalModel(abc.ABC):
             """
             raise NotImplementedError()
 
-       def observe(self, times, bands=None, **kwargs):
+       def evaluate(self, times, bands=None, **kwargs):
             """Draw observations for this object and apply the noise.
 
             Parameters
@@ -61,7 +61,7 @@ class PhysicalModel(abc.ABC):
             flux_density : `numpy.ndarray`
                 The results.
             """
-            flux_density = self._observe(times, bands, **kwargs)
+            flux_density = self._evaluate(times, bands, **kwargs)
             for effect in self.effects:
                 flux_density = effect.apply(flux_density, bands, self, **kwargs)
             return flux_density
