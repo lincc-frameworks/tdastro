@@ -16,6 +16,7 @@ classifiers = [
 dynamic = ["version"]
 requires-python = ">=3.9"
 dependencies = [
+    "numpy",
 ]
 
 [project.urls]
