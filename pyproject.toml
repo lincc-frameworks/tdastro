@@ -16,7 +16,12 @@ classifiers = [
 dynamic = ["version"]
 requires-python = ">=3.9"
 dependencies = [
-    "numpy",
+    "astropy",
+    "extinction",
+    "fitsio",
+    "numpy<2.0",
+    "scipy",
+    "sfdmap",
 ]
 
 [project.urls]
