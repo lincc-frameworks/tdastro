@@ -17,11 +17,11 @@ dynamic = ["version"]
 requires-python = ">=3.9"
 dependencies = [
     "astropy",
+    "dustmaps",
     "extinction",
     "fitsio",
     "numpy<2.0",
     "scipy",
-    "sfdmap",
 ]
 
 [project.urls]

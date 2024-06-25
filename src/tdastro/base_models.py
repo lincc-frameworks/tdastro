@@ -35,15 +35,15 @@ class PhysicalModel:
 
         # Set RA, dec, and distance from the given value or, if it is None and
         # we have a host, from the host's value.
+        if ra is None and host is not None:
+            ra = host.ra
+        if dec is None and host is not None:
+            dec = host.dec
+        if distance is None and host is not None:
+            distance = host.distance
         self.ra = ra
         self.dec = dec
         self.distance = distance
-        if ra is None and host is not None:
-            self.ra = host.ra
-        if dec is None and host is not None:
-            self.dec = host.dec
-        if distance is None and host is not None:
-            self.distance = host.distance
 
         self.effects = []
 

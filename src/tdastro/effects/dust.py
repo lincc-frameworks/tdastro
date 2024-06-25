@@ -2,11 +2,13 @@
 extinction functions.
 
 This module is a wrapper for the following libraries:
-  * sfdmap - https://github.com/kbarbary/sfdmap
+  * dustmaps - https://github.com/gregreen/dustmaps
   * extinction - https://github.com/kbarbary/extinction
 """
 
 import extinction
+
+from astropy.coordinates import SkyCoord
 
 from tdastro.base_models import EffectModel
 
@@ -16,7 +18,7 @@ class DustExtinction(EffectModel):
 
     Attributes
     ----------
-    dust_map : `sfdmap.SFDMap`
+    dust_map : `dustmaps.DustMap`
         The dust map.
     extinction_func : `function`
         The extinction function to use.
@@ -31,7 +33,7 @@ class DustExtinction(EffectModel):
 
         Parameters
         ----------
-        dust_map : `sfdmap.SFDMap`
+        dust_map : `dustmaps.DustMap`
             The dust map.
         extinction_type : `str`
             The extinction function to use. Must be one of:
@@ -75,7 +77,7 @@ class DustExtinction(EffectModel):
         parameters : `list` of `str`
             A list of every required parameter the effect needs.
         """
-        return ['ra', 'dec']
+        return ["ra", "dec"]
 
     def apply(self, flux_density, wavelengths, physical_model, **kwargs):
         """Apply the effect to observations (flux_density values)
@@ -100,13 +102,18 @@ class DustExtinction(EffectModel):
         # Get the extinction value at the object's location.
         if physical_model is None:
             raise ValueError("physical_model cannot be None")
-        ebv = self.dust_map.ebv(physical_model.ra, physical_model.dec)
+        if physical_model.distance is None:
+            dist = 1.0
+        else:
+            dist = physical_model.distance
+        coord = SkyCoord(physical_model.ra, physical_model.dec, dist, frame="icrs", unit="deg")
+        ebv = self.dust_map.query(coord)
 
         # Apply the extinction.
         if wavelengths is None:
             raise ValueError("wavelengths cannot be None")
-        
-        if r_v is None:
+
+        if self.r_v is None:
             ext = self.extinction_func(wavelengths, ebv)
         else:
             ext = self.extinction_func(wavelengths, ebv, self.r_v)

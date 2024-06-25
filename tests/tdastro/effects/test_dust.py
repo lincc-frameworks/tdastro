@@ -1,6 +1,6 @@
 import numpy as np
-import os
-import sfdmap
+
+from dustmaps.sfd import SFDQuery
 
 from tdastro.effects.dust import DustExtinction
 from tdastro.sources.static_source import StaticSource
@@ -8,7 +8,7 @@ from tdastro.sources.static_source import StaticSource
 
 def test_sfd_dust_extinction(tdastro_data_dir):
     """Test that we can sample and create a DustExtinction object."""
-    dust_map = sfdmap.SFDMap(os.path.join(tdastro_data_dir, "sfddata-master"))
+    dust_map = SFDQuery()
     times = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
     wavelengths = np.array([800.0, 900.0, 1000.0, 1000.0, 900.0])
 
@@ -24,7 +24,7 @@ def test_sfd_dust_extinction(tdastro_data_dir):
     fluxes_ccm98 = model_ccm89.evaluate(times, wavelengths)
     assert len(fluxes_ccm98) == 5
     assert np.all(fluxes_ccm98 < 100.0)
-                      
+
     # Create a model with ccm89 extinction.
     model_fitzpatrick99 = StaticSource(brightness=100.0, ra=0.0, dec=40.0)
     model_fitzpatrick99.add_effect(DustExtinction(dust_map, "fitzpatrick99"))
