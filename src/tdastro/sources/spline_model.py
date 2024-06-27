@@ -11,7 +11,7 @@ from tdastro.base_models import PhysicalModel
 
 
 class SplineModel(PhysicalModel):
-    """A time series model define by sample points where the intermediate
+    """A time series model defined by sample points where the intermediate
     points are fit by a spline. Based on sncosmo's TimeSeriesSource:
     https://github.com/sncosmo/sncosmo/blob/v2.10.1/sncosmo/models.py
 
