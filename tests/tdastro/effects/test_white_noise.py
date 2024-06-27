@@ -13,7 +13,10 @@ def test_white_noise() -> None:
     model = StaticSource(brightness=brightness_generator)
     model.add_effect(WhiteNoise(scale=0.01))
 
-    values = model.evaluate(np.array([1, 2, 3, 4, 5]))
-    assert len(values) == 5
+    times = np.array([1, 2, 3, 5, 10])
+    wavelengths = np.array([100.0, 200.0, 300.0])
+
+    values = model.evaluate(times, wavelengths)
+    assert values.shape == (5, 3)
     assert not np.all(values == 10.0)
     assert np.all(np.abs(values - 10.0) < 1.0)

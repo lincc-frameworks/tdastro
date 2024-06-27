@@ -36,13 +36,13 @@ class StaticSource(PhysicalModel):
             # Otherwise assume we were given the parameter itself.
             self.brightness = brightness
 
-    def _evaluate(self, times, wavelengths=None, **kwargs):
+    def _evaluate(self, times, wavelengths, **kwargs):
         """Draw effect-free observations for this object.
 
         Parameters
         ----------
         times : `numpy.ndarray`
-            A length N array of timestamps.
+            A length T array of timestamps.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
         **kwargs : `dict`, optional
@@ -51,6 +51,6 @@ class StaticSource(PhysicalModel):
         Returns
         -------
         flux_density : `numpy.ndarray`
-            A length N-array of flux densities.
+            A length T x N matrix of SED values.
         """
-        return np.full_like(times, self.brightness)
+        return np.full((len(times), len(wavelengths)), self.brightness)
