@@ -1,6 +1,9 @@
-import types
+"""The SplineModel represents SED functions as a two dimensional grid
+of (time, wavelength) -> flux value that is interpolated using a 2D spline.
 
-import numpy as np
+It is adapted from sncosmo's TimeSeriesSource model:
+https://github.com/sncosmo/sncosmo/blob/v2.10.1/sncosmo/models.py
+"""
 
 from scipy.interpolate import RectBivariateSpline
 
@@ -67,13 +70,13 @@ class SplineModel(PhysicalModel):
         self._wavelengths = wavelengths
         self._spline = RectBivariateSpline(times, wavelengths, flux, kx=time_degree, ky=wave_degree)
 
-    def _evaluate(self, times, wavelengths):
+    def _evaluate(self, times, wavelengths, **kwargs):
         """Draw effect-free observations for this object.
 
         Parameters
         ----------
         times : `numpy.ndarray`
-            A length N array of timestamps.
+            A length T array of timestamps.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
         **kwargs : `dict`, optional
@@ -82,6 +85,6 @@ class SplineModel(PhysicalModel):
         Returns
         -------
         flux_density : `numpy.ndarray`
-            A length N-array of flux densities.
+            A length T x N matrix of SED values.
         """
-        return self.amplitude * self._spline(times, wavelengths, grid=False)
+        return self.amplitude * self._spline(times, wavelengths, grid=True)
