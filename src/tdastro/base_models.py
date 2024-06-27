@@ -69,13 +69,13 @@ class PhysicalModel:
 
         self.effects.append(effect)
 
-    def _evaluate(self, times, wavelengths=None, **kwargs):
+    def _evaluate(self, times, wavelengths, **kwargs):
         """Draw effect-free observations for this object.
 
         Parameters
         ----------
         times : `numpy.ndarray`
-            A length N array of timestamps.
+            A length T array of timestamps.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
         **kwargs : `dict`, optional
@@ -84,17 +84,17 @@ class PhysicalModel:
         Returns
         -------
         flux_density : `numpy.ndarray`
-            A length N-array of flux densities.
+            A length T x N matrix of SED values.
         """
         raise NotImplementedError()
 
-    def evaluate(self, times, wavelengths=None, **kwargs):
+    def evaluate(self, times, wavelengths, **kwargs):
         """Draw observations for this object and apply the noise.
 
         Parameters
         ----------
         times : `numpy.ndarray`
-            A length N array of timestamps.
+            A length T array of timestamps.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
         **kwargs : `dict`, optional
@@ -103,7 +103,7 @@ class PhysicalModel:
         Returns
         -------
         flux_density : `numpy.ndarray`
-            A length N-array of flux densities.
+            A length T x N matrix of SED values.
         """
         flux_density = self._evaluate(times, wavelengths, **kwargs)
         for effect in self.effects:
@@ -134,7 +134,7 @@ class EffectModel:
         Parameters
         ----------
         flux_density : `numpy.ndarray`
-            A length N array of flux density values.
+            A length T X N matrix of flux density values.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
         physical_model : `PhysicalModel`
@@ -146,6 +146,6 @@ class EffectModel:
         Returns
         -------
         flux_density : `numpy.ndarray`
-            A length N-array of flux densities after the effect is applied.
+            A length T x N matrix of flux densities after the effect is applied.
         """
         raise NotImplementedError()

@@ -10,8 +10,11 @@ def test_static_source() -> None:
     assert model.dec is None
     assert model.distance is None
 
-    values = model.evaluate(np.array([1, 2, 3, 4, 5, 10]))
-    assert len(values) == 6
+    times = np.array([1, 2, 3, 4, 5, 10])
+    wavelengths = np.array([100.0, 200.0, 300.0])
+
+    values = model.evaluate(times, wavelengths)
+    assert values.shape == (6, 3)
     assert np.all(values == 10.0)
 
 
