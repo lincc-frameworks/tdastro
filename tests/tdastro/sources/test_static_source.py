@@ -1,5 +1,20 @@
+import random
+
 import numpy as np
 from tdastro.sources.static_source import StaticSource
+
+
+def _sampler_fun(magnitude, **kwargs):
+    """Return a random value between 0 and magnitude.
+
+    Parameters
+    ----------
+    magnitude : `float`
+        The range of brightness magnitude
+    **kwargs : `dict`, optional
+        Absorbs additional parameters
+    """
+    return magnitude * random.random()
 
 
 def test_static_source() -> None:
@@ -27,3 +42,21 @@ def test_static_source_host() -> None:
     assert model.ra == 1.0
     assert model.dec == 2.0
     assert model.distance == 3.0
+
+
+def test_static_source_resample() -> None:
+    """Check that we can call resample on the model parameters."""
+    model = StaticSource(brightness=_sampler_fun, magnitude=100.0)
+
+    num_samples = 100
+    values = np.zeros((num_samples, 1))
+    for i in range(num_samples):
+        model.sample_parameters(magnitude=100.0)
+        values[i] = model.brightness
+
+    # Check that the values fall within the expected bounds.
+    assert np.all(values >= 0.0)
+    assert np.all(values <= 100.0)
+
+    # Check that the values are not all the same.
+    assert not np.all(values == values[0])
