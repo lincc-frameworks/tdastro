@@ -87,7 +87,7 @@ class PhysicalModel:
         Raise a ``KeyError`` if there is a parameter collision.
         Raise a ``ValueError`` if the parameter is required, but set to None.
         """
-        if hasattr(self, name):
+        if hasattr(self, name) and getattr(self, name) is not None:
             raise KeyError(f"Duplicate parameter set: {KeyError}")
 
         if value is None and name in kwargs:
