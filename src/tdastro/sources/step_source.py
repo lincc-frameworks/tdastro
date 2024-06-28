@@ -1,29 +1,38 @@
 import numpy as np
 
-from tdastro.base_models import PhysicalModel
+from tdastro.sources.static_source import StaticSource
 
 
-class StaticSource(PhysicalModel):
-    """A static source.
+class StepSource(StaticSource):
+    """A static source that is on for a fixed amount of time
 
     Attributes
     ----------
     brightness : `float`
         The inherent brightness
+    t_start : `float`
+        The time the step function starts
+    t_end : `float`
+        The time the step function ends
     """
 
-    def __init__(self, brightness, **kwargs):
+    def __init__(self, brightness, t_start, t_end, **kwargs):
         """Create a StaticSource object.
 
         Parameters
         ----------
         brightness : `float`, `function`, or `None`
             The inherent brightness
+        t_start : `float`
+            The time the step function starts
+        t_end : `float`
+            The time the step function ends
         **kwargs : `dict`, optional
            Any additional keyword arguments.
         """
-        super().__init__(**kwargs)
-        self.add_parameter("brightness", brightness, required=True, **kwargs)
+        super().__init__(brightness, **kwargs)
+        self.add_parameter("t_start", t_start, required=True, **kwargs)
+        self.add_parameter("t_end", t_end, required=True, **kwargs)
 
     def _evaluate(self, times, wavelengths, **kwargs):
         """Draw effect-free observations for this object.
@@ -42,4 +51,8 @@ class StaticSource(PhysicalModel):
         flux_density : `numpy.ndarray`
             A length T x N matrix of SED values.
         """
-        return np.full((len(times), len(wavelengths)), self.brightness)
+        flux_density = np.zeros((len(times), len(wavelengths)))
+
+        time_mask = (times >= self.t_start) & (times <= self.t_end)
+        flux_density[time_mask] = self.brightness
+        return flux_density

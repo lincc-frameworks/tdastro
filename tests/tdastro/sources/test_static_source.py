@@ -4,8 +4,16 @@ import numpy as np
 from tdastro.sources.static_source import StaticSource
 
 
-def _sampler_fun(magnitude):
-    """Return a random value between 0 and magnitude"""
+def _sampler_fun(magnitude, **kwargs):
+    """Return a random value between 0 and magnitude.
+
+    Parameters
+    ----------
+    magnitude : `float`
+        The range of brightness magnitude
+    **kwargs : `dict`, optional
+        Absorbs additional parameters
+    """
     return magnitude * random.random()
 
 
