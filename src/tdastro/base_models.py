@@ -1,5 +1,23 @@
+import types
+from enum import Enum
+
+
+class ParameterSource(Enum):
+    """ParameterSource specifies where a PhysicalModel should get the value
+    for a given parameter: a constant value, a function, or from the host.
+    """
+
+    # TODO support something like TensorFlow probability to provide a DAG
+    # of sampling dependencies.
+    CONSTANT = 1
+    FUNCTION = 2
+    HOST = 3
+
+
 class PhysicalModel:
-    """A physical model of a source of flux.
+    """A physical model of a source of flux. Physical models can have fixed attributes
+    (where you need to create a new model to change them) and settable attributes that
+    can be passed functions or constants.
 
     Attributes
     ----------
@@ -11,6 +29,9 @@ class PhysicalModel:
         The object's declination (in degrees)
     distance : `float`
         The object's distance (in au)
+    setters : `dict` or `tuple`
+        A dictionary to information about the setters for the parameters in the form:
+        (ParameterSource, value).
     effects : `list`
         A list of effects to apply to an observations.
     """
@@ -32,20 +53,85 @@ class PhysicalModel:
            Any additional keyword arguments.
         """
         self.host = host
-
-        # Set RA, dec, and distance from the given value or, if it is None and
-        # we have a host, from the host's value.
-        self.ra = ra
-        self.dec = dec
-        self.distance = distance
-        if ra is None and host is not None:
-            self.ra = host.ra
-        if dec is None and host is not None:
-            self.dec = host.dec
-        if distance is None and host is not None:
-            self.distance = host.distance
-
         self.effects = []
+        self.setters = {}
+
+        # Set RA, dec, and distance from the parameters.
+        self.add_parameter("ra", ra)
+        self.add_parameter("dec", dec)
+        self.add_parameter("distance", distance)
+
+    def add_parameter(self, name, value=None, required=False, **kwargs):
+        """Add a single parameter to the PhysicalModel. Checks multiple sources
+        in the following order:
+            1. Manually specified ``value``
+            2. An entry in ``kwargs``
+            3. An entry in the object's host.
+            4. ``None``
+        Sets an initial value for the attribute based on the given information.
+
+        Parameters
+        ----------
+        name : `str`
+            The parameter name to add.
+        value : any, optional
+            The information to use to set the parameter. Can be a constant
+            or a function.
+        required : `bool`
+            Fail if the parameter is set to ``None``.
+        **kwargs : `dict`, optional
+           All other keyword arguments, possibly including the parameter setters.
+
+        Raises
+        ------
+        Raise a ``KeyError`` if there is a parameter collision.
+        Raise a ``ValueError`` if the parameter is required, but set to None.
+        """
+        if hasattr(self, name):
+            raise KeyError(f"Duplicate parameter set: {KeyError}")
+
+        if value is None and name in kwargs:
+            # The value wasn't set, but the name is in kwargs.
+            value = kwargs[name]
+        if value is not None:
+            if isinstance(value, types.FunctionType):
+                self.setters[name] = (ParameterSource.FUNCTION, value)
+                setattr(self, name, value(**kwargs))
+            else:
+                self.setters[name] = (ParameterSource.CONSTANT, value)
+                setattr(self, name, value)
+        elif self.host is not None and hasattr(self.host, name):
+            self.setters[name] = (ParameterSource.HOST, name)
+            setattr(self, name, getattr(self.host, name))
+        elif not required:
+            self.setters[name] = (ParameterSource.CONSTANT, None)
+            setattr(self, name, None)
+        else:
+            raise ValueError(f"Missing required parameter {name}")
+
+    def sample_parameters(self, **kwargs):
+        """Sample the model's underlying parameters if they are provided by a function.
+
+        Parameters
+        ----------
+        **kwargs : `dict`, optional
+           All the keyword arguments, including the values needed to sample parameters.
+        """
+        if self.host is not None:
+            self.host.sample_parameters(**kwargs)
+
+        # Run through each parameter and sample it based on the given recipe.
+        for param, value in self.setters.items():
+            sampled_value = None
+            if value[0] == ParameterSource.CONSTANT:
+                sampled_value = value[1]
+            elif value[0] == ParameterSource.FUNCTION:
+                sampled_value = value[1](**kwargs)
+            elif value[0] == ParameterSource.HOST:
+                sampled_value = self.host.getattr(param)
+            else:
+                raise ValueError(f"Unknown ParameterSource type {value[0]}")
+            setattr(self, param, sampled_value)
 
     def add_effect(self, effect):
         """Add a transformational effect to the PhysicalModel.
@@ -88,7 +174,7 @@ class PhysicalModel:
         """
         raise NotImplementedError()
 
-    def evaluate(self, times, wavelengths, **kwargs):
+    def evaluate(self, times, wavelengths, resample_parameters=False, **kwargs):
         """Draw observations for this object and apply the noise.
 
         Parameters
@@ -97,6 +183,9 @@ class PhysicalModel:
             A length T array of timestamps.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
+        resample_parameters : `bool`
+            Treat this evaluation as a completely new object, resampling the
+            parameters from the original provided functions.
         **kwargs : `dict`, optional
            Any additional keyword arguments.
 
@@ -105,6 +194,9 @@ class PhysicalModel:
         flux_density : `numpy.ndarray`
             A length T x N matrix of SED values.
         """
+        if resample_parameters:
+            self.sample_parameters(kwargs)
+
         flux_density = self._evaluate(times, wavelengths, **kwargs)
         for effect in self.effects:
             flux_density = effect.apply(flux_density, wavelengths, self, **kwargs)

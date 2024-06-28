@@ -64,8 +64,12 @@ class SplineModel(PhysicalModel):
         """
         super().__init__(**kwargs)
 
+        # Set the attributes that can be changed (e.g. sampled)
+        self.add_parameter("amplitude", amplitude, **kwargs)
+
+        # These parameters are directly set, because they cannot be changed once
+        # the object is created.
         self.name = name
-        self.amplitude = amplitude
         self._times = times
         self._wavelengths = wavelengths
         self._spline = RectBivariateSpline(times, wavelengths, flux, kx=time_degree, ky=wave_degree)
