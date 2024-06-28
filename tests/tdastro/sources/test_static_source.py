@@ -1,4 +1,5 @@
 import numpy as np
+from tdastro.common_citations import numpy_citation
 from tdastro.sources.static_source import StaticSource
 
 
@@ -27,3 +28,11 @@ def test_static_source_host() -> None:
     assert model.ra == 1.0
     assert model.dec == 2.0
     assert model.distance == 3.0
+
+
+def test_static_source_citations() -> None:
+    """Test that we get the citation string for numpy."""
+    model = StaticSource(brightness=10.0)
+    citations = model.get_citations()
+    assert len(citations) == 1
+    assert numpy_citation in citations

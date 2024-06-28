@@ -8,6 +8,7 @@ https://github.com/sncosmo/sncosmo/blob/v2.10.1/sncosmo/models.py
 from scipy.interpolate import RectBivariateSpline
 
 from tdastro.base_models import PhysicalModel
+from tdastro.common_citations import scipy_citation, sncosmo_citation
 
 
 class SplineModel(PhysicalModel):
@@ -88,3 +89,13 @@ class SplineModel(PhysicalModel):
             A length T x N matrix of SED values.
         """
         return self.amplitude * self._spline(times, wavelengths, grid=True)
+
+    def _get_citation(self):
+        """Get the citation for this specific model.
+
+        Returns
+        -------
+        citations : `set`
+            A set of strings containing citations needed for this model.
+        """
+        return set([scipy_citation, sncosmo_citation])

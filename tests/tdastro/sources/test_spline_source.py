@@ -1,4 +1,5 @@
 import numpy as np
+from tdastro.common_citations import numpy_citation, scipy_citation, sncosmo_citation
 from tdastro.sources.spline_model import SplineModel
 
 
@@ -40,3 +41,17 @@ def test_spline_model_interesting() -> None:
         [[1.0, 3.0, 5.0, 1.0], [3.0, 5.25, 7.5, 3.0], [5.0, 7.5, 10.0, 5.0], [1.0, 3.0, 5.0, 3.0]]
     )
     np.testing.assert_array_almost_equal(values, expected)
+
+
+def test_static_source_citations() -> None:
+    """Test that we get the citation string for a SplineModel."""
+    times = np.linspace(1.0, 5.0, 20)
+    wavelengths = np.linspace(100.0, 500.0, 25)
+    fluxes = np.full((len(times), len(wavelengths)), 1.0)
+    model = SplineModel(times, wavelengths, fluxes)
+
+    citations = model.get_citations()
+    assert len(citations) == 3
+    assert numpy_citation in citations
+    assert scipy_citation in citations
+    assert sncosmo_citation in citations

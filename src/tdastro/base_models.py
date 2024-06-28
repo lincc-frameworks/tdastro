@@ -1,3 +1,6 @@
+from tdastro.common_citations import numpy_citation
+
+
 class PhysicalModel:
     """A physical model of a source of flux.
 
@@ -110,6 +113,39 @@ class PhysicalModel:
             flux_density = effect.apply(flux_density, wavelengths, self, **kwargs)
         return flux_density
 
+    def _get_citation(self):
+        """Get the citation for this specific model.
+
+        Returns
+        -------
+        citations : `set`
+            A set of strings containing citations needed for this model.
+        """
+        return set()
+
+    def get_citations(self):
+        """Get the citations for this model, its host, and its effects.
+
+        Returns
+        -------
+        citations : `set`
+            A set of citation strings.
+        """
+        # Numpy is a base citation for all models.
+        citations = set([numpy_citation])
+
+        # Add model specific citations.
+        citations = citations.union(self._get_citation())
+
+        # Add any host specific citations.
+        if self.host is not None:
+            citations = citations.union(self.host.get_citations())
+
+        # Add citations for each effect.
+        for effect in self.effects:
+            citations = citations.union(effect.get_citations())
+        return citations
+
 
 class EffectModel:
     """A physical or systematic effect to apply to an observation."""
@@ -149,3 +185,13 @@ class EffectModel:
             A length T x N matrix of flux densities after the effect is applied.
         """
         raise NotImplementedError()
+
+    def get_citations(self):
+        """Get the citation for this specific effect.
+
+        Returns
+        -------
+        citations : `set`
+            A set of strings with at most one element.
+        """
+        return set()
