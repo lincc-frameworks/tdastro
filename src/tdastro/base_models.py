@@ -197,9 +197,15 @@ class PhysicalModel:
         if resample_parameters:
             self.sample_parameters(kwargs)
 
+        for effect in self.effects:
+            if hasattr(effect, "pre_effect"):  # pre-effects == adjustments done to times and/or wavelengths
+                times, wavelengths = effect.pre_effect(times, wavelengths, **kwargs)
+
         flux_density = self._evaluate(times, wavelengths, **kwargs)
+
         for effect in self.effects:
             flux_density = effect.apply(flux_density, wavelengths, self, **kwargs)
+
         return flux_density
 
 
