@@ -9,7 +9,7 @@ class Redshift(EffectModel):
 
     Attributes
     ----------
-    pz : `float`
+    redshift : `float`
         The redshift.
 
     Notes
@@ -20,18 +20,18 @@ class Redshift(EffectModel):
     - observed_flux = emitted_flux / (1 + redshift)
     """
 
-    def __init__(self, pz, **kwargs):
+    def __init__(self, redshift, **kwargs):
         """Create a Redshift effect model.
 
         Parameters
         ----------
-        pz : `float`
+        redshift : `float`
             The redshift.
         **kwargs : `dict`, optional
            Any additional keyword arguments.
         """
         super().__init__(**kwargs)
-        self.pz = pz
+        self.redshift = redshift
 
     def pre_effect(self, observed_times, observed_wavelengths, **kwargs):
         """Calculate the emitted wavelengths/times needed to give us the observed wavelengths
@@ -51,7 +51,7 @@ class Redshift(EffectModel):
         float
             The adjusted flux density at the observed wavelength.
         """
-        return (observed_times / (1 + self.pz), observed_wavelengths / (1 + self.pz))
+        return (observed_times / (1 + self.redshift), observed_wavelengths / (1 + self.redshift))
 
     def apply(self, flux_density, bands=None, physical_model=None, **kwargs):
         """Apply the effect to observations (flux_density values).
@@ -73,4 +73,4 @@ class Redshift(EffectModel):
         flux_density : `numpy.ndarray`
             The results.
         """
-        return flux_density / (1 + self.pz)
+        return flux_density / (1 + self.redshift)

@@ -7,7 +7,7 @@ def get_no_effect_and_redshifted_values(times, wavelengths, t_start, t_end, brig
     """Get the values for a source with no effects and a redshifted source."""
     model_no_effects = StepSource(brightness=brightness, t_start=t_start, t_end=t_end)
     model_redshift = StepSource(brightness=brightness, t_start=t_start, t_end=t_end)
-    model_redshift.add_effect(Redshift(pz=redshift))
+    model_redshift.add_effect(Redshift(redshift=redshift))
 
     values_no_effects = model_no_effects.evaluate(times, wavelengths)
     values_redshift = model_redshift.evaluate(times, wavelengths)
@@ -60,7 +60,7 @@ def test_other_redshift_values() -> None:
 
     for redshift in [0.0, 0.5, 2.0, 3.0, 30.0]:
         model_redshift = StepSource(brightness=brightness, t_start=t_start, t_end=t_end)
-        model_redshift.add_effect(Redshift(pz=redshift))
+        model_redshift.add_effect(Redshift(redshift=redshift))
         values_redshift = model_redshift.evaluate(times, wavelengths)
 
         for i, time in enumerate(times):
