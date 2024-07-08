@@ -37,7 +37,7 @@ def test_static_source_host() -> None:
     """Test that we can sample and create a StaticSource object with properties
     derived from the host object."""
     host = StaticSource(brightness=15.0, ra=1.0, dec=2.0, distance=3.0)
-    model = StaticSource(brightness=10.0, host=host)
+    model = StaticSource(brightness=10.0, ra=host, dec=host, distance=host)
     assert model.brightness == 10.0
     assert model.ra == 1.0
     assert model.dec == 2.0
