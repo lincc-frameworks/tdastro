@@ -20,8 +20,10 @@ def black_body_luminosity_density(temperature, radius, wavelengths):
     luminosity_density : `numpy.ndarray`
         A length N array of luminosity density values.
     """
-    black_body = BlackBody(temperature)
-    intensity_per_freq = black_body(wavelengths * u.cm).to_cgs().value
+    black_body = BlackBody(temperature * u.K)
+    intensity_per_freq = black_body(wavelengths * u.cm).to_value(
+        u.erg * u.cm**-2 * u.s**-1 * u.steradian**-1 * u.Hz**-1
+    )
     surface_flux = intensity_per_freq * np.pi
     surface_area = 4.0 * np.pi * radius**2
     return surface_flux * surface_area
