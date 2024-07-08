@@ -76,7 +76,7 @@ class SplineModel(PhysicalModel):
 
     def __str__(self):
         """Return the string representation of the model."""
-        return f"SplineSource{self.name}"
+        return f"SplineModel({self.name})"
 
     def _evaluate(self, times, wavelengths, **kwargs):
         """Draw effect-free observations for this object.

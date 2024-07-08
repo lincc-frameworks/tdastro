@@ -24,6 +24,7 @@ def test_static_source() -> None:
     assert model.ra is None
     assert model.dec is None
     assert model.distance is None
+    assert str(model) == "StaticSource(10.0)"
 
     times = np.array([1, 2, 3, 4, 5, 10])
     wavelengths = np.array([100.0, 200.0, 300.0])

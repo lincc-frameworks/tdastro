@@ -27,7 +27,7 @@ class StaticSource(PhysicalModel):
 
     def __str__(self):
         """Return the string representation of the model."""
-        return "StaticSource(self.brightness)"
+        return f"StaticSource({self.brightness})"
 
     def _evaluate(self, times, wavelengths, **kwargs):
         """Draw effect-free observations for this object.

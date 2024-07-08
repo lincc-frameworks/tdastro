@@ -37,7 +37,6 @@ class ParameterizedModel:
         **kwargs : `dict`, optional
            Any additional keyword arguments.
         """
-        self.model_name = "ParameterizedModel"
         self.setters = {}
         self.sample_iteration = 0
 

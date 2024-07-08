@@ -41,6 +41,7 @@ def test_step_source() -> None:
     assert model.ra == 1.0
     assert model.dec == 2.0
     assert model.distance == 3.0
+    assert str(model) == "StepSource(15.0)_1.0_to_2.0"
 
     times = np.array([0.0, 1.0, 2.0, 3.0])
     wavelengths = np.array([100.0, 200.0])
