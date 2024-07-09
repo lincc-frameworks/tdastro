@@ -21,16 +21,17 @@ class ParameterizedModel:
 
     Attributes
     ----------
-    setters : `dict` or `tuple`
+    setters : `list` of `tuple`
         A dictionary to information about the setters for the parameters in the form:
-        (ParameterSource, value).
+        (name, ParameterSource, setter information). The attributes are stored in the
+        order in which they need to be set.
     sample_iteration : `int`
         A counter used to syncronize  sampling runs. Tracks how many times this
         model's parameters have been resampled.
     """
 
     def __init__(self, **kwargs):
-        self.setters = {}
+        self.setters = []
         self.sample_iteration = 0
 
     def __str__(self):
@@ -39,11 +40,10 @@ class ParameterizedModel:
 
     def add_parameter(self, name, value=None, required=False, **kwargs):
         """Add a single parameter to the ParameterizedModel. Checks multiple sources
-        in the following order:
-            1. Manually specified ``value``
-            2. An entry in ``kwargs``
-            3. ``None``
+        in the following order: 1. Manually specified ``value``, 2. An entry in ``kwargs``,
+        or 3. ``None``.
         Sets an initial value for the attribute based on the given information.
+        The attributes are stored in the order in which they are added.
 
         Parameters
         ----------
@@ -72,24 +72,26 @@ class ParameterizedModel:
         if value is not None:
             if isinstance(value, types.FunctionType):
                 # Case 1: If we are getting from a static function, sample it.
-                self.setters[name] = (ParameterSource.FUNCTION, value)
+                self.setters.append((name, ParameterSource.FUNCTION, value))
                 setattr(self, name, value(**kwargs))
             elif isinstance(value, types.MethodType) and isinstance(value.__self__, ParameterizedModel):
                 # Case 2: We are trying to use the method from a ParameterizedModel.
-                self.setters[name] = (ParameterSource.MODEL_METHOD, value)
+                # Note that this will (correctly) fail if we are adding a model method from the current
+                # object that requires an unset attribute.
+                self.setters.append((name, ParameterSource.MODEL_METHOD, value))
                 setattr(self, name, value(**kwargs))
             elif isinstance(value, ParameterizedModel):
                 # Case 3: We are trying to access an attribute from a parameterized model.
                 if not hasattr(value, name):
                     raise ValueError(f"Attribute {name} missing from parent.")
-                self.setters[name] = (ParameterSource.MODEL_ATTRIBUTE, value)
+                self.setters.append((name, ParameterSource.MODEL_ATTRIBUTE, value))
                 setattr(self, name, getattr(value, name))
             else:
                 # Case 4: The value is constant.
-                self.setters[name] = (ParameterSource.CONSTANT, value)
+                self.setters.append((name, ParameterSource.CONSTANT, value))
                 setattr(self, name, value)
         elif not required:
-            self.setters[name] = (ParameterSource.CONSTANT, None)
+            self.setters.append((name, ParameterSource.CONSTANT, None))
             setattr(self, name, None)
         else:
             raise ValueError(f"Missing required parameter {name}")
@@ -102,7 +104,7 @@ class ParameterizedModel:
         ----------
         max_depth : `int`
             The maximum recursive depth. Used to prevent infinite loops.
-            Most users should not need to set this manually.
+            Users should not need to set this manually.
         **kwargs : `dict`, optional
             All the keyword arguments, including the values needed to sample
             parameters.
@@ -116,28 +118,28 @@ class ParameterizedModel:
             raise ValueError(f"Maximum sampling depth exceeded at {self}. Potential infinite loop.")
 
         # Run through each parameter and sample it based on the given recipe.
-        for param, value in self.setters.items():
+        for name, source_type, setter in self.setters:
             sampled_value = None
-            if value[0] == ParameterSource.CONSTANT:
-                sampled_value = value[1]
-            elif value[0] == ParameterSource.FUNCTION:
-                sampled_value = value[1](**kwargs)
-            elif value[0] == ParameterSource.MODEL_ATTRIBUTE:
+            if source_type == ParameterSource.CONSTANT:
+                sampled_value = setter
+            elif source_type == ParameterSource.FUNCTION:
+                sampled_value = setter(**kwargs)
+            elif source_type == ParameterSource.MODEL_ATTRIBUTE:
                 # Check if we need to resample the parent (needs to be done before
                 # we read its attribute).
-                if value[1].sample_iteration == self.sample_iteration:
-                    value[1].sample_parameters(max_depth - 1, **kwargs)
-                sampled_value = getattr(value[1], param)
-            elif value[0] == ParameterSource.MODEL_METHOD:
+                if setter.sample_iteration == self.sample_iteration:
+                    setter.sample_parameters(max_depth - 1, **kwargs)
+                sampled_value = getattr(setter, name)
+            elif source_type == ParameterSource.MODEL_METHOD:
                 # Check if we need to resample the parent (needs to be done before
-                # we evaluate its method).
-                parent = value[1].__self__
-                if parent.sample_iteration == self.sample_iteration:
+                # we evaluate its method). Do not resample the current object.
+                parent = setter.__self__
+                if parent is not self and parent.sample_iteration == self.sample_iteration:
                     parent.sample_parameters(max_depth - 1, **kwargs)
-                sampled_value = value[1](**kwargs)
+                sampled_value = setter(**kwargs)
             else:
-                raise ValueError(f"Unknown ParameterSource type {value[0]}")
-            setattr(self, param, sampled_value)
+                raise ValueError(f"Unknown ParameterSource type {source_type} for {name}")
+            setattr(self, name, sampled_value)
 
         # Increase the sampling iteration.
         self.sample_iteration += 1
@@ -173,7 +175,7 @@ class PhysicalModel(ParameterizedModel):
         """Return the string representation of the model."""
         return "PhysicalModel"
 
-    def add_effect(self, effect):
+    def add_effect(self, effect, **kwargs):
         """Add a transformational effect to the PhysicalModel.
         Effects are applied in the order in which they are added.
 
@@ -181,6 +183,8 @@ class PhysicalModel(ParameterizedModel):
         ----------
         effect : `EffectModel`
             The effect to apply.
+        **kwargs : `dict`, optional
+           Any additional keyword arguments.
 
         Raises
         ------
@@ -242,12 +246,33 @@ class PhysicalModel(ParameterizedModel):
             flux_density = effect.apply(flux_density, wavelengths, self, **kwargs)
         return flux_density
 
+    def sample_parameters(self, include_effects=True, **kwargs):
+        """Sample the model's underlying parameters if they are provided by a function
+        or ParameterizedModel.
 
-class EffectModel:
+        Parameters
+        ----------
+        include_effects : `bool`
+            Resample the parameters for the effects models.
+        **kwargs : `dict`, optional
+            All the keyword arguments, including the values needed to sample
+            parameters.
+        """
+        super().sample_parameters(**kwargs)
+        if include_effects:
+            for effect in self.effects:
+                effect.sample_parameters(**kwargs)
+
+
+class EffectModel(ParameterizedModel):
     """A physical or systematic effect to apply to an observation."""
 
     def __init__(self, **kwargs):
-        pass
+        super().__init__(**kwargs)
+
+    def __str__(self):
+        """Return the string representation of the model."""
+        return "EffectModel"
 
     def required_parameters(self):
         """Returns a list of the parameters of a PhysicalModel

@@ -20,10 +20,12 @@ class PairModel(ParameterizedModel):
 
     Attributes
     ----------
-    value1 : `float`, `function`, `ParameterizedModel`, or `None`
+    value1 : `float`
         The first value.
-    value2 : `float`, `function`, `ParameterizedModel`, or `None`
+    value2 : `float`
         The second value.
+    value_sum : `float`
+        The sum of the two values.
     """
 
     def __init__(self, value1, value2, **kwargs):
@@ -41,6 +43,7 @@ class PairModel(ParameterizedModel):
         super().__init__(**kwargs)
         self.add_parameter("value1", value1, required=True, **kwargs)
         self.add_parameter("value2", value2, required=True, **kwargs)
+        self.add_parameter("value_sum", self.result, required=True, **kwargs)
 
     def result(self, **kwargs):
         """Add the pair of values together
@@ -48,7 +51,12 @@ class PairModel(ParameterizedModel):
         Parameters
         ----------
         **kwargs : `dict`, optional
-           Any additional keyword arguments.
+            Any additional keyword arguments.
+
+        Returns
+        -------
+        result : `float`
+            The result of the addition.
         """
         return self.value1 + self.value2
 
@@ -60,6 +68,7 @@ def test_parameterized_model() -> None:
     assert model1.value1 == 0.5
     assert model1.value1 == 0.5
     assert model1.result() == 1.0
+    assert model1.value_sum == 1.0
     assert model1.sample_iteration == 0
 
     # Use value1=model.value and value2=1.0
@@ -67,18 +76,21 @@ def test_parameterized_model() -> None:
     assert model2.value1 == 0.5
     assert model2.value2 == 1.0
     assert model2.result() == 1.5
+    assert model2.value_sum == 1.5
     assert model2.sample_iteration == 0
 
     # Compute value1 from model2's result and value2 from the sampler function.
     model3 = PairModel(value1=model2.result, value2=_sampler_fun)
     rand_val = model3.value2
     assert model3.result() == pytest.approx(1.5 + rand_val)
+    assert model3.value_sum == pytest.approx(1.5 + rand_val)
     assert model3.sample_iteration == 0
 
     # Compute value1 from model3's result (which is itself the result for model2 +
     # a random value) and value2 = -1.0.
     model4 = PairModel(value1=model3.result, value2=-1.0)
     assert model4.result() == pytest.approx(0.5 + rand_val)
+    assert model4.value_sum == pytest.approx(0.5 + rand_val)
     assert model4.sample_iteration == 0
     final_res = model4.result()
 
@@ -92,13 +104,17 @@ def test_parameterized_model() -> None:
     assert model1.value1 == 0.5
     assert model1.value1 == 0.5
     assert model1.result() == 1.0
+    assert model1.value_sum == 1.0
     assert model2.value1 == 0.5
     assert model2.value2 == 1.0
     assert model2.result() == 1.5
+    assert model2.value_sum == 1.5
 
     # Models 3 and 4 use the data from the new random value.
     assert model3.result() == pytest.approx(1.5 + rand_val)
     assert model4.result() == pytest.approx(0.5 + rand_val)
+    assert model3.value_sum == pytest.approx(1.5 + rand_val)
+    assert model4.value_sum == pytest.approx(0.5 + rand_val)
     assert final_res != model4.result()
 
     # All models should have the same sample iteration.
