@@ -78,7 +78,7 @@ class ParameterizedModel:
             value = kwargs[name]
         if value is not None:
             if isinstance(value, types.FunctionType):
-                # Case #1: If we are getting from a static function, sample it.
+                # Case 1: If we are getting from a static function, sample it.
                 self.setters[name] = (ParameterSource.FUNCTION, value)
                 setattr(self, name, value(**kwargs))
             elif isinstance(value, types.MethodType) and isinstance(value.__self__, ParameterizedModel):
