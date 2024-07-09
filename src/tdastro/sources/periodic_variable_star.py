@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 
-from tdastro.astro_utils.black_body import black_body_luminosity_density
+from tdastro.astro_utils.black_body import black_body_luminosity_density_per_solid
 from tdastro.consts import PARSEC_TO_CM
 from tdastro.sources.periodic_source import PeriodicSource
 
@@ -42,11 +42,18 @@ class PeriodicVariableStar(PeriodicSource, ABC):
             A length T x N matrix of SED values.
         """
         distance = self.distance * PARSEC_TO_CM
-        return self._luminosity_density_phases(phases, wavelengths, **kwargs) / (4 * np.pi * distance**2)
+        return self._dl_dnu_domega_phases(phases, wavelengths, **kwargs) / np.square(distance)
 
     @abstractmethod
-    def _luminosity_density_phases(self, phases, wavelengths, **kwargs):
-        """Draw effect-free luminosity density for this object, as a function of phase.
+    def _dl_dnu_domega_phases(self, phases, wavelengths, **kwargs):
+        r"""Draw effect-free luminosity density per unit solid angle, as a function of phase.
+
+        It is dL / d \nu / d \Omega, so the units are erg / s / Hz / sr.
+        Sometimes it is called "observed luminosity density".
+        L_nu = \int this_value d \Omega.
+        For isotropic source L_nu = 4 \pi \int this_value d \Omega.
+        Bolometric luminosity is \int this_value d \nu d \Omega.
+        Flux density (static Universe) F_nu = this_value / distance^2.
 
         Parameters
         ----------
@@ -59,8 +66,8 @@ class PeriodicVariableStar(PeriodicSource, ABC):
 
         Returns
         -------
-        luminosity_density : `numpy.ndarray`
-            A length T x N matrix of luminosity density values.
+        luminosity_density_per_solid_angle : `numpy.ndarray`
+            A length T x N matrix of luminosity density per unit solid angle values.
         """
         raise NotImplementedError()
 
@@ -99,7 +106,7 @@ class EclipsingBinaryStar(PeriodicVariableStar):
         self.add_parameter("primary_temperature", required=True, **kwargs)
         self.add_parameter("secondary_temperature", required=True, **kwargs)
 
-    def _luminosity_density_phases(self, phases, wavelengths, **kwargs):
+    def _dl_dnu_domega_phases(self, phases, wavelengths, **kwargs):
         """Draw effect-free luminosity density for this object, as a function of phase.
 
         Parameters
@@ -118,10 +125,10 @@ class EclipsingBinaryStar(PeriodicVariableStar):
         """
         phases = phases[:, None]
 
-        primary_lum_density = black_body_luminosity_density(
+        primary_lum = black_body_luminosity_density_per_solid(
             self.primary_temperature, self.primary_radius, wavelengths
         )
-        secondary_lum_density = black_body_luminosity_density(
+        secondary_lum = black_body_luminosity_density_per_solid(
             self.primary_temperature, self.primary_radius, wavelengths
         )
 
@@ -145,15 +152,15 @@ class EclipsingBinaryStar(PeriodicVariableStar):
             primary_star_closer, overlap_area / (np.pi * self.secondary_radius**2), 0
         )
 
-        primary_lum_density_eclipsed = primary_lum_density * (1 - primary_star_overlap_ratio)
-        secondary_lum_density_eclipsed = secondary_lum_density * (1 - secondary_star_overlap_ratio)
+        primary_lum_eclipsed = primary_lum * (1 - primary_star_overlap_ratio)
+        secondary_lum_eclipsed = secondary_lum * (1 - secondary_star_overlap_ratio)
 
         # Just in case, we clip negative values to zero
-        total_lum_density = np.where(
-            primary_lum_density_eclipsed >= 0, primary_lum_density_eclipsed, 0
-        ) + np.where(secondary_lum_density_eclipsed >= 0, secondary_lum_density_eclipsed, 0)
+        total_lum = np.where(primary_lum_eclipsed >= 0, primary_lum_eclipsed, 0) + np.where(
+            secondary_lum_eclipsed >= 0, secondary_lum_eclipsed, 0
+        )
 
-        return total_lum_density
+        return total_lum
 
     @staticmethod
     def _norm_star_center_distance(phase_fraction, inclination_degree):

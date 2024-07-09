@@ -3,8 +3,10 @@ from astropy import units as u
 from astropy.modeling.physical_models import BlackBody
 
 
-def black_body_luminosity_density(temperature, radius, wavelengths):
-    """Calculate the black-body luminosity density for a star.
+def black_body_luminosity_density_per_solid(temperature, radius, wavelengths):
+    """Calculate the black-body luminosity density per solid angle.
+
+    It is L_nu / (4 pi) for a spherical isotropic source.
 
     Parameters
     ----------
@@ -25,5 +27,6 @@ def black_body_luminosity_density(temperature, radius, wavelengths):
         u.erg * u.cm**-2 * u.s**-1 * u.steradian**-1 * u.Hz**-1
     )
     surface_flux = intensity_per_freq * np.pi
-    surface_area = 4.0 * np.pi * radius**2
-    return surface_flux * surface_area
+    # 4pi r^2 over 4pi
+    surface_area_per_solid_angle = radius**2
+    return surface_flux * surface_area_per_solid_angle
