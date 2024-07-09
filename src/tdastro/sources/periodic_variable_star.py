@@ -21,8 +21,9 @@ class PeriodicVariableStar(PeriodicSource, ABC):
     """
 
     def __init__(self, period, epoch, **kwargs):
+        distance = kwargs.pop("distance", None)
         super().__init__(period, epoch, **kwargs)
-        self.add_parameter("distance", required=True, **kwargs)
+        self.add_parameter("distance", value=distance, required=True, **kwargs)
 
     def _evaluate_phases(self, phases, wavelengths, **kwargs):
         """Draw effect-free observations for this object, as a function of phase.
@@ -129,7 +130,7 @@ class EclipsingBinaryStar(PeriodicVariableStar):
             self.primary_temperature, self.primary_radius, wavelengths
         )
         secondary_lum = black_body_luminosity_density_per_solid(
-            self.primary_temperature, self.primary_radius, wavelengths
+            self.secondary_temperature, self.secondary_radius, wavelengths
         )
 
         # Distance between the centers of the stars on the plane of the sky
@@ -144,16 +145,14 @@ class EclipsingBinaryStar(PeriodicVariableStar):
         # For phases around the main minimum (0) primary star is eclipsed
         secondary_star_closer = np.logical_or(phases < 0.25, phases > 0.75)
         primary_star_overlap_ratio = np.where(
-            secondary_star_closer, overlap_area / (np.pi * self.primary_radius**2), 0
+            secondary_star_closer, overlap_area / (np.pi * self.primary_radius**2), 0.0
         )
-        # For phases around the secondary minimum (0.5) secondary star is eclipsed
-        primary_star_closer = np.logical_and(phases >= 0.25, phases <= 0.75)
         secondary_star_overlap_ratio = np.where(
-            primary_star_closer, overlap_area / (np.pi * self.secondary_radius**2), 0
+            ~secondary_star_closer, overlap_area / (np.pi * self.secondary_radius**2), 0.0
         )
 
-        primary_lum_eclipsed = primary_lum * (1 - primary_star_overlap_ratio)
-        secondary_lum_eclipsed = secondary_lum * (1 - secondary_star_overlap_ratio)
+        primary_lum_eclipsed = primary_lum * (1.0 - primary_star_overlap_ratio)
+        secondary_lum_eclipsed = secondary_lum * (1.0 - secondary_star_overlap_ratio)
 
         # Just in case, we clip negative values to zero
         total_lum = np.where(primary_lum_eclipsed >= 0, primary_lum_eclipsed, 0) + np.where(
@@ -183,8 +182,6 @@ class EclipsingBinaryStar(PeriodicVariableStar):
         inclination_radians = np.radians(inclination_degree)
         return np.hypot(np.cos(inclination_radians) * np.cos(phase_radians), np.sin(phase_radians))
 
-    # Math description can be found here:
-    # https://math.stackexchange.com/a/3543551/1348501
     @staticmethod
     def _circle_overlap_area(d, r1, r2):
         """Calculate the area of overlap between two circles.

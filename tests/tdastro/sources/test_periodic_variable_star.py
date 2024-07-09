@@ -1,3 +1,5 @@
+import astropy.constants as const
+import astropy.units as u
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
@@ -112,6 +114,63 @@ def test_norm_star_center_distance_with_spherical_geometry():
     x, y, z = rotation.apply(np.stack([x_prime, y_prime, z_prime], axis=-1)).T
     # x is looking to the observer, y and z are the observer's plane.
     expected_distance = np.hypot(y, z)
-
     actual_distance = EclipsingBinaryStar._norm_star_center_distance(phase, inclination)
     assert_allclose(actual_distance, expected_distance)
+
+
+def test_eclipsing_binary_star():
+    """Test EclipsingBinaryStar light curve satisfies astrophysical expectations"""
+    points_per_period = 1000
+
+    distance_pc = 10
+    primary_mass = 1.0 * u.M_sun
+    secondary_mass = 0.6 * u.M_sun
+    major_semiaxis = 10 * u.R_sun
+
+    # Mass-radius relation for main-sequence stars
+    primary_radius = 1.0 * u.R_sun * (primary_mass / const.M_sun) ** 0.8
+    secondary_radius = 1.0 * u.R_sun * (secondary_mass / const.M_sun) ** 0.8
+    assert primary_radius > secondary_radius, "Primary should be larger than secondary"
+    # Luminosity-mass relation for main-sequence stars
+    primary_lum = 1.0 * u.L_sun * (primary_mass / const.M_sun) ** 4
+    secondary_lum = 1.0 * u.L_sun * (secondary_mass / const.M_sun) ** 4
+    # Effective temperature from Stefan-Boltzmann law
+    primary_temperature = (primary_lum / (4 * np.pi * primary_radius**2 * const.sigma_sb)) ** 0.25
+    secondary_temperature = (secondary_lum / (4 * np.pi * secondary_radius**2 * const.sigma_sb)) ** 0.25
+    assert primary_temperature > secondary_temperature, "Primary should be hotter than secondary"
+
+    # Third law of Kepler, with gravitation constant
+    period = np.sqrt(4 * np.pi**2 * major_semiaxis**3 / (const.G * (primary_mass + secondary_mass)))
+
+    source = EclipsingBinaryStar(
+        distance=distance_pc,
+        period=period.to_value(u.day),
+        epoch=0.0,
+        major_semiaxis=major_semiaxis.cgs.value,
+        inclination=89.0,
+        primary_radius=primary_radius.cgs.value,
+        primary_temperature=primary_temperature.cgs.value,
+        secondary_radius=secondary_radius.cgs.value,
+        secondary_temperature=secondary_temperature.cgs.value,
+    )
+    # Times in days
+    times = np.linspace(0, 2.0 * period.to_value(u.day), 2 * points_per_period + 1)
+    # Wavelengths in cm
+    wavelengths = np.array([4500, 6000]) * 1e-8
+
+    fluxes = source.evaluate(times, wavelengths)
+
+    # Check the fluxes are positive
+    assert np.all(fluxes >= 0)
+    # Check the fluxes are periodic
+    assert_allclose(fluxes[0], fluxes[-1])
+    assert_allclose(fluxes[:points_per_period], fluxes[points_per_period : 2 * points_per_period])
+    # Check the fluxes are symmetric
+    assert_allclose(fluxes[: points_per_period + 1], fluxes[points_per_period::-1])
+
+    # Check the primary minimum is deeper than everything else
+    assert np.all(fluxes[0] <= fluxes)
+
+    # Check if primary minimum is redder than everything else
+    color = -2.5 * np.log10(fluxes[:, 0] / fluxes[:, 1])
+    assert np.all(color[0] >= color)
