@@ -157,13 +157,13 @@ class EclipsingBinaryStar(PeriodicVariableStar):
 
     @staticmethod
     def _norm_star_center_distance(phase_fraction, inclination_degree):
-        """Calculate the distance between the centers of the stars on the plane of the sky.
+        """Calculate the distance between the centers of the stars on the observer's plane.
 
         Parameters
         ----------
         phase_fraction : `np.ndarray`
             The phase of the orbit, in the range [0, 1].
-        inclination_degree : `np.ndarray`
+        inclination_degree : `float`
             The inclination of the orbit, in degrees.
 
         Returns

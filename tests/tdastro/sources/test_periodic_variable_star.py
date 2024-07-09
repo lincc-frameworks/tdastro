@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
+from scipy.spatial.transform import Rotation
 from tdastro.sources.periodic_variable_star import EclipsingBinaryStar
 
 
@@ -65,3 +66,52 @@ def test_circle_overlap_area_with_monte_carlo(d, r1, r2):
     actual_overlap_area = EclipsingBinaryStar._circle_overlap_area(d, r1, r2)
     # 2-sigma tolerance
     assert_allclose(actual_overlap_area, desired_overlap_area, rtol=2 / np.sqrt(n_overlap))
+
+
+def test_norm_star_center_distance_zero():
+    """Test EclipsingBinaryStar._norm_star_center_distance for phase_fraction=0.0, inclination_degree=90.0"""
+    assert_allclose(EclipsingBinaryStar._norm_star_center_distance(0.0, 90.0), 0.0, atol=1e-12)
+
+
+@pytest.mark.parametrize(
+    "phase_fraction, inclination_degree",
+    [
+        # Inclination is 0, the distance is always 1
+        (0.0, 0.0),
+        (0.25, 0.0),
+        (0.3, 0.0),
+        (0.5, 0.0),
+        (0.75, 0.0),
+        (0.95, 0.0),
+        # Phase is 0.25 or 0.75, the distance is always 1
+        (0.25, 0.0),
+        (0.75, 10.0),
+        (0.25, 45.0),
+        (0.75, 57.0),
+        (0.25, 85.0),
+    ],
+)
+def test_norm_star_center_distance_one(phase_fraction, inclination_degree):
+    """Test EclipsingBinaryStar._norm_star_center_distance returns 1.0 for maximum separation"""
+    assert_allclose(EclipsingBinaryStar._norm_star_center_distance(phase_fraction, inclination_degree), 1.0)
+
+
+def test_norm_star_center_distance_with_spherical_geometry():
+    """Test EclipsingBinaryStar._norm_star_center_distance with spherical geometry implementation"""
+    # We don't need reproducible random numbers here, because test should work for any random input.
+    n_samples = 100
+    phase = np.random.uniform(0, 1, n_samples)
+    inclination = np.random.uniform(0, 90, n_samples)
+
+    phase_radians = 2 * np.pi * phase
+    # Let secondary orbit define x' y' plane, then coordinates are:
+    x_prime, y_prime, z_prime = np.cos(phase_radians), np.sin(phase_radians), np.zeros_like(phase_radians)
+    # Rotate x' y' z' to x y z plane with matrix multiplication.
+    # Angle between z and z' is inclination, y is y', so we rotate about y axis.
+    rotation = Rotation.from_euler("y", 90.0 - inclination, degrees=True)
+    x, y, z = rotation.apply(np.stack([x_prime, y_prime, z_prime], axis=-1)).T
+    # x is looking to the observer, y and z are the observer's plane.
+    expected_distance = np.hypot(y, z)
+
+    actual_distance = EclipsingBinaryStar._norm_star_center_distance(phase, inclination)
+    assert_allclose(actual_distance, expected_distance)
