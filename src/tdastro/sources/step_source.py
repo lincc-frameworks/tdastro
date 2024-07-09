@@ -10,33 +10,20 @@ class StepSource(StaticSource):
     ----------
     brightness : `float`
         The inherent brightness
-    t_start : `float`
+    t0 : `float`
         The time the step function starts
-    t_end : `float`
+    t1 : `float`
         The time the step function ends
     """
 
-    def __init__(self, brightness, t_start, t_end, **kwargs):
-        """Create a StaticSource object.
-
-        Parameters
-        ----------
-        brightness : `float`, `function`, `ParameterizedModel`, or `None`
-            The inherent brightness
-        t_start : `float`
-            The time the step function starts
-        t_end : `float`
-            The time the step function ends
-        **kwargs : `dict`, optional
-           Any additional keyword arguments.
-        """
+    def __init__(self, brightness, t0, t1, **kwargs):
         super().__init__(brightness, **kwargs)
-        self.add_parameter("t_start", t_start, required=True, **kwargs)
-        self.add_parameter("t_end", t_end, required=True, **kwargs)
+        self.add_parameter("t0", t0, required=True, **kwargs)
+        self.add_parameter("t1", t1, required=True, **kwargs)
 
     def __str__(self):
         """Return the string representation of the model."""
-        return f"StepSource({self.brightness})_{self.t_start}_to_{self.t_end}"
+        return f"StepSource({self.brightness})_{self.t0}_to_{self.t1}"
 
     def _evaluate(self, times, wavelengths, **kwargs):
         """Draw effect-free observations for this object.
@@ -57,6 +44,6 @@ class StepSource(StaticSource):
         """
         flux_density = np.zeros((len(times), len(wavelengths)))
 
-        time_mask = (times >= self.t_start) & (times <= self.t_end)
+        time_mask = (times >= self.t0) & (times <= self.t1)
         flux_density[time_mask] = self.brightness
         return flux_density

@@ -34,10 +34,10 @@ def _sample_end(duration, **kwargs):
 def test_step_source() -> None:
     """Test that we can sample and create a StepSource object."""
     host = StaticSource(brightness=150.0, ra=1.0, dec=2.0, distance=3.0)
-    model = StepSource(brightness=15.0, t_start=1.0, t_end=2.0, ra=host, dec=host, distance=host)
+    model = StepSource(brightness=15.0, t0=1.0, t1=2.0, ra=host, dec=host, distance=host)
     assert model.brightness == 15.0
-    assert model.t_start == 1.0
-    assert model.t_end == 2.0
+    assert model.t0 == 1.0
+    assert model.t1 == 2.0
     assert model.ra == 1.0
     assert model.dec == 2.0
     assert model.distance == 3.0
@@ -56,8 +56,8 @@ def test_step_source_resample() -> None:
     """Check that we can call resample on the model parameters."""
     model = StepSource(
         brightness=_sample_brightness,
-        t_start=0.0,
-        t_end=_sample_end,
+        t0=0.0,
+        t1=_sample_end,
         magnitude=100.0,
         duration=5.0,
     )
@@ -69,8 +69,8 @@ def test_step_source_resample() -> None:
     for i in range(num_samples):
         model.sample_parameters(magnitude=100.0, duration=5.0)
         brightness_vals[i] = model.brightness
-        t_end_vals[i] = model.t_end
-        t_start_vals[i] = model.t_start
+        t_end_vals[i] = model.t1
+        t_start_vals[i] = model.t0
 
     # Check that the values fall within the expected bounds.
     assert np.all(brightness_vals >= 0.0)

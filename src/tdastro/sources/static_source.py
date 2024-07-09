@@ -13,15 +13,6 @@ class StaticSource(PhysicalModel):
     """
 
     def __init__(self, brightness, **kwargs):
-        """Create a StaticSource object.
-
-        Parameters
-        ----------
-        brightness : `float`, `function`, `ParameterizedModel`, or `None`
-            The inherent brightness
-        **kwargs : `dict`, optional
-           Any additional keyword arguments.
-        """
         super().__init__(**kwargs)
         self.add_parameter("brightness", brightness, required=True, **kwargs)
 
