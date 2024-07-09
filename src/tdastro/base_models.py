@@ -264,12 +264,29 @@ class PhysicalModel(ParameterizedModel):
             flux_density = effect.apply(flux_density, wavelengths, self, **kwargs)
         return flux_density
 
+    def sample_parameters(self, include_effects=True, **kwargs):
+        """Sample the model's underlying parameters if they are provided by a function
+        or ParameterizedModel.
 
-class EffectModel:
+        Parameters
+        ----------
+        include_effects : `bool`
+            Resample the parameters for the effects models.
+        **kwargs : `dict`, optional
+            All the keyword arguments, including the values needed to sample
+            parameters.
+        """
+        super().sample_parameters(**kwargs)
+        if include_effects:
+            for effect in self.effects:
+                effect.sample_parameters(**kwargs)
+
+
+class EffectModel(ParameterizedModel):
     """A physical or systematic effect to apply to an observation."""
 
     def __init__(self, **kwargs):
-        pass
+        super().__init__(**kwargs)
 
     def required_parameters(self):
         """Returns a list of the parameters of a PhysicalModel

@@ -23,7 +23,7 @@ class WhiteNoise(EffectModel):
            Any additional keyword arguments.
         """
         super().__init__(**kwargs)
-        self.scale = scale
+        self.add_parameter("scale", scale, required=True, **kwargs)
 
     def apply(self, flux_density, bands=None, physical_model=None, **kwargs):
         """Apply the effect to observations (flux_density values)
