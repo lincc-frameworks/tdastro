@@ -71,7 +71,7 @@ class ParameterizedModel:
         Raise a ``ValueError`` if the parameter is required, but set to None.
         """
         if hasattr(self, name) and getattr(self, name) is not None:
-            raise KeyError(f"Duplicate parameter set: {KeyError}")
+            raise KeyError(f"Duplicate parameter set: {name}")
 
         if value is None and name in kwargs:
             # The value wasn't set, but the name is in kwargs.
