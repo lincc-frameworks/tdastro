@@ -31,25 +31,28 @@ class Redshift(EffectModel):
            Any additional keyword arguments.
         """
         super().__init__(**kwargs)
-        self.redshift = redshift
+        self.required_parameters = ["redshift"]
+        self.redshift = redshift  # TODO get this from the physical model
 
     def pre_effect(self, observed_times, observed_wavelengths, **kwargs):
-        """Calculate the emitted wavelengths/times needed to give us the observed wavelengths
-        and times given the redshift.
+        """Calculate the emitted times and wavelengths needed to give us the observed times and wavelengths
+        given the redshift.
 
         Parameters
         ----------
-        observed_times : float
+        observed_times : numpy.ndarray
             The times at which the observation is made.
-        observed_wavelengths : float
+        observed_wavelengths : numpy.ndarray
             The wavelengths at which the observation is made.
         **kwargs : `dict`, optional
            Any additional keyword arguments.
 
         Returns
         -------
-        float
-            The adjusted flux density at the observed wavelength.
+        tuple of (numpy.ndarray, numpy.ndarray)
+            The emission-frame times and wavelengths needed to generate the emission-frame flux densities,
+            which will then be redshifted to observation-frame flux densities at the observation-frame
+            times and wavelengths.
         """
         return (observed_times / (1 + self.redshift), observed_wavelengths / (1 + self.redshift))
 
@@ -73,4 +76,6 @@ class Redshift(EffectModel):
         flux_density : `numpy.ndarray`
             The results.
         """
+        if physical_model is None:
+            raise ValueError("No physical model provided to Redshift effect.")
         return flux_density / (1 + self.redshift)
