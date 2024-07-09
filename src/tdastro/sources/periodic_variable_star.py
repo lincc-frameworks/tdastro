@@ -174,7 +174,7 @@ class EclipsingBinaryStar(PeriodicVariableStar):
 
         Returns
         -------
-        distance : `no.ndarray`
+        distance : `np.ndarray`
             The distance between the centers of the stars on the plane of the sky,
             normalized by the major semiaxis.
         """
