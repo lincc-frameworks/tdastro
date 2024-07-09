@@ -166,7 +166,7 @@ class PhysicalModel(ParameterizedModel):
     dec : `float`
         The object's declination (in degrees)
     distance : `float`
-        The object's distance (in au)
+        The object's distance (in pc)
     effects : `list`
         A list of effects to apply to an observations.
     """
@@ -181,7 +181,7 @@ class PhysicalModel(ParameterizedModel):
         dec : `float`, `function`, or `ParameterizedModel`, optional
             The object's declination (in degrees)
         distance : `float`, `function`, or `ParameterizedModel`, optional
-            The object's distance (in au)
+            The object's distance (in pc)
         **kwargs : `dict`, optional
            Any additional keyword arguments.
         """
