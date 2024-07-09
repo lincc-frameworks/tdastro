@@ -1,8 +1,6 @@
 import types
 from enum import Enum
 
-import numpy as np
-
 
 class ParameterSource(Enum):
     """ParameterSource specifies where a PhysicalModel should get the value
@@ -213,12 +211,11 @@ class PhysicalModel(ParameterizedModel):
         Raises a ``AttributeError`` if the PhysicalModel does not have all of the
         required attributes.
         """
-        # Try applying this effect to a test flux to confirm that the effect
-        # has all the information that it needs. This will fail if the PhysicalModel
-        # is missing a required attribute.
-        test_flux = np.full((1, 1), 1.0)
-        test_wavelengths = np.full((1, 1), 1000.0)
-        _ = effect.apply(test_flux, test_wavelengths, self, **kwargs)
+        required: list = effect.required_parameters()
+        for parameter in required:
+            # Raise an AttributeError if the parameter is missing or set to None.
+            if getattr(self, parameter) is None:
+                raise AttributeError(f"Parameter {parameter} unset for model {type(self).__name__}")
 
         self.effects.append(effect)
 
@@ -296,6 +293,17 @@ class EffectModel(ParameterizedModel):
     def __str__(self):
         """Return the string representation of the model."""
         return "EffectModel"
+
+    def required_parameters(self):
+        """Returns a list of the parameters of a PhysicalModel
+        that this effect needs to access.
+
+        Returns
+        -------
+        parameters : `list` of `str`
+            A list of every required parameter the effect needs.
+        """
+        return []
 
     def apply(self, flux_density, wavelengths=None, physical_model=None, **kwargs):
         """Apply the effect to observations (flux_density values)
