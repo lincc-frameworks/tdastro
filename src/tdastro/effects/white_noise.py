@@ -13,15 +13,6 @@ class WhiteNoise(EffectModel):
     """
 
     def __init__(self, scale, **kwargs):
-        """Create a WhiteNoise effect model.
-
-        Parameters
-        ----------
-        scale : `float`
-            The scale of the noise.
-        **kwargs : `dict`, optional
-           Any additional keyword arguments.
-        """
         super().__init__(**kwargs)
         self.scale = scale
 

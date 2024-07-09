@@ -30,13 +30,6 @@ class ParameterizedModel:
     """
 
     def __init__(self, **kwargs):
-        """Create a ParameterizedModel object.
-
-        Parameters
-        ----------
-        **kwargs : `dict`, optional
-           Any additional keyword arguments.
-        """
         self.setters = {}
         self.sample_iteration = 0
 
@@ -168,19 +161,6 @@ class PhysicalModel(ParameterizedModel):
     """
 
     def __init__(self, ra=None, dec=None, distance=None, **kwargs):
-        """Create a PhysicalModel object.
-
-        Parameters
-        ----------
-        ra : `float`, `function`, or `ParameterizedModel`, optional
-            The object's right ascension (in degrees)
-        dec : `float`, `function`, or `ParameterizedModel`, optional
-            The object's declination (in degrees)
-        distance : `float`, `function`, or `ParameterizedModel`, optional
-            The object's distance (in pc)
-        **kwargs : `dict`, optional
-           Any additional keyword arguments.
-        """
         super().__init__(**kwargs)
         self.effects = []
 
