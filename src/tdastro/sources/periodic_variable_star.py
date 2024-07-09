@@ -196,21 +196,41 @@ class EclipsingBinaryStar(PeriodicVariableStar):
         overlap_area : `np.ndarray`
             The area of overlap between the two circles.
         """
-        r1_sq = r1**2
-        r2_sq = r2**2
-        d_sq = d**2
 
-        # Avoid invalid values for arccos and sqrt, we will handle the invalid values later
-        with np.errstate(invalid="ignore"):
-            term1 = r1_sq * np.arccos((d_sq + r1_sq - r2_sq) / (2 * d * r1))
-            term2 = r2_sq * np.arccos((d_sq + r2_sq - r1_sq) / (2 * d * r2))
-            term3 = 0.5 * np.sqrt((-d + r1 + r2) * (d + r1 - r2) * (d - r1 + r2) * (d + r1 + r2))
+        # We consider four points here: the centers of the circles and the points where the circles intersect
+        # The intersection region is a union of two segments of the circles, while their intersection is
+        # a quadrilateral. So the area of the intersection is the sum of the areas of the two segments minus
+        # the area of the quadrilateral. The intersection region is symmetric over the line connecting
+        # the centers of the circles, so we can consider only one half of it, and multiply the result by 2.
+        # In this half region intersection is a triangle with sides d, r1, and r2.
 
-        area = term1 + term2 - term3
-        # Circles do not overlap
+        r1_sq = np.square(r1)
+        r2_sq = np.square(r2)
+        d_sq = np.square(d)
+
+        # We mute warnings for division by zero and invalid values in arccos, as we handle them manually
+        with np.errstate(divide="ignore", invalid="ignore"):
+            # Angles between lines connecting the centers of the circles and the points of intersection.
+            # These are halves of the intersection-center-intersection angles.
+            alpha1 = np.arccos((d_sq + r1_sq - r2_sq) / (2 * r1 * d))
+            alpha2 = np.arccos((d_sq + r2_sq - r1_sq) / (2 * r2 * d))
+
+            # Area of circular segments, it is 1/2 r^2 angle, angle = 2 alpha, so area = r^2 alpha
+            area1 = r1_sq * alpha1
+            area2 = r2_sq * alpha2
+
+            # Area of the intersection quadrilateral, twice triangular area which is 1/2 r d sin(alpha).
+            # Should be symmetric over 1-2 index swap.
+            triangle_area = r1 * d * np.sin(alpha1)
+
+        area = area1 + area2 - triangle_area
+
+        # Just in case, we clip negative values to zero
+        area = np.where(area >= 0.0, area, 0.0)
+
+        # Account for the total overlap
+        area = np.where(d <= np.abs(r1 - r2), np.pi * np.square(np.minimum(r1, r2)), area)
+        # Account for the no overlap
         area = np.where(d >= r1 + r2, 0, area)
-        # Circles fully overlap
-        minimum_radius = np.minimum(r1, r2)
-        area = np.where(d <= minimum_radius, np.pi * minimum_radius**2, area)
 
         return area
