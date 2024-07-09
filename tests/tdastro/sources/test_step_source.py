@@ -34,13 +34,14 @@ def _sample_end(duration, **kwargs):
 def test_step_source() -> None:
     """Test that we can sample and create a StepSource object."""
     host = StaticSource(brightness=150.0, ra=1.0, dec=2.0, distance=3.0)
-    model = StepSource(brightness=15.0, t_start=1.0, t_end=2.0, host=host)
+    model = StepSource(brightness=15.0, t_start=1.0, t_end=2.0, ra=host, dec=host, distance=host)
     assert model.brightness == 15.0
     assert model.t_start == 1.0
     assert model.t_end == 2.0
     assert model.ra == 1.0
     assert model.dec == 2.0
     assert model.distance == 3.0
+    assert str(model) == "StepSource(15.0)_1.0_to_2.0"
 
     times = np.array([0.0, 1.0, 2.0, 3.0])
     wavelengths = np.array([100.0, 200.0])

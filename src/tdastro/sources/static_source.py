@@ -17,13 +17,17 @@ class StaticSource(PhysicalModel):
 
         Parameters
         ----------
-        brightness : `float`, `function`, or `None`
+        brightness : `float`, `function`, `ParameterizedModel`, or `None`
             The inherent brightness
         **kwargs : `dict`, optional
            Any additional keyword arguments.
         """
         super().__init__(**kwargs)
         self.add_parameter("brightness", brightness, required=True, **kwargs)
+
+    def __str__(self):
+        """Return the string representation of the model."""
+        return f"StaticSource({self.brightness})"
 
     def _evaluate(self, times, wavelengths, **kwargs):
         """Draw effect-free observations for this object.

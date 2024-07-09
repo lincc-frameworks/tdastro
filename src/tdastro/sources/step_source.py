@@ -21,7 +21,7 @@ class StepSource(StaticSource):
 
         Parameters
         ----------
-        brightness : `float`, `function`, or `None`
+        brightness : `float`, `function`, `ParameterizedModel`, or `None`
             The inherent brightness
         t_start : `float`
             The time the step function starts
@@ -33,6 +33,10 @@ class StepSource(StaticSource):
         super().__init__(brightness, **kwargs)
         self.add_parameter("t_start", t_start, required=True, **kwargs)
         self.add_parameter("t_end", t_end, required=True, **kwargs)
+
+    def __str__(self):
+        """Return the string representation of the model."""
+        return f"StepSource({self.brightness})_{self.t_start}_to_{self.t_end}"
 
     def _evaluate(self, times, wavelengths, **kwargs):
         """Draw effect-free observations for this object.

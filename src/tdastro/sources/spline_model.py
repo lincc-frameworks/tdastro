@@ -51,7 +51,7 @@ class SplineModel(PhysicalModel):
         flux : `numpy.ndarray`
             A shape (T, W) matrix with flux values for each pair of time and wavelength.
             Fluxes provided in erg / s / cm^2 / Angstrom.
-        amplitude : `float`
+        amplitude : `float`, `function`, `ParameterizedModel`, or `None`
             A unitless scaling parameter for the flux density values. Default = 1.0
         time_degree : `int`
             The polynomial degree to use in the time dimension.
@@ -73,6 +73,10 @@ class SplineModel(PhysicalModel):
         self._times = times
         self._wavelengths = wavelengths
         self._spline = RectBivariateSpline(times, wavelengths, flux, kx=time_degree, ky=wave_degree)
+
+    def __str__(self):
+        """Return the string representation of the model."""
+        return f"SplineModel({self.name})"
 
     def _evaluate(self, times, wavelengths, **kwargs):
         """Draw effect-free observations for this object.

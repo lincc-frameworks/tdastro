@@ -24,6 +24,7 @@ def test_static_source() -> None:
     assert model.ra is None
     assert model.dec is None
     assert model.distance is None
+    assert str(model) == "StaticSource(10.0)"
 
     times = np.array([1, 2, 3, 4, 5, 10])
     wavelengths = np.array([100.0, 200.0, 300.0])
@@ -37,7 +38,7 @@ def test_static_source_host() -> None:
     """Test that we can sample and create a StaticSource object with properties
     derived from the host object."""
     host = StaticSource(brightness=15.0, ra=1.0, dec=2.0, distance=3.0)
-    model = StaticSource(brightness=10.0, host=host)
+    model = StaticSource(brightness=10.0, ra=host, dec=host, distance=host)
     assert model.brightness == 10.0
     assert model.ra == 1.0
     assert model.dec == 2.0
