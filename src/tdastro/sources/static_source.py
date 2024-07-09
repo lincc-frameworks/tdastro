@@ -1,5 +1,3 @@
-import types
-
 import numpy as np
 
 from tdastro.base_models import PhysicalModel
@@ -15,26 +13,12 @@ class StaticSource(PhysicalModel):
     """
 
     def __init__(self, brightness, **kwargs):
-        """Create a StaticSource object.
-
-        Parameters
-        ----------
-        brightness : `float`, `function`, or `None`
-            The inherent brightness
-        **kwargs : `dict`, optional
-           Any additional keyword arguments.
-        """
         super().__init__(**kwargs)
+        self.add_parameter("brightness", brightness, required=True, **kwargs)
 
-        if brightness is None:
-            # If we were not given the parameter, use a default sampling function.
-            self.brightness = np.random.rand(10.0, 20.0)
-        elif isinstance(brightness, types.FunctionType):
-            # If we were given a sampling function, use it.
-            self.brightness = brightness(**kwargs)
-        else:
-            # Otherwise assume we were given the parameter itself.
-            self.brightness = brightness
+    def __str__(self):
+        """Return the string representation of the model."""
+        return f"StaticSource({self.brightness})"
 
     def _evaluate(self, times, wavelengths, **kwargs):
         """Draw effect-free observations for this object.
