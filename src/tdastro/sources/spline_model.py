@@ -27,6 +27,26 @@ class SplineModel(PhysicalModel):
         The name of the model being used.
     amplitude : `float`
         A unitless scaling parameter for the flux density values.
+
+    Parameters
+    ----------
+    times : `numpy.ndarray`
+        A length T array containing the times at which the data was sampled.
+    wavelengths : `numpy.ndarray`
+        A length W array containing the wavelengths at which the data was sampled.
+    flux : `numpy.ndarray`
+        A shape (T, W) matrix with flux values for each pair of time and wavelength.
+        Fluxes provided in erg / s / cm^2 / Angstrom.
+    amplitude : `float`, `function`, `ParameterizedModel`, or `None`
+        A unitless scaling parameter for the flux density values. Default = 1.0
+    time_degree : `int`
+        The polynomial degree to use in the time dimension.
+    wave_degree : `int`
+        The polynomial degree to use in the wavelength dimension.
+    name : `str`, optional
+        The name of the model.
+    **kwargs : `dict`, optional
+        Any additional keyword arguments.
     """
 
     def __init__(
@@ -40,28 +60,6 @@ class SplineModel(PhysicalModel):
         name=None,
         **kwargs,
     ):
-        """Create the SplineModel from a grid of (timestep, wavelength, flux) points.
-
-        Parameters
-        ----------
-        times : `numpy.ndarray`
-            A length T array containing the times at which the data was sampled.
-        wavelengths : `numpy.ndarray`
-            A length W array containing the wavelengths at which the data was sampled.
-        flux : `numpy.ndarray`
-            A shape (T, W) matrix with flux values for each pair of time and wavelength.
-            Fluxes provided in erg / s / cm^2 / Angstrom.
-        amplitude : `float`
-            A unitless scaling parameter for the flux density values. Default = 1.0
-        time_degree : `int`
-            The polynomial degree to use in the time dimension.
-        wave_degree : `int`
-            The polynomial degree to use in the wavelength dimension.
-        name : `str`, optional
-            The name of the model.
-        **kwargs : `dict`, optional
-           Any additional keyword arguments.
-        """
         super().__init__(**kwargs)
 
         # Set the attributes that can be changed (e.g. sampled)
@@ -73,6 +71,10 @@ class SplineModel(PhysicalModel):
         self._times = times
         self._wavelengths = wavelengths
         self._spline = RectBivariateSpline(times, wavelengths, flux, kx=time_degree, ky=wave_degree)
+
+    def __str__(self):
+        """Return the string representation of the model."""
+        return f"SplineModel({self.name})"
 
     def _evaluate(self, times, wavelengths, **kwargs):
         """Draw effect-free observations for this object.

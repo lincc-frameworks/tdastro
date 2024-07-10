@@ -1,0 +1,240 @@
+from abc import ABC, abstractmethod
+
+import numpy as np
+
+from tdastro.astro_utils.black_body import black_body_luminosity_density_per_solid
+from tdastro.consts import PARSEC_TO_CM
+from tdastro.sources.periodic_source import PeriodicSource
+
+
+class PeriodicVariableStar(PeriodicSource, ABC):
+    """A model for a periodic variable star.
+
+    Attributes
+    ----------
+    period : `float`
+        The period of the source, in days.
+    epoch : `float`
+        The epoch of the zero phase, date.
+    distance : `float`
+        The distance to the source, in pc.
+    """
+
+    def __init__(self, period, epoch, **kwargs):
+        distance = kwargs.pop("distance", None)
+        super().__init__(period, epoch, **kwargs)
+        self.add_parameter("distance", value=distance, required=True, **kwargs)
+
+    def _evaluate_phases(self, phases, wavelengths, **kwargs):
+        """Draw effect-free observations for this object, as a function of phase.
+
+        Parameters
+        ----------
+        phases : `numpy.ndarray`
+            A length T array of phases, in the range [0, 1].
+        wavelengths : `numpy.ndarray`, optional
+            A length N array of wavelengths.
+        **kwargs : `dict`, optional
+              Any additional keyword arguments.
+
+        Returns
+        -------
+        flux_density : `numpy.ndarray`
+            A length T x N matrix of SED values.
+        """
+        distance = self.distance * PARSEC_TO_CM
+        return self._dl_dnu_domega_phases(phases, wavelengths, **kwargs) / np.square(distance)
+
+    @abstractmethod
+    def _dl_dnu_domega_phases(self, phases, wavelengths, **kwargs):
+        r"""Draw effect-free luminosity density per unit solid angle, as a function of phase.
+
+        It is dL / d \nu / d \Omega, so the units are erg / s / Hz / sr.
+        Sometimes it is called "observed luminosity density".
+        L_nu = \int this_value d \Omega.
+        For isotropic source L_nu = 4 \pi \int this_value d \Omega.
+        Bolometric luminosity is \int this_value d \nu d \Omega.
+        Flux density (static Universe) F_nu = this_value / distance^2.
+
+        Parameters
+        ----------
+        phases : `numpy.ndarray`
+            A length T array of phases, in the range [0, 1].
+        wavelengths : `numpy.ndarray`, optional
+            A length N array of wavelengths.
+        **kwargs : `dict`, optional
+              Any additional keyword arguments.
+
+        Returns
+        -------
+        luminosity_density_per_solid_angle : `numpy.ndarray`
+            A length T x N matrix of luminosity density per unit solid angle values.
+        """
+        raise NotImplementedError()
+
+
+class EclipsingBinaryStar(PeriodicVariableStar):
+    """A toy model for a detached eclipsing binary star.
+
+    It is assumed that the stars are spherical, SED is black-body,
+    and the orbits are circular. Epoch is the time of the primary eclipse.
+    No limb darkening, reflection, or other effects are included.
+
+    Attributes
+    ----------
+    period : `float`
+        The period of the source, in days.
+    major_semiaxis : `float`
+        The major semiaxis of the orbit, in AU.
+    inclination : `float`
+        The inclination of the orbit, in degrees.
+    primary_radius : `float`
+        The radius of the primary star, in solar radii.
+    secondary_radius : `float`
+        The radius of the secondary star, in solar radii.
+    primary_temperature : `float`
+        The effective temperature of the primary star, in kelvins.
+    secondary_temperature : `float`
+        The effective temperature of the secondary star, in kelvins.
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.add_parameter("major_semiaxis", required=True, **kwargs)
+        self.add_parameter("inclination", required=True, **kwargs)
+        self.add_parameter("primary_radius", required=True, **kwargs)
+        self.add_parameter("secondary_radius", required=True, **kwargs)
+        self.add_parameter("primary_temperature", required=True, **kwargs)
+        self.add_parameter("secondary_temperature", required=True, **kwargs)
+
+    def _dl_dnu_domega_phases(self, phases, wavelengths, **kwargs):
+        """Draw effect-free luminosity density for this object, as a function of phase.
+
+        Parameters
+        ----------
+        phases : `numpy.ndarray`
+            A length T array of phases, in the range [0, 1].
+        wavelengths : `numpy.ndarray`, optional
+            A length N array of wavelengths.
+        **kwargs : `dict`, optional
+              Any additional keyword arguments.
+
+        Returns
+        -------
+        luminosity_density : `numpy.ndarray`
+            A length T x N matrix of luminosity density values.
+        """
+        phases = phases[:, None]
+
+        primary_lum = black_body_luminosity_density_per_solid(
+            self.primary_temperature, self.primary_radius, wavelengths
+        )
+        secondary_lum = black_body_luminosity_density_per_solid(
+            self.secondary_temperature, self.secondary_radius, wavelengths
+        )
+
+        # Distance between the centers of the stars on the plane of the sky
+        star_centers_distance = self.major_semiaxis * self._norm_star_center_distance(
+            phases, self.inclination
+        )
+
+        overlap_area = self._circle_overlap_area(
+            star_centers_distance, self.primary_radius, self.secondary_radius
+        )
+
+        # For phases around the main minimum (0) primary star is eclipsed
+        secondary_star_closer = np.logical_or(phases < 0.25, phases > 0.75)
+        primary_star_overlap_ratio = np.where(
+            secondary_star_closer, overlap_area / (np.pi * self.primary_radius**2), 0.0
+        )
+        secondary_star_overlap_ratio = np.where(
+            ~secondary_star_closer, overlap_area / (np.pi * self.secondary_radius**2), 0.0
+        )
+
+        primary_lum_eclipsed = primary_lum * (1.0 - primary_star_overlap_ratio)
+        secondary_lum_eclipsed = secondary_lum * (1.0 - secondary_star_overlap_ratio)
+
+        # Just in case, we clip negative values to zero
+        total_lum = np.where(primary_lum_eclipsed >= 0, primary_lum_eclipsed, 0) + np.where(
+            secondary_lum_eclipsed >= 0, secondary_lum_eclipsed, 0
+        )
+
+        return total_lum
+
+    @staticmethod
+    def _norm_star_center_distance(phase_fraction, inclination_degree):
+        """Calculate the distance between the centers of the stars on the observer's plane.
+
+        Parameters
+        ----------
+        phase_fraction : `np.ndarray`
+            The phase of the orbit, in the range [0, 1].
+        inclination_degree : `float`
+            The inclination of the orbit, in degrees.
+
+        Returns
+        -------
+        distance : `np.ndarray`
+            The distance between the centers of the stars on the plane of the sky,
+            normalized by the major semiaxis.
+        """
+        phase_radians = 2 * np.pi * phase_fraction
+        inclination_radians = np.radians(inclination_degree)
+        return np.hypot(np.cos(inclination_radians) * np.cos(phase_radians), np.sin(phase_radians))
+
+    @staticmethod
+    def _circle_overlap_area(d, r1, r2):
+        """Calculate the area of overlap between two circles.
+
+        Parameters
+        ----------
+        d : `np.ndarray`
+            The distance between the centers of the circles.
+        r1 : `float`
+            The radius of the first circle.
+        r2 : `float`
+            The radius of the second circle.
+
+        Returns
+        -------
+        overlap_area : `np.ndarray`
+            The area of overlap between the two circles.
+        """
+
+        # We consider four points here: the centers of the circles and the points where the circles intersect
+        # The intersection region is a union of two segments of the circles, while their intersection is
+        # a quadrilateral. So the area of the intersection is the sum of the areas of the two segments minus
+        # the area of the quadrilateral. The intersection region is symmetric over the line connecting
+        # the centers of the circles, so we can consider only one half of it, and multiply the result by 2.
+        # In this half region intersection is a triangle with sides d, r1, and r2.
+
+        r1_sq = np.square(r1)
+        r2_sq = np.square(r2)
+        d_sq = np.square(d)
+
+        # We mute warnings for division by zero and invalid values in arccos, as we handle them manually
+        with np.errstate(divide="ignore", invalid="ignore"):
+            # Angles between lines connecting the centers of the circles and the points of intersection.
+            # These are halves of the intersection-center-intersection angles.
+            alpha1 = np.arccos((d_sq + r1_sq - r2_sq) / (2 * r1 * d))
+            alpha2 = np.arccos((d_sq + r2_sq - r1_sq) / (2 * r2 * d))
+
+            # Area of circular segments, it is 1/2 r^2 angle, angle = 2 alpha, so area = r^2 alpha
+            area1 = r1_sq * alpha1
+            area2 = r2_sq * alpha2
+
+            # Area of the intersection quadrilateral, twice triangular area which is 1/2 r d sin(alpha).
+            # Should be symmetric over 1-2 index swap.
+            triangle_area = r1 * d * np.sin(alpha1)
+
+        area = area1 + area2 - triangle_area
+
+        # Just in case, we clip negative values to zero
+        area = np.where(area >= 0.0, area, 0.0)
+
+        # Account for the total overlap
+        area = np.where(d <= np.abs(r1 - r2), np.pi * np.square(np.minimum(r1, r2)), area)
+        # Account for the no overlap
+        area = np.where(d >= r1 + r2, 0, area)
+
+        return area
