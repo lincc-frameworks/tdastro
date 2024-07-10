@@ -158,11 +158,13 @@ class PhysicalModel(ParameterizedModel):
         The object's declination (in degrees)
     distance : `float`
         The object's distance (in pc)
+    redshift : `float`
+        The object's redshift.
     effects : `list`
         A list of effects to apply to an observations.
     """
 
-    def __init__(self, ra=None, dec=None, distance=None, **kwargs):
+    def __init__(self, ra=None, dec=None, distance=None, redshift=None, **kwargs):
         super().__init__(**kwargs)
         self.effects = []
 
@@ -170,6 +172,7 @@ class PhysicalModel(ParameterizedModel):
         self.add_parameter("ra", ra)
         self.add_parameter("dec", dec)
         self.add_parameter("distance", distance)
+        self.add_parameter("redshift", redshift)
 
     def __str__(self):
         """Return the string representation of the model."""
