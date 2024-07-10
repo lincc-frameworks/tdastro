@@ -194,8 +194,7 @@ class PhysicalModel(ParameterizedModel):
         Raises a ``AttributeError`` if the PhysicalModel does not have all of the
         required attributes.
         """
-        required: list = effect.required_parameters()
-        for parameter in required:
+        for parameter in effect.required_parameters:
             # Raise an AttributeError if the parameter is missing or set to None.
             if getattr(self, parameter) is None:
                 raise AttributeError(f"Parameter {parameter} unset for model {type(self).__name__}")
@@ -274,25 +273,21 @@ class PhysicalModel(ParameterizedModel):
 
 
 class EffectModel(ParameterizedModel):
-    """A physical or systematic effect to apply to an observation."""
+    """A physical or systematic effect to apply to an observation.
+
+    Attributes
+    ----------
+    required_parameters : `list` of `str`
+        A list of the parameters of a PhysicalModel that this effect needs to access.
+    """
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.required_parameters = []
 
     def __str__(self):
         """Return the string representation of the model."""
         return "EffectModel"
-
-    def required_parameters(self):
-        """Returns a list of the parameters of a PhysicalModel
-        that this effect needs to access.
-
-        Returns
-        -------
-        parameters : `list` of `str`
-            A list of every required parameter the effect needs.
-        """
-        return []
 
     def apply(self, flux_density, wavelengths=None, physical_model=None, **kwargs):
         """Apply the effect to observations (flux_density values)

@@ -5,12 +5,8 @@ class Redshift(EffectModel):
     """A redshift effect model.
 
     This contains a "pre-effect" method, which is used to calculate the emitted wavelengths/times
-    needed to give us the observed wavelengths and times given the redshift.
-
-    Attributes
-    ----------
-    redshift : `float`
-        The redshift.
+    needed to give us the observed wavelengths and times given the redshift. Times are calculated
+    with respect to the t0 of the given model.
 
     Notes
     -----
@@ -28,17 +24,15 @@ class Redshift(EffectModel):
         redshift : `float`
             The redshift.
         t0 : `float`
-            The epoch of the peak or the zero phase, date. # TODO WORDING (1/?)
+            The epoch of the peak or the zero phase, date.
+            # TODO WORDING (1/3) -> Both how this is written, and to check, are we picking t0 or epoch?
         **kwargs : `dict`, optional
            Any additional keyword arguments.
         """
         super().__init__(**kwargs)
+        self.required_parameters["redshift", "t0"]
         self.add_parameter("redshift", redshift, required=True, **kwargs)
         self.add_parameter("t0", t0, required=True, **kwargs)
-
-    def required_parameters(self):  # TODO - can this just be an attribute?
-        """Return the required parameters for the Redshift effect model."""
-        return ["redshift", "t0"]
 
     def __str__(self) -> str:
         """Return a string representation of the Redshift effect model."""
@@ -46,7 +40,7 @@ class Redshift(EffectModel):
 
     def pre_effect(
         self, observed_times, observed_wavelengths, **kwargs
-    ):  # TODO WORDING (2/?) -> should I change "emitted" to "rest"?
+    ):  # TODO WORDING (2/3) -> Should I change "emitted" to "rest"? What is standard here?
         """Calculate the emitted times and wavelengths needed to give us the observed times and wavelengths
         given the redshift.
 
@@ -64,7 +58,7 @@ class Redshift(EffectModel):
         tuple of (numpy.ndarray, numpy.ndarray)
             The emission-frame times and wavelengths needed to generate the emission-frame flux densities,
             which will then be redshifted to observation-frame flux densities at the observation-frame
-            times and wavelengths.
+            times and wavelengths. # TODO WORDING (3/3)
         """
         observed_times_rel_to_t0 = observed_times - self.t0
         emitted_times_rel_to_t0 = observed_times_rel_to_t0 / (1 + self.redshift)
@@ -72,7 +66,7 @@ class Redshift(EffectModel):
         emitted_wavelengths = observed_wavelengths / (1 + self.redshift)
         return (emitted_times, emitted_wavelengths)
 
-    def apply(self, flux_density, wavelengths=None, physical_model=None, **kwargs):
+    def apply(self, flux_density, wavelengths, physical_model=None, **kwargs):
         """Apply the effect to observations (flux_density values).
 
         Parameters
@@ -90,8 +84,6 @@ class Redshift(EffectModel):
         Returns
         -------
         flux_density : `numpy.ndarray`
-            The results.
+            The redshifted results.
         """
-        if physical_model is None:
-            raise ValueError("No physical model provided to Redshift effect.")
         return flux_density / (1 + self.redshift)
