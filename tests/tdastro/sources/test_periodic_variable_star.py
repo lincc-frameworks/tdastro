@@ -145,7 +145,7 @@ def test_eclipsing_binary_star():
     source = EclipsingBinaryStar(
         distance=distance_pc,
         period=period.to_value(u.day),
-        epoch=0.0,
+        t0=0.0,
         major_semiaxis=major_semiaxis.cgs.value,
         inclination=89.0,
         primary_radius=primary_radius.cgs.value,

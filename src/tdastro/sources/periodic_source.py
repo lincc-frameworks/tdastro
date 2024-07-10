@@ -10,14 +10,15 @@ class PeriodicSource(PhysicalModel, ABC):
     ----------
     period : `float`
         The period of the source, in days.
-    epoch : `float`
-        The epoch of the zero phase, date.
+    t0 : `float`
+        The t0 of the zero phase, date. Could be date of the minimum or maximum light
+        or any other reference time point.
     """
 
-    def __init__(self, period, epoch, **kwargs):
+    def __init__(self, period, t0, **kwargs):
         super().__init__(**kwargs)
         self.add_parameter("period", period, required=True, **kwargs)
-        self.add_parameter("epoch", epoch, required=True, **kwargs)
+        self.add_parameter("t0", t0, required=True, **kwargs)
 
     @abstractmethod
     def _evaluate_phases(self, phases, wavelengths, **kwargs):
@@ -56,7 +57,7 @@ class PeriodicSource(PhysicalModel, ABC):
         flux_density : `numpy.ndarray`
             A length T x N matrix of SED values.
         """
-        phases = (times - self.epoch) % self.period / self.period
+        phases = (times - self.t0) % self.period / self.period
         flux_density = self._evaluate_phases(phases, wavelengths, **kwargs)
 
         return flux_density
