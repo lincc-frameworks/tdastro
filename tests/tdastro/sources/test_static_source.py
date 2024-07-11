@@ -33,6 +33,12 @@ def test_static_source() -> None:
     assert values.shape == (6, 3)
     assert np.all(values == 10.0)
 
+    # We can set a value we have already added.
+    model.set_parameter("brightness", 5.0)
+    values = model.evaluate(times, wavelengths)
+    assert values.shape == (6, 3)
+    assert np.all(values == 5.0)
+
 
 def test_static_source_host() -> None:
     """Test that we can sample and create a StaticSource object with properties
