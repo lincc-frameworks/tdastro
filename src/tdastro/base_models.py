@@ -23,8 +23,8 @@ class ParameterizedModel:
     ----------
     setters : `list` of `tuple`
         A dictionary to information about the setters for the parameters in the form:
-        (name, ParameterSource, setter information). The attributes are stored in the
-        order in which they need to be set.
+        (name, ParameterSource, setter information, required). The attributes are
+        stored in the order in which they need to be set.
     sample_iteration : `int`
         A counter used to syncronize  sampling runs. Tracks how many times this
         model's parameters have been resampled.
@@ -38,12 +38,77 @@ class ParameterizedModel:
         """Return the string representation of the model."""
         return "ParameterizedModel"
 
+    def set_parameter(self, name, value=None, **kwargs):
+        """Set a single *existing* parameter to the ParameterizedModel.
+
+        Notes
+        -----
+        * Sets an initial value for the attribute based on the given information.
+        * The attributes are stored in the order in which they are added.
+
+        Parameters
+        ----------
+        name : `str`
+            The parameter name to add.
+        value : any, optional
+            The information to use to set the parameter. Can be a constant,
+            function, ParameterizedModel, or self.
+        **kwargs : `dict`, optional
+           All other keyword arguments, possibly including the parameter setters.
+
+        Raises
+        ------
+        Raise a ``KeyError`` if there is a parameter collision or the parameter
+        cannot be found.
+        Raise a ``ValueError`` if the parameter is required, but set to None.
+        """
+        # Check for parameter has been added and if so, find the index.
+        try:
+            ind = next(ind for ind, entry in enumerate(self.setters) if entry[0] == name)
+        except StopIteration:
+            raise KeyError(f"Tried to set parameter {name} that has not been added.") from None
+        required = self.setters[ind][3]
+
+        if value is None and name in kwargs:
+            # The value wasn't set, but the name is in kwargs.
+            value = kwargs[name]
+
+        if value is not None:
+            if isinstance(value, types.FunctionType):
+                # Case 1: If we are getting from a static function, sample it.
+                self.setters[ind] = (name, ParameterSource.FUNCTION, value, required)
+                setattr(self, name, value(**kwargs))
+            elif isinstance(value, types.MethodType) and isinstance(value.__self__, ParameterizedModel):
+                # Case 2: We are trying to use the method from a ParameterizedModel.
+                # Note that this will (correctly) fail if we are adding a model method from the current
+                # object that requires an unset attribute.
+                self.setters[ind] = (name, ParameterSource.MODEL_METHOD, value, required)
+                setattr(self, name, value(**kwargs))
+            elif isinstance(value, ParameterizedModel):
+                # Case 3: We are trying to access an attribute from a parameterized model.
+                if not hasattr(value, name):
+                    raise ValueError(f"Attribute {name} missing from parent.")
+                self.setters[ind] = (name, ParameterSource.MODEL_ATTRIBUTE, value, required)
+                setattr(self, name, getattr(value, name))
+            else:
+                # Case 4: The value is constant.
+                self.setters[ind] = (name, ParameterSource.CONSTANT, value, required)
+                setattr(self, name, value)
+        elif not required:
+            self.setters[ind] = (name, ParameterSource.CONSTANT, None, required)
+            setattr(self, name, None)
+        else:
+            raise ValueError(f"Missing required parameter {name}")
+
     def add_parameter(self, name, value=None, required=False, **kwargs):
-        """Add a single parameter to the ParameterizedModel. Checks multiple sources
-        in the following order: 1. Manually specified ``value``, 2. An entry in ``kwargs``,
-        or 3. ``None``.
-        Sets an initial value for the attribute based on the given information.
-        The attributes are stored in the order in which they are added.
+        """Add a single *new* parameter to the ParameterizedModel.
+
+        Notes
+        -----
+        * Checks multiple sources in the following order: Manually specified ``value``,
+          an entry in ``kwargs``, or ``None``.
+        * Sets an initial value for the attribute based on the given information.
+        * The attributes are stored in the order in which they are added.
 
         Parameters
         ----------
@@ -63,38 +128,14 @@ class ParameterizedModel:
         cannot be found.
         Raise a ``ValueError`` if the parameter is required, but set to None.
         """
+        # Check for parameter collision.
         if hasattr(self, name) and getattr(self, name) is not None:
             raise KeyError(f"Duplicate parameter set: {name}")
 
-        if value is None and name in kwargs:
-            # The value wasn't set, but the name is in kwargs.
-            value = kwargs[name]
-        if value is not None:
-            if isinstance(value, types.FunctionType):
-                # Case 1: If we are getting from a static function, sample it.
-                self.setters.append((name, ParameterSource.FUNCTION, value))
-                setattr(self, name, value(**kwargs))
-            elif isinstance(value, types.MethodType) and isinstance(value.__self__, ParameterizedModel):
-                # Case 2: We are trying to use the method from a ParameterizedModel.
-                # Note that this will (correctly) fail if we are adding a model method from the current
-                # object that requires an unset attribute.
-                self.setters.append((name, ParameterSource.MODEL_METHOD, value))
-                setattr(self, name, value(**kwargs))
-            elif isinstance(value, ParameterizedModel):
-                # Case 3: We are trying to access an attribute from a parameterized model.
-                if not hasattr(value, name):
-                    raise ValueError(f"Attribute {name} missing from parent.")
-                self.setters.append((name, ParameterSource.MODEL_ATTRIBUTE, value))
-                setattr(self, name, getattr(value, name))
-            else:
-                # Case 4: The value is constant.
-                self.setters.append((name, ParameterSource.CONSTANT, value))
-                setattr(self, name, value)
-        elif not required:
-            self.setters.append((name, ParameterSource.CONSTANT, None))
-            setattr(self, name, None)
-        else:
-            raise ValueError(f"Missing required parameter {name}")
+        # Add an entry for the setter function and fill in the remaining
+        # information using set_parameter().
+        self.setters.append((name, None, None, required))
+        self.set_parameter(name, value, **kwargs)
 
     def sample_parameters(self, max_depth=50, **kwargs):
         """Sample the model's underlying parameters if they are provided by a function
@@ -118,7 +159,7 @@ class ParameterizedModel:
             raise ValueError(f"Maximum sampling depth exceeded at {self}. Potential infinite loop.")
 
         # Run through each parameter and sample it based on the given recipe.
-        for name, source_type, setter in self.setters:
+        for name, source_type, setter, _ in self.setters:
             sampled_value = None
             if source_type == ParameterSource.CONSTANT:
                 sampled_value = setter

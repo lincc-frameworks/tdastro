@@ -102,7 +102,7 @@ def test_parameterized_model() -> None:
 
     # Nothing changes in model1 or model2
     assert model1.value1 == 0.5
-    assert model1.value1 == 0.5
+    assert model1.value2 == 0.5
     assert model1.result() == 1.0
     assert model1.value_sum == 1.0
     assert model2.value1 == 0.5
@@ -121,3 +121,23 @@ def test_parameterized_model() -> None:
     assert model1.sample_iteration == model2.sample_iteration
     assert model1.sample_iteration == model3.sample_iteration
     assert model1.sample_iteration == model4.sample_iteration
+
+
+def test_parameterized_model_modify() -> None:
+    """Test that we can modify the parameters in a model."""
+    model = PairModel(value1=0.5, value2=0.5)
+    assert model.value1 == 0.5
+    assert model.value2 == 0.5
+
+    # We cannot add a parameter a second time.
+    with pytest.raises(KeyError):
+        model.add_parameter("value1", 5.0)
+
+    # We can set the parameter.
+    model.set_parameter("value1", 5.0)
+    assert model.value1 == 5.0
+    assert model.value2 == 0.5
+
+    # We cannot set a value that hasn't been added.
+    with pytest.raises(KeyError):
+        model.set_parameter("brightness", 5.0)
