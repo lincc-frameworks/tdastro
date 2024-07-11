@@ -4,7 +4,7 @@ https://github.com/sncosmo/sncosmo/blob/v2.10.1/sncosmo/models.py
 https://sncosmo.readthedocs.io/en/stable/models.html
 """
 
-import sncosmo
+from sncosmo.models import Model
 
 from tdastro.base_models import PhysicalModel
 
@@ -30,7 +30,7 @@ class SncosmoModel(PhysicalModel):
     def __init__(self, model_name, **kwargs):
         super().__init__(**kwargs)
         self.model_name = model_name
-        self.model = sncosmo.Model(source=model_name)
+        self.model = Model(source=model_name)
 
     def __str__(self):
         """Return the string representation of the model."""
