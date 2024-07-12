@@ -187,9 +187,13 @@ class ParameterizedModel:
 
 
 class PhysicalModel(ParameterizedModel):
-    """A physical model of a source of flux. Physical models can have fixed attributes
-    (where you need to create a new model to change them) and settable attributes that
-    can be passed functions or constants.
+    """A physical model of a source of flux.
+
+    Physical models can have fixed attributes (where you need to create a new model
+    to change them) and settable attributes that can be passed functions or constants.
+    They can also have special background pointers that link to another PhysicalModel
+    producing flux. We can chain these to have a supernova in front of a star in front
+    of a static background.
 
     Attributes
     ----------

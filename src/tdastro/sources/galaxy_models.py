@@ -31,7 +31,7 @@ class GaussianGalaxy(PhysicalModel):
         Returns
         -------
         ra : `float`
-            The sampled right ascension.
+            The sampled right ascension in degrees.
         """
         return np.random.normal(loc=self.ra, scale=self.galaxy_radius_std)
 
@@ -41,7 +41,7 @@ class GaussianGalaxy(PhysicalModel):
         Returns
         -------
         dec : `float`
-            The sampled declination.
+            The sampled declination in degrees.
         """
         return np.random.normal(loc=self.dec, scale=self.galaxy_radius_std)
 
@@ -55,9 +55,9 @@ class GaussianGalaxy(PhysicalModel):
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
         ra : `float`, optional
-            The right ascension of the observations.
+            The right ascension of the observations in degrees.
         dec : `float`, optional
-            The declination of the observations.
+            The declination of the observations in degrees.
         **kwargs : `dict`, optional
            Any additional keyword arguments.
 
@@ -71,9 +71,6 @@ class GaussianGalaxy(PhysicalModel):
         if dec is None:
             dec = self.dec
 
-        print(f"Host: {self.ra}, {self.dec}")
-        print(f"Query: {ra}, {dec}")
-
         # Scale the brightness as a Guassian function centered on the object's RA and Dec.
         dist = angular_separation(
             self.ra * np.pi / 180.0,
@@ -81,9 +78,6 @@ class GaussianGalaxy(PhysicalModel):
             ra * np.pi / 180.0,
             dec * np.pi / 180.0,
         )
-        print(f"Dist = {dist}")
-
         scale = np.exp(-(dist * dist) / (2.0 * self.galaxy_radius_std * self.galaxy_radius_std))
-        print(f"Scale = {scale}")
 
         return np.full((len(times), len(wavelengths)), self.brightness * scale)
