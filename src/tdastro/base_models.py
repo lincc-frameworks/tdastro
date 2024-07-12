@@ -1,5 +1,10 @@
+"""The base models used throughout TDAstro including physical objects, effects, and populations."""
+
 import types
 from enum import Enum
+from os import urandom
+
+import numpy as np
 
 
 class ParameterSource(Enum):
@@ -347,3 +352,103 @@ class EffectModel(ParameterizedModel):
             A length T x N matrix of flux densities after the effect is applied.
         """
         raise NotImplementedError()
+
+
+class PopulationModel(ParameterizedModel):
+    """A model of a population of PhysicalModels.
+
+    Attributes
+    ----------
+    num_sources : `int`
+        The number of different sources in the population.
+    sources : `list`
+        A list of sources from which to draw.
+    _rng : `numpy.random._generator.Generator`
+        A random number generator to use.
+
+    Parameters
+    ----------
+    rng : `numpy.random._generator.Generator`, optional
+        A random number generator to use for sampling. If not provided,
+        will create a new one with a randomized seed.
+    """
+
+    def __init__(self, rng=None, **kwargs):
+        super().__init__(**kwargs)
+        self.num_sources = 0
+        self.sources = []
+        if rng is None:
+            seed = int.from_bytes(urandom(4), "big")
+            self._rng = np.random.default_rng(seed)
+        else:
+            self._rng = rng
+
+    def __str__(self):
+        """Return the string representation of the model."""
+        return f"PopulationModel with {self.num_sources} sources."
+
+    def add_source(self, new_source, **kwargs):
+        """Add a new source to the population.
+
+        Parameters
+        ----------
+        new_source : `PhysicalModel`
+            A source from the population.
+        **kwargs : `dict`, optional
+           Any additional keyword arguments.
+        """
+        if not isinstance(new_source, PhysicalModel):
+            raise ValueError("All sources must be PhysicalModels")
+        self.sources.append(new_source)
+        self.num_sources += 1
+
+    def draw_source(self):
+        """Sample a single source from the population.
+
+        Returns
+        -------
+        source : `PhysicalModel`
+            A source from the population.
+        """
+        raise NotImplementedError()
+
+    def add_effect(self, effect, **kwargs):
+        """Add a transformational effect to all PhysicalModels in this population.
+        Effects are applied in the order in which they are added.
+
+        Parameters
+        ----------
+        effect : `EffectModel`
+            The effect to apply.
+        **kwargs : `dict`, optional
+           Any additional keyword arguments.
+
+        Raises
+        ------
+        Raises a ``AttributeError`` if the PhysicalModel does not have all of the
+        required attributes.
+        """
+        for source in self.sources:
+            source.add_effect(effect, **kwargs)
+
+    def evaluate(self, times, wavelengths, resample_parameters=False, **kwargs):
+        """Draw observations from a single (randomly sampled) source.
+
+        Parameters
+        ----------
+        times : `numpy.ndarray`
+            A length T array of timestamps.
+        wavelengths : `numpy.ndarray`, optional
+            A length N array of wavelengths.
+        resample_parameters : `bool`
+            Treat this evaluation as a completely new object, resampling the
+            parameters from the original provided functions.
+        **kwargs : `dict`, optional
+           Any additional keyword arguments.
+
+        Returns
+        -------
+        flux_density : `numpy.ndarray`
+            A length T x N matrix of SED values.
+        """
+        return self.draw_source().evalute(times, wavelengths, resample_parameters, **kwargs)
