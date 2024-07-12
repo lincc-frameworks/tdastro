@@ -4,52 +4,47 @@ https://github.com/sncosmo/sncosmo/blob/v2.10.1/sncosmo/models.py
 https://sncosmo.readthedocs.io/en/stable/models.html
 """
 
-from sncosmo.models import Model
+from sncosmo.models import get_source
 
 from tdastro.base_models import PhysicalModel
 
 
-class SncosmoModel(PhysicalModel):
+class SncosmoWrapperModel(PhysicalModel):
     """A wrapper for sncosmo models.
 
     Attributes
     ----------
-    model : `sncosmo.Model`
-        The underlying model.
-    model_name : `str`
-        The name used to set the model.
+    source : `sncosmo.Source`
+        The underlying source model.
+    source_name : `str`
+        The name used to set the source.
 
     Parameters
     ----------
-    model_name : `str`
-        The name used to set the model.
+    source_name : `str`
+        The name used to set the source.
     **kwargs : `dict`, optional
         Any additional keyword arguments.
     """
 
-    def __init__(self, model_name, **kwargs):
+    def __init__(self, source_name, **kwargs):
         super().__init__(**kwargs)
-        self.model_name = model_name
-        self.model = Model(source=model_name)
+        self.source_name = source_name
+        self.source = get_source(source_name)
 
     def __str__(self):
         """Return the string representation of the model."""
-        return f"SncosmoModel({self.model_name})"
+        return f"SncosmoWrapperModel({self.source_name})"
 
     @property
     def param_names(self):
         """Return a list of the model's parameter names."""
-        return self.model.param_names
+        return self.source.param_names
 
     @property
     def parameters(self):
         """Return a list of the model's parameter values."""
-        return self.model.parameters
-
-    @property
-    def source(self):
-        """Return the model's sncosmo source instance."""
-        return self.model.source
+        return self.source.parameters
 
     def get(self, name):
         """Get the value of a specific parameter.
@@ -63,7 +58,7 @@ class SncosmoModel(PhysicalModel):
         -------
         The parameter value.
         """
-        return self.model.get(name)
+        return self.source.get(name)
 
     def set(self, **kwargs):
         """Set the parameters of the model.
@@ -75,7 +70,7 @@ class SncosmoModel(PhysicalModel):
         **kwargs : `dict`
             The parameters to set and their values.
         """
-        self.model.set(**kwargs)
+        self.source.set(**kwargs)
         for key, value in kwargs.items():
             if hasattr(self, key):
                 self.set_parameter(key, value)
@@ -99,4 +94,4 @@ class SncosmoModel(PhysicalModel):
         flux_density : `numpy.ndarray`
             A length T x N matrix of SED values.
         """
-        return self.model.flux(times, wavelengths)
+        return self.source.flux(times, wavelengths)
