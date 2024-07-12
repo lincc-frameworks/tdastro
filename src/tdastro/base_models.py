@@ -199,11 +199,13 @@ class PhysicalModel(ParameterizedModel):
         The object's declination (in degrees)
     distance : `float`
         The object's distance (in pc)
+    background : `PhysicalModel`
+        A source of background flux such as a host galaxy.
     effects : `list`
         A list of effects to apply to an observations.
     """
 
-    def __init__(self, ra=None, dec=None, distance=None, **kwargs):
+    def __init__(self, ra=None, dec=None, distance=None, background=None, **kwargs):
         super().__init__(**kwargs)
         self.effects = []
 
@@ -211,6 +213,9 @@ class PhysicalModel(ParameterizedModel):
         self.add_parameter("ra", ra)
         self.add_parameter("dec", dec)
         self.add_parameter("distance", distance)
+
+        # Background is an object not a sampled parameter
+        self.background = background
 
     def __str__(self):
         """Return the string representation of the model."""
@@ -282,7 +287,15 @@ class PhysicalModel(ParameterizedModel):
         if resample_parameters:
             self.sample_parameters(kwargs)
 
+        # Compute the flux density for both the current object and add in anything
+        # behind it, such as a host galaxy.
         flux_density = self._evaluate(times, wavelengths, **kwargs)
+        if self.background is not None:
+            print("background is not None")
+            flux_density += self.background._evaluate(times, wavelengths, ra=self.ra, dec=self.dec, **kwargs)
+        else:
+            print("background is None")
+
         for effect in self.effects:
             flux_density = effect.apply(flux_density, wavelengths, self, **kwargs)
         return flux_density
@@ -299,7 +312,10 @@ class PhysicalModel(ParameterizedModel):
             All the keyword arguments, including the values needed to sample
             parameters.
         """
+        if self.background is not None:
+            self.background.sample_parameters(include_effects, **kwargs)
         super().sample_parameters(**kwargs)
+
         if include_effects:
             for effect in self.effects:
                 effect.sample_parameters(**kwargs)
