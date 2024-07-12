@@ -1,3 +1,5 @@
+import random
+
 import numpy as np
 import pytest
 from tdastro.effects.white_noise import WhiteNoise
@@ -10,7 +12,7 @@ def test_fixed_population_basic_add():
     population = FixedPopulation()
     population.add_source(StaticSource(brightness=10.0), 0.5)
     assert population.num_sources == 1
-    assert np.allclose(population.probs, [1.0])
+    assert np.allclose(population.weights, [0.5])
 
     # Test that we fail with a bad rate.
     with pytest.raises(ValueError):
@@ -35,21 +37,34 @@ def test_fixed_population_add_effect():
     assert len(model2.effects) == 1
 
 
-def test_fixed_population_sample():
-    """Test that we can sample and create a StaticSource object."""
-    test_rng = np.random.default_rng(100)
-    population = FixedPopulation(rng=test_rng)
+def test_fixed_population_add_effect_fail():
+    """Test a case where we try to add an existing effect to models."""
+    model1 = StaticSource(brightness=10.0)
+    model1.add_effect(WhiteNoise(scale=0.01))
+
+    population = FixedPopulation()
+    population.add_source(model1, 0.5)
+
+    # Fail when we try to re-add the WhiteNoise effect
+    with pytest.raises(ValueError):
+        population.add_effect(WhiteNoise(scale=0.01))
+
+
+def test_fixed_population_sample_sources():
+    """Test that we can create a population of sources and sample its sources."""
+    random.seed(1000)
+    population = FixedPopulation()
 
     population.add_source(StaticSource(brightness=0.0), 10.0)
-    assert np.allclose(population.probs, [1.0])
+    assert np.allclose(population.weights, [10.0])
     assert population.num_sources == 1
 
     population.add_source(StaticSource(brightness=1.0), 10.0)
-    assert np.allclose(population.probs, [0.5, 0.5])
+    assert np.allclose(population.weights, [10.0, 10.0])
     assert population.num_sources == 2
 
     population.add_source(StaticSource(brightness=2.0), 20.0)
-    assert np.allclose(population.probs, [0.25, 0.25, 0.5])
+    assert np.allclose(population.weights, [10.0, 10.0, 20.0])
     assert population.num_sources == 3
 
     itr = 10_000
@@ -61,10 +76,45 @@ def test_fixed_population_sample():
 
     # Check the we can change a rate.
     population.change_rate(0, 20.0)
-    assert np.allclose(population.probs, [0.4, 0.2, 0.4])
 
     counts = [0.0, 0.0, 0.0]
     for _ in range(itr):
         model = population.draw_source()
         counts[int(model.brightness)] += 1.0
     assert np.allclose(counts, [0.4 * itr, 0.2 * itr, 0.4 * itr], rtol=0.05)
+
+
+def _random_brightness():
+    """Returns a random value [0.0, 100.0]"""
+    return 100.0 * random.random()
+
+
+def test_fixed_population_sample_fluxes():
+    """Test that we can create a population of sources and sample its sources' flux."""
+    random.seed(1001)
+    population = FixedPopulation()
+    population.add_source(StaticSource(brightness=100.0), 10.0)
+    population.add_source(StaticSource(brightness=_random_brightness), 10.0)
+    population.add_source(StaticSource(brightness=200.0), 20.0)
+    population.add_source(StaticSource(brightness=150.0), 10.0)
+
+    # Sample the actual observations, resampling the corresponding
+    # model's parameters each time.
+    num_samples = 10_000
+    times = np.array([1, 2, 3, 4, 5])
+    wavelengths = np.array([100.0, 200.0, 300.0])
+    fluxes = population.evaluate(num_samples, times, wavelengths, resample_parameters=True)
+
+    # Check that the fluxes are constant within a sample. Also check that we have
+    # More than 4 values (since we are resampling a model with a random parameter).
+    seen_values = []
+    for i in range(num_samples):
+        value = fluxes[i, 0, 0]
+        seen_values.append(value)
+        assert np.allclose(fluxes[i], value)
+    assert len(np.unique(seen_values)) > 4
+
+    # Check that our average is near the expected value of flux.
+    ave_val = np.mean(fluxes.flatten())
+    expected = 0.2 * 100.0 + 0.2 * 50.0 + 0.4 * 200.0 + 0.2 * 150.0
+    assert abs(ave_val - expected) < 10.0

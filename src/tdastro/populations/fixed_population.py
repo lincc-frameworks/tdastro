@@ -1,4 +1,4 @@
-import numpy as np
+import random
 
 from tdastro.base_models import PopulationModel
 
@@ -8,9 +8,7 @@ class FixedPopulation(PopulationModel):
 
     Attributes
     ----------
-    probs : `numpy.ndarray`
-        The probability of drawing each type of source.
-    _raw_rates : `numpy.ndarray`
+    weights : `numpy.ndarray`
         An array of floats that provides the base sampling rate for each
         type. This is normalized into a probability distributions so
         [100, 200, 200] -> [0.2, 0.4, 0.4].
@@ -18,16 +16,11 @@ class FixedPopulation(PopulationModel):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.probs = np.array([])
-        self._raw_rates = np.array([])
+        self.weights = []
 
     def __str__(self):
         """Return the string representation of the model."""
         return f"FixedPopulation({self.probability})"
-
-    def _update_probabilities(self):
-        """Update the probability array."""
-        self.probs = self._raw_rates / np.sum(self._raw_rates)
 
     def add_source(self, new_source, rate, **kwargs):
         """Add a new source to the population.
@@ -48,12 +41,10 @@ class FixedPopulation(PopulationModel):
         if rate <= 0.0:
             raise ValueError(f"Expected positive rate. Found {rate}.")
         super().add_source(new_source, **kwargs)
-
-        self._raw_rates = np.append(self._raw_rates, rate)
-        self._update_probabilities()
+        self.weights.append(rate)
 
     def change_rate(self, source_index, rate, **kwargs):
-        """Add a new source to the population.
+        """Change rate of a source.
 
         Parameters
         ----------
@@ -70,8 +61,7 @@ class FixedPopulation(PopulationModel):
         """
         if rate <= 0.0:
             raise ValueError(f"Expected positive rate. Found {rate}.")
-        self._raw_rates[source_index] = rate
-        self._update_probabilities()
+        self.weights[source_index] = rate
 
     def draw_source(self):
         """Sample a single source from the population.
@@ -81,5 +71,4 @@ class FixedPopulation(PopulationModel):
         source : `PhysicalModel`
             A source from the population.
         """
-        index = self._rng.choice(np.arange(0, self.num_sources), p=self.probs)
-        return self.sources[index]
+        return random.choices(self.sources, weights=self.weights)[0]

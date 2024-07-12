@@ -2,7 +2,6 @@
 
 import types
 from enum import Enum
-from os import urandom
 
 import numpy as np
 
@@ -221,7 +220,7 @@ class PhysicalModel(ParameterizedModel):
         """Return the string representation of the model."""
         return "PhysicalModel"
 
-    def add_effect(self, effect, **kwargs):
+    def add_effect(self, effect, allow_dups=True, **kwargs):
         """Add a transformational effect to the PhysicalModel.
         Effects are applied in the order in which they are added.
 
@@ -229,6 +228,9 @@ class PhysicalModel(ParameterizedModel):
         ----------
         effect : `EffectModel`
             The effect to apply.
+        allow_dups : `bool`
+            Allow multiple effects of the same type.
+            Default = ``True``
         **kwargs : `dict`, optional
            Any additional keyword arguments.
 
@@ -237,6 +239,13 @@ class PhysicalModel(ParameterizedModel):
         Raises a ``AttributeError`` if the PhysicalModel does not have all of the
         required attributes.
         """
+        # Check that we have not added this effect before.
+        if not allow_dups:
+            effect_type = type(effect)
+            for prev in self.effects:
+                if effect_type == type(prev):
+                    raise ValueError("Added the effect type to a model {effect_type} more than once.")
+
         required: list = effect.required_parameters()
         for parameter in required:
             # Raise an AttributeError if the parameter is missing or set to None.
@@ -363,25 +372,12 @@ class PopulationModel(ParameterizedModel):
         The number of different sources in the population.
     sources : `list`
         A list of sources from which to draw.
-    _rng : `numpy.random._generator.Generator`
-        A random number generator to use.
-
-    Parameters
-    ----------
-    rng : `numpy.random._generator.Generator`, optional
-        A random number generator to use for sampling. If not provided,
-        will create a new one with a randomized seed.
     """
 
     def __init__(self, rng=None, **kwargs):
         super().__init__(**kwargs)
         self.num_sources = 0
         self.sources = []
-        if rng is None:
-            seed = int.from_bytes(urandom(4), "big")
-            self._rng = np.random.default_rng(seed)
-        else:
-            self._rng = rng
 
     def __str__(self):
         """Return the string representation of the model."""
@@ -412,7 +408,7 @@ class PopulationModel(ParameterizedModel):
         """
         raise NotImplementedError()
 
-    def add_effect(self, effect, **kwargs):
+    def add_effect(self, effect, allow_dups=False, **kwargs):
         """Add a transformational effect to all PhysicalModels in this population.
         Effects are applied in the order in which they are added.
 
@@ -420,6 +416,9 @@ class PopulationModel(ParameterizedModel):
         ----------
         effect : `EffectModel`
             The effect to apply.
+        allow_dups : `bool`
+            Allow multiple effects of the same type.
+            Default = ``True``
         **kwargs : `dict`, optional
            Any additional keyword arguments.
 
@@ -429,13 +428,15 @@ class PopulationModel(ParameterizedModel):
         required attributes.
         """
         for source in self.sources:
-            source.add_effect(effect, **kwargs)
+            source.add_effect(effect, allow_dups=allow_dups, **kwargs)
 
-    def evaluate(self, times, wavelengths, resample_parameters=False, **kwargs):
+    def evaluate(self, samples, times, wavelengths, resample_parameters=False, **kwargs):
         """Draw observations from a single (randomly sampled) source.
 
         Parameters
         ----------
+        samples : `int`
+            The number of sources to samples.
         times : `numpy.ndarray`
             A length T array of timestamps.
         wavelengths : `numpy.ndarray`, optional
@@ -448,7 +449,15 @@ class PopulationModel(ParameterizedModel):
 
         Returns
         -------
-        flux_density : `numpy.ndarray`
-            A length T x N matrix of SED values.
+        results : `numpy.ndarray`
+            A shape (samples, T, N) matrix of SED values.
         """
-        return self.draw_source().evalute(times, wavelengths, resample_parameters, **kwargs)
+        if samples <= 0:
+            raise ValueError("The number of samples must be > 0.")
+
+        results = []
+        for _ in range(samples):
+            source = self.draw_source()
+            object_fluxes = source.evaluate(times, wavelengths, resample_parameters, **kwargs)
+            results.append(object_fluxes)
+        return np.array(results)
