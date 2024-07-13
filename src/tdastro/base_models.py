@@ -5,6 +5,8 @@ from enum import Enum
 
 import numpy as np
 
+from tdastro.function_wrappers import TDFunc
+
 
 class ParameterSource(Enum):
     """ParameterSource specifies where a PhysicalModel should get the value
@@ -14,8 +16,9 @@ class ParameterSource(Enum):
 
     CONSTANT = 1
     FUNCTION = 2
-    MODEL_ATTRIBUTE = 3
-    MODEL_METHOD = 4
+    TDFUNC_OBJ = 3
+    MODEL_ATTRIBUTE = 4
+    MODEL_METHOD = 5
 
 
 class ParameterizedModel:
@@ -75,31 +78,32 @@ class ParameterizedModel:
             # The value wasn't set, but the name is in kwargs.
             value = kwargs[name]
 
-        if value is not None:
-            if isinstance(value, types.FunctionType):
-                # Case 1: If we are getting from a static function, sample it.
-                self.setters[name] = (ParameterSource.FUNCTION, value, required)
-                setattr(self, name, value(**kwargs))
-            elif isinstance(value, types.MethodType) and isinstance(value.__self__, ParameterizedModel):
-                # Case 2: We are trying to use the method from a ParameterizedModel.
-                # Note that this will (correctly) fail if we are adding a model method from the current
-                # object that requires an unset attribute.
-                self.setters[name] = (ParameterSource.MODEL_METHOD, value, required)
-                setattr(self, name, value(**kwargs))
-            elif isinstance(value, ParameterizedModel):
-                # Case 3: We are trying to access an attribute from a parameterized model.
-                if not hasattr(value, name):
-                    raise ValueError(f"Attribute {name} missing from parent.")
-                self.setters[name] = (ParameterSource.MODEL_ATTRIBUTE, value, required)
-                setattr(self, name, getattr(value, name))
-            else:
-                # Case 4: The value is constant.
-                self.setters[name] = (ParameterSource.CONSTANT, value, required)
-                setattr(self, name, value)
-        elif not required:
-            self.setters[name] = (ParameterSource.CONSTANT, None, required)
-            setattr(self, name, None)
+        if isinstance(value, types.FunctionType):
+            # Case 1a: If we are getting from a static function, sample it.
+            self.setters[name] = (ParameterSource.FUNCTION, value, required)
+            setattr(self, name, value(**kwargs))
+        elif isinstance(value, TDFunc):
+            # Case 1b: We are using a TDFunc wrapped function (with default parameters).
+            self.setters[name] = (ParameterSource.TDFUNC_OBJ, value, required)
+            setattr(self, name, value(self, **kwargs))
+        elif isinstance(value, types.MethodType) and isinstance(value.__self__, ParameterizedModel):
+            # Case 2: We are trying to use the method from a ParameterizedModel.
+            # Note that this will (correctly) fail if we are adding a model method from the current
+            # object that requires an unset attribute.
+            self.setters[name] = (ParameterSource.MODEL_METHOD, value, required)
+            setattr(self, name, value(**kwargs))
+        elif isinstance(value, ParameterizedModel):
+            # Case 3: We are trying to access an attribute from a parameterized model.
+            if not hasattr(value, name):
+                raise ValueError(f"Attribute {name} missing from parent.")
+            self.setters[name] = (ParameterSource.MODEL_ATTRIBUTE, value, required)
+            setattr(self, name, getattr(value, name))
         else:
+            # Case 4: The value is constant (including None).
+            self.setters[name] = (ParameterSource.CONSTANT, value, required)
+            setattr(self, name, value)
+
+        if required and getattr(self, name) is None:
             raise ValueError(f"Missing required parameter {name}")
 
     def add_parameter(self, name, value=None, required=False, **kwargs):
@@ -169,6 +173,8 @@ class ParameterizedModel:
                 sampled_value = setter
             elif source_type == ParameterSource.FUNCTION:
                 sampled_value = setter(**kwargs)
+            elif source_type == ParameterSource.TDFUNC_OBJ:
+                sampled_value = setter(self, **kwargs)
             elif source_type == ParameterSource.MODEL_ATTRIBUTE:
                 # Check if we need to resample the parent (needs to be done before
                 # we read its attribute).
