@@ -57,6 +57,10 @@ def test_tdfunc_basic():
     # We can overwrite parameters.
     assert tdf1(a=3.0, b=2.0) == 5.0
 
+    # That we can use a different ordering for parameters.
+    tdf2 = TDFunc(_test_func, b=2.0, a=1.0)
+    assert tdf2() == 3.0
+
 
 def test_tdfunc_obj():
     """Test that we can create and query a TDFunc that depends on an object."""
