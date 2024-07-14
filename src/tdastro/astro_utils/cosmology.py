@@ -1,7 +1,7 @@
 import astropy.cosmology.units as cu
 from astropy import units as u
 
-from tdastro.function_wrappers import TDFunc
+from tdastro.base_models import FunctionNode
 
 
 def redshift_to_distance(redshift, cosmology, kind="comoving"):
@@ -28,7 +28,7 @@ def redshift_to_distance(redshift, cosmology, kind="comoving"):
     return distance.value
 
 
-class RedshiftDistFunc(TDFunc):
+class RedshiftDistFunc(FunctionNode):
     """A wrapper class for the redshift_to_distance() function.
 
     Attributes
@@ -51,12 +51,7 @@ class RedshiftDistFunc(TDFunc):
     """
 
     def __init__(self, redshift, cosmology, kind="comoving"):
-        self.cosmology = cosmology
-        self.kind = kind
-
         # Call the super class's constructor with the needed information.
-        # Do not pass kwargs because we are limiting the arguments to match
-        # the signature of redshift_to_distance().
         super().__init__(
             func=redshift_to_distance,
             redshift=redshift,

@@ -1,28 +1,23 @@
-"""The base models used throughout TDAstro including physical objects, effects, and populations."""
+"""The base models used to specify the TDAstro computation graph."""
 
 import types
 from enum import Enum
 
-from tdastro.function_wrappers import TDFunc
-
 
 class ParameterSource(Enum):
-    """ParameterSource specifies where a PhysicalModel should get the value
-    for a given parameter: a constant value, a function, or from another
-    parameterized model.
+    """ParameterSource specifies where a ParameterizedNode should get the value
+    for a given parameter: a constant value or from another ParameterizedNode.
     """
 
     CONSTANT = 1
-    FUNCTION = 2
-    TDFUNC_OBJ = 3
-    MODEL_ATTRIBUTE = 4
-    MODEL_METHOD = 5
+    MODEL_ATTRIBUTE = 2
+    MODEL_METHOD = 3
+    FUNCTION = 4
 
 
 class ParameterizedNode:
     """Any model that uses parameters that can be set by constants,
-    functions, or other parameterized models. ParameterizedNode can
-    include physical objects or statistical distributions.
+    functions, or other parameterized nodes.
 
     Attributes
     ----------
@@ -42,6 +37,36 @@ class ParameterizedNode:
     def __str__(self):
         """Return the string representation of the model."""
         return "ParameterizedNode"
+
+    def check_resample(self, child):
+        """Check if we need to resample the current node based
+        on the state of a child trying to access its attributes.
+
+        Parameters
+        ----------
+        child : `ParameterizedNode`
+            The node that is accessing the attribute or method
+            of the current node.
+
+        Returns
+        -------
+        bool
+            Indicates whether to resample or not.
+
+        Raises
+        ------
+        ``ValueError`` if the graph has gotten out of sync.
+        """
+        if child == self:
+            return False
+        if child.sample_iteration == self.sample_iteration:
+            return False
+        if child.sample_iteration != self.sample_iteration + 1:
+            raise ValueError(
+                f"Node {str(child)} at iteration {child.sample_iteration} accessing"
+                f" parent {str(self)} at iteration {self.sample_iteration}."
+            )
+        return True
 
     def set_parameter(self, name, value=None, **kwargs):
         """Set a single *existing* parameter to the ParameterizedNode.
@@ -76,28 +101,26 @@ class ParameterizedNode:
             # The value wasn't set, but the name is in kwargs.
             value = kwargs[name]
 
-        if isinstance(value, types.FunctionType):
-            # Case 1a: If we are getting from a static function, sample it.
-            self.setters[name] = (ParameterSource.FUNCTION, value, required)
-            setattr(self, name, value(**kwargs))
-        elif isinstance(value, TDFunc):
-            # Case 1b: We are using a TDFunc wrapped function (with default parameters).
-            self.setters[name] = (ParameterSource.TDFUNC_OBJ, value, required)
-            setattr(self, name, value(**kwargs))
-        elif isinstance(value, types.MethodType) and isinstance(value.__self__, ParameterizedNode):
-            # Case 2: We are trying to use the method from a ParameterizedNode.
-            # Note that this will (correctly) fail if we are adding a model method from the current
-            # object that requires an unset attribute.
-            self.setters[name] = (ParameterSource.MODEL_METHOD, value, required)
+        if callable(value):
+            if isinstance(value, types.FunctionType):
+                # Case 1a: This is a static function (not attached to an object).
+                self.setters[name] = (ParameterSource.FUNCTION, value, required)
+            elif isinstance(value.__self__, ParameterizedNode):
+                # Case 1b: This is a method attached to another ParameterizedNode.
+                self.setters[name] = (ParameterSource.MODEL_METHOD, value, required)
+            else:
+                # Case 1c: This is a general callable method from another object.
+                # We treat it as static (we don't resample the other object).
+                self.setters[name] = (ParameterSource.FUNCTION, value, required)
             setattr(self, name, value(**kwargs))
         elif isinstance(value, ParameterizedNode):
-            # Case 3: We are trying to access an attribute from a parameterized model.
+            # Case 2: We are trying to access a parameter of another ParameterizedNode.
             if not hasattr(value, name):
                 raise ValueError(f"Attribute {name} missing from parent.")
             self.setters[name] = (ParameterSource.MODEL_ATTRIBUTE, value, required)
             setattr(self, name, getattr(value, name))
         else:
-            # Case 4: The value is constant (including None).
+            # Case 3: The value is constant (including None).
             self.setters[name] = (ParameterSource.CONSTANT, value, required)
             setattr(self, name, value)
 
@@ -162,6 +185,9 @@ class ParameterizedNode:
         if max_depth == 0:
             raise ValueError(f"Maximum sampling depth exceeded at {self}. Potential infinite loop.")
 
+        # Increase the sampling iteration.
+        self.sample_iteration += 1
+
         # Run through each parameter and sample it based on the given recipe.
         # As of Python 3.7 dictionaries are guaranteed to preserve insertion ordering,
         # so this will iterate through attributes in the order they were inserted.
@@ -171,24 +197,77 @@ class ParameterizedNode:
                 sampled_value = setter
             elif source_type == ParameterSource.FUNCTION:
                 sampled_value = setter(**kwargs)
-            elif source_type == ParameterSource.TDFUNC_OBJ:
-                sampled_value = setter(**kwargs)
             elif source_type == ParameterSource.MODEL_ATTRIBUTE:
-                # Check if we need to resample the parent (needs to be done before
-                # we read its attribute).
-                if setter.sample_iteration == self.sample_iteration:
+                # Check if we need to resample the parent (before accessing the attribute).
+                if setter.check_resample(self):
                     setter.sample_parameters(max_depth - 1, **kwargs)
                 sampled_value = getattr(setter, name)
             elif source_type == ParameterSource.MODEL_METHOD:
-                # Check if we need to resample the parent (needs to be done before
-                # we evaluate its method). Do not resample the current object.
-                parent = setter.__self__
-                if parent is not self and parent.sample_iteration == self.sample_iteration:
-                    parent.sample_parameters(max_depth - 1, **kwargs)
+                # Check if we need to resample the parent (before calling the method).
+                parent_node = setter.__self__
+                if parent_node.check_resample(self):
+                    parent_node.sample_parameters(max_depth - 1, **kwargs)
                 sampled_value = setter(**kwargs)
             else:
                 raise ValueError(f"Unknown ParameterSource type {source_type} for {name}")
             setattr(self, name, sampled_value)
 
-        # Increase the sampling iteration.
-        self.sample_iteration += 1
+
+class FunctionNode(ParameterizedNode):
+    """A class to wrap functions and their argument settings.
+
+    Attributes
+    ----------
+    func : `function` or `method`
+        The function to call during an evaluation.
+    args_names : `list`
+        A list of argument names to pass to the function.
+
+    Examples
+    --------
+    my_func = TDFunc(random.randint, a=1, b=10)
+    value1 = my_func()      # Sample from default range
+    value2 = my_func(b=20)  # Sample from extended range
+
+    Note
+    ----
+    All the function's parameters that will be used need to be specified
+    in either the default_args dict, object_args list, or as a kwarg in the
+    constructor. Arguments cannot be first given during function call.
+    For example the following will fail (because b is not defined in the
+    constructor):
+
+    my_func = TDFunc(random.randint, a=1)
+    value1 = my_func(b=10.0)
+    """
+
+    def __init__(self, func, **kwargs):
+        super().__init__(**kwargs)
+        self.func = func
+        self.arg_names = []
+
+        # Add all of the parameters from default_args or the kwargs.
+        for key, value in kwargs.items():
+            self.arg_names.append(key)
+            self.add_parameter(key, value)
+
+    def __str__(self):
+        """Return the string representation of the function."""
+        return f"FunctionNode({self.func.name})"
+
+    def compute(self, **kwargs):
+        """Execute the wrapped function.
+
+        Parameters
+        ----------
+        **kwargs : `dict`, optional
+            Additional function arguments.
+        """
+        args = {}
+        for key in self.arg_names:
+            # Override with the kwarg if the parameter is there.
+            if key in kwargs:
+                args[key] = kwargs[key]
+            else:
+                args[key] = getattr(self, key)
+        return self.func(**args)

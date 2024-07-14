@@ -1,7 +1,8 @@
 import random
 
+import numpy as np
 import pytest
-from tdastro.base_models import ParameterizedNode
+from tdastro.base_models import FunctionNode, ParameterizedNode
 
 
 def _sampler_fun(**kwargs):
@@ -13,6 +14,19 @@ def _sampler_fun(**kwargs):
         Absorbs additional parameters
     """
     return random.random()
+
+
+def _test_func(value1, value2):
+    """Return the sum of the two parameters.
+
+    Parameters
+    ----------
+    value1 : `float`
+        The first parameter.
+    value2 : `float`
+        The second parameter.
+    """
+    return value1 + value2
 
 
 class PairModel(ParameterizedNode):
@@ -44,6 +58,10 @@ class PairModel(ParameterizedNode):
         self.add_parameter("value1", value1, required=True, **kwargs)
         self.add_parameter("value2", value2, required=True, **kwargs)
         self.add_parameter("value_sum", self.result, required=True, **kwargs)
+
+    def get_value1(self):
+        """Get the value of value1."""
+        return self.value1
 
     def result(self, **kwargs):
         """Add the pair of values together
@@ -141,3 +159,60 @@ def test_parameterized_model_modify() -> None:
     # We cannot set a value that hasn't been added.
     with pytest.raises(KeyError):
         model.set_parameter("brightness", 5.0)
+
+
+def test_function_node_basic():
+    """Test that we can create and query a FunctionNode."""
+    my_func = FunctionNode(_test_func, value1=1.0, value2=2.0)
+    assert my_func.compute() == 3.0
+    assert my_func.compute(value2=3.0) == 4.0
+    assert my_func.compute(value2=3.0, unused_param=5.0) == 4.0
+    assert my_func.compute(value2=3.0, value1=1.0) == 4.0
+
+
+def test_function_node_chain():
+    """Test that we can create and query a chained FunctionNode."""
+    func1 = FunctionNode(_test_func, value1=1.0, value2=1.0)
+    func2 = FunctionNode(_test_func, value1=func1.compute, value2=3.0)
+    assert func2.compute() == 5.0
+
+
+def test_np_sampler_method():
+    """Test that we can wrap numpy random functions."""
+    rng = np.random.default_rng(1001)
+    my_func = FunctionNode(rng.normal, loc=10.0, scale=1.0)
+
+    # Sample 1000 times with the default values. Check that we are near
+    # the expected mean and not everything is equal.
+    vals = np.array([my_func.compute() for _ in range(1000)])
+    assert abs(np.mean(vals) - 10.0) < 1.0
+    assert not np.all(vals == vals[0])
+
+    # Override the mean and resample.
+    vals = np.array([my_func.compute(loc=25.0) for _ in range(1000)])
+    assert abs(np.mean(vals) - 25.0) < 1.0
+    assert not np.all(vals == vals[0])
+
+
+def test_function_node_obj():
+    """Test that we can create and query a FunctionNode that depends on
+    another ParameterizedNode.
+    """
+    # The model depends on the function.
+    func = FunctionNode(_test_func, value1=5.0, value2=6.0)
+    model = PairModel(value1=10.0, value2=func.compute)
+    assert model.result() == 21.0
+
+    # Function depends on the model's value2 attribute.
+    model = PairModel(value1=-10.0, value2=17.5)
+    func = FunctionNode(_test_func, value1=5.0, value2=model)
+    assert model.result() == 7.5
+    assert func.compute() == 22.5
+
+    # Function depends on the model's get_value1() method.
+    func = FunctionNode(_test_func, value1=model.get_value1, value2=5.0)
+    assert model.result() == 7.5
+    assert func.compute() == -5.0
+
+    # We can always override the attributes with kwargs.
+    assert func.compute(value1=1.0, value2=4.0) == 5.0

@@ -45,7 +45,8 @@ class PhysicalModel(ParameterizedNode):
         if distance is not None:
             self.add_parameter("distance", distance)
         elif redshift is not None and kwargs.get("cosmology", None) is not None:
-            self.add_parameter("distance", RedshiftDistFunc(redshift=self.get_redshift, **kwargs))
+            self._redshift_func = RedshiftDistFunc(redshift=self, **kwargs)
+            self.add_parameter("distance", self._redshift_func.compute)
         else:
             self.add_parameter("distance", None)
 
@@ -55,10 +56,6 @@ class PhysicalModel(ParameterizedNode):
     def __str__(self):
         """Return the string representation of the model."""
         return "PhysicalModel"
-
-    def get_redshift(self):
-        """Return the redshift for the model."""
-        return self.redshift
 
     def add_effect(self, effect, allow_dups=True, **kwargs):
         """Add a transformational effect to the PhysicalModel.
@@ -158,10 +155,11 @@ class PhysicalModel(ParameterizedNode):
             All the keyword arguments, including the values needed to sample
             parameters.
         """
-        if self.background is not None:
+        if self.background is not None and self.background.check_resample(self):
             self.background.sample_parameters(include_effects, **kwargs)
         super().sample_parameters(**kwargs)
 
         if include_effects:
             for effect in self.effects:
-                effect.sample_parameters(**kwargs)
+                if effect.check_resample(self):
+                    effect.sample_parameters(**kwargs)

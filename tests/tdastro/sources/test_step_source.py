@@ -1,7 +1,7 @@
 import random
 
 import numpy as np
-from tdastro.function_wrappers import TDFunc
+from tdastro.base_models import FunctionNode
 from tdastro.sources.static_source import StaticSource
 from tdastro.sources.step_source import StepSource
 
@@ -58,9 +58,9 @@ def test_step_source_resample() -> None:
     random.seed(1111)
 
     model = StepSource(
-        brightness=TDFunc(_sample_brightness, magnitude=100.0),
+        brightness=FunctionNode(_sample_brightness, magnitude=100.0).compute,
         t0=0.0,
-        t1=TDFunc(_sample_end, duration=5.0),
+        t1=FunctionNode(_sample_end, duration=5.0).compute,
     )
 
     num_samples = 1000

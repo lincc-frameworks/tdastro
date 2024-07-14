@@ -2,8 +2,8 @@ import random
 
 import numpy as np
 import pytest
+from tdastro.base_models import FunctionNode
 from tdastro.effects.white_noise import WhiteNoise
-from tdastro.function_wrappers import TDFunc
 from tdastro.populations.fixed_population import FixedPopulation
 from tdastro.sources.static_source import StaticSource
 
@@ -88,9 +88,10 @@ def test_fixed_population_sample_sources():
 def test_fixed_population_sample_fluxes():
     """Test that we can create a population of sources and sample its sources' flux."""
     random.seed(1001)
+    brightness_func = FunctionNode(random.uniform, a=0.0, b=100.0)
     population = FixedPopulation()
     population.add_source(StaticSource(brightness=100.0), 10.0)
-    population.add_source(StaticSource(brightness=TDFunc(random.uniform, a=0.0, b=100.0)), 10.0)
+    population.add_source(StaticSource(brightness=brightness_func.compute), 10.0)
     population.add_source(StaticSource(brightness=200.0), 20.0)
     population.add_source(StaticSource(brightness=150.0), 10.0)
 
