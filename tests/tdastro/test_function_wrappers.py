@@ -1,3 +1,4 @@
+import numpy as np
 import pytest
 from tdastro.function_wrappers import TDFunc
 
@@ -45,21 +46,44 @@ class _StaticModel:
 
 def test_tdfunc_basic():
     """Test that we can create and query a TDFunc."""
-    tdf1 = TDFunc(_test_func, a=1.0)
-
     # Fail without enough arguments (only a is specified).
+    tdf1 = TDFunc(_test_func, a=1.0)
     with pytest.raises(TypeError):
         _ = tdf1()
 
-    # We succeed with a manually specified parameter.
-    assert tdf1(b=2.0) == 3.0
+    # We succeed with a manually specified parameter (but first fail with
+    # the default).
+    tdf2 = TDFunc(_test_func, a=1.0, b=None)
+    with pytest.raises(TypeError):
+        _ = tdf2()
+    assert tdf2(b=2.0) == 3.0
 
     # We can overwrite parameters.
-    assert tdf1(a=3.0, b=2.0) == 5.0
+    assert tdf2(a=3.0, b=2.0) == 5.0
+
+    # Test that we ignore extra kwargs.
+    assert tdf2(b=2.0, c=10.0, d=11.0) == 3.0
 
     # That we can use a different ordering for parameters.
-    tdf2 = TDFunc(_test_func, b=2.0, a=1.0)
-    assert tdf2() == 3.0
+    tdf3 = TDFunc(_test_func, b=2.0, a=1.0)
+    assert tdf3() == 3.0
+
+
+def test_np_sampler_method():
+    """Test that we can wrap numpy random functions."""
+    rng = np.random.default_rng(1001)
+    tdf = TDFunc(rng.normal, loc=10.0, scale=1.0)
+
+    # Sample 1000 times with the default values. Check that we are near
+    # the expected mean and not everything is equal.
+    vals = np.array([tdf() for _ in range(1000)])
+    assert abs(np.mean(vals) - 10.0) < 1.0
+    assert not np.all(vals == vals[0])
+
+    # Override the mean and resample.
+    vals = np.array([tdf(loc=25.0) for _ in range(1000)])
+    assert abs(np.mean(vals) - 25.0) < 1.0
+    assert not np.all(vals == vals[0])
 
 
 def test_tdfunc_obj():
