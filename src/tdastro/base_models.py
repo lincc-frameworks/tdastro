@@ -5,6 +5,7 @@ from enum import Enum
 
 import numpy as np
 
+from tdastro.astro_utils.cosmology import RedshiftDistFunc
 from tdastro.function_wrappers import TDFunc
 
 
@@ -207,20 +208,33 @@ class PhysicalModel(ParameterizedModel):
         The object's right ascension (in degrees)
     dec : `float`
         The object's declination (in degrees)
+    redshift : `float`
+        The object's redshift.
     distance : `float`
-        The object's distance (in pc)
+        The object's distance (in pc). If the distance is not provided and
+        a ``cosmology`` parameter is given, the model will try to derive from
+        the redshift and the cosmology.
     effects : `list`
         A list of effects to apply to an observations.
     """
 
-    def __init__(self, ra=None, dec=None, distance=None, **kwargs):
+    def __init__(self, ra=None, dec=None, redshift=None, distance=None, **kwargs):
         super().__init__(**kwargs)
         self.effects = []
 
-        # Set RA, dec, and distance from the parameters.
+        # Set RA, dec, and redshift from the parameters.
         self.add_parameter("ra", ra)
         self.add_parameter("dec", dec)
-        self.add_parameter("distance", distance)
+        self.add_parameter("redshift", redshift)
+
+        # If the distance is provided, use that. Otherwise try the redshift value
+        # using the cosmology (if given). Finally, default to None.
+        if distance is not None:
+            self.add_parameter("distance", distance)
+        elif redshift is not None and kwargs.get("cosmology", None) is not None:
+            self.add_parameter("distance", RedshiftDistFunc(**kwargs))
+        else:
+            self.add_parameter("distance", None)
 
     def __str__(self):
         """Return the string representation of the model."""
