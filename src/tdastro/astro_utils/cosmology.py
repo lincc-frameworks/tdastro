@@ -38,20 +38,30 @@ class RedshiftDistFunc(TDFunc):
     kind : `str`
         The distance type for the Equivalency as defined by
         astropy.cosmology.units.redshift_distance.
+
+    Parameters
+    ----------
+    redshift : function or constant
+        The function or constant providing the redshift value.
+    cosmology : `astropy.cosmology`
+        The cosmology specification.
+    kind : `str`
+        The distance type for the Equivalency as defined by
+        astropy.cosmology.units.redshift_distance.
     """
 
-    def __init__(self, cosmology, kind="comoving", **kwargs):
+    def __init__(self, redshift, cosmology, kind="comoving"):
         self.cosmology = cosmology
         self.kind = kind
-        default_args = {"cosmology": cosmology, "kind": kind}
 
         # Call the super class's constructor with the needed information.
         # Do not pass kwargs because we are limiting the arguments to match
         # the signature of redshift_to_distance().
         super().__init__(
             func=redshift_to_distance,
-            default_args=default_args,
-            object_args=["redshift"],
+            redshift=redshift,
+            cosmology=cosmology,
+            kind=kind,
         )
 
     def __str__(self):

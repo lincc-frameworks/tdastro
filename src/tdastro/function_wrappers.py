@@ -1,14 +1,10 @@
-"""Classes to wrap functions to allow users to pass around functions
-with partially specified arguments.
-"""
+"""Utilities to wrap functions for inclusion in an evaluation graph."""
 
 import copy
 
 
 class TDFunc:
-    """A class to wrap functions to pass around functions with default
-    argument settings, arguments from kwargs, and (optionally)
-    arguments that are from the calling object.
+    """A class to wrap functions and their argument settings.
 
     Attributes
     ----------
@@ -17,11 +13,13 @@ class TDFunc:
     default_args : `dict`
         A dictionary of default arguments to pass to the function. Assembled
         from the ```default_args`` parameter and additional ``kwargs``.
-    object_args : `list`
-        Arguments that are provided by attributes of the calling object.
+    setter_functions : `dict`
+        A dictionary mapping arguments names to functions, methods, or
+        TDFunc objects used to set that argument. These are evaluated dynamically
+        each time.
 
-    Example
-    -------
+    Examples
+    --------
     my_func = TDFunc(random.randint, a=1, b=10)
     value1 = my_func()      # Sample from default range
     value2 = my_func(b=20)  # Sample from extended range
@@ -38,45 +36,39 @@ class TDFunc:
     value1 = my_func(b=10.0)
     """
 
-    def __init__(self, func, default_args=None, object_args=None, **kwargs):
+    def __init__(self, func, **kwargs):
         self.func = func
-        self.object_args = object_args
         self.default_args = {}
+        self.setter_functions = {}
 
-        # The default arguments are the union of the default_args parameter,
-        # the object_args (set to None), and the remaining kwargs.
-        if default_args is not None:
-            self.default_args = default_args
-        if kwargs:
-            for key, value in kwargs.items():
-                self.default_args[key] = value
-        if object_args:
-            for key in object_args:
+        for key, value in kwargs.items():
+            if callable(value):
                 self.default_args[key] = None
+                self.setter_functions[key] = value
+            else:
+                self.default_args[key] = value
 
     def __str__(self):
         """Return the string representation of the function."""
         return f"TDFunc({self.func.name})"
 
-    def __call__(self, calling_object=None, **kwargs):
+    def __call__(self, **kwargs):
         """Execute the wrapped function.
 
         Parameters
         ----------
-        calling_object : any, optional
-            The object that called the function.
         **kwargs : `dict`, optional
             Additional function arguments.
         """
         # Start with the default arguments. We make a copy so we can modify the dictionary.
         args = copy.copy(self.default_args)
 
-        # If there are arguments to get from the calling object, set those.
-        if self.object_args is not None and len(self.object_args) > 0:
-            if calling_object is None:
-                raise ValueError(f"Calling object needed for parameters: {self.object_args}")
-            for arg_name in self.object_args:
-                args[arg_name] = getattr(calling_object, arg_name)
+        # If there are arguments to get from the calling functions, set those.
+        for key, value in self.setter_functions.items():
+            if isinstance(value, TDFunc):
+                args[key] = value(**kwargs)
+            else:
+                args[key] = value()
 
         # Set any last arguments from the kwargs (overwriting previous settings).
         # Only use known kwargs.

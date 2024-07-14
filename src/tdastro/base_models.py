@@ -86,7 +86,7 @@ class ParameterizedModel:
         elif isinstance(value, TDFunc):
             # Case 1b: We are using a TDFunc wrapped function (with default parameters).
             self.setters[name] = (ParameterSource.TDFUNC_OBJ, value, required)
-            setattr(self, name, value(self, **kwargs))
+            setattr(self, name, value(**kwargs))
         elif isinstance(value, types.MethodType) and isinstance(value.__self__, ParameterizedModel):
             # Case 2: We are trying to use the method from a ParameterizedModel.
             # Note that this will (correctly) fail if we are adding a model method from the current
@@ -175,7 +175,7 @@ class ParameterizedModel:
             elif source_type == ParameterSource.FUNCTION:
                 sampled_value = setter(**kwargs)
             elif source_type == ParameterSource.TDFUNC_OBJ:
-                sampled_value = setter(self, **kwargs)
+                sampled_value = setter(**kwargs)
             elif source_type == ParameterSource.MODEL_ATTRIBUTE:
                 # Check if we need to resample the parent (needs to be done before
                 # we read its attribute).
@@ -238,7 +238,7 @@ class PhysicalModel(ParameterizedModel):
         if distance is not None:
             self.add_parameter("distance", distance)
         elif redshift is not None and kwargs.get("cosmology", None) is not None:
-            self.add_parameter("distance", RedshiftDistFunc(**kwargs))
+            self.add_parameter("distance", RedshiftDistFunc(redshift=self.get_redshift, **kwargs))
         else:
             self.add_parameter("distance", None)
 
@@ -248,6 +248,10 @@ class PhysicalModel(ParameterizedModel):
     def __str__(self):
         """Return the string representation of the model."""
         return "PhysicalModel"
+
+    def get_redshift(self):
+        """Return the redshift for the model."""
+        return self.redshift
 
     def add_effect(self, effect, allow_dups=True, **kwargs):
         """Add a transformational effect to the PhysicalModel.

@@ -31,17 +31,13 @@ class _StaticModel:
         self.a = a
         self.b = b
 
-    def eval_func(self, func, **kwargs):
-        """Evaluate a TDFunc.
+    def get_a(self):
+        """Get the a attribute."""
+        return self.a
 
-        Parameters
-        ----------
-        func : `TDFunc`
-            The function to evaluate.
-        **kwargs : `dict`, optional
-            Any additional keyword arguments.
-        """
-        return func(self, **kwargs)
+    def get_b(self):
+        """Get the b attribute."""
+        return self.b
 
 
 def test_tdfunc_basic():
@@ -69,6 +65,16 @@ def test_tdfunc_basic():
     assert tdf3() == 3.0
 
 
+def test_tdfunc_chain():
+    """Test that we can create and query a chained TDFunc."""
+    tdf1 = TDFunc(_test_func, a=1.0, b=1.0)
+    tdf2 = TDFunc(_test_func, a=tdf1, b=3.0)
+    assert tdf2() == 5.0
+
+    # This will overwrite all the b parameters.
+    assert tdf2(b=10.0) == 21.0
+
+
 def test_np_sampler_method():
     """Test that we can wrap numpy random functions."""
     rng = np.random.default_rng(1001)
@@ -91,12 +97,13 @@ def test_tdfunc_obj():
     model = _StaticModel(a=10.0, b=11.0)
 
     # Check a function without defaults.
-    tdf1 = TDFunc(_test_func, object_args=["a", "b"])
-    assert model.eval_func(tdf1) == 21.0
+    tdf1 = TDFunc(_test_func, a=model.get_a, b=model.get_b)
+    assert tdf1() == 21.0
 
-    # Defaults set are overwritten by the object.
-    tdf2 = TDFunc(_test_func, object_args=["a", "b"], a=1.0, b=0.0)
-    assert model.eval_func(tdf2) == 21.0
+    # We can pull from multiple models.
+    model2 = _StaticModel(a=1.0, b=0.0)
+    tdf2 = TDFunc(_test_func, a=model.get_a, b=model2.get_b)
+    assert tdf2() == 10.0
 
-    # But we can overwrite everything with kwargs.
-    assert model.eval_func(tdf2, b=7.5) == 17.5
+    # W can overwrite everything with kwargs.
+    assert tdf2(b=7.5) == 17.5
