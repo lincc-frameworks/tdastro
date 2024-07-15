@@ -38,10 +38,6 @@ class PhysicalModel(ParameterizedNode):
         # Background is an object not a sampled parameter
         self.background = background
 
-    def __str__(self):
-        """Return the string representation of the model."""
-        return "PhysicalModel"
-
     def add_effect(self, effect, allow_dups=True, **kwargs):
         """Add a transformational effect to the PhysicalModel.
         Effects are applied in the order in which they are added.

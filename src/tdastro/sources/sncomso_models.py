@@ -32,10 +32,6 @@ class SncosmoWrapperModel(PhysicalModel):
         self.source_name = source_name
         self.source = get_source(source_name)
 
-    def __str__(self):
-        """Return the string representation of the model."""
-        return f"SncosmoWrapperModel({self.source_name})"
-
     @property
     def param_names(self):
         """Return a list of the model's parameter names."""

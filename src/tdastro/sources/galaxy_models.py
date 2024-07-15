@@ -21,10 +21,6 @@ class GaussianGalaxy(PhysicalModel):
         self.add_parameter("galaxy_radius_std", radius, required=True, **kwargs)
         self.add_parameter("brightness", brightness, required=True, **kwargs)
 
-    def __str__(self):
-        """Return the string representation of the model."""
-        return f"GuassianGalaxy({self.brightness}, {self.galaxy_radius_std})"
-
     def sample_ra(self):
         """Sample an right ascension coordinate based on the center and radius of the galaxy.
 

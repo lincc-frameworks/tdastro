@@ -9,10 +9,6 @@ class EffectModel(ParameterizedNode):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def __str__(self):
-        """Return the string representation of the model."""
-        return "EffectModel"
-
     def required_parameters(self):
         """Returns a list of the parameters of a PhysicalModel
         that this effect needs to access.

@@ -16,10 +16,6 @@ class WhiteNoise(EffectModel):
         super().__init__(**kwargs)
         self.add_parameter("scale", scale, required=True, **kwargs)
 
-    def __str__(self):
-        """Return the string representation of the model."""
-        return f"WhiteNoise({self.scale})"
-
     def apply(self, flux_density, wavelengths=None, physical_model=None, **kwargs):
         """Apply the effect to observations (flux_density values)
 
