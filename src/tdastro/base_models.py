@@ -5,9 +5,8 @@ from enum import Enum
 
 
 class ParameterSource(Enum):
-    """ParameterSource specifies where a PhysicalModel should get the value
-    for a given parameter: a constant value, a function, or from another
-    parameterized model.
+    """ParameterSource specifies where a ParameterizedNode should get the value
+    for a given parameter: a constant value or from another ParameterizedNode.
     """
 
     CONSTANT = 1
@@ -27,7 +26,7 @@ class ParameterizedNode:
         (ParameterSource, setter information, required). The attributes are
         stored in the order in which they need to be set.
     sample_iteration : `int`
-        A counter used to syncronize  sampling runs. Tracks how many times this
+        A counter used to syncronize sampling runs. Tracks how many times this
         model's parameters have been resampled.
     """
 
@@ -38,6 +37,37 @@ class ParameterizedNode:
     def __str__(self):
         """Return the string representation of the node."""
         return "ParameterizedNode"
+
+    def check_resample(self, other):
+        """Check if we need to resample the current node based
+        on the state of another node trying to access its attributes
+        or methods.
+
+        Parameters
+        ----------
+        other : `ParameterizedNode`
+            The node that is accessing the attribute or method
+            of the current node.
+
+        Returns
+        -------
+        bool
+            Indicates whether to resample or not.
+
+        Raises
+        ------
+        ``ValueError`` if the graph has gotten out of sync.
+        """
+        if other == self:
+            return False
+        if other.sample_iteration == self.sample_iteration:
+            return False
+        if other.sample_iteration != self.sample_iteration + 1:
+            raise ValueError(
+                f"Node {str(other)} at iteration {other.sample_iteration} accessing"
+                f" parent {str(self)} at iteration {self.sample_iteration}."
+            )
+        return True
 
     def set_parameter(self, name, value=None, **kwargs):
         """Set a single *existing* parameter to the ParameterizedNode.
@@ -72,31 +102,30 @@ class ParameterizedNode:
             # The value wasn't set, but the name is in kwargs.
             value = kwargs[name]
 
-        if value is not None:
+        if callable(value):
             if isinstance(value, types.FunctionType):
-                # Case 1: If we are getting from a static function, sample it.
+                # Case 1a: This is a static function (not attached to an object).
                 self.setters[name] = (ParameterSource.FUNCTION, value, required)
-                setattr(self, name, value(**kwargs))
-            elif isinstance(value, types.MethodType) and isinstance(value.__self__, ParameterizedNode):
-                # Case 2: We are trying to use the method from a ParameterizedNode.
-                # Note that this will (correctly) fail if we are adding a model method from the current
-                # object that requires an unset attribute.
+            elif isinstance(value.__self__, ParameterizedNode):
+                # Case 1b: This is a method attached to another ParameterizedNode.
                 self.setters[name] = (ParameterSource.MODEL_METHOD, value, required)
-                setattr(self, name, value(**kwargs))
-            elif isinstance(value, ParameterizedNode):
-                # Case 3: We are trying to access an attribute from a ParameterizedNode.
-                if not hasattr(value, name):
-                    raise ValueError(f"Attribute {name} missing from parent.")
-                self.setters[name] = (ParameterSource.MODEL_ATTRIBUTE, value, required)
-                setattr(self, name, getattr(value, name))
             else:
-                # Case 4: The value is constant.
-                self.setters[name] = (ParameterSource.CONSTANT, value, required)
-                setattr(self, name, value)
-        elif not required:
-            self.setters[name] = (ParameterSource.CONSTANT, None, required)
-            setattr(self, name, None)
+                # Case 1c: This is a general callable method from another object.
+                # We treat it as static (we don't resample the other object).
+                self.setters[name] = (ParameterSource.FUNCTION, value, required)
+            setattr(self, name, value(**kwargs))
+        elif isinstance(value, ParameterizedNode):
+            # Case 2: We are trying to access a parameter of another ParameterizedNode.
+            if not hasattr(value, name):
+                raise ValueError(f"Attribute {name} missing from parent.")
+            self.setters[name] = (ParameterSource.MODEL_ATTRIBUTE, value, required)
+            setattr(self, name, getattr(value, name))
         else:
+            # Case 3: The value is constant (including None).
+            self.setters[name] = (ParameterSource.CONSTANT, value, required)
+            setattr(self, name, value)
+
+        if required and getattr(self, name) is None:
             raise ValueError(f"Missing required parameter {name}")
 
     def add_parameter(self, name, value=None, required=False, **kwargs):
@@ -157,6 +186,9 @@ class ParameterizedNode:
         if max_depth == 0:
             raise ValueError(f"Maximum sampling depth exceeded at {self}. Potential infinite loop.")
 
+        # Increase the sampling iteration.
+        self.sample_iteration += 1
+
         # Run through each parameter and sample it based on the given recipe.
         # As of Python 3.7 dictionaries are guaranteed to preserve insertion ordering,
         # so this will iterate through attributes in the order they were inserted.
@@ -167,21 +199,76 @@ class ParameterizedNode:
             elif source_type == ParameterSource.FUNCTION:
                 sampled_value = setter(**kwargs)
             elif source_type == ParameterSource.MODEL_ATTRIBUTE:
-                # Check if we need to resample the parent (needs to be done before
-                # we read its attribute).
-                if setter.sample_iteration == self.sample_iteration:
+                # Check if we need to resample the parent (before accessing the attribute).
+                if setter.check_resample(self):
                     setter.sample_parameters(max_depth - 1, **kwargs)
                 sampled_value = getattr(setter, name)
             elif source_type == ParameterSource.MODEL_METHOD:
-                # Check if we need to resample the parent (needs to be done before
-                # we evaluate its method). Do not resample the current object.
-                parent = setter.__self__
-                if parent is not self and parent.sample_iteration == self.sample_iteration:
-                    parent.sample_parameters(max_depth - 1, **kwargs)
+                # Check if we need to resample the parent (before calling the method).
+                parent_node = setter.__self__
+                if parent_node.check_resample(self):
+                    parent_node.sample_parameters(max_depth - 1, **kwargs)
                 sampled_value = setter(**kwargs)
             else:
                 raise ValueError(f"Unknown ParameterSource type {source_type} for {name}")
             setattr(self, name, sampled_value)
 
-        # Increase the sampling iteration.
-        self.sample_iteration += 1
+
+class FunctionNode(ParameterizedNode):
+    """A class to wrap functions and their argument settings.
+
+    Attributes
+    ----------
+    func : `function` or `method`
+        The function to call during an evaluation.
+    args_names : `list`
+        A list of argument names to pass to the function.
+
+    Examples
+    --------
+    my_func = TDFunc(random.randint, a=1, b=10)
+    value1 = my_func()      # Sample from default range
+    value2 = my_func(b=20)  # Sample from extended range
+
+    Note
+    ----
+    All the function's parameters that will be used need to be specified
+    in either the default_args dict, object_args list, or as a kwarg in the
+    constructor. Arguments cannot be first given during function call.
+    For example the following will fail (because b is not defined in the
+    constructor):
+
+    my_func = TDFunc(random.randint, a=1)
+    value1 = my_func(b=10.0)
+    """
+
+    def __init__(self, func, **kwargs):
+        super().__init__(**kwargs)
+        self.func = func
+        self.arg_names = []
+
+        # Add all of the parameters from default_args or the kwargs.
+        for key, value in kwargs.items():
+            self.arg_names.append(key)
+            self.add_parameter(key, value)
+
+    def __str__(self):
+        """Return the string representation of the function."""
+        return f"FunctionNode({self.func.name})"
+
+    def compute(self, **kwargs):
+        """Execute the wrapped function.
+
+        Parameters
+        ----------
+        **kwargs : `dict`, optional
+            Additional function arguments.
+        """
+        args = {}
+        for key in self.arg_names:
+            # Override with the kwarg if the parameter is there.
+            if key in kwargs:
+                args[key] = kwargs[key]
+            else:
+                args[key] = getattr(self, key)
+        return self.func(**args)
