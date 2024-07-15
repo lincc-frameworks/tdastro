@@ -79,7 +79,7 @@ class PairModel(ParameterizedNode):
         return self.value1 + self.value2
 
 
-def test_parameterized_model() -> None:
+def test_parameterized_node() -> None:
     """Test that we can sample and create a PairModel object."""
     # Simple addition
     model1 = PairModel(value1=0.5, value2=0.5)
@@ -141,8 +141,8 @@ def test_parameterized_model() -> None:
     assert model1.sample_iteration == model4.sample_iteration
 
 
-def test_parameterized_model_modify() -> None:
-    """Test that we can modify the parameters in a model."""
+def test_parameterized_node_modify() -> None:
+    """Test that we can modify the parameters in a node."""
     model = PairModel(value1=0.5, value2=0.5)
     assert model.value1 == 0.5
     assert model.value2 == 0.5
