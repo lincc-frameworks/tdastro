@@ -156,7 +156,7 @@ def test_parameterized_node_attributes() -> None:
     assert settings["1=PairModel.value2"] == 1.5
     assert settings["1=PairModel.value_sum"] == 2.0
 
-    # Use value1=model.value and value2=1.0
+    # Use value1=model.value and value2=3.0
     model2 = PairModel(value1=model1, value2=3.0, node_identifier="2")
     settings = model2.get_all_parameter_values(False)
     assert len(settings) == 3
