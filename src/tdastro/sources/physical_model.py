@@ -1,5 +1,6 @@
 """The base PhysicalModel used for all sources."""
 
+from tdastro.astro_utils.cosmology import RedshiftDistFunc
 from tdastro.base_models import ParameterizedNode
 
 
@@ -18,22 +19,36 @@ class PhysicalModel(ParameterizedNode):
         The object's right ascension (in degrees)
     dec : `float`
         The object's declination (in degrees)
+    redshift : `float`
+        The object's redshift.
     distance : `float`
-        The object's distance (in pc).
+        The object's luminosity distance (in pc). If no value is provided and
+        a ``cosmology`` parameter is given, the model will try to derive from
+        the redshift and the cosmology.
     background : `PhysicalModel`
         A source of background flux such as a host galaxy.
     effects : `list`
         A list of effects to apply to an observations.
     """
 
-    def __init__(self, ra=None, dec=None, distance=None, background=None, **kwargs):
+    def __init__(self, ra=None, dec=None, redshift=None, distance=None, background=None, **kwargs):
         super().__init__(**kwargs)
         self.effects = []
 
         # Set RA, dec, and redshift from the parameters.
         self.add_parameter("ra", ra)
         self.add_parameter("dec", dec)
-        self.add_parameter("distance", distance)
+        self.add_parameter("redshift", redshift)
+
+        # If the luminosity distance is provided, use that. Otherwise try the
+        # redshift value using the cosmology (if given). Finally, default to None.
+        if distance is not None:
+            self.add_parameter("distance", distance)
+        elif redshift is not None and kwargs.get("cosmology", None) is not None:
+            self._redshift_func = RedshiftDistFunc(redshift=self, **kwargs)
+            self.add_parameter("distance", self._redshift_func.compute)
+        else:
+            self.add_parameter("distance", None)
 
         # Background is an object not a sampled parameter
         self.background = background
@@ -136,10 +151,11 @@ class PhysicalModel(ParameterizedNode):
             All the keyword arguments, including the values needed to sample
             parameters.
         """
-        if self.background is not None:
+        if self.background is not None and self.background.check_resample(self):
             self.background.sample_parameters(include_effects, **kwargs)
         super().sample_parameters(**kwargs)
 
         if include_effects:
             for effect in self.effects:
-                effect.sample_parameters(**kwargs)
+                if effect.check_resample(self):
+                    effect.sample_parameters(**kwargs)
