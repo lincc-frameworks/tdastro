@@ -1,6 +1,6 @@
 import random
 
-from tdastro.base_models import PopulationModel
+from tdastro.populations.population_model import PopulationModel
 
 
 class FixedPopulation(PopulationModel):

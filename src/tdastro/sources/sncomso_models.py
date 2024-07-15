@@ -6,7 +6,7 @@ https://sncosmo.readthedocs.io/en/stable/models.html
 
 from sncosmo.models import get_source
 
-from tdastro.base_models import PhysicalModel
+from tdastro.sources.physical_model import PhysicalModel
 
 
 class SncosmoWrapperModel(PhysicalModel):

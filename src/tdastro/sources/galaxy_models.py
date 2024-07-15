@@ -1,7 +1,7 @@
 import numpy as np
 from astropy.coordinates import angular_separation
 
-from tdastro.base_models import PhysicalModel
+from tdastro.sources.physical_model import PhysicalModel
 
 
 class GaussianGalaxy(PhysicalModel):
