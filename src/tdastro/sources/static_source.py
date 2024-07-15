@@ -1,6 +1,6 @@
 import numpy as np
 
-from tdastro.base_models import PhysicalModel
+from tdastro.sources.physical_model import PhysicalModel
 
 
 class StaticSource(PhysicalModel):

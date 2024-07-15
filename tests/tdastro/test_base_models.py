@@ -1,7 +1,7 @@
 import random
 
 import pytest
-from tdastro.base_models import ParameterizedModel
+from tdastro.base_models import ParameterizedNode
 
 
 def _sampler_fun(**kwargs):
@@ -15,8 +15,8 @@ def _sampler_fun(**kwargs):
     return random.random()
 
 
-class PairModel(ParameterizedModel):
-    """A test class for the parameterized model.
+class PairModel(ParameterizedNode):
+    """A test class for the ParameterizedNode.
 
     Attributes
     ----------
@@ -33,9 +33,9 @@ class PairModel(ParameterizedModel):
 
         Parameters
         ----------
-        value1 : `float`, `function`, `ParameterizedModel`, or `None`
+        value1 : `float`, `function`, `ParameterizedNode`, or `None`
             The first value.
-        value2 : `float`, `function`, `ParameterizedModel`, or `None`
+        value2 : `float`, `function`, `ParameterizedNode`, or `None`
             The second value.
         **kwargs : `dict`, optional
            Any additional keyword arguments.
@@ -61,7 +61,7 @@ class PairModel(ParameterizedModel):
         return self.value1 + self.value2
 
 
-def test_parameterized_model() -> None:
+def test_parameterized_node() -> None:
     """Test that we can sample and create a PairModel object."""
     # Simple addition
     model1 = PairModel(value1=0.5, value2=0.5)
@@ -123,8 +123,8 @@ def test_parameterized_model() -> None:
     assert model1.sample_iteration == model4.sample_iteration
 
 
-def test_parameterized_model_modify() -> None:
-    """Test that we can modify the parameters in a model."""
+def test_parameterized_node_modify() -> None:
+    """Test that we can modify the parameters in a node."""
     model = PairModel(value1=0.5, value2=0.5)
     assert model.value1 == 0.5
     assert model.value2 == 0.5

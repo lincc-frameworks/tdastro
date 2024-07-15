@@ -7,7 +7,7 @@ https://github.com/sncosmo/sncosmo/blob/v2.10.1/sncosmo/models.py
 
 from scipy.interpolate import RectBivariateSpline
 
-from tdastro.base_models import PhysicalModel
+from tdastro.sources.physical_model import PhysicalModel
 
 
 class SplineModel(PhysicalModel):

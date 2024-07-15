@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from tdastro.base_models import PhysicalModel
+from tdastro.sources.physical_model import PhysicalModel
 
 
 class PeriodicSource(PhysicalModel, ABC):
