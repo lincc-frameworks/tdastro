@@ -21,10 +21,6 @@ class StepSource(StaticSource):
         self.add_parameter("t0", t0, required=True, **kwargs)
         self.add_parameter("t1", t1, required=True, **kwargs)
 
-    def __str__(self):
-        """Return the string representation of the model."""
-        return f"StepSource({self.brightness})_{self.t0}_to_{self.t1}"
-
     def _evaluate(self, times, wavelengths, **kwargs):
         """Draw effect-free observations for this object.
 

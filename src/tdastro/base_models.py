@@ -21,6 +21,8 @@ class ParameterizedNode:
 
     Attributes
     ----------
+    node_identifier : `str`
+        An identifier (or name) for the current node.
     setters : `dict` of `tuple`
         A dictionary to information about the setters for the parameters in the form:
         (ParameterSource, setter information, required). The attributes are
@@ -30,13 +32,17 @@ class ParameterizedNode:
         model's parameters have been resampled.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, node_identifier=None, **kwargs):
         self.setters = {}
         self.sample_iteration = 0
+        self.node_identifier = node_identifier
 
     def __str__(self):
         """Return the string representation of the node."""
-        return "ParameterizedNode"
+        if self.node_identifier:
+            return f"{self.node_identifier}={self.__class__.__name__}"
+        else:
+            return self.__class__.__name__
 
     def check_resample(self, other):
         """Check if we need to resample the current node based
@@ -212,6 +218,46 @@ class ParameterizedNode:
             else:
                 raise ValueError(f"Unknown ParameterSource type {source_type} for {name}")
             setattr(self, name, sampled_value)
+
+    def get_all_parameter_values(self, recursive=True, seen=None):
+        """Get the values of the current parameters and (optionally) those of
+        all their dependencies.
+
+        Effectively snapshots the state of the execution graph.
+
+        Parameters
+        ----------
+        seen : `set`
+            A set of objects that have already been processed.
+        recursive : `bool`
+            Recursively extract the attribute setting of this object's dependencies.
+
+        Returns
+        -------
+        values : `dict`
+            The dictionary mapping the combination of the object identifier and
+            attribute name to its value.
+        """
+        # Make sure that we do not process the same nodes multiple times.
+        if seen is None:
+            seen = set()
+        if self in seen:
+            return {}
+        seen.add(self)
+
+        values = {}
+        for name, (source_type, setter, _) in self.setters.items():
+            if recursive:
+                if source_type == ParameterSource.MODEL_ATTRIBUTE:
+                    values.update(setter.get_all_parameter_values(True, seen))
+                elif source_type == ParameterSource.MODEL_METHOD:
+                    values.update(setter.__self__.get_all_parameter_values(True, seen))
+
+                full_name = f"{str(self)}.{name}"
+            else:
+                full_name = name
+            values[full_name] = getattr(self, name)
+        return values
 
 
 class FunctionNode(ParameterizedNode):

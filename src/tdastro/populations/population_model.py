@@ -22,10 +22,6 @@ class PopulationModel(ParameterizedNode):
         self.num_sources = 0
         self.sources = []
 
-    def __str__(self):
-        """Return the string representation of the model."""
-        return f"PopulationModel with {self.num_sources} sources."
-
     def add_source(self, new_source, **kwargs):
         """Add a new source to the population.
 

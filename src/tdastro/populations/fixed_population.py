@@ -18,10 +18,6 @@ class FixedPopulation(PopulationModel):
         super().__init__(**kwargs)
         self.weights = []
 
-    def __str__(self):
-        """Return the string representation of the model."""
-        return f"FixedPopulation({self.probability})"
-
     def add_source(self, new_source, rate, **kwargs):
         """Add a new source to the population.
 
