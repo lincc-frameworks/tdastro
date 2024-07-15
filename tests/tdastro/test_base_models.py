@@ -30,7 +30,7 @@ def _test_func(value1, value2):
 
 
 class PairModel(ParameterizedNode):
-    """A test class for the parameterized model.
+    """A test class for the ParameterizedNode.
 
     Attributes
     ----------

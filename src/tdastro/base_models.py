@@ -10,9 +10,9 @@ class ParameterSource(Enum):
     """
 
     CONSTANT = 1
-    MODEL_ATTRIBUTE = 2
-    MODEL_METHOD = 3
-    FUNCTION = 4
+    FUNCTION = 2
+    MODEL_ATTRIBUTE = 3
+    MODEL_METHOD = 4
 
 
 class ParameterizedNode:
@@ -35,16 +35,17 @@ class ParameterizedNode:
         self.sample_iteration = 0
 
     def __str__(self):
-        """Return the string representation of the model."""
+        """Return the string representation of the node."""
         return "ParameterizedNode"
 
-    def check_resample(self, child):
+    def check_resample(self, other):
         """Check if we need to resample the current node based
-        on the state of a child trying to access its attributes.
+        on the state of another node trying to access its attributes
+        or methods.
 
         Parameters
         ----------
-        child : `ParameterizedNode`
+        other : `ParameterizedNode`
             The node that is accessing the attribute or method
             of the current node.
 
@@ -57,13 +58,13 @@ class ParameterizedNode:
         ------
         ``ValueError`` if the graph has gotten out of sync.
         """
-        if child == self:
+        if other == self:
             return False
-        if child.sample_iteration == self.sample_iteration:
+        if other.sample_iteration == self.sample_iteration:
             return False
-        if child.sample_iteration != self.sample_iteration + 1:
+        if other.sample_iteration != self.sample_iteration + 1:
             raise ValueError(
-                f"Node {str(child)} at iteration {child.sample_iteration} accessing"
+                f"Node {str(other)} at iteration {other.sample_iteration} accessing"
                 f" parent {str(self)} at iteration {self.sample_iteration}."
             )
         return True
