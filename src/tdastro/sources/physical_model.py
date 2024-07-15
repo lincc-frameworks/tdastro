@@ -22,7 +22,7 @@ class PhysicalModel(ParameterizedNode):
     redshift : `float`
         The object's redshift.
     distance : `float`
-        The object's distance (in pc). If the distance is not provided and
+        The object's luminosity distance (in pc). If no value is provided and
         a ``cosmology`` parameter is given, the model will try to derive from
         the redshift and the cosmology.
     background : `PhysicalModel`
@@ -40,8 +40,8 @@ class PhysicalModel(ParameterizedNode):
         self.add_parameter("dec", dec)
         self.add_parameter("redshift", redshift)
 
-        # If the distance is provided, use that. Otherwise try the redshift value
-        # using the cosmology (if given). Finally, default to None.
+        # If the luminosity distance is provided, use that. Otherwise try the
+        # redshift value using the cosmology (if given). Finally, default to None.
         if distance is not None:
             self.add_parameter("distance", distance)
         elif redshift is not None and kwargs.get("cosmology", None) is not None:

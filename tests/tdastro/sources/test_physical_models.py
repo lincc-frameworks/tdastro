@@ -1,5 +1,5 @@
 import pytest
-from astropy.cosmology import WMAP9
+from astropy.cosmology import Planck18
 from tdastro.sources.physical_model import PhysicalModel
 
 
@@ -12,13 +12,12 @@ def test_physical_model():
     assert model1.distance == 3.0
     assert model1.redshift == 0.0
 
-    # Derive the distance from the redshift using the example from:
-    # https://docs.astropy.org/en/stable/api/astropy.cosmology.units.redshift_distance.html
-    model2 = PhysicalModel(ra=1.0, dec=2.0, redshift=1100.0, cosmology=WMAP9)
+    # Derive the distance from the redshift:
+    model2 = PhysicalModel(ra=1.0, dec=2.0, redshift=1100.0, cosmology=Planck18)
     assert model2.ra == 1.0
     assert model2.dec == 2.0
     assert model2.redshift == 1100.0
-    assert model2.distance == pytest.approx(14004.03157418 * 1e6)
+    assert model2.distance == pytest.approx(13886.327957 * 1e6)
 
     # Neither distance nor redshift are specified.
     model3 = PhysicalModel(ra=1.0, dec=2.0)

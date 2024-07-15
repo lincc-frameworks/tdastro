@@ -5,7 +5,7 @@ from tdastro.base_models import FunctionNode
 
 
 def redshift_to_distance(redshift, cosmology, kind="comoving"):
-    """Compute a source's distance given its redshift and a
+    """Compute a source's luminosity distance given its redshift and a
     specified cosmology using astropy's redshift_distance().
 
     Parameters
@@ -21,7 +21,7 @@ def redshift_to_distance(redshift, cosmology, kind="comoving"):
     Returns
     -------
     distance : `float`
-        The distance (in pc)
+        The luminosity distance (in pc)
     """
     z = redshift * cu.redshift
     distance = z.to(u.pc, cu.redshift_distance(cosmology, kind=kind))
