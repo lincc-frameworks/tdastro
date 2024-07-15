@@ -55,11 +55,7 @@ def test_gaussian_galaxy() -> None:
 
     # Check that if we resample the source it will propagate and correctly resample the host.
     # the host's (RA, dec) should change and the source's should still be close.
-    print(f"Host sample = {host.sample_iteration}")
-    print(f"Source sample = {source.sample_iteration}")
     source.sample_parameters()
-    print(f"Host sample = {host.sample_iteration}")
-    print(f"Source sample = {source.sample_iteration}")
     assert host_ra != host.ra
     assert host_dec != host.dec
 
