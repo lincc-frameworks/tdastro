@@ -79,12 +79,6 @@ class PhysicalModel(ParameterizedNode):
                 if effect_type == type(prev):
                     raise ValueError("Added the effect type to a model {effect_type} more than once.")
 
-        required: list = effect.required_parameters()
-        for parameter in required:
-            # Raise an AttributeError if the parameter is missing or set to None.
-            if getattr(self, parameter) is None:
-                raise AttributeError(f"Parameter {parameter} unset for model {type(self).__name__}")
-
         self.effects.append(effect)
 
     def _evaluate(self, times, wavelengths, **kwargs):

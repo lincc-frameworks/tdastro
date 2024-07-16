@@ -30,7 +30,6 @@ class Redshift(EffectModel):
            Any additional keyword arguments.
         """
         super().__init__(**kwargs)
-        self.required_parameters = ["redshift", "t0"]
         self.add_parameter("redshift", redshift, required=True, **kwargs)
         self.add_parameter("t0", t0, required=True, **kwargs)
 
