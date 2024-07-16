@@ -129,6 +129,11 @@ class PhysicalModel(ParameterizedNode):
         if resample_parameters:
             self.sample_parameters(kwargs)
 
+        # Pre-effects are adjustments done to times and/or wavelengths, before flux density computation.
+        for effect in self.effects:
+            if hasattr(effect, "pre_effect"):
+                times, wavelengths = effect.pre_effect(times, wavelengths, **kwargs)
+
         # Compute the flux density for both the current object and add in anything
         # behind it, such as a host galaxy.
         flux_density = self._evaluate(times, wavelengths, **kwargs)
