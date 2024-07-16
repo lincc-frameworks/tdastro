@@ -19,12 +19,12 @@ def _sampler_fun(magnitude, **kwargs):
 
 def test_static_source() -> None:
     """Test that we can sample and create a StaticSource object."""
-    model = StaticSource(brightness=10.0)
+    model = StaticSource(brightness=10.0, node_identifier="my_static_source")
     assert model.brightness == 10.0
     assert model.ra is None
     assert model.dec is None
     assert model.distance is None
-    assert str(model) == "StaticSource(10.0)"
+    assert str(model) == "my_static_source=StaticSource"
 
     times = np.array([1, 2, 3, 4, 5, 10])
     wavelengths = np.array([100.0, 200.0, 300.0])
@@ -32,6 +32,12 @@ def test_static_source() -> None:
     values = model.evaluate(times, wavelengths)
     assert values.shape == (6, 3)
     assert np.all(values == 10.0)
+
+    # We can set a value we have already added.
+    model.set_parameter("brightness", 5.0)
+    values = model.evaluate(times, wavelengths)
+    assert values.shape == (6, 3)
+    assert np.all(values == 5.0)
 
 
 def test_static_source_host() -> None:
@@ -43,6 +49,7 @@ def test_static_source_host() -> None:
     assert model.ra == 1.0
     assert model.dec == 2.0
     assert model.distance == 3.0
+    assert str(model) == "StaticSource"
 
 
 def test_static_source_resample() -> None:

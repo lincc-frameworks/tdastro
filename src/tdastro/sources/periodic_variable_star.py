@@ -14,16 +14,16 @@ class PeriodicVariableStar(PeriodicSource, ABC):
     ----------
     period : `float`
         The period of the source, in days.
-    epoch : `float`
-        The epoch of the zero phase, date.
+    t0 : `float`
+        The t0 of the zero phase, date. Could be date of the minimum or maximum light
+        or any other reference time point.
     distance : `float`
         The distance to the source, in pc.
     """
 
-    def __init__(self, period, epoch, **kwargs):
-        distance = kwargs.pop("distance", None)
-        super().__init__(period, epoch, **kwargs)
-        self.add_parameter("distance", value=distance, required=True, **kwargs)
+    def __init__(self, period, t0, distance, **kwargs):
+        super().__init__(period, t0, **kwargs)
+        self.add_parameter("distance", value=distance, required=True, allow_overwrite=True, **kwargs)
 
     def _evaluate_phases(self, phases, wavelengths, **kwargs):
         """Draw effect-free observations for this object, as a function of phase.
@@ -77,7 +77,7 @@ class EclipsingBinaryStar(PeriodicVariableStar):
     """A toy model for a detached eclipsing binary star.
 
     It is assumed that the stars are spherical, SED is black-body,
-    and the orbits are circular. Epoch is the time of the primary eclipse.
+    and the orbits are circular. t0 is the epoch of the primary minimum.
     No limb darkening, reflection, or other effects are included.
 
     Attributes

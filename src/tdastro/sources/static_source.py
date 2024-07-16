@@ -1,6 +1,6 @@
 import numpy as np
 
-from tdastro.base_models import PhysicalModel
+from tdastro.sources.physical_model import PhysicalModel
 
 
 class StaticSource(PhysicalModel):
@@ -15,10 +15,6 @@ class StaticSource(PhysicalModel):
     def __init__(self, brightness, **kwargs):
         super().__init__(**kwargs)
         self.add_parameter("brightness", brightness, required=True, **kwargs)
-
-    def __str__(self):
-        """Return the string representation of the model."""
-        return f"StaticSource({self.brightness})"
 
     def _evaluate(self, times, wavelengths, **kwargs):
         """Draw effect-free observations for this object.

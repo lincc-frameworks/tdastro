@@ -1,6 +1,6 @@
 import numpy as np
 
-from tdastro.base_models import EffectModel
+from tdastro.effects.effect_model import EffectModel
 
 
 class WhiteNoise(EffectModel):
@@ -15,10 +15,6 @@ class WhiteNoise(EffectModel):
     def __init__(self, scale, **kwargs):
         super().__init__(**kwargs)
         self.add_parameter("scale", scale, required=True, **kwargs)
-
-    def __str__(self):
-        """Return the string representation of the model."""
-        return f"WhiteNoise({self.scale})"
 
     def apply(self, flux_density, wavelengths=None, physical_model=None, **kwargs):
         """Apply the effect to observations (flux_density values)

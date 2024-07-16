@@ -13,13 +13,13 @@ class SineSource(PeriodicSource):
         return amplitude * wavelengths[None, :] ** -2
 
 
-@pytest.mark.parametrize("period, epoch", [(1.0, 0.0), (2.0, 0.75), (4.0, 100 / 3)])
-def test_periodicity(period, epoch):
+@pytest.mark.parametrize("period, t0", [(1.0, 0.0), (2.0, 0.75), (4.0, 100 / 3)])
+def test_periodicity(period, t0):
     """Test that the source is periodic."""
     max_time = 16
     n_periods = int(max_time / period)
 
-    source = SineSource(period=period, epoch=epoch)
+    source = SineSource(period=period, t0=t0)
     times = np.linspace(0, max_time, max_time * 100 + 1)
     wavelengths = np.linspace(100, 200, 3)
     fluxes = source.evaluate(times, wavelengths)

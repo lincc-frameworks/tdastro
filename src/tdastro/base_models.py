@@ -1,11 +1,12 @@
+"""The base models used to specify the TDAstro computation graph."""
+
 import types
 from enum import Enum
 
 
 class ParameterSource(Enum):
-    """ParameterSource specifies where a PhysicalModel should get the value
-    for a given parameter: a constant value, a function, or from another
-    parameterized model.
+    """ParameterSource specifies where a ParameterizedNode should get the value
+    for a given parameter: a constant value or from another ParameterizedNode.
     """
 
     CONSTANT = 1
@@ -14,36 +15,73 @@ class ParameterSource(Enum):
     MODEL_METHOD = 4
 
 
-class ParameterizedModel:
+class ParameterizedNode:
     """Any model that uses parameters that can be set by constants,
-    functions, or other parameterized models. ParameterizedModels can
-    include physical objects or statistical distributions.
+    functions, or other parameterized nodes.
 
     Attributes
     ----------
-    setters : `list` of `tuple`
+    node_identifier : `str`
+        An identifier (or name) for the current node.
+    setters : `dict` of `tuple`
         A dictionary to information about the setters for the parameters in the form:
-        (name, ParameterSource, setter information). The attributes are stored in the
-        order in which they need to be set.
+        (ParameterSource, setter information, required). The attributes are
+        stored in the order in which they need to be set.
     sample_iteration : `int`
-        A counter used to syncronize  sampling runs. Tracks how many times this
+        A counter used to syncronize sampling runs. Tracks how many times this
         model's parameters have been resampled.
     """
 
-    def __init__(self, **kwargs):
-        self.setters = []
+    def __init__(self, node_identifier=None, **kwargs):
+        self.setters = {}
         self.sample_iteration = 0
+        self.node_identifier = node_identifier
 
     def __str__(self):
-        """Return the string representation of the model."""
-        return "ParameterizedModel"
+        """Return the string representation of the node."""
+        if self.node_identifier:
+            return f"{self.node_identifier}={self.__class__.__name__}"
+        else:
+            return self.__class__.__name__
 
-    def add_parameter(self, name, value=None, required=False, **kwargs):
-        """Add a single parameter to the ParameterizedModel. Checks multiple sources
-        in the following order: 1. Manually specified ``value``, 2. An entry in ``kwargs``,
-        or 3. ``None``.
-        Sets an initial value for the attribute based on the given information.
-        The attributes are stored in the order in which they are added.
+    def check_resample(self, other):
+        """Check if we need to resample the current node based
+        on the state of another node trying to access its attributes
+        or methods.
+
+        Parameters
+        ----------
+        other : `ParameterizedNode`
+            The node that is accessing the attribute or method
+            of the current node.
+
+        Returns
+        -------
+        bool
+            Indicates whether to resample or not.
+
+        Raises
+        ------
+        ``ValueError`` if the graph has gotten out of sync.
+        """
+        if other == self:
+            return False
+        if other.sample_iteration == self.sample_iteration:
+            return False
+        if other.sample_iteration != self.sample_iteration + 1:
+            raise ValueError(
+                f"Node {str(other)} at iteration {other.sample_iteration} accessing"
+                f" parent {str(self)} at iteration {self.sample_iteration}."
+            )
+        return True
+
+    def set_parameter(self, name, value=None, **kwargs):
+        """Set a single *existing* parameter to the ParameterizedNode.
+
+        Notes
+        -----
+        * Sets an initial value for the attribute based on the given information.
+        * The attributes are stored in the order in which they are added.
 
         Parameters
         ----------
@@ -51,9 +89,7 @@ class ParameterizedModel:
             The parameter name to add.
         value : any, optional
             The information to use to set the parameter. Can be a constant,
-            function, ParameterizedModel, or self.
-        required : `bool`
-            Fail if the parameter is set to ``None``.
+            function, ParameterizedNode, or self.
         **kwargs : `dict`, optional
            All other keyword arguments, possibly including the parameter setters.
 
@@ -63,42 +99,86 @@ class ParameterizedModel:
         cannot be found.
         Raise a ``ValueError`` if the parameter is required, but set to None.
         """
-        if hasattr(self, name) and getattr(self, name) is not None:
-            raise KeyError(f"Duplicate parameter set: {name}")
+        # Check for parameter has been added and if so, find the index.
+        if name not in self.setters:
+            raise KeyError(f"Tried to set parameter {name} that has not been added.") from None
+        required = self.setters[name][2]
 
         if value is None and name in kwargs:
             # The value wasn't set, but the name is in kwargs.
             value = kwargs[name]
-        if value is not None:
+
+        if callable(value):
             if isinstance(value, types.FunctionType):
-                # Case 1: If we are getting from a static function, sample it.
-                self.setters.append((name, ParameterSource.FUNCTION, value))
-                setattr(self, name, value(**kwargs))
-            elif isinstance(value, types.MethodType) and isinstance(value.__self__, ParameterizedModel):
-                # Case 2: We are trying to use the method from a ParameterizedModel.
-                # Note that this will (correctly) fail if we are adding a model method from the current
-                # object that requires an unset attribute.
-                self.setters.append((name, ParameterSource.MODEL_METHOD, value))
-                setattr(self, name, value(**kwargs))
-            elif isinstance(value, ParameterizedModel):
-                # Case 3: We are trying to access an attribute from a parameterized model.
-                if not hasattr(value, name):
-                    raise ValueError(f"Attribute {name} missing from parent.")
-                self.setters.append((name, ParameterSource.MODEL_ATTRIBUTE, value))
-                setattr(self, name, getattr(value, name))
+                # Case 1a: This is a static function (not attached to an object).
+                self.setters[name] = (ParameterSource.FUNCTION, value, required)
+            elif isinstance(value.__self__, ParameterizedNode):
+                # Case 1b: This is a method attached to another ParameterizedNode.
+                self.setters[name] = (ParameterSource.MODEL_METHOD, value, required)
             else:
-                # Case 4: The value is constant.
-                self.setters.append((name, ParameterSource.CONSTANT, value))
-                setattr(self, name, value)
-        elif not required:
-            self.setters.append((name, ParameterSource.CONSTANT, None))
-            setattr(self, name, None)
+                # Case 1c: This is a general callable method from another object.
+                # We treat it as static (we don't resample the other object).
+                self.setters[name] = (ParameterSource.FUNCTION, value, required)
+            setattr(self, name, value(**kwargs))
+        elif isinstance(value, ParameterizedNode):
+            # Case 2: We are trying to access a parameter of another ParameterizedNode.
+            if not hasattr(value, name):
+                raise ValueError(f"Attribute {name} missing from parent.")
+            self.setters[name] = (ParameterSource.MODEL_ATTRIBUTE, value, required)
+            setattr(self, name, getattr(value, name))
         else:
+            # Case 3: The value is constant (including None).
+            self.setters[name] = (ParameterSource.CONSTANT, value, required)
+            setattr(self, name, value)
+
+        if required and getattr(self, name) is None:
             raise ValueError(f"Missing required parameter {name}")
+
+    def add_parameter(self, name, value=None, required=False, allow_overwrite=False, **kwargs):
+        """Add a single *new* parameter to the ParameterizedNode.
+
+        Notes
+        -----
+        * Checks multiple sources in the following order: Manually specified ``value``,
+          an entry in ``kwargs``, or ``None``.
+        * Sets an initial value for the attribute based on the given information.
+        * The attributes are stored in the order in which they are added.
+
+        Parameters
+        ----------
+        name : `str`
+            The parameter name to add.
+        value : any, optional
+            The information to use to set the parameter. Can be a constant,
+            function, ParameterizedNode, or self.
+        required : `bool`
+            Fail if the parameter is set to ``None``.
+            Default = ``False``
+        allow_overwrite : `bool`
+            Allow a subclass to overwrite the definition of the attribute
+            used in the superclass.
+            Default = ``False``
+        **kwargs : `dict`, optional
+           All other keyword arguments, possibly including the parameter setters.
+
+        Raises
+        ------
+        Raise a ``KeyError`` if there is a parameter collision or the parameter
+        cannot be found.
+        Raise a ``ValueError`` if the parameter is required, but set to None.
+        """
+        # Check for parameter collision.
+        if hasattr(self, name) and getattr(self, name) is not None and not allow_overwrite:
+            raise KeyError(f"Duplicate parameter set: {name}")
+
+        # Add an entry for the setter function and fill in the remaining
+        # information using set_parameter().
+        self.setters[name] = (None, None, required)
+        self.set_parameter(name, value, **kwargs)
 
     def sample_parameters(self, max_depth=50, **kwargs):
         """Sample the model's underlying parameters if they are provided by a function
-        or ParameterizedModel.
+        or ParameterizedNode.
 
         Parameters
         ----------
@@ -117,196 +197,129 @@ class ParameterizedModel:
         if max_depth == 0:
             raise ValueError(f"Maximum sampling depth exceeded at {self}. Potential infinite loop.")
 
+        # Increase the sampling iteration.
+        self.sample_iteration += 1
+
         # Run through each parameter and sample it based on the given recipe.
-        for name, source_type, setter in self.setters:
+        # As of Python 3.7 dictionaries are guaranteed to preserve insertion ordering,
+        # so this will iterate through attributes in the order they were inserted.
+        for name, (source_type, setter, _) in self.setters.items():
             sampled_value = None
             if source_type == ParameterSource.CONSTANT:
                 sampled_value = setter
             elif source_type == ParameterSource.FUNCTION:
                 sampled_value = setter(**kwargs)
             elif source_type == ParameterSource.MODEL_ATTRIBUTE:
-                # Check if we need to resample the parent (needs to be done before
-                # we read its attribute).
-                if setter.sample_iteration == self.sample_iteration:
+                # Check if we need to resample the parent (before accessing the attribute).
+                if setter.check_resample(self):
                     setter.sample_parameters(max_depth - 1, **kwargs)
                 sampled_value = getattr(setter, name)
             elif source_type == ParameterSource.MODEL_METHOD:
-                # Check if we need to resample the parent (needs to be done before
-                # we evaluate its method). Do not resample the current object.
-                parent = setter.__self__
-                if parent is not self and parent.sample_iteration == self.sample_iteration:
-                    parent.sample_parameters(max_depth - 1, **kwargs)
+                # Check if we need to resample the parent (before calling the method).
+                parent_node = setter.__self__
+                if parent_node.check_resample(self):
+                    parent_node.sample_parameters(max_depth - 1, **kwargs)
                 sampled_value = setter(**kwargs)
             else:
                 raise ValueError(f"Unknown ParameterSource type {source_type} for {name}")
             setattr(self, name, sampled_value)
 
-        # Increase the sampling iteration.
-        self.sample_iteration += 1
+    def get_all_parameter_values(self, recursive=True, seen=None):
+        """Get the values of the current parameters and (optionally) those of
+        all their dependencies.
+
+        Effectively snapshots the state of the execution graph.
+
+        Parameters
+        ----------
+        seen : `set`
+            A set of objects that have already been processed.
+        recursive : `bool`
+            Recursively extract the attribute setting of this object's dependencies.
+
+        Returns
+        -------
+        values : `dict`
+            The dictionary mapping the combination of the object identifier and
+            attribute name to its value.
+        """
+        # Make sure that we do not process the same nodes multiple times.
+        if seen is None:
+            seen = set()
+        if self in seen:
+            return {}
+        seen.add(self)
+
+        values = {}
+        for name, (source_type, setter, _) in self.setters.items():
+            if recursive:
+                if source_type == ParameterSource.MODEL_ATTRIBUTE:
+                    values.update(setter.get_all_parameter_values(True, seen))
+                elif source_type == ParameterSource.MODEL_METHOD:
+                    values.update(setter.__self__.get_all_parameter_values(True, seen))
+
+                full_name = f"{str(self)}.{name}"
+            else:
+                full_name = name
+            values[full_name] = getattr(self, name)
+        return values
 
 
-class PhysicalModel(ParameterizedModel):
-    """A physical model of a source of flux. Physical models can have fixed attributes
-    (where you need to create a new model to change them) and settable attributes that
-    can be passed functions or constants.
+class FunctionNode(ParameterizedNode):
+    """A class to wrap functions and their argument settings.
 
     Attributes
     ----------
-    ra : `float`
-        The object's right ascension (in degrees)
-    dec : `float`
-        The object's declination (in degrees)
-    distance : `float`
-        The object's distance (in pc)
-    redshift : `float`
-        The object's redshift.
-    effects : `list`
-        A list of effects to apply to an observations.
+    func : `function` or `method`
+        The function to call during an evaluation.
+    args_names : `list`
+        A list of argument names to pass to the function.
+
+    Examples
+    --------
+    my_func = TDFunc(random.randint, a=1, b=10)
+    value1 = my_func()      # Sample from default range
+    value2 = my_func(b=20)  # Sample from extended range
+
+    Note
+    ----
+    All the function's parameters that will be used need to be specified
+    in either the default_args dict, object_args list, or as a kwarg in the
+    constructor. Arguments cannot be first given during function call.
+    For example the following will fail (because b is not defined in the
+    constructor):
+
+    my_func = TDFunc(random.randint, a=1)
+    value1 = my_func(b=10.0)
     """
 
-    def __init__(self, ra=None, dec=None, distance=None, redshift=None, **kwargs):
+    def __init__(self, func, **kwargs):
         super().__init__(**kwargs)
-        self.effects = []
+        self.func = func
+        self.arg_names = []
 
-        # Set RA, dec, and distance from the parameters.
-        self.add_parameter("ra", ra)
-        self.add_parameter("dec", dec)
-        self.add_parameter("distance", distance)
-        self.add_parameter("redshift", redshift)
+        # Add all of the parameters from default_args or the kwargs.
+        for key, value in kwargs.items():
+            self.arg_names.append(key)
+            self.add_parameter(key, value)
 
     def __str__(self):
-        """Return the string representation of the model."""
-        return "PhysicalModel"
+        """Return the string representation of the function."""
+        return f"FunctionNode({self.func.name})"
 
-    def add_effect(self, effect, **kwargs):
-        """Add a transformational effect to the PhysicalModel.
-        Effects are applied in the order in which they are added.
-
-        Parameters
-        ----------
-        effect : `EffectModel`
-            The effect to apply.
-        **kwargs : `dict`, optional
-           Any additional keyword arguments.
-
-        Raises
-        ------
-        Raises a ``AttributeError`` if the PhysicalModel does not have all of the
-        required attributes.
-        """
-        for parameter in effect.required_parameters:
-            # Raise an AttributeError if the parameter is missing or set to None.
-            if getattr(self, parameter) is None:
-                raise AttributeError(f"Parameter {parameter} unset for model {type(self).__name__}")
-
-        self.effects.append(effect)
-
-    def _evaluate(self, times, wavelengths, **kwargs):
-        """Draw effect-free observations for this object.
+    def compute(self, **kwargs):
+        """Execute the wrapped function.
 
         Parameters
         ----------
-        times : `numpy.ndarray`
-            A length T array of timestamps.
-        wavelengths : `numpy.ndarray`, optional
-            A length N array of wavelengths.
         **kwargs : `dict`, optional
-           Any additional keyword arguments.
-
-        Returns
-        -------
-        flux_density : `numpy.ndarray`
-            A length T x N matrix of SED values.
+            Additional function arguments.
         """
-        raise NotImplementedError()
-
-    def evaluate(self, times, wavelengths, resample_parameters=False, **kwargs):
-        """Draw observations for this object and apply the noise.
-
-        Parameters
-        ----------
-        times : `numpy.ndarray`
-            A length T array of timestamps.
-        wavelengths : `numpy.ndarray`, optional
-            A length N array of wavelengths.
-        resample_parameters : `bool`
-            Treat this evaluation as a completely new object, resampling the
-            parameters from the original provided functions.
-        **kwargs : `dict`, optional
-           Any additional keyword arguments.
-
-        Returns
-        -------
-        flux_density : `numpy.ndarray`
-            A length T x N matrix of SED values.
-        """
-        if resample_parameters:
-            self.sample_parameters(kwargs)
-
-        for effect in self.effects:
-            if hasattr(effect, "pre_effect"):  # pre-effects == adjustments done to times and/or wavelengths
-                times, wavelengths = effect.pre_effect(times, wavelengths, **kwargs)
-
-        flux_density = self._evaluate(times, wavelengths, **kwargs)
-
-        for effect in self.effects:
-            flux_density = effect.apply(flux_density, wavelengths, self, **kwargs)
-
-        return flux_density
-
-    def sample_parameters(self, include_effects=True, **kwargs):
-        """Sample the model's underlying parameters if they are provided by a function
-        or ParameterizedModel.
-
-        Parameters
-        ----------
-        include_effects : `bool`
-            Resample the parameters for the effects models.
-        **kwargs : `dict`, optional
-            All the keyword arguments, including the values needed to sample
-            parameters.
-        """
-        super().sample_parameters(**kwargs)
-        if include_effects:
-            for effect in self.effects:
-                effect.sample_parameters(**kwargs)
-
-
-class EffectModel(ParameterizedModel):
-    """A physical or systematic effect to apply to an observation.
-
-    Attributes
-    ----------
-    required_parameters : `list` of `str`
-        A list of the parameters of a PhysicalModel that this effect needs to access.
-    """
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.required_parameters = []
-
-    def __str__(self):
-        """Return the string representation of the model."""
-        return "EffectModel"
-
-    def apply(self, flux_density, wavelengths=None, physical_model=None, **kwargs):
-        """Apply the effect to observations (flux_density values)
-
-        Parameters
-        ----------
-        flux_density : `numpy.ndarray`
-            A length T X N matrix of flux density values.
-        wavelengths : `numpy.ndarray`, optional
-            A length N array of wavelengths.
-        physical_model : `PhysicalModel`
-            A PhysicalModel from which the effect may query parameters
-            such as redshift, position, or distance.
-        **kwargs : `dict`, optional
-           Any additional keyword arguments.
-
-        Returns
-        -------
-        flux_density : `numpy.ndarray`
-            A length T x N matrix of flux densities after the effect is applied.
-        """
-        raise NotImplementedError()
+        args = {}
+        for key in self.arg_names:
+            # Override with the kwarg if the parameter is there.
+            if key in kwargs:
+                args[key] = kwargs[key]
+            else:
+                args[key] = getattr(self, key)
+        return self.func(**args)

@@ -1,6 +1,7 @@
 import random
 
 import numpy as np
+from tdastro.base_models import FunctionNode
 from tdastro.sources.static_source import StaticSource
 from tdastro.sources.step_source import StepSource
 
@@ -18,7 +19,7 @@ def _sample_brightness(magnitude, **kwargs):
     return magnitude * random.random()
 
 
-def _sample_end(duration, **kwargs):
+def _sample_end(duration):
     """Return a random value between 1 and 1 + duration
 
     Parameters
@@ -41,7 +42,6 @@ def test_step_source() -> None:
     assert model.ra == 1.0
     assert model.dec == 2.0
     assert model.distance == 3.0
-    assert str(model) == "StepSource(15.0)_1.0_to_2.0"
 
     times = np.array([0.0, 1.0, 2.0, 3.0])
     wavelengths = np.array([100.0, 200.0])
@@ -54,20 +54,20 @@ def test_step_source() -> None:
 
 def test_step_source_resample() -> None:
     """Check that we can call resample on the model parameters."""
+    random.seed(1111)
+
     model = StepSource(
-        brightness=_sample_brightness,
+        brightness=FunctionNode(_sample_brightness, magnitude=100.0).compute,
         t0=0.0,
-        t1=_sample_end,
-        magnitude=100.0,
-        duration=5.0,
+        t1=FunctionNode(_sample_end, duration=5.0).compute,
     )
 
-    num_samples = 100
+    num_samples = 1000
     brightness_vals = np.zeros((num_samples, 1))
     t_end_vals = np.zeros((num_samples, 1))
     t_start_vals = np.zeros((num_samples, 1))
     for i in range(num_samples):
-        model.sample_parameters(magnitude=100.0, duration=5.0)
+        model.sample_parameters()
         brightness_vals[i] = model.brightness
         t_end_vals[i] = model.t1
         t_start_vals[i] = model.t0
@@ -78,6 +78,10 @@ def test_step_source_resample() -> None:
     assert np.all(t_start_vals == 0.0)
     assert np.all(t_end_vals >= 1.0)
     assert np.all(t_end_vals <= 6.0)
+
+    # Check that the expected values are close.
+    assert abs(np.mean(brightness_vals) - 50.0) < 5.0
+    assert abs(np.mean(t_end_vals) - 3.5) < 0.5
 
     # Check that the brightness or end values are not all the same.
     assert not np.all(brightness_vals == brightness_vals[0])
