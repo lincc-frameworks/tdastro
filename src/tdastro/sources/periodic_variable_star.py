@@ -21,10 +21,9 @@ class PeriodicVariableStar(PeriodicSource, ABC):
         The distance to the source, in pc.
     """
 
-    def __init__(self, period, t0, **kwargs):
-        distance = kwargs.pop("distance", None)
+    def __init__(self, period, t0, distance, **kwargs):
         super().__init__(period, t0, **kwargs)
-        self.add_parameter("distance", value=distance, required=True, **kwargs)
+        self.add_parameter("distance", value=distance, required=True, allow_overwrite=True, **kwargs)
 
     def _evaluate_phases(self, phases, wavelengths, **kwargs):
         """Draw effect-free observations for this object, as a function of phase.

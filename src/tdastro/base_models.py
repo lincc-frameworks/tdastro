@@ -134,7 +134,7 @@ class ParameterizedNode:
         if required and getattr(self, name) is None:
             raise ValueError(f"Missing required parameter {name}")
 
-    def add_parameter(self, name, value=None, required=False, **kwargs):
+    def add_parameter(self, name, value=None, required=False, allow_overwrite=False, **kwargs):
         """Add a single *new* parameter to the ParameterizedNode.
 
         Notes
@@ -153,6 +153,11 @@ class ParameterizedNode:
             function, ParameterizedNode, or self.
         required : `bool`
             Fail if the parameter is set to ``None``.
+            Default = ``False``
+        allow_overwrite : `bool`
+            Allow a subclass to overwrite the definition of the attribute
+            used in the superclass.
+            Default = ``False``
         **kwargs : `dict`, optional
            All other keyword arguments, possibly including the parameter setters.
 
@@ -163,7 +168,7 @@ class ParameterizedNode:
         Raise a ``ValueError`` if the parameter is required, but set to None.
         """
         # Check for parameter collision.
-        if hasattr(self, name) and getattr(self, name) is not None:
+        if hasattr(self, name) and getattr(self, name) is not None and not allow_overwrite:
             raise KeyError(f"Duplicate parameter set: {name}")
 
         # Add an entry for the setter function and fill in the remaining
