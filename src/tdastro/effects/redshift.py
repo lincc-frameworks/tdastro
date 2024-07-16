@@ -11,9 +11,9 @@ class Redshift(EffectModel):
     Notes
     -----
     Conversions used are as follows:
-    - emitted_wavelength = observed_wavelength / (1 + redshift)
-    - emitted_time = (t0 - observation_time) / (1 + redshift) + t0
-    - observed_flux = emitted_flux / (1 + redshift)
+    - rest_frame_wavelength = observation_frame_wavelength / (1 + redshift)
+    - rest_frame_time = (observation_frame_time - t0) / (1 + redshift) + t0
+    - observation_frame_flux = rest_frame_flux / (1 + redshift)
     """
 
     def __init__(self, redshift=None, t0=None, **kwargs):
@@ -24,8 +24,8 @@ class Redshift(EffectModel):
         redshift : `float`
             The redshift.
         t0 : `float`
-            The epoch of the peak or the zero phase, date.
-            # TODO WORDING (1/3) -> Both how this is written, and to check, are we picking t0 or epoch?
+            The reference epoch; e.g. the time of the maximum light of a supernova or the epoch of zero phase
+            for a periodic variable star.
         **kwargs : `dict`, optional
            Any additional keyword arguments.
         """
@@ -38,17 +38,15 @@ class Redshift(EffectModel):
         """Return a string representation of the Redshift effect model."""
         return f"RedshiftEffect(redshift={self.redshift})"
 
-    def pre_effect(
-        self, observed_times, observed_wavelengths, **kwargs
-    ):  # TODO WORDING (2/3) -> Should I change "emitted" to "rest"? What is standard here?
-        """Calculate the emitted times and wavelengths needed to give us the observed times and wavelengths
-        given the redshift.
+    def pre_effect(self, observer_frame_times, observer_frame_wavelengths, **kwargs):
+        """Calculate the rest-frame times and wavelengths needed to give us the observer-frame times
+        and wavelengths (given the redshift).
 
         Parameters
         ----------
-        observed_times : numpy.ndarray
+        observer_frame_times : numpy.ndarray
             The times at which the observation is made.
-        observed_wavelengths : numpy.ndarray
+        observer_frame_wavelengths : numpy.ndarray
             The wavelengths at which the observation is made.
         **kwargs : `dict`, optional
            Any additional keyword arguments.
@@ -56,15 +54,15 @@ class Redshift(EffectModel):
         Returns
         -------
         tuple of (numpy.ndarray, numpy.ndarray)
-            The emission-frame times and wavelengths needed to generate the emission-frame flux densities,
-            which will then be redshifted to observation-frame flux densities at the observation-frame
-            times and wavelengths. # TODO WORDING (3/3)
+            The rest-frame times and wavelengths needed to generate the rest-frame flux densities,
+            which will later be redshifted  back to observer-frame flux densities at the observer-frame
+            times and wavelengths.
         """
-        observed_times_rel_to_t0 = observed_times - self.t0
-        emitted_times_rel_to_t0 = observed_times_rel_to_t0 / (1 + self.redshift)
-        emitted_times = emitted_times_rel_to_t0 + self.t0
-        emitted_wavelengths = observed_wavelengths / (1 + self.redshift)
-        return (emitted_times, emitted_wavelengths)
+        observed_times_rel_to_t0 = observer_frame_times - self.t0
+        rest_frame_times_rel_to_t0 = observed_times_rel_to_t0 / (1 + self.redshift)
+        rest_frame_times = rest_frame_times_rel_to_t0 + self.t0
+        rest_frame_wavelengths = observer_frame_wavelengths / (1 + self.redshift)
+        return (rest_frame_times, rest_frame_wavelengths)
 
     def apply(self, flux_density, wavelengths, physical_model=None, **kwargs):
         """Apply the effect to observations (flux_density values).
