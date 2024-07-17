@@ -391,7 +391,10 @@ class FunctionNode(ParameterizedNode):
 
     def __str__(self):
         """Return the string representation of the function."""
-        return f"FunctionNode({self.func.__name__})"
+        # Extend the FunctionNode's string to include the name of the
+        # function it calls so we can wrap a variety of raw functions.
+        super_name = super().__str__()
+        return f"{super_name}:{self.func.__name__}"
 
     def compute(self, **kwargs):
         """Execute the wrapped function.

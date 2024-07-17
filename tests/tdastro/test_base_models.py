@@ -275,6 +275,8 @@ def test_function_node_basic():
     assert my_func.compute(value2=3.0, unused_param=5.0) == 4.0
     assert my_func.compute(value2=3.0, value1=1.0) == 4.0
 
+    assert str(my_func) == "tdastro.base_models.FunctionNode:_test_func"
+
 
 def test_function_node_chain():
     """Test that we can create and query a chained FunctionNode."""
