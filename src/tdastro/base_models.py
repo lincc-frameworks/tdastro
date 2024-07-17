@@ -59,10 +59,11 @@ class ParameterizedNode:
 
     def __str__(self):
         """Return the string representation of the node."""
+        name = f"{self.__class__.__module__}.{self.__class__.__qualname__}"
         if self.node_identifier:
-            return f"{self.node_identifier}={self.__class__.__name__}"
+            return f"{self.node_identifier}={name}"
         else:
-            return self.__class__.__name__
+            return name
 
     def set_graph_base_seed(self, graph_base_seed):
         """Set a new graph base seed.

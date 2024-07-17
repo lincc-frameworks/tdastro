@@ -24,7 +24,7 @@ def test_static_source() -> None:
     assert model.ra is None
     assert model.dec is None
     assert model.distance is None
-    assert str(model) == "my_static_source=StaticSource"
+    assert str(model) == "my_static_source=tdastro.sources.static_source.StaticSource"
 
     times = np.array([1, 2, 3, 4, 5, 10])
     wavelengths = np.array([100.0, 200.0, 300.0])
@@ -49,7 +49,7 @@ def test_static_source_host() -> None:
     assert model.ra == 1.0
     assert model.dec == 2.0
     assert model.distance == 3.0
-    assert str(model) == "StaticSource"
+    assert str(model) == "tdastro.sources.static_source.StaticSource"
 
 
 def test_static_source_resample() -> None:

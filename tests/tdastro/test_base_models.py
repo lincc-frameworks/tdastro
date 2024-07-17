@@ -173,9 +173,9 @@ def test_parameterized_node_attributes():
 
     settings = model1.get_all_parameter_values(True)
     assert len(settings) == 3
-    assert settings["1=PairModel.value1"] == 0.5
-    assert settings["1=PairModel.value2"] == 1.5
-    assert settings["1=PairModel.value_sum"] == 2.0
+    assert settings["1=test_base_models.PairModel.value1"] == 0.5
+    assert settings["1=test_base_models.PairModel.value2"] == 1.5
+    assert settings["1=test_base_models.PairModel.value_sum"] == 2.0
 
     # Use value1=model.value and value2=3.0
     model2 = PairModel(value1=model1, value2=3.0, node_identifier="2")
@@ -187,12 +187,12 @@ def test_parameterized_node_attributes():
 
     settings = model2.get_all_parameter_values(True)
     assert len(settings) == 6
-    assert settings["1=PairModel.value1"] == 0.5
-    assert settings["1=PairModel.value2"] == 1.5
-    assert settings["1=PairModel.value_sum"] == 2.0
-    assert settings["2=PairModel.value1"] == 0.5
-    assert settings["2=PairModel.value2"] == 3.0
-    assert settings["2=PairModel.value_sum"] == 3.5
+    assert settings["1=test_base_models.PairModel.value1"] == 0.5
+    assert settings["1=test_base_models.PairModel.value2"] == 1.5
+    assert settings["1=test_base_models.PairModel.value_sum"] == 2.0
+    assert settings["2=test_base_models.PairModel.value1"] == 0.5
+    assert settings["2=test_base_models.PairModel.value2"] == 3.0
+    assert settings["2=test_base_models.PairModel.value_sum"] == 3.5
 
 
 def test_parameterized_node_get_dependencies():

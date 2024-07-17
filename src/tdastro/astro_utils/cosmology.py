@@ -47,17 +47,10 @@ class RedshiftDistFunc(FunctionNode):
     """
 
     def __init__(self, redshift, cosmology, **kwargs):
-        # Augment the node identifier string to include the cosmology name.
-        if "node_identifier" in kwargs:
-            node_identifier = f"{kwargs['node_identifier']}({cosmology.name})"
-        else:
-            node_identifier = f"{cosmology.name}"
-
         # Call the super class's constructor with the needed information.
         super().__init__(
             func=redshift_to_distance,
             redshift=redshift,
             cosmology=cosmology,
-            node_identifier=node_identifier,
             **kwargs,
         )
