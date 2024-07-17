@@ -7,7 +7,7 @@ def test_sncomso_models_hsiao() -> None:
     model = SncosmoWrapperModel("hsiao")
     model.set(amplitude=1.0e-10)
     assert model.amplitude == 1.0e-10
-    assert str(model) == "SncosmoWrapperModel"
+    assert str(model) == "tdastro.sources.sncomso_models.SncosmoWrapperModel"
 
     assert np.array_equal(model.param_names, ["amplitude"])
     assert np.array_equal(model.parameters, [1.0e-10])

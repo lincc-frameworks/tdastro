@@ -42,16 +42,15 @@ class RedshiftDistFunc(FunctionNode):
         The function or constant providing the redshift value.
     cosmology : `astropy.cosmology`
         The cosmology specification.
+    **kwargs : `dict`, optional
+        Any additional keyword arguments.
     """
 
-    def __init__(self, redshift, cosmology):
+    def __init__(self, redshift, cosmology, **kwargs):
         # Call the super class's constructor with the needed information.
         super().__init__(
             func=redshift_to_distance,
             redshift=redshift,
             cosmology=cosmology,
+            **kwargs,
         )
-
-    def __str__(self):
-        """Return the string representation of the function."""
-        return f"RedshiftDistFunc({self.cosmology.name}, {self.kind})"

@@ -8,7 +8,7 @@ def test_spline_model_flat() -> None:
     wavelengths = np.linspace(100.0, 500.0, 25)
     fluxes = np.full((len(times), len(wavelengths)), 1.0)
     model = SplineModel(times, wavelengths, fluxes)
-    assert str(model) == "SplineModel"
+    assert str(model) == "tdastro.sources.spline_model.SplineModel"
 
     test_times = np.array([0.0, 1.0, 2.0, 3.0, 10.0])
     test_waves = np.array([0.0, 100.0, 200.0, 1000.0])
@@ -19,7 +19,7 @@ def test_spline_model_flat() -> None:
     np.testing.assert_array_almost_equal(values, expected)
 
     model2 = SplineModel(times, wavelengths, fluxes, amplitude=5.0, node_identifier="test")
-    assert str(model2) == "test=SplineModel"
+    assert str(model2) == "test=tdastro.sources.spline_model.SplineModel"
 
     values2 = model2.evaluate(test_times, test_waves)
     assert values2.shape == (5, 4)

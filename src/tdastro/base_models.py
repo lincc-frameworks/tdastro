@@ -2,6 +2,8 @@
 
 import types
 from enum import Enum
+from hashlib import md5
+from os import urandom
 
 
 class ParameterSource(Enum):
@@ -30,19 +32,59 @@ class ParameterizedNode:
     sample_iteration : `int`
         A counter used to syncronize sampling runs. Tracks how many times this
         model's parameters have been resampled.
+    _object_seed : `int`
+        A object-specific seed to control random number generation.
+    _graph_base_seed, `int`
+        A base random seed to use for this specific evaluation graph. Used
+        for validity checking.
+
+    Parameters
+    ----------
+    node_identifier : `str`, optional
+        An identifier (or name) for the current node.
+    graph_base_seed : `int`, optional
+        A base random seed to use for this specific evaluation graph.
+        WARNING: This seed should almost never be set manually. Using the same
+        seed for multiple graph instances will produce biased samples.
+        If set to ``None`` will use urandom() to produce a fully random seed.
+    **kwargs : `dict`, optional
+        Any additional keyword arguments.
     """
 
-    def __init__(self, node_identifier=None, **kwargs):
+    def __init__(self, node_identifier=None, graph_base_seed=None, **kwargs):
         self.setters = {}
         self.sample_iteration = 0
         self.node_identifier = node_identifier
+        self.set_graph_base_seed(graph_base_seed)
 
     def __str__(self):
         """Return the string representation of the node."""
+        name = f"{self.__class__.__module__}.{self.__class__.__qualname__}"
         if self.node_identifier:
-            return f"{self.node_identifier}={self.__class__.__name__}"
+            return f"{self.node_identifier}={name}"
         else:
-            return self.__class__.__name__
+            return name
+
+    def set_graph_base_seed(self, graph_base_seed):
+        """Set a new graph base seed.
+
+        Notes
+        -----
+        WARNING: This seed should almost never be set manually. Using the same
+        seed for multiple graph instances will produce biased samples.
+
+        Parameters
+        ----------
+        graph_base_seed : `int`, optional
+            A base random seed to use for this specific evaluation graph.
+        """
+        if graph_base_seed is None:
+            graph_base_seed = int.from_bytes(urandom(4), "big")
+        self._graph_base_seed = graph_base_seed
+
+        hashed_object_name = md5(str(self).encode())
+        seed_offset = int(hashed_object_name.hexdigest(), base=16)
+        self._object_seed = (graph_base_seed + seed_offset) % (2**31)
 
     def check_resample(self, other):
         """Check if we need to resample the current node based
@@ -264,6 +306,34 @@ class ParameterizedNode:
             values[full_name] = getattr(self, name)
         return values
 
+    def get_dependencies(self, nodes=None):
+        """Get all nodes on which this current node depends.
+
+        Parameters
+        ----------
+        nodes : `set`
+            A set of all nodes at or above this node in the graph.
+            This is modified in place.
+
+        Returns
+        -------
+        nodes : `set`
+            A set of all nodes at or above this node in the graph.
+        """
+        # Make sure that we do not process the same nodes multiple times.
+        if nodes is None:
+            nodes = set()
+        if self in nodes:
+            return nodes
+        nodes.add(self)
+
+        for source_type, setter, _ in self.setters.values():
+            if source_type == ParameterSource.MODEL_ATTRIBUTE:
+                nodes = setter.get_dependencies(nodes)
+            elif source_type == ParameterSource.MODEL_METHOD:
+                nodes = setter.__self__.get_dependencies(nodes)
+        return nodes
+
 
 class FunctionNode(ParameterizedNode):
     """A class to wrap functions and their argument settings.
@@ -274,6 +344,20 @@ class FunctionNode(ParameterizedNode):
         The function to call during an evaluation.
     args_names : `list`
         A list of argument names to pass to the function.
+
+    Parameters
+    ----------
+    func : `function` or `method`
+        The function to call during an evaluation.
+    node_identifier : `str`, optional
+        An identifier (or name) for the current node.
+    graph_base_seed : `int`, optional
+        A base random seed to use for this specific evaluation graph.
+        WARNING: This seed should almost never be set manually. Using the same
+        seed for multiple graph instances will produce biased samples.
+        If set to ``None`` will use urandom() to produce a fully random seed.
+    **kwargs : `dict`, optional
+        Any additional keyword arguments.
 
     Examples
     --------
@@ -293,19 +377,21 @@ class FunctionNode(ParameterizedNode):
     value1 = my_func(b=10.0)
     """
 
-    def __init__(self, func, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, func, node_identifier=None, graph_base_seed=None, **kwargs):
+        # We set the function before calling the parent class so we can use
+        # the function's name (if needed).
         self.func = func
-        self.arg_names = []
+        super().__init__(node_identifier=node_identifier, graph_base_seed=graph_base_seed, **kwargs)
 
         # Add all of the parameters from default_args or the kwargs.
+        self.arg_names = []
         for key, value in kwargs.items():
             self.arg_names.append(key)
             self.add_parameter(key, value)
 
     def __str__(self):
         """Return the string representation of the function."""
-        return f"FunctionNode({self.func.name})"
+        return f"FunctionNode({self.func.__name__})"
 
     def compute(self, **kwargs):
         """Execute the wrapped function.
