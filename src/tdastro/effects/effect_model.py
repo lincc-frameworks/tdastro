@@ -9,17 +9,6 @@ class EffectModel(ParameterizedNode):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def required_parameters(self):
-        """Returns a list of the parameters of a PhysicalModel
-        that this effect needs to access.
-
-        Returns
-        -------
-        parameters : `list` of `str`
-            A list of every required parameter the effect needs.
-        """
-        return []
-
     def apply(self, flux_density, wavelengths=None, physical_model=None, **kwargs):
         """Apply the effect to observations (flux_density values)
 
