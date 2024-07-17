@@ -34,6 +34,9 @@ class ParameterizedNode:
         model's parameters have been resampled.
     _object_seed : `int`
         A object-specific seed to control random number generation.
+    _graph_base_seed, `int`
+        A base random seed to use for this specific evaluation graph. Used
+        for validity checking.
 
     Parameters
     ----------
@@ -76,6 +79,8 @@ class ParameterizedNode:
         """
         if graph_base_seed is None:
             graph_base_seed = int.from_bytes(urandom(4), "big")
+        self._graph_base_seed = graph_base_seed
+
         hashed_object_name = md5(str(self).encode())
         seed_offset = int(hashed_object_name.hexdigest(), base=16)
         self._object_seed = (graph_base_seed + seed_offset) % (2**31)
