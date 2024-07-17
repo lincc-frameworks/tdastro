@@ -33,10 +33,6 @@ class Redshift(EffectModel):
         self.add_parameter("redshift", redshift, required=True, **kwargs)
         self.add_parameter("t0", t0, required=True, **kwargs)
 
-    def __str__(self) -> str:
-        """Return a string representation of the Redshift effect model."""
-        return f"RedshiftEffect(redshift={self.redshift})"
-
     def pre_effect(self, observer_frame_times, observer_frame_wavelengths, **kwargs):
         """Calculate the rest-frame times and wavelengths needed to give us the observer-frame times
         and wavelengths (given the redshift).
