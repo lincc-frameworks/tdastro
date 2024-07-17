@@ -29,6 +29,20 @@ def _test_func(value1, value2):
     return value1 + value2
 
 
+class SingleModel(ParameterizedNode):
+    """A test class for the ParameterizedNode.
+
+    Attributes
+    ----------
+    value1 : `float`
+        The first value.
+    """
+
+    def __init__(self, value1, **kwargs):
+        super().__init__(**kwargs)
+        self.add_parameter("value1", value1, required=True, **kwargs)
+
+
 class PairModel(ParameterizedNode):
     """A test class for the ParameterizedNode.
 
@@ -43,17 +57,6 @@ class PairModel(ParameterizedNode):
     """
 
     def __init__(self, value1, value2, **kwargs):
-        """Create a ConstModel object.
-
-        Parameters
-        ----------
-        value1 : `float`, `function`, `ParameterizedNode`, or `None`
-            The first value.
-        value2 : `float`, `function`, `ParameterizedNode`, or `None`
-            The second value.
-        **kwargs : `dict`, optional
-           Any additional keyword arguments.
-        """
         super().__init__(**kwargs)
         self.add_parameter("value1", value1, required=True, **kwargs)
         self.add_parameter("value2", value2, required=True, **kwargs)
@@ -79,7 +82,7 @@ class PairModel(ParameterizedNode):
         return self.value1 + self.value2
 
 
-def test_parameterized_node() -> None:
+def test_parameterized_node():
     """Test that we can sample and create a PairModel object."""
     # Simple addition
     model1 = PairModel(value1=0.5, value2=0.5)
@@ -141,7 +144,7 @@ def test_parameterized_node() -> None:
     assert model1.sample_iteration == model4.sample_iteration
 
 
-def test_parameterized_node_overwrite() -> None:
+def test_parameterized_node_overwrite():
     """Test that we can overwrite attributes in a PairModel."""
     model1 = PairModel(value1=0.5, value2=0.5)
     assert model1.value1 == 0.5
@@ -159,7 +162,7 @@ def test_parameterized_node_overwrite() -> None:
     assert model1.value1 == 1.0
 
 
-def test_parameterized_node_attributes() -> None:
+def test_parameterized_node_attributes():
     """Test that we can extract the attributes of a graph of ParameterizedNode."""
     model1 = PairModel(value1=0.5, value2=1.5, node_identifier="1")
     settings = model1.get_all_parameter_values(False)
@@ -192,7 +195,29 @@ def test_parameterized_node_attributes() -> None:
     assert settings["2=PairModel.value_sum"] == 3.5
 
 
-def test_parameterized_node_modify() -> None:
+def test_parameterized_node_get_dependencies():
+    """Test that we can extract the attributes of a graph of ParameterizedNode."""
+    model1 = PairModel(value1=0.5, value2=1.5, node_identifier="1")
+    model2 = PairModel(value1=model1, value2=3.0, node_identifier="2")
+    model3 = PairModel(value1=model1, value2=model2.result, node_identifier="3")
+
+    dep1 = model1.get_dependencies()
+    assert len(dep1) == 1
+    assert model1 in dep1
+
+    dep2 = model2.get_dependencies()
+    assert len(dep2) == 2
+    assert model1 in dep2
+    assert model2 in dep2
+
+    dep3 = model3.get_dependencies()
+    assert len(dep3) == 3
+    assert model1 in dep3
+    assert model2 in dep3
+    assert model3 in dep3
+
+
+def test_parameterized_node_modify():
     """Test that we can modify the parameters in a node."""
     model = PairModel(value1=0.5, value2=0.5)
     assert model.value1 == 0.5
@@ -210,6 +235,36 @@ def test_parameterized_node_modify() -> None:
     # We cannot set a value that hasn't been added.
     with pytest.raises(KeyError):
         model.set_parameter("brightness", 5.0)
+
+
+def test_parameterized_node_seed():
+    """Test that we can set a random seed for the entire graph."""
+    # Left unspecified we use full random seeds.
+    model_a = PairModel(value1=0.5, value2=0.5)
+    model_b = PairModel(value1=0.5, value2=0.5)
+    assert model_a._object_seed != model_b._object_seed
+
+    # If we specify a seed, the results are the same objects with
+    # the same name (class + node identifier) and different otherwise.
+    model_a = PairModel(value1=0.5, value2=0.5, graph_base_seed=10, node_identifier="A")
+    model_b = PairModel(value1=0.5, value2=0.5, graph_base_seed=10, node_identifier="B")
+    model_c = PairModel(value1=0.5, value2=0.5, graph_base_seed=10, node_identifier="A")
+    model_d = SingleModel(value1=0.5, node_identifier="A")
+    assert model_a._object_seed != model_b._object_seed
+    assert model_a._object_seed == model_c._object_seed
+    assert model_a._object_seed != model_d._object_seed
+
+    assert model_b._object_seed != model_a._object_seed
+    assert model_b._object_seed != model_c._object_seed
+    assert model_b._object_seed != model_d._object_seed
+
+    assert model_c._object_seed == model_a._object_seed
+    assert model_c._object_seed != model_b._object_seed
+    assert model_c._object_seed != model_d._object_seed
+
+    assert model_d._object_seed != model_a._object_seed
+    assert model_d._object_seed != model_b._object_seed
+    assert model_d._object_seed != model_c._object_seed
 
 
 def test_function_node_basic():
