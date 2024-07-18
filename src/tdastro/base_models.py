@@ -338,10 +338,15 @@ class ParameterizedNode:
 class FunctionNode(ParameterizedNode):
     """A class to wrap functions and their argument settings.
 
+    The node can compute the result using a given function (the ``func``
+    parameter) or through the ``compute()`` method. If no ``func=None``
+    then the user must override ``compute()``.
+
     Attributes
     ----------
     func : `function` or `method`
-        The function to call during an evaluation.
+        The function to call during an evaluation. If this is ``None``
+        you must override the ``compute()`` method directly.
     args_names : `list`
         A list of argument names to pass to the function.
 

@@ -11,6 +11,11 @@ class JaxRandomFunc(FunctionNode):
     Attributes
     ----------
     _key : `jax._src.prng.PRNGKeyArray`
+
+    Note
+    ----
+    Automatically splits keys each time ``compute()`` is called, so
+    each call produces a new pseudorandom number.
     """
 
     def __init__(self, func, **kwargs):
@@ -31,6 +36,8 @@ class JaxRandomFunc(FunctionNode):
             A base random seed to use for this specific evaluation graph.
         """
         super().set_graph_base_seed(graph_base_seed)
+
+        # We recompute the JAX key with the new object seed.
         self._key = jax.random.key(self._object_seed)
 
     def compute(self, **kwargs):
