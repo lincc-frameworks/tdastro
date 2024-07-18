@@ -1,4 +1,42 @@
-"""The base models used to specify the TDAstro computation graph."""
+"""The base models used to specify the TDAstro computation graph.
+
+The computation graph is composed of ParameterizedNodes which store variables
+and encode the dependencies between individual attributes. We say that variable
+X is dependent on variable Y if the value of Y is necessary to compute the value
+of X. Thus dependencies impose an ordering of variables in the graph. Y must
+be computed before X.
+
+All dynamic attributes (variables whose values change when the graph is resampled)
+in the graph must be added using ParameterizedNode.add_parameter(). This allows the graph
+to track which variables to update and how to set them. Attributes can be set from a few
+sources:
+1) A constant
+2) A static function or method (which does not have variables that are resampled).
+3) The result of evaluating a FunctionNode, which provides a computation using other
+   variables in the graph.
+4) The attribute of another ParameterizedNode.
+5) The method of another ParameterizedNode.
+
+The execution graph is processed by starting at the final node, examining each
+attribute, and recursively proceeding 'up' the graph for any attribute that
+has a dependency. For example the function.
+
+f(a, b) = x
+g(c) = y
+h(x, y) = z
+
+would form the graph:
+
+a -\
+    x - \
+b -/     \
+          z
+c -- y -- /
+
+where z is the 'bottom' node. Attributes a, b, and c would be at the 'top' of the
+graph because they have no dependencies.  Such attributes are set by constants or
+static functions.
+"""
 
 import types
 from enum import Enum
@@ -15,6 +53,7 @@ class ParameterSource(Enum):
     FUNCTION = 2
     MODEL_ATTRIBUTE = 3
     MODEL_METHOD = 4
+    FUNCTION_NODE = 5
 
 
 class ParameterizedNode:
@@ -139,6 +178,7 @@ class ParameterizedNode:
         ------
         Raise a ``KeyError`` if there is a parameter collision or the parameter
         cannot be found.
+        Raise a ``ValueError`` if the setter type is not supported.
         Raise a ``ValueError`` if the parameter is required, but set to None.
         """
         # Check for parameter has been added and if so, find the index.
@@ -162,14 +202,35 @@ class ParameterizedNode:
                 # We treat it as static (we don't resample the other object).
                 self.setters[name] = (ParameterSource.FUNCTION, value, required)
             setattr(self, name, value(**kwargs))
+        elif isinstance(value, FunctionNode):
+            # Case 2: We are using the result of a computation of the function node.
+            self.setters[name] = (ParameterSource.FUNCTION_NODE, value, required)
+            setattr(self, name, value.compute(**kwargs))
         elif isinstance(value, ParameterizedNode):
-            # Case 2: We are trying to access a parameter of another ParameterizedNode.
+            # Case 3a: We are trying to access a parameter of a ParameterizedNode
+            # with the same name.
+            if value == self:
+                raise ValueError(f"Attribute {name} is recursively assigned to self.{name}.")
             if not hasattr(value, name):
-                raise ValueError(f"Attribute {name} missing from parent.")
+                raise ValueError(f"Attribute {name} missing from {str(value)}.")
+            if callable(getattr(value, name)):
+                raise ValueError(f"{value}.{name} is callable and should be an attribute.")
+
+            # We store MODEL_ATTRIBUTE setters as a tuple of (object, attribute_name).
+            setter = (value, name)
+            self.setters[name] = (ParameterSource.MODEL_ATTRIBUTE, setter, required)
+            setattr(self, name, getattr(setter[0], setter[1]))
+        elif isinstance(value, tuple) and len(value) >= 2 and isinstance(value[0], ParameterizedNode):
+            # Case 3b: We are trying to access a parameter of a ParameterizedNode
+            # with a different name.
+            if not hasattr(value[0], value[1]):
+                raise ValueError(f"Attribute {value[1]} missing from {str(value[0])}.")
+            elif callable(getattr(value[0], value[1])):
+                raise ValueError(f"{value[0]}.{value[1]} is callable and should be an attribute.")
             self.setters[name] = (ParameterSource.MODEL_ATTRIBUTE, value, required)
-            setattr(self, name, getattr(value, name))
+            setattr(self, name, getattr(value[0], value[1]))
         else:
-            # Case 3: The value is constant (including None).
+            # Case 4: The value is constant (including None).
             self.setters[name] = (ParameterSource.CONSTANT, value, required)
             setattr(self, name, value)
 
@@ -253,15 +314,21 @@ class ParameterizedNode:
                 sampled_value = setter(**kwargs)
             elif source_type == ParameterSource.MODEL_ATTRIBUTE:
                 # Check if we need to resample the parent (before accessing the attribute).
-                if setter.check_resample(self):
-                    setter.sample_parameters(max_depth - 1, **kwargs)
-                sampled_value = getattr(setter, name)
+                if setter[0].check_resample(self):
+                    setter[0].sample_parameters(max_depth - 1, **kwargs)
+                # We store MODEL_ATTRIBUTE setters as a tuple of (object, attribute_name).
+                sampled_value = getattr(setter[0], setter[1])
             elif source_type == ParameterSource.MODEL_METHOD:
                 # Check if we need to resample the parent (before calling the method).
                 parent_node = setter.__self__
                 if parent_node.check_resample(self):
                     parent_node.sample_parameters(max_depth - 1, **kwargs)
                 sampled_value = setter(**kwargs)
+            elif source_type == ParameterSource.FUNCTION_NODE:
+                # Check if we need to resample the parent function (before calling compute).
+                if setter.check_resample(self):
+                    setter.sample_parameters(max_depth - 1, **kwargs)
+                sampled_value = setter.compute(**kwargs)
             else:
                 raise ValueError(f"Unknown ParameterSource type {source_type} for {name}")
             setattr(self, name, sampled_value)
@@ -296,9 +363,11 @@ class ParameterizedNode:
         for name, (source_type, setter, _) in self.setters.items():
             if recursive:
                 if source_type == ParameterSource.MODEL_ATTRIBUTE:
-                    values.update(setter.get_all_parameter_values(True, seen))
+                    values.update(setter[0].get_all_parameter_values(True, seen))
                 elif source_type == ParameterSource.MODEL_METHOD:
                     values.update(setter.__self__.get_all_parameter_values(True, seen))
+                elif source_type == ParameterSource.FUNCTION_NODE:
+                    values.update(setter.get_all_parameter_values(True, seen))
 
                 full_name = f"{str(self)}.{name}"
             else:
@@ -329,9 +398,11 @@ class ParameterizedNode:
 
         for source_type, setter, _ in self.setters.values():
             if source_type == ParameterSource.MODEL_ATTRIBUTE:
-                nodes = setter.get_dependencies(nodes)
+                nodes = setter[0].get_dependencies(nodes)
             elif source_type == ParameterSource.MODEL_METHOD:
                 nodes = setter.__self__.get_dependencies(nodes)
+            elif source_type == ParameterSource.FUNCTION_NODE:
+                nodes = setter.get_dependencies(nodes)
         return nodes
 
 

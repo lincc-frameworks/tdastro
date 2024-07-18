@@ -35,6 +35,8 @@ def test_gaussian_galaxy() -> None:
     host_ra = host.ra
     host_dec = host.dec
 
+    # We define the position of the source using Gaussian noise from the center
+    # of the host galaxy.
     source = StaticSource(ra=host.sample_ra, dec=host.sample_dec, background=host, brightness=100.0)
 
     # Both RA and dec should be "close" to (but not exactly at) the center of the galaxy.

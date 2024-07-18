@@ -91,7 +91,7 @@ def test_fixed_population_sample_fluxes():
     brightness_func = FunctionNode(random.uniform, a=0.0, b=100.0)
     population = FixedPopulation()
     population.add_source(StaticSource(brightness=100.0), 10.0)
-    population.add_source(StaticSource(brightness=brightness_func.compute), 10.0)
+    population.add_source(StaticSource(brightness=brightness_func), 10.0)
     population.add_source(StaticSource(brightness=200.0), 20.0)
     population.add_source(StaticSource(brightness=150.0), 10.0)
 

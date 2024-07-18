@@ -87,7 +87,7 @@ def test_parameterized_node():
     assert model2.sample_iteration == 0
 
     # Compute value1 from model2's result and value2 from the sampler function.
-    model3 = PairModel(value1=model2.result, value2=_sampler_fun)
+    model3 = PairModel(value1=(model2, "value_sum"), value2=_sampler_fun)
     rand_val = model3.value2
     assert model3.result() == pytest.approx(1.5 + rand_val)
     assert model3.value_sum == pytest.approx(1.5 + rand_val)
@@ -95,7 +95,7 @@ def test_parameterized_node():
 
     # Compute value1 from model3's result (which is itself the result for model2 +
     # a random value) and value2 = -1.0.
-    model4 = PairModel(value1=model3.result, value2=-1.0)
+    model4 = PairModel(value1=(model3, "value_sum"), value2=-1.0)
     assert model4.result() == pytest.approx(0.5 + rand_val)
     assert model4.value_sum == pytest.approx(0.5 + rand_val)
     assert model4.sample_iteration == 0
@@ -103,7 +103,6 @@ def test_parameterized_node():
 
     # We can resample and it should change the result.
     while model3.value2 == rand_val:
-        print(f"{model3.value2}")
         model4.sample_parameters()
     rand_val = model3.value2
 
@@ -157,13 +156,15 @@ def test_parameterized_node_attributes():
     assert settings["value2"] == 1.5
     assert settings["value_sum"] == 2.0
 
+    # The model has 5 attributes in the graph: 3 in model1 and 2
+    # in its summation FunctionNode.
     settings = model1.get_all_parameter_values(True)
     assert len(settings) == 3
     assert settings["1=test_base_models.PairModel.value1"] == 0.5
     assert settings["1=test_base_models.PairModel.value2"] == 1.5
     assert settings["1=test_base_models.PairModel.value_sum"] == 2.0
 
-    # Use value1=model.value and value2=3.0
+    # Use value1=model.value1 and value2=3.0
     model2 = PairModel(value1=model1, value2=3.0, node_identifier="2")
     settings = model2.get_all_parameter_values(False)
     assert len(settings) == 3
@@ -185,7 +186,7 @@ def test_parameterized_node_get_dependencies():
     """Test that we can extract the attributes of a graph of ParameterizedNode."""
     model1 = PairModel(value1=0.5, value2=1.5, node_identifier="1")
     model2 = PairModel(value1=model1, value2=3.0, node_identifier="2")
-    model3 = PairModel(value1=model1, value2=model2.result, node_identifier="3")
+    model3 = PairModel(value1=model1, value2=(model2, "value_sum"), node_identifier="3")
 
     dep1 = model1.get_dependencies()
     assert len(dep1) == 1
@@ -273,7 +274,7 @@ def test_function_node_basic():
 def test_function_node_chain():
     """Test that we can create and query a chained FunctionNode."""
     func1 = FunctionNode(_test_func, value1=1.0, value2=1.0)
-    func2 = FunctionNode(_test_func, value1=func1.compute, value2=3.0)
+    func2 = FunctionNode(_test_func, value1=func1, value2=3.0)
     assert func2.compute() == 5.0
 
 
@@ -300,7 +301,7 @@ def test_function_node_obj():
     """
     # The model depends on the function.
     func = FunctionNode(_test_func, value1=5.0, value2=6.0)
-    model = PairModel(value1=10.0, value2=func.compute)
+    model = PairModel(value1=10.0, value2=func)
     assert model.result() == 21.0
 
     # Function depends on the model's value2 attribute.
@@ -308,11 +309,6 @@ def test_function_node_obj():
     func = FunctionNode(_test_func, value1=5.0, value2=model)
     assert model.result() == 7.5
     assert func.compute() == 22.5
-
-    # Function depends on the model's get_value1() method.
-    func = FunctionNode(_test_func, value1=model.get_value1, value2=5.0)
-    assert model.result() == 7.5
-    assert func.compute() == -5.0
 
     # We can always override the attributes with kwargs.
     assert func.compute(value1=1.0, value2=4.0) == 5.0
