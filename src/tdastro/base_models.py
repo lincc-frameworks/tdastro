@@ -338,10 +338,15 @@ class ParameterizedNode:
 class FunctionNode(ParameterizedNode):
     """A class to wrap functions and their argument settings.
 
+    The node can compute the result using a given function (the ``func``
+    parameter) or through the ``compute()`` method. If no ``func=None``
+    then the user must override ``compute()``.
+
     Attributes
     ----------
     func : `function` or `method`
-        The function to call during an evaluation.
+        The function to call during an evaluation. If this is ``None``
+        you must override the ``compute()`` method directly.
     args_names : `list`
         A list of argument names to pass to the function.
 
@@ -394,7 +399,20 @@ class FunctionNode(ParameterizedNode):
         # Extend the FunctionNode's string to include the name of the
         # function it calls so we can wrap a variety of raw functions.
         super_name = super().__str__()
+        if self.func is None:
+            return super_name
         return f"{super_name}:{self.func.__name__}"
+
+    def _build_args_dict(self, **kwargs):
+        """Build a dictionary of arguments for the function."""
+        args = {}
+        for key in self.arg_names:
+            # Override with the kwarg if the parameter is there.
+            if key in kwargs:
+                args[key] = kwargs[key]
+            else:
+                args[key] = getattr(self, key)
+        return args
 
     def compute(self, **kwargs):
         """Execute the wrapped function.
@@ -403,12 +421,16 @@ class FunctionNode(ParameterizedNode):
         ----------
         **kwargs : `dict`, optional
             Additional function arguments.
+
+        Raises
+        ------
+        ``ValueError`` is ``func`` attribute is ``None``.
         """
-        args = {}
-        for key in self.arg_names:
-            # Override with the kwarg if the parameter is there.
-            if key in kwargs:
-                args[key] = kwargs[key]
-            else:
-                args[key] = getattr(self, key)
+        if self.func is None:
+            raise ValueError(
+                "func parameter is None for a FunctionNode. You need to either "
+                "set func or override compute()."
+            )
+
+        args = self._build_args_dict(**kwargs)
         return self.func(**args)
