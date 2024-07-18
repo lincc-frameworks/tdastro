@@ -59,7 +59,7 @@ class NumpyRandomFunc(FunctionNode):
         self.func = getattr(self._rng, self.func_name)
 
     def compute(self, **kwargs):
-        """Execute the wrapped JAX sampling function.
+        """Execute the wrapped numpy random number generator method.
 
         Parameters
         ----------
