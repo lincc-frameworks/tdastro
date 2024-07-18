@@ -71,6 +71,8 @@ class ParameterizedNode:
     sample_iteration : `int`
         A counter used to syncronize sampling runs. Tracks how many times this
         model's parameters have been resampled.
+    direct_dependencies : `set`
+        A set of other ParameterizedNodes on that this node needs to directly access.
     _object_seed : `int`
         A object-specific seed to control random number generation.
     _graph_base_seed, `int`
@@ -95,6 +97,7 @@ class ParameterizedNode:
         self.sample_iteration = 0
         self.node_identifier = node_identifier
         self.set_graph_base_seed(graph_base_seed)
+        self.direct_dependencies = set()
 
     def __str__(self):
         """Return the string representation of the node."""
@@ -155,6 +158,21 @@ class ParameterizedNode:
                 f" parent {str(self)} at iteration {self.sample_iteration}."
             )
         return True
+
+    def _update_dependencies(self):
+        """Update the set of direct dependencies."""
+        self.direct_dependencies = set()
+        for source_type, setter, _ in self.setters.values():
+            current = None
+            if source_type == ParameterSource.MODEL_ATTRIBUTE:
+                current = setter[0]
+            elif source_type == ParameterSource.MODEL_METHOD:
+                current = setter.__self__
+            elif source_type == ParameterSource.FUNCTION_NODE:
+                current = setter
+
+            if current is not None and current is not self:
+                self.direct_dependencies.add(current)
 
     def set_parameter(self, name, value=None, **kwargs):
         """Set a single *existing* parameter to the ParameterizedNode.
@@ -234,8 +252,12 @@ class ParameterizedNode:
             self.setters[name] = (ParameterSource.CONSTANT, value, required)
             setattr(self, name, value)
 
+        # Check that we did get a parameter.
         if required and getattr(self, name) is None:
             raise ValueError(f"Missing required parameter {name}")
+
+        # Update the dependencies to account for any new nodes in the graph.
+        self._update_dependencies()
 
     def add_parameter(self, name, value=None, required=False, allow_overwrite=False, **kwargs):
         """Add a single *new* parameter to the ParameterizedNode.
@@ -374,36 +396,6 @@ class ParameterizedNode:
                 full_name = name
             values[full_name] = getattr(self, name)
         return values
-
-    def get_dependencies(self, nodes=None):
-        """Get all nodes on which this current node depends.
-
-        Parameters
-        ----------
-        nodes : `set`
-            A set of all nodes at or above this node in the graph.
-            This is modified in place.
-
-        Returns
-        -------
-        nodes : `set`
-            A set of all nodes at or above this node in the graph.
-        """
-        # Make sure that we do not process the same nodes multiple times.
-        if nodes is None:
-            nodes = set()
-        if self in nodes:
-            return nodes
-        nodes.add(self)
-
-        for source_type, setter, _ in self.setters.values():
-            if source_type == ParameterSource.MODEL_ATTRIBUTE:
-                nodes = setter[0].get_dependencies(nodes)
-            elif source_type == ParameterSource.MODEL_METHOD:
-                nodes = setter.__self__.get_dependencies(nodes)
-            elif source_type == ParameterSource.FUNCTION_NODE:
-                nodes = setter.get_dependencies(nodes)
-        return nodes
 
 
 class SingleVariableNode(ParameterizedNode):

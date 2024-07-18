@@ -185,23 +185,16 @@ def test_parameterized_node_attributes():
 def test_parameterized_node_get_dependencies():
     """Test that we can extract the attributes of a graph of ParameterizedNode."""
     model1 = PairModel(value1=0.5, value2=1.5, node_identifier="1")
+    assert len(model1.direct_dependencies) == 0
+
     model2 = PairModel(value1=model1, value2=3.0, node_identifier="2")
+    assert len(model2.direct_dependencies) == 1
+    assert model1 in model2.direct_dependencies
+
     model3 = PairModel(value1=model1, value2=(model2, "value_sum"), node_identifier="3")
-
-    dep1 = model1.get_dependencies()
-    assert len(dep1) == 1
-    assert model1 in dep1
-
-    dep2 = model2.get_dependencies()
-    assert len(dep2) == 2
-    assert model1 in dep2
-    assert model2 in dep2
-
-    dep3 = model3.get_dependencies()
-    assert len(dep3) == 3
-    assert model1 in dep3
-    assert model2 in dep3
-    assert model3 in dep3
+    assert len(model3.direct_dependencies) == 2
+    assert model1 in model3.direct_dependencies
+    assert model2 in model3.direct_dependencies
 
 
 def test_parameterized_node_modify():
