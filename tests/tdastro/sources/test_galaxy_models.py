@@ -30,6 +30,8 @@ def _sample_dec(**kwargs):
 
 def test_gaussian_galaxy() -> None:
     """Test that we can sample and create a StaticSource object."""
+    random.seed(1001)
+
     host = GaussianGalaxy(ra=_sample_ra, dec=_sample_dec, brightness=10.0, radius=1.0 / 3600.0)
     host_ra = host.ra
     host_dec = host.dec
