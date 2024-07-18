@@ -6,6 +6,16 @@ X is dependent on variable Y if the value of Y is necessary to compute the value
 of X. Thus dependencies impose an ordering of variables in the graph. Y must
 be computed before X.
 
+All dynamic attributes (variables whose values change when the graph is resampled)
+in the graph must be added using ParameterizedNode.add_parameter(). This allows the graph
+to track which variables to update and how to set them. Attributes can be set from a few
+sources:
+1) A constant
+2) A static function or method (which does not have variables that are resampled).
+3) The result of evaluating a FunctionNode, which provides a computation using other
+   variables in the graph.
+4) The attribute of another ParameterizedNode.
+
 The execution graph is processed by starting at the final node, examining each
 attribute, and recursively proceeding 'up' the graph for any attribute that
 has a dependency. For example the function.
@@ -41,7 +51,7 @@ class ParameterSource(Enum):
     CONSTANT = 1
     FUNCTION = 2
     MODEL_ATTRIBUTE = 3
-    MODEL_METHOD = 4
+    FUNCTION_NODE = 4
 
 
 class ParameterizedNode:
@@ -166,6 +176,7 @@ class ParameterizedNode:
         ------
         Raise a ``KeyError`` if there is a parameter collision or the parameter
         cannot be found.
+        Raise a ``ValueError`` if the setter type is not supported.
         Raise a ``ValueError`` if the parameter is required, but set to None.
         """
         # Check for parameter has been added and if so, find the index.
@@ -183,20 +194,42 @@ class ParameterizedNode:
                 self.setters[name] = (ParameterSource.FUNCTION, value, required)
             elif isinstance(value.__self__, ParameterizedNode):
                 # Case 1b: This is a method attached to another ParameterizedNode.
-                self.setters[name] = (ParameterSource.MODEL_METHOD, value, required)
+                # We do NOT allow these since it prevents tracking an accurate
+                # dependency graph.
+                raise ValueError(
+                    "Cannot set the attribute of a ParameterizedNode from the method "
+                    "of another ParameterizedNode. Use FunctionNode instead."
+                )
             else:
                 # Case 1c: This is a general callable method from another object.
                 # We treat it as static (we don't resample the other object).
                 self.setters[name] = (ParameterSource.FUNCTION, value, required)
             setattr(self, name, value(**kwargs))
+        elif isinstance(value, FunctionNode):
+            # Case 2: We are using the result of a computation of the function node.
+            self.setters[name] = (ParameterSource.FUNCTION_NODE, value, required)
+            setattr(self, name, value.compute(**kwargs))
         elif isinstance(value, ParameterizedNode):
-            # Case 2: We are trying to access a parameter of another ParameterizedNode.
+            # Case 3a: We are trying to access a parameter of a ParameterizedNode
+            # with the same name.
             if not hasattr(value, name):
-                raise ValueError(f"Attribute {name} missing from parent.")
+                raise ValueError(f"Attribute {name} missing from {str(value)}.")
+            elif callable(getattr(value, name)):
+                raise ValueError(f"Attribute {name} cannot be set by method of {str(value)}.")
+            setter = (value, name)
+            self.setters[name] = (ParameterSource.MODEL_ATTRIBUTE, setter, required)
+            setattr(self, name, getattr(setter[0], setter[1]))
+        elif isinstance(value, tuple) and len(value) >= 2 and isinstance(value[0], ParameterizedNode):
+            # Case 3b: We are trying to access a parameter of a ParameterizedNode
+            # with a different name.
+            if not hasattr(value[0], value[1]):
+                raise ValueError(f"Attribute {value[1]} missing from {str(value[0])}.")
+            elif callable(getattr(value, name)):
+                raise ValueError(f"Attribute {value[1]} cannot be set by method of {str(value[0])}.")
             self.setters[name] = (ParameterSource.MODEL_ATTRIBUTE, value, required)
-            setattr(self, name, getattr(value, name))
+            setattr(self, name, getattr(value[0], value[1]))
         else:
-            # Case 3: The value is constant (including None).
+            # Case 4: The value is constant (including None).
             self.setters[name] = (ParameterSource.CONSTANT, value, required)
             setattr(self, name, value)
 
@@ -421,7 +454,10 @@ class FunctionNode(ParameterizedNode):
         # Extend the FunctionNode's string to include the name of the
         # function it calls so we can wrap a variety of raw functions.
         super_name = super().__str__()
-        return f"{super_name}:{self.func.__name__}"
+        if self.func is not None:
+            return f"{super_name}:{self.func.__name__}"
+        else:
+            return super_name
 
     def compute(self, **kwargs):
         """Execute the wrapped function.

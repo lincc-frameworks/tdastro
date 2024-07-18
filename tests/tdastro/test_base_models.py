@@ -281,7 +281,7 @@ def test_function_node_basic():
 def test_function_node_chain():
     """Test that we can create and query a chained FunctionNode."""
     func1 = FunctionNode(_test_func, value1=1.0, value2=1.0)
-    func2 = FunctionNode(_test_func, value1=func1.compute, value2=3.0)
+    func2 = FunctionNode(_test_func, value1=func1, value2=3.0)
     assert func2.compute() == 5.0
 
 
@@ -308,7 +308,7 @@ def test_function_node_obj():
     """
     # The model depends on the function.
     func = FunctionNode(_test_func, value1=5.0, value2=6.0)
-    model = PairModel(value1=10.0, value2=func.compute)
+    model = PairModel(value1=10.0, value2=func)
     assert model.result() == 21.0
 
     # Function depends on the model's value2 attribute.
@@ -316,11 +316,6 @@ def test_function_node_obj():
     func = FunctionNode(_test_func, value1=5.0, value2=model)
     assert model.result() == 7.5
     assert func.compute() == 22.5
-
-    # Function depends on the model's get_value1() method.
-    func = FunctionNode(_test_func, value1=model.get_value1, value2=5.0)
-    assert model.result() == 7.5
-    assert func.compute() == -5.0
 
     # We can always override the attributes with kwargs.
     assert func.compute(value1=1.0, value2=4.0) == 5.0

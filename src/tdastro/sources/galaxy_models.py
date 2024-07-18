@@ -21,26 +21,6 @@ class GaussianGalaxy(PhysicalModel):
         self.add_parameter("galaxy_radius_std", radius, required=True, **kwargs)
         self.add_parameter("brightness", brightness, required=True, **kwargs)
 
-    def sample_ra(self):
-        """Sample an right ascension coordinate based on the center and radius of the galaxy.
-
-        Returns
-        -------
-        ra : `float`
-            The sampled right ascension in degrees.
-        """
-        return np.random.normal(loc=self.ra, scale=self.galaxy_radius_std)
-
-    def sample_dec(self):
-        """Sample a declination coordinate based on the center and radius of the galaxy.
-
-        Returns
-        -------
-        dec : `float`
-            The sampled declination in degrees.
-        """
-        return np.random.normal(loc=self.dec, scale=self.galaxy_radius_std)
-
     def _evaluate(self, times, wavelengths, ra=None, dec=None, **kwargs):
         """Draw effect-free observations for this object.
 
@@ -77,3 +57,6 @@ class GaussianGalaxy(PhysicalModel):
         scale = np.exp(-(dist * dist) / (2.0 * self.galaxy_radius_std * self.galaxy_radius_std))
 
         return np.full((len(times), len(wavelengths)), self.brightness * scale)
+
+
+class FunctionNode(FunctionNode):
