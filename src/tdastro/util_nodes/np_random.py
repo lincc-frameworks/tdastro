@@ -38,20 +38,15 @@ class NumpyRandomFunc(FunctionNode):
         func = getattr(self._rng, func_name)
         super().__init__(func, **kwargs)
 
-    def set_graph_base_seed(self, graph_base_seed):
-        """Set a new graph base seed.
-
-        Notes
-        -----
-        WARNING: This seed should almost never be set manually. Using the same
-        seed for multiple graph instances will produce biased samples.
+    def _update_object_seed(self, new_value):
+        """Update the object seed to the new value.
 
         Parameters
         ----------
-        graph_base_seed : `int`, optional
-            A base random seed to use for this specific evaluation graph.
+        new_value : `int`
+             The new seed value.
         """
-        super().set_graph_base_seed(graph_base_seed)
+        self._object_seed = new_value
 
         # We create a new random number generator with the new object seed and
         # link to that object's function.

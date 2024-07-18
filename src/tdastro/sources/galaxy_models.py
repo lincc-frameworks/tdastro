@@ -21,6 +21,17 @@ class GaussianGalaxy(PhysicalModel):
         self.add_parameter("galaxy_radius_std", radius, required=True, **kwargs)
         self.add_parameter("brightness", brightness, required=True, **kwargs)
 
+    def _update_object_seed(self, new_value):
+        """Update the object seed to the new value.
+
+        Parameters
+        ----------
+        new_value : `int`
+             The new seed value.
+        """
+        self._object_seed = new_value
+        self._rng = np.random.default_rng(self._object_seed)
+
     def sample_ra(self):
         """Sample an right ascension coordinate based on the center and radius of the galaxy.
 
@@ -29,7 +40,7 @@ class GaussianGalaxy(PhysicalModel):
         ra : `float`
             The sampled right ascension in degrees.
         """
-        return np.random.normal(loc=self.ra, scale=self.galaxy_radius_std)
+        return self._rng.normal(loc=self.ra, scale=self.galaxy_radius_std)
 
     def sample_dec(self):
         """Sample a declination coordinate based on the center and radius of the galaxy.
@@ -39,7 +50,7 @@ class GaussianGalaxy(PhysicalModel):
         dec : `float`
             The sampled declination in degrees.
         """
-        return np.random.normal(loc=self.dec, scale=self.galaxy_radius_std)
+        return self._rng.normal(loc=self.dec, scale=self.galaxy_radius_std)
 
     def _evaluate(self, times, wavelengths, ra=None, dec=None, **kwargs):
         """Draw effect-free observations for this object.
