@@ -57,6 +57,3 @@ class GaussianGalaxy(PhysicalModel):
         scale = np.exp(-(dist * dist) / (2.0 * self.galaxy_radius_std * self.galaxy_radius_std))
 
         return np.full((len(times), len(wavelengths)), self.brightness * scale)
-
-
-class FunctionNode(FunctionNode):

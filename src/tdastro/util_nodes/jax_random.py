@@ -1,69 +1,97 @@
-"Wrapper classes for calling JAX random number generators."
+"""Wrapper classes for calling JAX random number generators."""
 
 import jax.random
 
 from tdastro.base_models import FunctionNode
 
-class JAXRandom(FunctionNode):
+
+class JaxRandomFunc(FunctionNode):
     """The base class for JAX random number generators.
-    
+
     Attributes
     ----------
     _key : `jax._src.prng.PRNGKeyArray`
+
+    Note
+    ----
+    Automatically splits keys each time ``compute()`` is called, so
+    each call produces a new pseudorandom number.
     """
-    
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        
+
+    def __init__(self, func, **kwargs):
+        super().__init__(func, **kwargs)
+        self._key = jax.random.key(self._object_seed)
+
+    def set_graph_base_seed(self, graph_base_seed):
+        """Set a new graph base seed.
+
+        Notes
+        -----
+        WARNING: This seed should almost never be set manually. Using the same
+        seed for multiple graph instances will produce biased samples.
+
+        Parameters
+        ----------
+        graph_base_seed : `int`, optional
+            A base random seed to use for this specific evaluation graph.
+        """
+        super().set_graph_base_seed(graph_base_seed)
+
+        # We recompute the JAX key with the new object seed.
+        self._key = jax.random.key(self._object_seed)
+
+    def compute(self, **kwargs):
+        """Execute the wrapped JAX sampling function.
+
+        Parameters
+        ----------
+        **kwargs : `dict`, optional
+            Additional function arguments.
+
+        Raises
+        ------
+        ``ValueError`` is ``func`` attribute is ``None``.
+        """
+        if self.func is None:
+            raise ValueError(
+                "func parameter is None for a JAXRandom. You need to either "
+                "set func or override compute()."
+            )
+
+        args = self._build_args_dict(**kwargs)
+        self._key, subkey = jax.random.split(self._key)
+        return float(self.func(subkey, **args))
 
 
-def redshift_to_distance(redshift, cosmology):
-    """Compute a source's luminosity distance given its redshift and a
-    specified cosmology using astropy's redshift_distance().
-
-    Parameters
-    ----------
-    redshift : `float`
-        The redshift value.
-    cosmology : `astropy.cosmology`
-        The cosmology specification.
-
-    Returns
-    -------
-    distance : `float`
-        The luminosity distance (in pc)
-    """
-    z = redshift * cu.redshift
-    distance = z.to(u.pc, cu.redshift_distance(cosmology, kind="luminosity"))
-    return distance.value
-
-
-class RedshiftDistFunc(FunctionNode):
-    """A wrapper class for the redshift_to_distance() function.
+class JaxRandomNormal(JaxRandomFunc):
+    """A wrapper for the JAX normal function that takes
+    a mean and std.
 
     Attributes
     ----------
-    cosmology : `astropy.cosmology`
-        The cosmology specification.
-    kind : `str`
-        The distance type for the Equivalency as defined by
-        astropy.cosmology.units.redshift_distance.
-
-    Parameters
-    ----------
-    redshift : function or constant
-        The function or constant providing the redshift value.
-    cosmology : `astropy.cosmology`
-        The cosmology specification.
-    **kwargs : `dict`, optional
-        Any additional keyword arguments.
+    loc : `float`
+        The mean of the distribution.
+    scale : `float`
+        The std of the distribution.
     """
 
-    def __init__(self, redshift, cosmology, **kwargs):
-        # Call the super class's constructor with the needed information.
-        super().__init__(
-            func=redshift_to_distance,
-            redshift=redshift,
-            cosmology=cosmology,
-            **kwargs,
-        )
+    def __init__(self, loc, scale, **kwargs):
+        super().__init__(jax.random.normal, **kwargs)
+
+        # The mean and std as attributes, but not arguments.
+        self.add_parameter("loc", loc)
+        self.add_parameter("scale", scale)
+
+    def compute(self, **kwargs):
+        """Generate a random number from a normal distribution
+        with the given mean and std.
+
+        Parameters
+        ----------
+        **kwargs : `dict`, optional
+            Additional function arguments.
+        """
+        initial_value = super().compute(**kwargs)
+        local_mean = kwargs.get("loc", self.loc)
+        local_std = kwargs.get("scale", self.scale)
+        return local_std * initial_value + local_mean

@@ -212,19 +212,27 @@ class ParameterizedNode:
         elif isinstance(value, ParameterizedNode):
             # Case 3a: We are trying to access a parameter of a ParameterizedNode
             # with the same name.
+            if value == self:
+                raise ValueError(f"Attribute {name} is recursively assigned to self.{name}.")
             if not hasattr(value, name):
                 raise ValueError(f"Attribute {name} missing from {str(value)}.")
             elif callable(getattr(value, name)):
                 raise ValueError(f"Attribute {name} cannot be set by method of {str(value)}.")
+
+            # We store MODEL_ATTRIBUTE setters as a tuple of (object, attribute_name).
             setter = (value, name)
             self.setters[name] = (ParameterSource.MODEL_ATTRIBUTE, setter, required)
             setattr(self, name, getattr(setter[0], setter[1]))
         elif isinstance(value, tuple) and len(value) >= 2 and isinstance(value[0], ParameterizedNode):
             # Case 3b: We are trying to access a parameter of a ParameterizedNode
             # with a different name.
+            if value[0] == self:
+                raise ValueError(
+                    f"Attribute {name} is assigned to self.{value[1]}. " f"Please use {value[1]} instead."
+                )
             if not hasattr(value[0], value[1]):
                 raise ValueError(f"Attribute {value[1]} missing from {str(value[0])}.")
-            elif callable(getattr(value, name)):
+            elif callable(getattr(value[0], value[1])):
                 raise ValueError(f"Attribute {value[1]} cannot be set by method of {str(value[0])}.")
             self.setters[name] = (ParameterSource.MODEL_ATTRIBUTE, value, required)
             setattr(self, name, getattr(value[0], value[1]))
@@ -313,15 +321,15 @@ class ParameterizedNode:
                 sampled_value = setter(**kwargs)
             elif source_type == ParameterSource.MODEL_ATTRIBUTE:
                 # Check if we need to resample the parent (before accessing the attribute).
+                if setter[0].check_resample(self):
+                    setter[0].sample_parameters(max_depth - 1, **kwargs)
+                # We store MODEL_ATTRIBUTE setters as a tuple of (object, attribute_name).
+                sampled_value = getattr(setter[0], setter[1])
+            elif source_type == ParameterSource.FUNCTION_NODE:
+                # Check if we need to resample the parent function (before calling compute).
                 if setter.check_resample(self):
                     setter.sample_parameters(max_depth - 1, **kwargs)
-                sampled_value = getattr(setter, name)
-            elif source_type == ParameterSource.MODEL_METHOD:
-                # Check if we need to resample the parent (before calling the method).
-                parent_node = setter.__self__
-                if parent_node.check_resample(self):
-                    parent_node.sample_parameters(max_depth - 1, **kwargs)
-                sampled_value = setter(**kwargs)
+                sampled_value = setter.compute(**kwargs)
             else:
                 raise ValueError(f"Unknown ParameterSource type {source_type} for {name}")
             setattr(self, name, sampled_value)
@@ -356,9 +364,9 @@ class ParameterizedNode:
         for name, (source_type, setter, _) in self.setters.items():
             if recursive:
                 if source_type == ParameterSource.MODEL_ATTRIBUTE:
+                    values.update(setter[0].get_all_parameter_values(True, seen))
+                elif source_type == ParameterSource.FUNCTION_NODE:
                     values.update(setter.get_all_parameter_values(True, seen))
-                elif source_type == ParameterSource.MODEL_METHOD:
-                    values.update(setter.__self__.get_all_parameter_values(True, seen))
 
                 full_name = f"{str(self)}.{name}"
             else:
@@ -389,19 +397,24 @@ class ParameterizedNode:
 
         for source_type, setter, _ in self.setters.values():
             if source_type == ParameterSource.MODEL_ATTRIBUTE:
+                nodes = setter[0].get_dependencies(nodes)
+            elif source_type == ParameterSource.FUNCTION_NODE:
                 nodes = setter.get_dependencies(nodes)
-            elif source_type == ParameterSource.MODEL_METHOD:
-                nodes = setter.__self__.get_dependencies(nodes)
         return nodes
 
 
 class FunctionNode(ParameterizedNode):
     """A class to wrap functions and their argument settings.
 
+    The node can compute the result using a given function (the ``func``
+    parameter) or through the ``compute()`` method. If no ``func=None``
+    then the user must override ``compute()``.
+
     Attributes
     ----------
     func : `function` or `method`
-        The function to call during an evaluation.
+        The function to call during an evaluation. If this is ``None``
+        you must override the ``compute()`` method directly.
     args_names : `list`
         A list of argument names to pass to the function.
 
@@ -454,10 +467,20 @@ class FunctionNode(ParameterizedNode):
         # Extend the FunctionNode's string to include the name of the
         # function it calls so we can wrap a variety of raw functions.
         super_name = super().__str__()
-        if self.func is not None:
-            return f"{super_name}:{self.func.__name__}"
-        else:
+        if self.func is None:
             return super_name
+        return f"{super_name}:{self.func.__name__}"
+
+    def _build_args_dict(self, **kwargs):
+        """Build a dictionary of arguments for the function."""
+        args = {}
+        for key in self.arg_names:
+            # Override with the kwarg if the parameter is there.
+            if key in kwargs:
+                args[key] = kwargs[key]
+            else:
+                args[key] = getattr(self, key)
+        return args
 
     def compute(self, **kwargs):
         """Execute the wrapped function.
@@ -466,12 +489,16 @@ class FunctionNode(ParameterizedNode):
         ----------
         **kwargs : `dict`, optional
             Additional function arguments.
+
+        Raises
+        ------
+        ``ValueError`` is ``func`` attribute is ``None``.
         """
-        args = {}
-        for key in self.arg_names:
-            # Override with the kwarg if the parameter is there.
-            if key in kwargs:
-                args[key] = kwargs[key]
-            else:
-                args[key] = getattr(self, key)
+        if self.func is None:
+            raise ValueError(
+                "func parameter is None for a FunctionNode. You need to either "
+                "set func or override compute()."
+            )
+
+        args = self._build_args_dict(**kwargs)
         return self.func(**args)

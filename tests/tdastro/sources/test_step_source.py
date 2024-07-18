@@ -57,9 +57,9 @@ def test_step_source_resample() -> None:
     random.seed(1111)
 
     model = StepSource(
-        brightness=FunctionNode(_sample_brightness, magnitude=100.0).compute,
+        brightness=FunctionNode(_sample_brightness, magnitude=100.0),
         t0=0.0,
-        t1=FunctionNode(_sample_end, duration=5.0).compute,
+        t1=FunctionNode(_sample_end, duration=5.0),
     )
 
     num_samples = 1000
