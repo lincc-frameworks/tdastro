@@ -1,4 +1,31 @@
-"""The base models used to specify the TDAstro computation graph."""
+"""The base models used to specify the TDAstro computation graph.
+
+The computation graph is composed of ParameterizedNodes which store variables
+and encode the dependencies between individual attributes. We say that variable
+X is dependent on variable Y if the value of Y is necessary to compute the value
+of X. Thus dependencies impose an ordering of variables in the graph. Y must
+be computed before X.
+
+The execution graph is processed by starting at the final node, examining each
+attribute, and recursively proceeding 'up' the graph for any attribute that
+has a dependency. For example the function.
+
+f(a, b) = x
+g(c) = y
+h(x, y) = z
+
+would form the graph:
+
+a -\
+    x - \
+b -/     \
+          z
+c -- y -- /
+
+where z is the 'bottom' node. Attributes a, b, and c would be at the 'top' of the
+graph because they have no dependencies.  Such attributes are set by constants or
+static functions.
+"""
 
 import types
 from enum import Enum
