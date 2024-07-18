@@ -2,7 +2,7 @@ import random
 
 import numpy as np
 import pytest
-from tdastro.base_models import FunctionNode, ParameterizedNode
+from tdastro.base_models import FunctionNode, ParameterizedNode, SingleVariableNode
 
 
 def _sampler_fun(**kwargs):
@@ -27,20 +27,6 @@ def _test_func(value1, value2):
         The second parameter.
     """
     return value1 + value2
-
-
-class SingleModel(ParameterizedNode):
-    """A test class for the ParameterizedNode.
-
-    Attributes
-    ----------
-    value1 : `float`
-        The first value.
-    """
-
-    def __init__(self, value1, **kwargs):
-        super().__init__(**kwargs)
-        self.add_parameter("value1", value1, required=True, **kwargs)
 
 
 class PairModel(ParameterizedNode):
@@ -249,7 +235,7 @@ def test_parameterized_node_seed():
     model_a = PairModel(value1=0.5, value2=0.5, graph_base_seed=10, node_identifier="A")
     model_b = PairModel(value1=0.5, value2=0.5, graph_base_seed=10, node_identifier="B")
     model_c = PairModel(value1=0.5, value2=0.5, graph_base_seed=10, node_identifier="A")
-    model_d = SingleModel(value1=0.5, node_identifier="A")
+    model_d = SingleVariableNode("value1", 0.5, node_identifier="A")
     assert model_a._object_seed != model_b._object_seed
     assert model_a._object_seed == model_c._object_seed
     assert model_a._object_seed != model_d._object_seed
@@ -265,6 +251,12 @@ def test_parameterized_node_seed():
     assert model_d._object_seed != model_a._object_seed
     assert model_d._object_seed != model_b._object_seed
     assert model_d._object_seed != model_c._object_seed
+
+
+def test_single_variable_node():
+    """Test that we can create and query a SingleVariableNode."""
+    node = SingleVariableNode("A", 10.0)
+    assert node.A == 10
 
 
 def test_function_node_basic():
