@@ -60,9 +60,7 @@ class PairModel(ParameterizedNode):
         super().__init__(**kwargs)
         self.add_parameter("value1", value1, required=True, **kwargs)
         self.add_parameter("value2", value2, required=True, **kwargs)
-        self.add_parameter(
-            "value_sum", FunctionNode(_test_func, value1=self, value2=self), required=True, **kwargs
-        )
+        self.add_parameter("value_sum", self.result, required=True, **kwargs)
 
     def get_value1(self):
         """Get the value of value1."""
@@ -175,7 +173,7 @@ def test_parameterized_node_attributes():
     # The model has 5 attributes in the graph: 3 in model1 and 2
     # in its summation FunctionNode.
     settings = model1.get_all_parameter_values(True)
-    assert len(settings) == 5
+    assert len(settings) == 3
     assert settings["1=test_base_models.PairModel.value1"] == 0.5
     assert settings["1=test_base_models.PairModel.value2"] == 1.5
     assert settings["1=test_base_models.PairModel.value_sum"] == 2.0
@@ -189,7 +187,7 @@ def test_parameterized_node_attributes():
     assert settings["value_sum"] == 3.5
 
     settings = model2.get_all_parameter_values(True)
-    assert len(settings) == 8
+    assert len(settings) == 6
     assert settings["1=test_base_models.PairModel.value1"] == 0.5
     assert settings["1=test_base_models.PairModel.value2"] == 1.5
     assert settings["1=test_base_models.PairModel.value_sum"] == 2.0
@@ -204,18 +202,17 @@ def test_parameterized_node_get_dependencies():
     model2 = PairModel(value1=model1, value2=3.0, node_identifier="2")
     model3 = PairModel(value1=model1, value2=(model2, "value_sum"), node_identifier="3")
 
-    # Each model has 2 dependencies. Itself and the FunctionNode used for summation.
     dep1 = model1.get_dependencies()
-    assert len(dep1) == 2
+    assert len(dep1) == 1
     assert model1 in dep1
 
     dep2 = model2.get_dependencies()
-    assert len(dep2) == 4
+    assert len(dep2) == 2
     assert model1 in dep2
     assert model2 in dep2
 
     dep3 = model3.get_dependencies()
-    assert len(dep3) == 6
+    assert len(dep3) == 3
     assert model1 in dep3
     assert model2 in dep3
     assert model3 in dep3

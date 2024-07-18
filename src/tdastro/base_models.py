@@ -15,6 +15,7 @@ sources:
 3) The result of evaluating a FunctionNode, which provides a computation using other
    variables in the graph.
 4) The attribute of another ParameterizedNode.
+5) The method of another ParameterizedNode.
 
 The execution graph is processed by starting at the final node, examining each
 attribute, and recursively proceeding 'up' the graph for any attribute that
@@ -51,7 +52,8 @@ class ParameterSource(Enum):
     CONSTANT = 1
     FUNCTION = 2
     MODEL_ATTRIBUTE = 3
-    FUNCTION_NODE = 4
+    MODEL_METHOD = 4
+    FUNCTION_NODE = 5
 
 
 class ParameterizedNode:
@@ -194,12 +196,7 @@ class ParameterizedNode:
                 self.setters[name] = (ParameterSource.FUNCTION, value, required)
             elif isinstance(value.__self__, ParameterizedNode):
                 # Case 1b: This is a method attached to another ParameterizedNode.
-                # We do NOT allow these since it prevents tracking an accurate
-                # dependency graph.
-                raise ValueError(
-                    "Cannot set the attribute of a ParameterizedNode from the method "
-                    "of another ParameterizedNode. Use FunctionNode instead."
-                )
+                self.setters[name] = (ParameterSource.MODEL_METHOD, value, required)
             else:
                 # Case 1c: This is a general callable method from another object.
                 # We treat it as static (we don't resample the other object).
@@ -216,8 +213,8 @@ class ParameterizedNode:
                 raise ValueError(f"Attribute {name} is recursively assigned to self.{name}.")
             if not hasattr(value, name):
                 raise ValueError(f"Attribute {name} missing from {str(value)}.")
-            elif callable(getattr(value, name)):
-                raise ValueError(f"Attribute {name} cannot be set by method of {str(value)}.")
+            if callable(getattr(value, name)):
+                raise ValueError(f"{value}.{name} is callable and should be an attribute.")
 
             # We store MODEL_ATTRIBUTE setters as a tuple of (object, attribute_name).
             setter = (value, name)
@@ -226,14 +223,10 @@ class ParameterizedNode:
         elif isinstance(value, tuple) and len(value) >= 2 and isinstance(value[0], ParameterizedNode):
             # Case 3b: We are trying to access a parameter of a ParameterizedNode
             # with a different name.
-            if value[0] == self:
-                raise ValueError(
-                    f"Attribute {name} is assigned to self.{value[1]}. " f"Please use {value[1]} instead."
-                )
             if not hasattr(value[0], value[1]):
                 raise ValueError(f"Attribute {value[1]} missing from {str(value[0])}.")
             elif callable(getattr(value[0], value[1])):
-                raise ValueError(f"Attribute {value[1]} cannot be set by method of {str(value[0])}.")
+                raise ValueError(f"{value[0]}.{value[1]} is callable and should be an attribute.")
             self.setters[name] = (ParameterSource.MODEL_ATTRIBUTE, value, required)
             setattr(self, name, getattr(value[0], value[1]))
         else:
@@ -325,6 +318,12 @@ class ParameterizedNode:
                     setter[0].sample_parameters(max_depth - 1, **kwargs)
                 # We store MODEL_ATTRIBUTE setters as a tuple of (object, attribute_name).
                 sampled_value = getattr(setter[0], setter[1])
+            elif source_type == ParameterSource.MODEL_METHOD:
+                # Check if we need to resample the parent (before calling the method).
+                parent_node = setter.__self__
+                if parent_node.check_resample(self):
+                    parent_node.sample_parameters(max_depth - 1, **kwargs)
+                sampled_value = setter(**kwargs)
             elif source_type == ParameterSource.FUNCTION_NODE:
                 # Check if we need to resample the parent function (before calling compute).
                 if setter.check_resample(self):
@@ -365,6 +364,8 @@ class ParameterizedNode:
             if recursive:
                 if source_type == ParameterSource.MODEL_ATTRIBUTE:
                     values.update(setter[0].get_all_parameter_values(True, seen))
+                elif source_type == ParameterSource.MODEL_METHOD:
+                    values.update(setter.__self__.get_all_parameter_values(True, seen))
                 elif source_type == ParameterSource.FUNCTION_NODE:
                     values.update(setter.get_all_parameter_values(True, seen))
 
@@ -398,6 +399,8 @@ class ParameterizedNode:
         for source_type, setter, _ in self.setters.values():
             if source_type == ParameterSource.MODEL_ATTRIBUTE:
                 nodes = setter[0].get_dependencies(nodes)
+            elif source_type == ParameterSource.MODEL_METHOD:
+                nodes = setter.__self__.get_dependencies(nodes)
             elif source_type == ParameterSource.FUNCTION_NODE:
                 nodes = setter.get_dependencies(nodes)
         return nodes

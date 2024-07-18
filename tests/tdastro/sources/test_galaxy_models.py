@@ -3,7 +3,6 @@ import random
 import numpy as np
 from tdastro.sources.galaxy_models import GaussianGalaxy
 from tdastro.sources.static_source import StaticSource
-from tdastro.util_nodes.np_random import NumpyRandomFunc
 
 
 def _sample_ra(**kwargs):
@@ -38,21 +37,7 @@ def test_gaussian_galaxy() -> None:
 
     # We define the position of the source using Gaussian noise from the center
     # of the host galaxy.
-    ra_func = NumpyRandomFunc(
-        "normal",
-        loc=(host, "ra"),
-        scale=(host, "galaxy_radius_std"),
-        node_identifier="ra_host_noise",
-        graph_base_seed=1001,
-    )
-    dec_func = NumpyRandomFunc(
-        "normal",
-        loc=(host, "dec"),
-        scale=(host, "galaxy_radius_std"),
-        node_identifier="dec_host_noise",
-        graph_base_seed=1001,
-    )
-    source = StaticSource(ra=ra_func, dec=dec_func, background=host, brightness=100.0)
+    source = StaticSource(ra=host.sample_ra, dec=host.sample_dec, background=host, brightness=100.0)
 
     # Both RA and dec should be "close" to (but not exactly at) the center of the galaxy.
     source_ra_offset = source.ra - host_ra
