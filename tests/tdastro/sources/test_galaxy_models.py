@@ -1,20 +1,28 @@
 import numpy as np
 from tdastro.sources.galaxy_models import GaussianGalaxy
 from tdastro.sources.static_source import StaticSource
-from tdastro.util_nodes.np_random import NumpyRandomFunc, NumpyUniformDec, NumpyUniformRA
+from tdastro.util_nodes.np_random import NumpyRandomFunc
 
 
 def test_gaussian_galaxy() -> None:
     """Test that we can sample and create a StaticSource object."""
     # Create a host galaxy anywhere on the sky.
-    host = GaussianGalaxy(ra=NumpyUniformRA(), dec=NumpyUniformDec(), brightness=10.0, radius=1.0 / 3600.0)
+    host = GaussianGalaxy(
+        ra=NumpyRandomFunc("uniform", low=0.0, high=360.0),
+        dec=NumpyRandomFunc("uniform", low=-90.0, high=90.0),
+        brightness=10.0,
+        radius=1.0 / 3600.0,
+    )
     host_ra = host.ra
     host_dec = host.dec
 
     # We define the position of the source using Gaussian noise from the center of the host galaxy.
-    offset_ra = NumpyRandomFunc("normal", loc=(host, "ra"), scale=host.galaxy_radius_std)
-    offset_dec = NumpyRandomFunc("normal", loc=(host, "dec"), scale=host.galaxy_radius_std)
-    source = StaticSource(ra=offset_ra, dec=offset_dec, background=host, brightness=100.0)
+    source = StaticSource(
+        ra=NumpyRandomFunc("normal", loc=(host, "ra"), scale=host.galaxy_radius_std),
+        dec=NumpyRandomFunc("normal", loc=(host, "dec"), scale=host.galaxy_radius_std),
+        background=host,
+        brightness=100.0,
+    )
 
     # Both RA and dec should be "close" to (but not exactly at) the center of the galaxy.
     source_ra_offset = source.ra - host_ra

@@ -1,5 +1,5 @@
 import numpy as np
-from tdastro.util_nodes.np_random import NumpyRandomFunc, NumpyUniformDec, NumpyUniformRA
+from tdastro.util_nodes.np_random import NumpyRandomFunc
 
 
 def test_numpy_random_uniform():
@@ -55,39 +55,3 @@ def test_numpy_random_normal():
     np_node2 = NumpyRandomFunc("normal", loc=100.0, scale=10.0, seed=100)
     values2 = np.array([np_node2.compute() for _ in range(10_000)])
     assert np.allclose(values, values2)
-
-
-def test_numpy_random_ra():
-    """Test that we generate numbers [0.0, 360.0]"""
-    np_node = NumpyUniformRA()
-
-    values = np.array([np_node.compute() for _ in range(10_000)])
-    assert len(np.unique(values)) > 10
-    assert np.all(values <= 360.0)
-    assert np.all(values >= 0.0)
-    assert np.abs(np.mean(values) - 180.0) < 5.0
-
-    # We see at least one sample in each of the major bin.
-    num_bins = 10
-    for bin in range(num_bins):
-        start_val = bin * (360.0 / float(num_bins))
-        end_val = (bin + 1) * (360.0 / float(num_bins))
-        assert np.any((start_val < values) & (values < end_val))
-
-
-def test_numpy_random_dec():
-    """Test that we generate numbers [-90.0, 90.0]"""
-    np_node = NumpyUniformDec()
-
-    values = np.array([np_node.compute() for _ in range(10_000)])
-    assert len(np.unique(values)) > 10
-    assert np.all(values <= 90.0)
-    assert np.all(values >= -90.0)
-    assert np.abs(np.mean(values) - 0.0) < 5.0
-
-    # We see at least one sample in each of the major bin.
-    num_bins = 10
-    for bin in range(num_bins):
-        start_val = bin * (180.0 / float(num_bins)) - 90.0
-        end_val = (bin + 1) * (180.0 / float(num_bins)) - 90.0
-        assert np.any((start_val < values) & (values < end_val))

@@ -90,17 +90,3 @@ class NumpyRandomFunc(FunctionNode):
         """
         args = self._build_args_dict(**kwargs)
         return self.func(**args)
-
-
-class NumpyUniformRA(NumpyRandomFunc):
-    """A helper class from generating RA from a uniform distribution [0, 360.0)"""
-
-    def __init__(self, low=0.0, high=360.0, **kwargs):
-        super().__init__("uniform", low=low, high=high, **kwargs)
-
-
-class NumpyUniformDec(NumpyRandomFunc):
-    """A helper class from generating Dec from a uniform distribution [-90.0, 90.0]"""
-
-    def __init__(self, low=-90.0, high=90.0, **kwargs):
-        super().__init__("uniform", low=low, high=high, **kwargs)
