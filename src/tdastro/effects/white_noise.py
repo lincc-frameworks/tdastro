@@ -10,11 +10,19 @@ class WhiteNoise(EffectModel):
     ----------
     scale : `float`
         The scale of the noise.
+    _rng : `numpy.random._generator.Generator`
+        This object's random number generator.
     """
 
     def __init__(self, scale, **kwargs):
+        self._rng = np.random.default_rng()
         super().__init__(**kwargs)
         self.add_parameter("scale", scale, required=True, **kwargs)
+
+    def _update_object_seed(self):
+        """Update the object seed to the new value."""
+        super()._update_object_seed()
+        self._rng = np.random.default_rng()
 
     def apply(self, flux_density, wavelengths=None, physical_model=None, **kwargs):
         """Apply the effect to observations (flux_density values)

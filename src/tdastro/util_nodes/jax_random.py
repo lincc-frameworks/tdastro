@@ -12,33 +12,52 @@ class JaxRandomFunc(FunctionNode):
     ----------
     _key : `jax._src.prng.PRNGKeyArray`
 
+    Parameters
+    ----------
+    func : function
+        The JAX function to sample.
+    seed : `int`, optional
+        The seed to use.
+
     Note
     ----
     Automatically splits keys each time ``compute()`` is called, so
     each call produces a new pseudorandom number.
     """
 
-    def __init__(self, func, **kwargs):
+    def __init__(self, func, seed=None, **kwargs):
         super().__init__(func, **kwargs)
-        self._key = jax.random.key(self._object_seed)
 
-    def set_graph_base_seed(self, graph_base_seed):
-        """Set a new graph base seed.
+        # Overwrite the func attribute using the new seed.
+        if seed is not None:
+            self.set_seed(new_seed=seed)
+        else:
+            self._key = jax.random.key(self._object_seed)
 
-        Notes
-        -----
-        WARNING: This seed should almost never be set manually. Using the same
-        seed for multiple graph instances will produce biased samples.
+    def set_seed(self, new_seed=None, graph_base_seed=None, force_update=False):
+        """Update the object seed to the new value based.
+
+        The new value can be: 1) a given seed (new_seed), 2) a value computed from
+        the graph's base seed (graph_base_seed) and the object's string representation,
+        or a completely random seed (if neither option is set).
+
+        WARNING: This seed should almost never be set manually. Using the duplicate
+        seeds for multiple graph instances or runs will produce biased samples.
 
         Parameters
         ----------
+        new_seed : `int`, optional
+            The given seed
         graph_base_seed : `int`, optional
             A base random seed to use for this specific evaluation graph.
+        force_update : `bool`
+            Reset the random number generator even if the seed has not change.
+            This should only be set to ``True`` for testing.
         """
-        super().set_graph_base_seed(graph_base_seed)
-
-        # We recompute the JAX key with the new object seed.
-        self._key = jax.random.key(self._object_seed)
+        old_seed = self._object_seed
+        super().set_seed(new_seed, graph_base_seed)
+        if old_seed != self._object_seed or force_update:
+            self._key = jax.random.key(self._object_seed)
 
     def compute(self, **kwargs):
         """Execute the wrapped JAX sampling function.
