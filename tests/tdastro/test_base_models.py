@@ -251,6 +251,35 @@ def test_parameterized_node_seed():
     assert model_d._object_seed != model_c._object_seed
 
 
+def test_parameterized_node_base_seed_fail():
+    """Test that we can set a random seed for the entire graph."""
+    model_a = PairModel(value1=0.5, value2=0.5)
+    model_a.set_seed(graph_base_seed=10)
+    model_a.sample_parameters()
+
+    model_b = PairModel(value1=1.5, value2=0.5)
+    model_b.set_seed(graph_base_seed=10)
+    model_b.sample_parameters()
+
+    # The models have the same string and seed, but that's desired since they
+    # are not in the same graph.
+    assert str(model_a) == str(model_b)
+    assert model_a._object_seed == model_b._object_seed
+
+    # But if we change the graph to link them, we don't want them
+    # to have the same seed.
+    model_b.set_parameter("value1", (model_a, "value_sum"))
+    with pytest.raises(ValueError):
+        model_b.sample_parameters()
+
+    # We need to reset the node IDs (their positions within the graph)
+    # so they have unique identifiers and seeds.
+    model_b.update_graph_information()
+    assert str(model_a) != str(model_b)
+    assert model_a._object_seed != model_b._object_seed
+    model_b.sample_parameters()
+
+
 def test_single_variable_node():
     """Test that we can create and query a SingleVariableNode."""
     node = SingleVariableNode("A", 10.0)
