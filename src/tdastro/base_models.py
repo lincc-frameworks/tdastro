@@ -11,11 +11,9 @@ in the graph must be added using ParameterizedNode.add_parameter(). This allows 
 to track which variables to update and how to set them. Attributes can be set from a few
 sources:
 1) A constant
-2) A static function or method (which does not have variables that are resampled).
-3) The result of evaluating a FunctionNode, which provides a computation using other
+2) The result of evaluating a FunctionNode, which provides a computation using other
    variables in the graph.
 4) The attribute of another ParameterizedNode.
-5) The method of another ParameterizedNode.
 
 The execution graph is processed by starting at the final node, examining each
 attribute, and recursively proceeding 'up' the graph for any attribute that
@@ -38,7 +36,6 @@ graph because they have no dependencies.  Such attributes are set by constants o
 static functions.
 """
 
-import types
 from enum import Enum
 from hashlib import md5
 from os import urandom
@@ -52,10 +49,8 @@ class ParameterSource(Enum):
     """
 
     CONSTANT = 1
-    FUNCTION = 2
-    MODEL_ATTRIBUTE = 3
-    MODEL_METHOD = 4
-    FUNCTION_NODE = 5
+    MODEL_ATTRIBUTE = 2
+    FUNCTION_NODE = 3
 
 
 class ParameterizedNode:
@@ -177,8 +172,6 @@ class ParameterizedNode:
             current = None
             if source_type == ParameterSource.MODEL_ATTRIBUTE:
                 current = setter[0]
-            elif source_type == ParameterSource.MODEL_METHOD:
-                current = setter.__self__
             elif source_type == ParameterSource.FUNCTION_NODE:
                 current = setter
 
@@ -219,18 +212,10 @@ class ParameterizedNode:
             # The value wasn't set, but the name is in kwargs.
             value = kwargs[name]
 
-        if callable(value):
-            if isinstance(value, types.FunctionType):
-                # Case 1a: This is a static function (not attached to an object).
-                self.setters[name] = (ParameterSource.FUNCTION, value, required)
-            elif isinstance(value.__self__, ParameterizedNode):
-                # Case 1b: This is a method attached to another ParameterizedNode.
-                self.setters[name] = (ParameterSource.MODEL_METHOD, value, required)
-            else:
-                # Case 1c: This is a general callable method from another object.
-                # We treat it as static (we don't resample the other object).
-                self.setters[name] = (ParameterSource.FUNCTION, value, required)
-            setattr(self, name, value(**kwargs))
+        if callable(value) and not isinstance(value, FunctionNode):
+            # Case 1: The user tried to pass a function, method, etc. We do not
+            # allow this input because it obsures the obscures the dependencies.
+            raise ValueError(f"Value cannot be callable. Received type={(type(value))}")
         elif isinstance(value, FunctionNode):
             # Case 2: We are using the result of a computation of the function node.
             self.setters[name] = (ParameterSource.FUNCTION_NODE, value, required)
@@ -346,19 +331,11 @@ class ParameterizedNode:
             sampled_value = None
             if source_type == ParameterSource.CONSTANT:
                 sampled_value = setter
-            elif source_type == ParameterSource.FUNCTION:
-                sampled_value = setter(**kwargs)
             elif source_type == ParameterSource.MODEL_ATTRIBUTE:
                 # Check if we need to resample the parent (before accessing the attribute).
                 if setter[0] not in seen_nodes:
                     setter[0]._sample_helper(depth - 1, seen_nodes, **kwargs)
                 sampled_value = getattr(setter[0], setter[1])
-            elif source_type == ParameterSource.MODEL_METHOD:
-                # Check if we need to resample the parent (before calling the method).
-                parent_node = setter.__self__
-                if parent_node not in seen_nodes:
-                    parent_node._sample_helper(depth - 1, seen_nodes, **kwargs)
-                sampled_value = setter(**kwargs)
             elif source_type == ParameterSource.FUNCTION_NODE:
                 # Check if we need to resample the parent function (before calling compute).
                 if setter not in seen_nodes:
@@ -419,6 +396,11 @@ class ParameterizedNode:
             The dictionary mapping the combination of the object identifier and
             attribute name to its value.
         """
+        # If we haven't processed the nodes yet, do that.
+        if self._node_id is None:
+            nodes = set()
+            self.update_graph_information(seen_nodes=nodes)
+
         # Make sure that we do not process the same nodes multiple times.
         if seen is None:
             seen = set()
@@ -431,8 +413,6 @@ class ParameterizedNode:
             if recursive:
                 if source_type == ParameterSource.MODEL_ATTRIBUTE:
                     values.update(setter[0].get_all_parameter_values(True, seen))
-                elif source_type == ParameterSource.MODEL_METHOD:
-                    values.update(setter.__self__.get_all_parameter_values(True, seen))
                 elif source_type == ParameterSource.FUNCTION_NODE:
                     values.update(setter.get_all_parameter_values(True, seen))
 
@@ -532,6 +512,10 @@ class FunctionNode(ParameterizedNode):
         if self.func is None:
             return super_name
         return f"{super_name}:{self.func.__name__}"
+
+    def __call__(self, **kwargs):
+        """Call the compute function."""
+        return self.compute(**kwargs)
 
     def _build_args_dict(self, **kwargs):
         """Build a dictionary of arguments for the function."""

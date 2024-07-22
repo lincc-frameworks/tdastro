@@ -46,7 +46,9 @@ class PairModel(ParameterizedNode):
         super().__init__(**kwargs)
         self.add_parameter("value1", value1, required=True, **kwargs)
         self.add_parameter("value2", value2, required=True, **kwargs)
-        self.add_parameter("value_sum", self.result, required=True, **kwargs)
+
+        sum_func = FunctionNode(_test_func, value1=self, value2=self)
+        self.add_parameter("value_sum", sum_func, required=True, **kwargs)
 
     def get_value1(self):
         """Get the value of value1."""
@@ -91,7 +93,8 @@ def test_parameterized_node():
     assert str(model2) == "100: test=test_base_models.PairModel"
 
     # Compute value1 from model2's result and value2 from the sampler function.
-    model3 = PairModel(value1=(model2, "value_sum"), value2=_sampler_fun)
+    func1 = FunctionNode(_sampler_fun)
+    model3 = PairModel(value1=(model2, "value_sum"), value2=func1)
     rand_val = model3.value2
     assert model3.result() == pytest.approx(1.5 + rand_val)
     assert model3.value_sum == pytest.approx(1.5 + rand_val)
@@ -153,13 +156,12 @@ def test_parameterized_node_attributes():
     assert settings["value_sum"] == 2.0
 
     # The model has 5 attributes in the graph: 3 in model1 and 2
-    # in its summation FunctionNode. Note Node ID's are -1 until
-    # reset or sample is called for the first time.
+    # in its summation FunctionNode.
     settings = model1.get_all_parameter_values(True)
-    assert len(settings) == 3
-    assert settings["1=test_base_models.PairModel.value1"] == 0.5
-    assert settings["1=test_base_models.PairModel.value2"] == 1.5
-    assert settings["1=test_base_models.PairModel.value_sum"] == 2.0
+    assert len(settings) == 5
+    assert settings["0: 1=test_base_models.PairModel.value1"] == 0.5
+    assert settings["0: 1=test_base_models.PairModel.value2"] == 1.5
+    assert settings["0: 1=test_base_models.PairModel.value_sum"] == 2.0
 
     # Use value1=model.value1 and value2=3.0
     model2 = PairModel(value1=model1, value2=3.0, node_identifier="2")
@@ -170,26 +172,26 @@ def test_parameterized_node_attributes():
     assert settings["value_sum"] == 3.5
 
     settings = model2.get_all_parameter_values(True)
-    assert len(settings) == 6
-    assert settings["1=test_base_models.PairModel.value1"] == 0.5
-    assert settings["1=test_base_models.PairModel.value2"] == 1.5
-    assert settings["1=test_base_models.PairModel.value_sum"] == 2.0
-    assert settings["2=test_base_models.PairModel.value1"] == 0.5
-    assert settings["2=test_base_models.PairModel.value2"] == 3.0
-    assert settings["2=test_base_models.PairModel.value_sum"] == 3.5
+    assert len(settings) == 10
+    assert settings["1: 1=test_base_models.PairModel.value1"] == 0.5
+    assert settings["1: 1=test_base_models.PairModel.value2"] == 1.5
+    assert settings["1: 1=test_base_models.PairModel.value_sum"] == 2.0
+    assert settings["0: 2=test_base_models.PairModel.value1"] == 0.5
+    assert settings["0: 2=test_base_models.PairModel.value2"] == 3.0
+    assert settings["0: 2=test_base_models.PairModel.value_sum"] == 3.5
 
 
 def test_parameterized_node_get_dependencies():
     """Test that we can extract the attributes of a graph of ParameterizedNode."""
     model1 = PairModel(value1=0.5, value2=1.5, node_identifier="1")
-    assert len(model1.direct_dependencies) == 0
+    assert len(model1.direct_dependencies) == 1
 
     model2 = PairModel(value1=model1, value2=3.0, node_identifier="2")
-    assert len(model2.direct_dependencies) == 1
+    assert len(model2.direct_dependencies) == 2
     assert model1 in model2.direct_dependencies
 
     model3 = PairModel(value1=model1, value2=(model2, "value_sum"), node_identifier="3")
-    assert len(model3.direct_dependencies) == 2
+    assert len(model3.direct_dependencies) == 3
     assert model1 in model3.direct_dependencies
     assert model2 in model3.direct_dependencies
 
