@@ -173,6 +173,7 @@ def test_parameterized_node_attributes():
 
     settings = model2.get_all_parameter_values(True)
     assert len(settings) == 10
+    print(settings)
     assert settings["1: 1=test_base_models.PairModel.value1"] == 0.5
     assert settings["1: 1=test_base_models.PairModel.value2"] == 1.5
     assert settings["1: 1=test_base_models.PairModel.value_sum"] == 2.0
