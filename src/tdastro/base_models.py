@@ -135,7 +135,7 @@ class ParameterizedNode:
 
         hashed_object_name = md5(str(self).encode())
         seed_offset = int(hashed_object_name.hexdigest(), base=16)
-        new_seed = (self._graph_base_seed + seed_offset) % (2**31)
+        new_seed = (self._graph_base_seed + seed_offset) % (2**32)
         self._object_seed = new_seed
 
     def update_graph_information(self, new_graph_base_seed=None, seen_nodes=None):
