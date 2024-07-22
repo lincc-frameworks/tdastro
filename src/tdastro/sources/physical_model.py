@@ -150,11 +150,13 @@ class PhysicalModel(ParameterizedNode):
             All the keyword arguments, including the values needed to sample
             parameters.
         """
-        if self.background is not None and self.background.check_resample(self):
-            self.background.sample_parameters(include_effects, **kwargs)
-        super().sample_parameters(**kwargs)
+        # We use the same seen_nodes for all sampling calls so each node
+        # is sampled at most one time regardless of link structure.
+        seen_nodes = {}
+        if self.background is not None:
+            self.background._sample_helper(50, seen_nodes, **kwargs)
+        self._sample_helper(50, seen_nodes, **kwargs)
 
         if include_effects:
             for effect in self.effects:
-                if effect.check_resample(self):
-                    effect.sample_parameters(**kwargs)
+                effect._sample_helper(50, seen_nodes, **kwargs)

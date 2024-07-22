@@ -43,6 +43,8 @@ from enum import Enum
 from hashlib import md5
 from os import urandom
 
+import numpy as np
+
 
 class ParameterSource(Enum):
     """ParameterSource specifies where a ParameterizedNode should get the value
@@ -63,101 +65,110 @@ class ParameterizedNode:
     Attributes
     ----------
     node_identifier : `str`
-        An identifier (or name) for the current node.
+        An optional identifier (name) for the current node.
     setters : `dict` of `tuple`
         A dictionary to information about the setters for the parameters in the form:
         (ParameterSource, setter information, required). The attributes are
         stored in the order in which they need to be set.
-    sample_iteration : `int`
-        A counter used to syncronize sampling runs. Tracks how many times this
-        model's parameters have been resampled.
     direct_dependencies : `set`
         A set of other ParameterizedNodes on that this node needs to directly access.
-    _object_seed : `int`
+    _object_seed : `int` or None
         A object-specific seed to control random number generation.
-    _graph_base_seed, `int`
+    _graph_base_seed, `int` or None
         A base random seed to use for this specific evaluation graph. Used
         for validity checking.
+    _node_id : `int` or None
+        A unique ID number for each node in the graph. Assigned during
+        resampling.
 
     Parameters
     ----------
     node_identifier : `str`, optional
         An identifier (or name) for the current node.
-    graph_base_seed : `int`, optional
-        A base random seed to use for this specific evaluation graph.
-        WARNING: This seed should almost never be set manually. Using the same
-        seed for multiple graph instances will produce biased samples.
-        If set to ``None`` will use urandom() to produce a fully random seed.
     **kwargs : `dict`, optional
         Any additional keyword arguments.
     """
 
-    def __init__(self, node_identifier=None, graph_base_seed=None, **kwargs):
+    def __init__(self, node_identifier=None, **kwargs):
         self.setters = {}
-        self.sample_iteration = 0
-        self.node_identifier = node_identifier
-        self.set_graph_base_seed(graph_base_seed)
         self.direct_dependencies = set()
+        self.node_identifier = node_identifier
+        self._node_id = None
+        self._object_seed = None  # A default until set is called.
+        self._graph_base_seed = None
+
+        # We start all nodes with a completely random base seed.
+        base_seed = int.from_bytes(urandom(4), "big")
+        self.set_seed(graph_base_seed=base_seed)
 
     def __str__(self):
         """Return the string representation of the node."""
-        name = f"{self.__class__.__module__}.{self.__class__.__qualname__}"
-        if self.node_identifier:
-            return f"{self.node_identifier}={name}"
-        else:
-            return name
+        name = f"{self.node_identifier}=" if self.node_identifier else ""
+        id_str = f"{self._node_id}: " if self._node_id is not None else ""
+        return f"{id_str}{name}{self.__class__.__module__}.{self.__class__.__qualname__}"
 
-    def set_graph_base_seed(self, graph_base_seed):
-        """Set a new graph base seed.
+    def set_seed(self, new_seed=None, graph_base_seed=None):
+        """Update the object seed to the new value based.
 
-        Notes
-        -----
-        WARNING: This seed should almost never be set manually. Using the same
-        seed for multiple graph instances will produce biased samples.
+        The new value can be: 1) a given seed (new_seed), 2) a value computed from
+        the graph's base seed (graph_base_seed) and the object's string representation,
+        or a completely random seed (if neither option is set).
+
+        WARNING: This seed should almost never be set manually. Using the duplicate
+        seeds for multiple graph instances or runs will produce biased samples.
 
         Parameters
         ----------
+        new_seed : `int`, optional
+            The given seed
         graph_base_seed : `int`, optional
             A base random seed to use for this specific evaluation graph.
         """
-        if graph_base_seed is None:
-            graph_base_seed = int.from_bytes(urandom(4), "big")
-        self._graph_base_seed = graph_base_seed
+        # If we are given a predefined seed, use that.
+        if new_seed is not None:
+            self._object_seed = new_seed
+            return
+
+        # Update the base seed if needed.
+        if graph_base_seed is not None:
+            self._graph_base_seed = graph_base_seed
 
         hashed_object_name = md5(str(self).encode())
         seed_offset = int(hashed_object_name.hexdigest(), base=16)
-        self._object_seed = (graph_base_seed + seed_offset) % (2**31)
+        new_seed = (self._graph_base_seed + seed_offset) % (2**32)
+        self._object_seed = new_seed
 
-    def check_resample(self, other):
-        """Check if we need to resample the current node based
-        on the state of another node trying to access its attributes
-        or methods.
+    def update_graph_information(self, new_graph_base_seed=None, seen_nodes=None):
+        """Force an update of the graph structure and the seeds.
+
+        Updates the node ids to capture their location in the graph. Also updates
+        the graph_base_seed (if given).
+
+        WARNING: This will modify the per-node seeds to account for the new graph base
+        seed (if there is one) and any changes in their position within the graph structure.
 
         Parameters
         ----------
-        other : `ParameterizedNode`
-            The node that is accessing the attribute or method
-            of the current node.
-
-        Returns
-        -------
-        bool
-            Indicates whether to resample or not.
-
-        Raises
-        ------
-        ``ValueError`` if the graph has gotten out of sync.
+        new_graph_base_seed : `int`, optional
+            A base random seed to use for this specific evaluation graph.
+        seen_nodes : `set`, optional
+            A set of nodes that have already been processed to prevent infinite loops.
+            Caller should not set.
         """
-        if other == self:
-            return False
-        if other.sample_iteration == self.sample_iteration:
-            return False
-        if other.sample_iteration != self.sample_iteration + 1:
-            raise ValueError(
-                f"Node {str(other)} at iteration {other.sample_iteration} accessing"
-                f" parent {str(self)} at iteration {self.sample_iteration}."
-            )
-        return True
+        # Make sure that we do not process the same nodes multiple times.
+        if seen_nodes is None:
+            seen_nodes = set()
+        if self in seen_nodes:
+            return
+        seen_nodes.add(self)
+
+        # Update the graph ID and (possibly) the seed.
+        self._node_id = len(seen_nodes) - 1
+        self.set_seed(graph_base_seed=new_graph_base_seed)
+
+        # Recursively update any direct dependencies.
+        for dep in self.direct_dependencies:
+            dep.update_graph_information(new_graph_base_seed, seen_nodes)
 
     def _update_dependencies(self):
         """Update the set of direct dependencies."""
@@ -301,15 +312,18 @@ class ParameterizedNode:
         self.setters[name] = (None, None, required)
         self.set_parameter(name, value, **kwargs)
 
-    def sample_parameters(self, max_depth=50, **kwargs):
-        """Sample the model's underlying parameters if they are provided by a function
-        or ParameterizedNode.
+    def _sample_helper(self, depth, seen_nodes, **kwargs):
+        """Internal recursive function to sample the model's underlying parameters
+        if they are provided by a function or ParameterizedNode.
 
         Parameters
         ----------
-        max_depth : `int`
-            The maximum recursive depth. Used to prevent infinite loops.
+        depth : `int`
+            The recursive depth remaining. Used to prevent infinite loops.
             Users should not need to set this manually.
+        seen_nodes : `dict`
+            A dictionary mapping nodes seen during this sampling run to their ID.
+            Used to avoid sampling nodes multiple times and to validity check the graph.
         **kwargs : `dict`, optional
             All the keyword arguments, including the values needed to sample
             parameters.
@@ -319,11 +333,11 @@ class ParameterizedNode:
         Raise a ``ValueError`` the depth of the sampling encounters a problem
         with the order of dependencies.
         """
-        if max_depth == 0:
+        if depth == 0:
             raise ValueError(f"Maximum sampling depth exceeded at {self}. Potential infinite loop.")
-
-        # Increase the sampling iteration.
-        self.sample_iteration += 1
+        if self in seen_nodes:
+            return  # Nothing to do
+        seen_nodes[self] = self._node_id
 
         # Run through each parameter and sample it based on the given recipe.
         # As of Python 3.7 dictionaries are guaranteed to preserve insertion ordering,
@@ -336,24 +350,55 @@ class ParameterizedNode:
                 sampled_value = setter(**kwargs)
             elif source_type == ParameterSource.MODEL_ATTRIBUTE:
                 # Check if we need to resample the parent (before accessing the attribute).
-                if setter[0].check_resample(self):
-                    setter[0].sample_parameters(max_depth - 1, **kwargs)
-                # We store MODEL_ATTRIBUTE setters as a tuple of (object, attribute_name).
+                if setter[0] not in seen_nodes:
+                    setter[0]._sample_helper(depth - 1, seen_nodes, **kwargs)
                 sampled_value = getattr(setter[0], setter[1])
             elif source_type == ParameterSource.MODEL_METHOD:
                 # Check if we need to resample the parent (before calling the method).
                 parent_node = setter.__self__
-                if parent_node.check_resample(self):
-                    parent_node.sample_parameters(max_depth - 1, **kwargs)
+                if parent_node not in seen_nodes:
+                    parent_node._sample_helper(depth - 1, seen_nodes, **kwargs)
                 sampled_value = setter(**kwargs)
             elif source_type == ParameterSource.FUNCTION_NODE:
                 # Check if we need to resample the parent function (before calling compute).
-                if setter.check_resample(self):
-                    setter.sample_parameters(max_depth - 1, **kwargs)
+                if setter not in seen_nodes:
+                    setter._sample_helper(depth - 1, seen_nodes, **kwargs)
                 sampled_value = setter.compute(**kwargs)
             else:
                 raise ValueError(f"Unknown ParameterSource type {source_type} for {name}")
             setattr(self, name, sampled_value)
+
+    def sample_parameters(self, **kwargs):
+        """Sample the model's underlying parameters if they are provided by a function
+        or ParameterizedNode.
+
+        Parameters
+        ----------
+        **kwargs : `dict`, optional
+            All the keyword arguments, including the values needed to sample
+            parameters.
+
+        Raises
+        ------
+        Raise a ``ValueError`` the depth of the sampling encounters a problem
+        with the order of dependencies.
+        """
+        # If the graph structure has never been set, do that now.
+        if self._node_id is None:
+            nodes = set()
+            self.update_graph_information(seen_nodes=nodes)
+
+        # Resample the nodes.
+        seen_nodes = {}
+        self._sample_helper(50, seen_nodes, **kwargs)
+
+        # Validity check that we do not see duplicate IDs.
+        seen_ids = np.array(list(seen_nodes.values()))
+        if len(seen_ids) != len(np.unique(seen_ids)):
+            raise ValueError(
+                "The graph nodes do not have unique IDs, which can indicate the graph "
+                "structure has changed. Please use update_graph_information()."
+            )
 
     def get_all_parameter_values(self, recursive=True, seen=None):
         """Get the values of the current parameters and (optionally) those of

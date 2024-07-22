@@ -76,29 +76,31 @@ def test_parameterized_node():
     assert model1.value1 == 0.5
     assert model1.result() == 1.0
     assert model1.value_sum == 1.0
-    assert model1.sample_iteration == 0
+    assert str(model1) == "test_base_models.PairModel"
 
     # Use value1=model.value and value2=1.0
-    model2 = PairModel(value1=model1, value2=1.0)
+    model2 = PairModel(value1=model1, value2=1.0, node_identifier="test")
     assert model2.value1 == 0.5
     assert model2.value2 == 1.0
     assert model2.result() == 1.5
     assert model2.value_sum == 1.5
-    assert model2.sample_iteration == 0
+    assert str(model2) == "test=test_base_models.PairModel"
+
+    # If we set an ID it shows up in the name.
+    model2._node_id = 100
+    assert str(model2) == "100: test=test_base_models.PairModel"
 
     # Compute value1 from model2's result and value2 from the sampler function.
     model3 = PairModel(value1=(model2, "value_sum"), value2=_sampler_fun)
     rand_val = model3.value2
     assert model3.result() == pytest.approx(1.5 + rand_val)
     assert model3.value_sum == pytest.approx(1.5 + rand_val)
-    assert model3.sample_iteration == 0
 
     # Compute value1 from model3's result (which is itself the result for model2 +
     # a random value) and value2 = -1.0.
     model4 = PairModel(value1=(model3, "value_sum"), value2=-1.0)
     assert model4.result() == pytest.approx(0.5 + rand_val)
     assert model4.value_sum == pytest.approx(0.5 + rand_val)
-    assert model4.sample_iteration == 0
     final_res = model4.result()
 
     # We can resample and it should change the result.
@@ -123,11 +125,6 @@ def test_parameterized_node():
     assert model4.value_sum == pytest.approx(0.5 + rand_val)
     assert final_res != model4.result()
 
-    # All models should have the same sample iteration.
-    assert model1.sample_iteration == model2.sample_iteration
-    assert model1.sample_iteration == model3.sample_iteration
-    assert model1.sample_iteration == model4.sample_iteration
-
 
 def test_parameterized_node_overwrite():
     """Test that we can overwrite attributes in a PairModel."""
@@ -136,7 +133,6 @@ def test_parameterized_node_overwrite():
     assert model1.value1 == 0.5
     assert model1.result() == 1.0
     assert model1.value_sum == 1.0
-    assert model1.sample_iteration == 0
 
     # By default the overwrite fails.
     with pytest.raises(KeyError):
@@ -157,7 +153,8 @@ def test_parameterized_node_attributes():
     assert settings["value_sum"] == 2.0
 
     # The model has 5 attributes in the graph: 3 in model1 and 2
-    # in its summation FunctionNode.
+    # in its summation FunctionNode. Note Node ID's are -1 until
+    # reset or sample is called for the first time.
     settings = model1.get_all_parameter_values(True)
     assert len(settings) == 3
     assert settings["1=test_base_models.PairModel.value1"] == 0.5
@@ -225,11 +222,18 @@ def test_parameterized_node_seed():
     assert model_a._object_seed != model_b._object_seed
 
     # If we specify a seed, the results are the same objects with
-    # the same name (class + node identifier) and different otherwise.
-    model_a = PairModel(value1=0.5, value2=0.5, graph_base_seed=10, node_identifier="A")
-    model_b = PairModel(value1=0.5, value2=0.5, graph_base_seed=10, node_identifier="B")
-    model_c = PairModel(value1=0.5, value2=0.5, graph_base_seed=10, node_identifier="A")
+    # the same name (class + node_id + node_identifier) and different
+    # otherwise. Everything starts with a default node_id = None.
+    model_a = PairModel(value1=0.5, value2=0.5, node_identifier="A")
+    model_b = PairModel(value1=0.5, value2=0.5, node_identifier="B")
+    model_c = PairModel(value1=0.5, value2=0.5, node_identifier="A")
     model_d = SingleVariableNode("value1", 0.5, node_identifier="A")
+
+    model_a.set_seed(graph_base_seed=10)
+    model_b.set_seed(graph_base_seed=10)
+    model_c.set_seed(graph_base_seed=10)
+    model_d.set_seed(graph_base_seed=10)
+
     assert model_a._object_seed != model_b._object_seed
     assert model_a._object_seed == model_c._object_seed
     assert model_a._object_seed != model_d._object_seed
@@ -247,10 +251,40 @@ def test_parameterized_node_seed():
     assert model_d._object_seed != model_c._object_seed
 
 
+def test_parameterized_node_base_seed_fail():
+    """Test that we can set a random seed for the entire graph."""
+    model_a = PairModel(value1=0.5, value2=0.5)
+    model_a.set_seed(graph_base_seed=10)
+    model_a.sample_parameters()
+
+    model_b = PairModel(value1=1.5, value2=0.5)
+    model_b.set_seed(graph_base_seed=10)
+    model_b.sample_parameters()
+
+    # The models have the same string and seed, but that's desired since they
+    # are not in the same graph.
+    assert str(model_a) == str(model_b)
+    assert model_a._object_seed == model_b._object_seed
+
+    # But if we change the graph to link them, we don't want them
+    # to have the same seed.
+    model_b.set_parameter("value1", (model_a, "value_sum"))
+    with pytest.raises(ValueError):
+        model_b.sample_parameters()
+
+    # We need to reset the node IDs (their positions within the graph)
+    # so they have unique identifiers and seeds.
+    model_b.update_graph_information()
+    assert str(model_a) != str(model_b)
+    assert model_a._object_seed != model_b._object_seed
+    model_b.sample_parameters()
+
+
 def test_single_variable_node():
     """Test that we can create and query a SingleVariableNode."""
     node = SingleVariableNode("A", 10.0)
     assert node.A == 10
+    assert str(node) == "tdastro.base_models.SingleVariableNode"
 
 
 def test_function_node_basic():
@@ -260,7 +294,6 @@ def test_function_node_basic():
     assert my_func.compute(value2=3.0) == 4.0
     assert my_func.compute(value2=3.0, unused_param=5.0) == 4.0
     assert my_func.compute(value2=3.0, value1=1.0) == 4.0
-
     assert str(my_func) == "tdastro.base_models.FunctionNode:_test_func"
 
 

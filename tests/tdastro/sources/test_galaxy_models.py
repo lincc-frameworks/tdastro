@@ -1,43 +1,28 @@
-import random
-
 import numpy as np
 from tdastro.sources.galaxy_models import GaussianGalaxy
 from tdastro.sources.static_source import StaticSource
-
-
-def _sample_ra(**kwargs):
-    """Return a random value between 0 and 360.
-
-    Parameters
-    ----------
-    **kwargs : `dict`, optional
-        Absorbs additional parameters
-    """
-    return 360.0 * random.random()
-
-
-def _sample_dec(**kwargs):
-    """Return a random value between -90 and 90.
-
-    Parameters
-    ----------
-    **kwargs : `dict`, optional
-        Absorbs additional parameters
-    """
-    return 180.0 * random.random() - 90.0
+from tdastro.util_nodes.np_random import NumpyRandomFunc
 
 
 def test_gaussian_galaxy() -> None:
     """Test that we can sample and create a StaticSource object."""
-    random.seed(1001)
-
-    host = GaussianGalaxy(ra=_sample_ra, dec=_sample_dec, brightness=10.0, radius=1.0 / 3600.0)
+    # Create a host galaxy anywhere on the sky.
+    host = GaussianGalaxy(
+        ra=NumpyRandomFunc("uniform", low=0.0, high=360.0),
+        dec=NumpyRandomFunc("uniform", low=-90.0, high=90.0),
+        brightness=10.0,
+        radius=1.0 / 3600.0,
+    )
     host_ra = host.ra
     host_dec = host.dec
 
-    # We define the position of the source using Gaussian noise from the center
-    # of the host galaxy.
-    source = StaticSource(ra=host.sample_ra, dec=host.sample_dec, background=host, brightness=100.0)
+    # We define the position of the source using Gaussian noise from the center of the host galaxy.
+    source = StaticSource(
+        ra=NumpyRandomFunc("normal", loc=(host, "ra"), scale=host.galaxy_radius_std),
+        dec=NumpyRandomFunc("normal", loc=(host, "dec"), scale=host.galaxy_radius_std),
+        background=host,
+        brightness=100.0,
+    )
 
     # Both RA and dec should be "close" to (but not exactly at) the center of the galaxy.
     source_ra_offset = source.ra - host_ra
