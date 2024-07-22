@@ -1,4 +1,3 @@
-
 import numpy as np
 from tdastro.sources.static_source import StaticSource
 from tdastro.util_nodes.np_random import NumpyRandomFunc
