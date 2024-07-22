@@ -19,6 +19,7 @@ dependencies = [
     "astropy",
     "jax",
     "numpy",
+    "pandas",
     "scipy",
     "sncosmo",
 ]
