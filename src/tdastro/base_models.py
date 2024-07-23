@@ -70,8 +70,9 @@ class ParameterizedNode:
         A dictionary to information about the setters for the parameters in the form:
         (ParameterSource, setter information, required). The attributes are
         stored in the order in which they need to be set.
-    direct_dependencies : `set`
-        A set of other ParameterizedNodes on that this node needs to directly access.
+    direct_dependencies : `dict`
+        A dictionary with keys of other ParameterizedNodes on that this node needs to
+        directly access. We use a dictionary to preserve ordering.
     _object_seed : `int` or None
         A object-specific seed to control random number generation.
     _graph_base_seed, `int` or None
@@ -91,7 +92,7 @@ class ParameterizedNode:
 
     def __init__(self, node_identifier=None, **kwargs):
         self.setters = {}
-        self.direct_dependencies = set()
+        self.direct_dependencies = {}
         self.node_identifier = node_identifier
         self._node_id = None
         self._object_seed = None  # A default until set is called.
@@ -172,7 +173,7 @@ class ParameterizedNode:
 
     def _update_dependencies(self):
         """Update the set of direct dependencies."""
-        self.direct_dependencies = set()
+        self.direct_dependencies = {}
         for source_type, setter, _ in self.setters.values():
             current = None
             if source_type == ParameterSource.MODEL_ATTRIBUTE:
@@ -183,7 +184,7 @@ class ParameterizedNode:
                 current = setter
 
             if current is not None and current is not self:
-                self.direct_dependencies.add(current)
+                self.direct_dependencies[current] = True
 
     def set_parameter(self, name, value=None, **kwargs):
         """Set a single *existing* parameter to the ParameterizedNode.
@@ -419,6 +420,11 @@ class ParameterizedNode:
             The dictionary mapping the combination of the object identifier and
             attribute name to its value.
         """
+        # If we haven't processed the nodes yet, do that.
+        if self._node_id is None:
+            nodes = set()
+            self.update_graph_information(seen_nodes=nodes)
+
         # Make sure that we do not process the same nodes multiple times.
         if seen is None:
             seen = set()
