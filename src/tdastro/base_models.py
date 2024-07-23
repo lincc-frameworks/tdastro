@@ -79,7 +79,7 @@ class ParameterizedNode:
         for validity checking.
     _node_pos : `int` or None
         A unique ID number for each node in the graph indicating its position.
-        Assigned during resampling or `update_graph_information()` 
+        Assigned during resampling or `update_graph_information()`
 
     Parameters
     ----------
@@ -139,11 +139,11 @@ class ParameterizedNode:
         self._object_seed = new_seed
 
     def update_graph_information(
-            self,
-            new_graph_base_seed=None,
-            seen_nodes=None,
-            reset_variables=False,
-        ):
+        self,
+        new_graph_base_seed=None,
+        seen_nodes=None,
+        reset_variables=False,
+    ):
         """Force an update of the graph structure and the seeds.
 
         Updates the node ids to capture their location in the graph. Also updates
@@ -176,7 +176,7 @@ class ParameterizedNode:
 
         # Reset the variables if needed.
         if reset_variables:
-            for name in self.setters.keys():
+            for name in self.setters:
                 setattr(self, name, None)
 
         # Recursively update any direct dependencies.
