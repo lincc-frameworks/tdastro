@@ -77,9 +77,11 @@ class ParameterizedNode:
     _graph_base_seed, `int` or None
         A base random seed to use for this specific evaluation graph. Used
         for validity checking.
-    _node_id : `int` or None
-        A unique ID number for each node in the graph. Assigned during
-        resampling.
+    _node_pos : `int` or None
+        A unique ID number for each node in the graph indicating its position.
+        Assigned during resampling or `update_graph_information()` 
+    _finalized : `bool`
+        The node has been 
 
     Parameters
     ----------
@@ -93,7 +95,7 @@ class ParameterizedNode:
         self.setters = {}
         self.direct_dependencies = {}
         self.node_identifier = node_identifier
-        self._node_id = None
+        self._node_pos = None
         self._object_seed = None  # A default until set is called.
         self._graph_base_seed = None
 
@@ -104,7 +106,7 @@ class ParameterizedNode:
     def __str__(self):
         """Return the string representation of the node."""
         name = f"{self.node_identifier}=" if self.node_identifier else ""
-        id_str = f"{self._node_id}: " if self._node_id is not None else ""
+        id_str = f"{self._node_pos}: " if self._node_pos is not None else ""
         return f"{id_str}{name}{self.__class__.__module__}.{self.__class__.__qualname__}"
 
     def set_seed(self, new_seed=None, graph_base_seed=None):
@@ -138,7 +140,12 @@ class ParameterizedNode:
         new_seed = (self._graph_base_seed + seed_offset) % (2**32)
         self._object_seed = new_seed
 
-    def update_graph_information(self, new_graph_base_seed=None, seen_nodes=None):
+    def update_graph_information(
+            self,
+            new_graph_base_seed=None,
+            seen_nodes=None,
+            reset_variables=False,
+        ):
         """Force an update of the graph structure and the seeds.
 
         Updates the node ids to capture their location in the graph. Also updates
@@ -154,6 +161,9 @@ class ParameterizedNode:
         seen_nodes : `set`, optional
             A set of nodes that have already been processed to prevent infinite loops.
             Caller should not set.
+        reset_variables : `bool`
+            Force all variables to ``None`` so that the code will check their
+            dependency order when resampling.
         """
         # Make sure that we do not process the same nodes multiple times.
         if seen_nodes is None:
@@ -163,12 +173,17 @@ class ParameterizedNode:
         seen_nodes.add(self)
 
         # Update the graph ID and (possibly) the seed.
-        self._node_id = len(seen_nodes) - 1
+        self._node_pos = len(seen_nodes) - 1
         self.set_seed(graph_base_seed=new_graph_base_seed)
+
+        # Reset the variables if needed.
+        if reset_variables:
+            for name in self.setters.keys():
+                setattr(self, name, None)
 
         # Recursively update any direct dependencies.
         for dep in self.direct_dependencies:
-            dep.update_graph_information(new_graph_base_seed, seen_nodes)
+            dep.update_graph_information(new_graph_base_seed, seen_nodes, reset_variables)
 
     def _update_dependencies(self):
         """Update the set of direct dependencies."""
@@ -345,7 +360,7 @@ class ParameterizedNode:
             raise ValueError(f"Maximum sampling depth exceeded at {self}. Potential infinite loop.")
         if self in seen_nodes:
             return  # Nothing to do
-        seen_nodes[self] = self._node_id
+        seen_nodes[self] = self._node_pos
 
         # Run through each parameter and sample it based on the given recipe.
         # As of Python 3.7 dictionaries are guaranteed to preserve insertion ordering,
@@ -390,9 +405,9 @@ class ParameterizedNode:
         with the order of dependencies.
         """
         # If the graph structure has never been set, do that now.
-        if self._node_id is None:
+        if self._node_pos is None:
             nodes = set()
-            self.update_graph_information(seen_nodes=nodes)
+            self.update_graph_information(seen_nodes=nodes, reset_variables=True)
 
         # Resample the nodes.
         seen_nodes = {}
@@ -426,7 +441,7 @@ class ParameterizedNode:
             attribute name to its value.
         """
         # If we haven't processed the nodes yet, do that.
-        if self._node_id is None:
+        if self._node_pos is None:
             nodes = set()
             self.update_graph_information(seen_nodes=nodes)
 

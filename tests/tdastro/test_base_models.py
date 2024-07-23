@@ -87,7 +87,7 @@ def test_parameterized_node():
     assert str(model2) == "test=test_base_models.PairModel"
 
     # If we set an ID it shows up in the name.
-    model2._node_id = 100
+    model2._node_pos = 100
     assert str(model2) == "100: test=test_base_models.PairModel"
 
     # Compute value1 from model2's result and value2 from the sampler function.
@@ -250,6 +250,20 @@ def test_parameterized_node_seed():
     assert model_d._object_seed != model_a._object_seed
     assert model_d._object_seed != model_b._object_seed
     assert model_d._object_seed != model_c._object_seed
+
+
+def test_parameterized_node_loop():
+    """Test that a parameterized node with a cycle in the dependency graph
+    of its attributes fails.
+    """
+    model_a = PairModel(value1=0.5, value2=0.5)
+    model_b = PairModel(value1=0.5, value2=0.5)
+    model_a.set_parameter("value1", (model_b, "value_sum"))
+    model_a.sample_parameters()
+
+    # Add the loop
+    model_b.set_parameter("value2", (model_a, "value_sum"))
+    model_a.sample_parameters()
 
 
 def test_parameterized_node_base_seed_fail():
