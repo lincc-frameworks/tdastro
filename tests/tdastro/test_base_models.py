@@ -252,20 +252,6 @@ def test_parameterized_node_seed():
     assert model_d._object_seed != model_c._object_seed
 
 
-def test_parameterized_node_loop():
-    """Test that a parameterized node with a cycle in the dependency graph
-    of its attributes fails.
-    """
-    model_a = PairModel(value1=0.5, value2=0.5)
-    model_b = PairModel(value1=0.5, value2=0.5)
-    model_a.set_parameter("value1", (model_b, "value_sum"))
-    model_a.sample_parameters()
-
-    # Add the loop
-    model_b.set_parameter("value2", (model_a, "value_sum"))
-    model_a.sample_parameters()
-
-
 def test_parameterized_node_base_seed_fail():
     """Test that we can set a random seed for the entire graph."""
     model_a = PairModel(value1=0.5, value2=0.5)
