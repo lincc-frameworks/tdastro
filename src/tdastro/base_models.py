@@ -80,8 +80,6 @@ class ParameterizedNode:
     _node_pos : `int` or None
         A unique ID number for each node in the graph indicating its position.
         Assigned during resampling or `update_graph_information()` 
-    _finalized : `bool`
-        The node has been 
 
     Parameters
     ----------
