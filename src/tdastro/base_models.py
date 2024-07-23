@@ -490,6 +490,10 @@ class FunctionNode(ParameterizedNode):
         you must override the ``compute()`` method directly.
     args_names : `list`
         A list of argument names to pass to the function.
+    outputs : `list` of `str`
+        The output attributes of this function.
+    num_outputs : `int`
+        The number of outputs.
 
     Parameters
     ----------
@@ -497,11 +501,9 @@ class FunctionNode(ParameterizedNode):
         The function to call during an evaluation.
     node_identifier : `str`, optional
         An identifier (or name) for the current node.
-    graph_base_seed : `int`, optional
-        A base random seed to use for this specific evaluation graph.
-        WARNING: This seed should almost never be set manually. Using the same
-        seed for multiple graph instances will produce biased samples.
-        If set to ``None`` will use urandom() to produce a fully random seed.
+    outputs : `list` of `str`, optional
+        The output attributes of this function. If ``None`` uses
+        a single attribute ``result``.
     **kwargs : `dict`, optional
         Any additional keyword arguments.
 
@@ -523,17 +525,25 @@ class FunctionNode(ParameterizedNode):
     value1 = my_func(b=10.0)
     """
 
-    def __init__(self, func, node_identifier=None, graph_base_seed=None, **kwargs):
+    def __init__(self, func, node_identifier=None, outputs=None, **kwargs):
         # We set the function before calling the parent class so we can use
         # the function's name (if needed).
         self.func = func
-        super().__init__(node_identifier=node_identifier, graph_base_seed=graph_base_seed, **kwargs)
+        super().__init__(node_identifier=node_identifier, **kwargs)
 
         # Add all of the parameters from default_args or the kwargs.
         self.arg_names = []
         for key, value in kwargs.items():
             self.arg_names.append(key)
             self.add_parameter(key, value)
+
+        # Add the output arguments.
+        if not outputs:
+            outputs = ["result"]
+        self.outputs = outputs
+        self.num_outputs = len(outputs)
+        for name in outputs:
+            self.add_parameter(name, None)
 
     def __str__(self):
         """Return the string representation of the function."""
@@ -555,6 +565,30 @@ class FunctionNode(ParameterizedNode):
                 args[key] = getattr(self, key)
         return args
 
+    def _sample_helper(self, depth, seen_nodes, **kwargs):
+        """Internal recursive function to sample the model's underlying parameters
+        if they are provided by a function or ParameterizedNode.
+
+        Parameters
+        ----------
+        depth : `int`
+            The recursive depth remaining. Used to prevent infinite loops.
+            Users should not need to set this manually.
+        seen_nodes : `dict`
+            A dictionary mapping nodes seen during this sampling run to their ID.
+            Used to avoid sampling nodes multiple times and to validity check the graph.
+        **kwargs : `dict`, optional
+            All the keyword arguments, including the values needed to sample
+            parameters.
+
+        Raises
+        ------
+        Raise a ``ValueError`` the depth of the sampling encounters a problem
+        with the order of dependencies.
+        """
+        super()._sample_helper(depth, seen_nodes, **kwargs)
+        _ = self.compute(**kwargs)
+
     def compute(self, **kwargs):
         """Execute the wrapped function.
 
@@ -574,4 +608,16 @@ class FunctionNode(ParameterizedNode):
             )
 
         args = self._build_args_dict(**kwargs)
-        return self.func(**args)
+        results = self.func(**args)
+        if self.num_outputs == 1:
+            setattr(self, f"{self.outputs[0]}", results)
+        else:
+            if len(results) != self.num_outputs:
+                raise ValueError(
+                    f"Incorrect number of results returned by {self.func.__name__}. "
+                    f"Expected {self.outputs}, but got {results}."
+                )
+            for i in range(self.num_outputs):
+                setattr(self, f"{self.outputs[i]}", results[i])
+
+        return results
