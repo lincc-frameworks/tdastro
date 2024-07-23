@@ -52,10 +52,9 @@ class ParameterSource(Enum):
     """
 
     CONSTANT = 1
-    FUNCTION = 2
-    MODEL_ATTRIBUTE = 3
-    MODEL_METHOD = 4
-    FUNCTION_NODE = 5
+    MODEL_ATTRIBUTE = 2
+    MODEL_METHOD = 3
+    FUNCTION_NODE = 4
 
 
 class ParameterizedNode:
@@ -220,22 +219,29 @@ class ParameterizedNode:
             # The value wasn't set, but the name is in kwargs.
             value = kwargs[name]
 
+        sampled_value = None
         if callable(value):
             if isinstance(value, types.FunctionType):
                 # Case 1a: This is a static function (not attached to an object).
-                self.setters[name] = (ParameterSource.FUNCTION, value, required)
+                # Wrap the function in a FunctionNode.
+                func_node = FunctionNode(value, **kwargs)
+                self.setters[name] = (ParameterSource.FUNCTION_NODE, func_node, required)
+                sampled_value = func_node.compute()
             elif isinstance(value.__self__, ParameterizedNode):
                 # Case 1b: This is a method attached to another ParameterizedNode.
                 self.setters[name] = (ParameterSource.MODEL_METHOD, value, required)
+                sampled_value = value(**kwargs)
             else:
                 # Case 1c: This is a general callable method from another object.
-                # We treat it as static (we don't resample the other object).
-                self.setters[name] = (ParameterSource.FUNCTION, value, required)
-            setattr(self, name, value(**kwargs))
+                # We treat it as static (we don't resample the other object) and
+                # wrap it in a FunctionNode.
+                func_node = FunctionNode(value, **kwargs)
+                self.setters[name] = (ParameterSource.FUNCTION_NODE, func_node, required)
+                sampled_value = func_node.compute()
         elif isinstance(value, FunctionNode):
             # Case 2: We are using the result of a computation of the function node.
             self.setters[name] = (ParameterSource.FUNCTION_NODE, value, required)
-            setattr(self, name, value.compute(**kwargs))
+            sampled_value = value.compute(**kwargs)
         elif isinstance(value, ParameterizedNode):
             # Case 3a: We are trying to access a parameter of a ParameterizedNode
             # with the same name.
@@ -249,7 +255,7 @@ class ParameterizedNode:
             # We store MODEL_ATTRIBUTE setters as a tuple of (object, attribute_name).
             setter = (value, name)
             self.setters[name] = (ParameterSource.MODEL_ATTRIBUTE, setter, required)
-            setattr(self, name, getattr(setter[0], setter[1]))
+            sampled_value = getattr(setter[0], setter[1])
         elif isinstance(value, tuple) and len(value) >= 2 and isinstance(value[0], ParameterizedNode):
             # Case 3b: We are trying to access a parameter of a ParameterizedNode
             # with a different name.
@@ -258,15 +264,16 @@ class ParameterizedNode:
             elif callable(getattr(value[0], value[1])):
                 raise ValueError(f"{value[0]}.{value[1]} is callable and should be an attribute.")
             self.setters[name] = (ParameterSource.MODEL_ATTRIBUTE, value, required)
-            setattr(self, name, getattr(value[0], value[1]))
+            sampled_value = getattr(value[0], value[1])
         else:
             # Case 4: The value is constant (including None).
             self.setters[name] = (ParameterSource.CONSTANT, value, required)
-            setattr(self, name, value)
+            sampled_value = value
 
         # Check that we did get a parameter.
-        if required and getattr(self, name) is None:
+        if required and sampled_value is None:
             raise ValueError(f"Missing required parameter {name}")
+        setattr(self, name, sampled_value)
 
         # Update the dependencies to account for any new nodes in the graph.
         self._update_dependencies()
@@ -347,8 +354,6 @@ class ParameterizedNode:
             sampled_value = None
             if source_type == ParameterSource.CONSTANT:
                 sampled_value = setter
-            elif source_type == ParameterSource.FUNCTION:
-                sampled_value = setter(**kwargs)
             elif source_type == ParameterSource.MODEL_ATTRIBUTE:
                 # Check if we need to resample the parent (before accessing the attribute).
                 if setter[0] not in seen_nodes:
