@@ -1,6 +1,7 @@
-import asyncio
 import os
+import time
 import urllib.request
+from urllib.error import HTTPError, URLError
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -32,39 +33,10 @@ class Passbands:
             os.makedirs(data_dir)
         self.data_path = data_dir
 
-    async def _download_single_transmission_table(self, band_name: str, output_file: str) -> bool:
-        """Download the transmission table for the given band.
+    def _load_single_transmission_table(self, band_name: str) -> bool:
+        """Load a transmission table from a file, downloading it first if necessary.
 
         Files used are from: http://svo2.cab.inta-csic.es/svo/theory/fps3/index.php?mode=browse&gname=LSST
-
-        Parameters
-        ----------
-        band_name : str
-            Name of the band for which the transmission table is to be downloaded.
-        output_file : str
-            Path to the file where the transmission table is to be saved.
-
-        Returns
-        -------
-        bool
-            True if the download is successful, False otherwise.
-        """
-        url = (
-            f"http://svo2.cab.inta-csic.es/svo/theory/fps3/getdata.php?format=ascii&id=LSST/LSST.{band_name}"
-        )
-
-        def download():
-            try:
-                urllib.request.urlretrieve(url, output_file)
-                return True
-            except Exception as e:
-                print(f"Error downloading {band_name} band: {e}")
-                return False
-
-        return await asyncio.to_thread(download)
-
-    async def _load_single_transmission_table(self, band_name: str) -> bool:
-        """Load a transmission table from a file, downloading it first if necessary.
 
         Parameters
         ----------
@@ -78,26 +50,38 @@ class Passbands:
         """
         file_path = f"{self.data_path}/LSST_LSST.{band_name}.dat"
 
-        # If we need to download the file
+        # Download the file, if it doesn't exist
         if not os.path.exists(file_path):
-            if not await self._download_single_transmission_table(band_name):
+            try:
+                url = (
+                    f"http://svo2.cab.inta-csic.es/svo/theory/fps3/getdata.php"
+                    f"?format=ascii&id=LSST/LSST.{band_name}"
+                )
+                urllib.request.urlretrieve(url, file_path)
+                while not os.path.exists(file_path):
+                    time.sleep(1)
+            except HTTPError as e:
+                print(f"HTTP error occurred when downloading transmission table for {band_name}: {e}")
                 return False
-            while not os.path.exists(file_path):
-                await asyncio.sleep(1)
+            except URLError as e:
+                print(f"URL error occurred when downloading transmission table for {band_name}: {e}")
+                return False
 
         # Load the file contents
         try:
             self.transmission_tables[band_name] = np.loadtxt(file_path)
-            print(f"Transmission table for {band_name} loaded.")
+            print(f"{band_name}-band transmission table loaded.")
             return True
-
-        # If there's an error loading the file
-        except Exception as e:
-            print(f"Error loading transmission table for {band_name}: {e}")
+        except ValueError as e:
+            print(f"Value error when loading transmission table for {band_name}-band: {e}")
+            return False
+        except OSError as e:
+            print(f"OS error when loading transmission table for {band_name}-band: {e}")
             return False
 
-    async def load_all_transmission_tables(self) -> None:
+    def load_all_transmission_tables(self) -> None:
         """Load all bandpass tables from a file."""
+        self._get_data_path()
         for band_name in self.bands:
             self._load_single_transmission_table(band_name)
 
