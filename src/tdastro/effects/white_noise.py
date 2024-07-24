@@ -44,4 +44,4 @@ class WhiteNoise(EffectModel):
         flux_density : `numpy.ndarray`
             The results.
         """
-        return np.random.normal(loc=flux_density, scale=self.scale)
+        return np.random.normal(loc=flux_density, scale=self.parameters["scale"])

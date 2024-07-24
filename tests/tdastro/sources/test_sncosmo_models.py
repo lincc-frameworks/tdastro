@@ -6,11 +6,11 @@ def test_sncomso_models_hsiao() -> None:
     """Test that we can create and evalue a 'hsiao' model."""
     model = SncosmoWrapperModel("hsiao")
     model.set(amplitude=1.0e-10)
-    assert model.amplitude == 1.0e-10
+    assert model.get_parameter("amplitude") == 1.0e-10
     assert str(model) == "tdastro.sources.sncomso_models.SncosmoWrapperModel"
 
     assert np.array_equal(model.param_names, ["amplitude"])
-    assert np.array_equal(model.parameters, [1.0e-10])
+    assert np.array_equal(model.parameter_values, [1.0e-10])
 
     # Test with the example from: https://sncosmo.readthedocs.io/en/stable/models.html
     fluxes = model.evaluate([54990.0], [4000.0, 4100.0, 4200.0])

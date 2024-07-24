@@ -42,18 +42,17 @@ class GaussianGalaxy(PhysicalModel):
         flux_density : `numpy.ndarray`
             A length T x N matrix of SED values.
         """
-        if ra is None:
-            ra = self.ra
-        if dec is None:
-            dec = self.dec
+        dist = 0.0
+        if ra is not None and dec is not None:
+            dist = angular_separation(
+                self.parameters["ra"] * np.pi / 180.0,
+                self.parameters["dec"] * np.pi / 180.0,
+                ra * np.pi / 180.0,
+                dec * np.pi / 180.0,
+            )
 
         # Scale the brightness as a Guassian function centered on the object's RA and Dec.
-        dist = angular_separation(
-            self.ra * np.pi / 180.0,
-            self.dec * np.pi / 180.0,
-            ra * np.pi / 180.0,
-            dec * np.pi / 180.0,
-        )
-        scale = np.exp(-(dist * dist) / (2.0 * self.galaxy_radius_std * self.galaxy_radius_std))
+        std = self.parameters["galaxy_radius_std"]
+        scale = np.exp(-(dist * dist) / (2.0 * std * std))
 
-        return np.full((len(times), len(wavelengths)), self.brightness * scale)
+        return np.full((len(times), len(wavelengths)), self.parameters["brightness"] * scale)

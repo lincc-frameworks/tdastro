@@ -42,7 +42,7 @@ class PeriodicVariableStar(PeriodicSource, ABC):
         flux_density : `numpy.ndarray`
             A length T x N matrix of SED values.
         """
-        distance = self.distance * PARSEC_TO_CM
+        distance = self.parameters["distance"] * PARSEC_TO_CM
         return self._dl_dnu_domega_phases(phases, wavelengths, **kwargs) / np.square(distance)
 
     @abstractmethod
@@ -126,29 +126,33 @@ class EclipsingBinaryStar(PeriodicVariableStar):
         """
         phases = phases[:, None]
 
+        # Extract the parameters we need.
+        primary_temperature = self.parameters["primary_temperature"]
+        primary_radius = self.parameters["primary_radius"]
+        secondary_temperature = self.parameters["secondary_temperature"]
+        secondary_radius = self.parameters["secondary_radius"]
+        major_semiaxis = self.parameters["major_semiaxis"]
+        inclination = self.parameters["inclination"]
+
         primary_lum = black_body_luminosity_density_per_solid(
-            self.primary_temperature, self.primary_radius, wavelengths
+            primary_temperature, primary_radius, wavelengths
         )
         secondary_lum = black_body_luminosity_density_per_solid(
-            self.secondary_temperature, self.secondary_radius, wavelengths
+            secondary_temperature, secondary_radius, wavelengths
         )
 
         # Distance between the centers of the stars on the plane of the sky
-        star_centers_distance = self.major_semiaxis * self._norm_star_center_distance(
-            phases, self.inclination
-        )
+        star_centers_distance = major_semiaxis * self._norm_star_center_distance(phases, inclination)
 
-        overlap_area = self._circle_overlap_area(
-            star_centers_distance, self.primary_radius, self.secondary_radius
-        )
+        overlap_area = self._circle_overlap_area(star_centers_distance, primary_radius, secondary_radius)
 
         # For phases around the main minimum (0) primary star is eclipsed
         secondary_star_closer = np.logical_or(phases < 0.25, phases > 0.75)
         primary_star_overlap_ratio = np.where(
-            secondary_star_closer, overlap_area / (np.pi * self.primary_radius**2), 0.0
+            secondary_star_closer, overlap_area / (np.pi * primary_radius**2), 0.0
         )
         secondary_star_overlap_ratio = np.where(
-            ~secondary_star_closer, overlap_area / (np.pi * self.secondary_radius**2), 0.0
+            ~secondary_star_closer, overlap_area / (np.pi * secondary_radius**2), 0.0
         )
 
         primary_lum_eclipsed = primary_lum * (1.0 - primary_star_overlap_ratio)

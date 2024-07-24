@@ -38,7 +38,6 @@ graph because they have no dependencies.  Such attributes are set by constants o
 static functions.
 """
 
-import types
 from enum import Enum
 from hashlib import md5
 from os import urandom
@@ -69,6 +68,8 @@ class ParameterizedNode:
         A dictionary to information about the setters for the parameters in the form:
         (ParameterSource, setter information, required). The attributes are
         stored in the order in which they need to be set.
+    values : `dict`
+        A dictionary mapping the parameter's name to its current value.
     direct_dependencies : `dict`
         A dictionary with keys of other ParameterizedNodes on that this node needs to
         directly access. We use a dictionary to preserve ordering.
@@ -91,6 +92,7 @@ class ParameterizedNode:
 
     def __init__(self, node_identifier=None, **kwargs):
         self.setters = {}
+        self.parameters = {}
         self.direct_dependencies = {}
         self.node_identifier = node_identifier
         self._node_pos = None
@@ -177,7 +179,7 @@ class ParameterizedNode:
         # Reset the variables if needed.
         if reset_variables:
             for name in self.setters:
-                setattr(self, name, None)
+                self.parameters[name] = None
 
         # Recursively update any direct dependencies.
         for dep in self.direct_dependencies:
@@ -197,6 +199,30 @@ class ParameterizedNode:
 
             if current is not None and current is not self:
                 self.direct_dependencies[current] = True
+
+    def __getitem__(self, key):
+        return self.parameters[key]
+
+    def get_parameter(self, name):
+        """Get the settable parameter with the given name.
+
+        Parameters
+        ----------
+        name : `str`
+            The name of the parameter to retrieve.
+
+        Returns
+        -------
+        any
+            The value of the parameter
+
+        Raises
+        ------
+        ``AttributeError`` if the parameter is not in the list.
+        """
+        if name not in self.parameters:
+            raise AttributeError(f"Cannot find parameter {name} in {str(self)}")
+        return self.parameters[name]
 
     def set_parameter(self, name, value=None, **kwargs):
         """Set a single *existing* parameter to the ParameterizedNode.
@@ -234,18 +260,21 @@ class ParameterizedNode:
 
         sampled_value = None
         if callable(value):
-            if isinstance(value, types.FunctionType):
-                # Case 1a: This is a static function (not attached to an object).
-                # Wrap the function in a FunctionNode.
-                func_node = FunctionNode(value, **kwargs)
-                self.setters[name] = (ParameterSource.FUNCTION_NODE, func_node, required)
-                sampled_value = func_node.compute()
-            elif isinstance(value.__self__, ParameterizedNode):
-                # Case 1b: This is a method attached to another ParameterizedNode.
-                self.setters[name] = (ParameterSource.MODEL_METHOD, value, required)
-                sampled_value = value(**kwargs)
+            if "__self__" in value.__dir__() and isinstance(value.__self__, ParameterizedNode):
+                # Case 1a: This is a method attached to another ParameterizedNode.
+
+                # Check if this is a getter method. If so, we access the attribute directly
+                # to save a function call.
+                method_name = value.__name__
+                parent = value.__self__
+                if method_name in parent.parameters:
+                    self.setters[name] = (ParameterSource.MODEL_ATTRIBUTE, (parent, method_name), required)
+                    sampled_value = parent.parameters[method_name]
+                else:
+                    self.setters[name] = (ParameterSource.MODEL_METHOD, value, required)
+                    sampled_value = value(**kwargs)
             else:
-                # Case 1c: This is a general callable method from another object.
+                # Case 1b: This is a general function or callable method from another object.
                 # We treat it as static (we don't resample the other object) and
                 # wrap it in a FunctionNode.
                 func_node = FunctionNode(value, **kwargs)
@@ -256,28 +285,17 @@ class ParameterizedNode:
             self.setters[name] = (ParameterSource.FUNCTION_NODE, value, required)
             sampled_value = value.compute(**kwargs)
         elif isinstance(value, ParameterizedNode):
-            # Case 3a: We are trying to access a parameter of a ParameterizedNode
+            # Case 3: We are trying to access a parameter of a ParameterizedNode
             # with the same name.
             if value == self:
                 raise ValueError(f"Attribute {name} is recursively assigned to self.{name}.")
-            if not hasattr(value, name):
+            if name not in value.parameters:
                 raise ValueError(f"Attribute {name} missing from {str(value)}.")
-            if callable(getattr(value, name)):
-                raise ValueError(f"{value}.{name} is callable and should be an attribute.")
 
             # We store MODEL_ATTRIBUTE setters as a tuple of (object, attribute_name).
             setter = (value, name)
             self.setters[name] = (ParameterSource.MODEL_ATTRIBUTE, setter, required)
-            sampled_value = getattr(setter[0], setter[1])
-        elif isinstance(value, tuple) and len(value) >= 2 and isinstance(value[0], ParameterizedNode):
-            # Case 3b: We are trying to access a parameter of a ParameterizedNode
-            # with a different name.
-            if not hasattr(value[0], value[1]):
-                raise ValueError(f"Attribute {value[1]} missing from {str(value[0])}.")
-            elif callable(getattr(value[0], value[1])):
-                raise ValueError(f"{value[0]}.{value[1]} is callable and should be an attribute.")
-            self.setters[name] = (ParameterSource.MODEL_ATTRIBUTE, value, required)
-            sampled_value = getattr(value[0], value[1])
+            sampled_value = value.parameters[name]
         else:
             # Case 4: The value is constant (including None).
             self.setters[name] = (ParameterSource.CONSTANT, value, required)
@@ -286,7 +304,7 @@ class ParameterizedNode:
         # Check that we did get a parameter.
         if required and sampled_value is None:
             raise ValueError(f"Missing required parameter {name}")
-        setattr(self, name, sampled_value)
+        self.parameters[name] = sampled_value
 
         # Update the dependencies to account for any new nodes in the graph.
         self._update_dependencies()
@@ -324,14 +342,27 @@ class ParameterizedNode:
         cannot be found.
         Raise a ``ValueError`` if the parameter is required, but set to None.
         """
-        # Check for parameter collision.
-        if hasattr(self, name) and getattr(self, name) is not None and not allow_overwrite:
+        # Check for parameter collision and add a place holder value.
+        if hasattr(self, name) and name not in self.parameters:
+            raise KeyError(f"Parameter name {name} conflicts with a predefined object attribute.")
+        if self.parameters.get(name, None) is not None and not allow_overwrite:
             raise KeyError(f"Duplicate parameter set: {name}")
+        self.parameters[name] = None
 
         # Add an entry for the setter function and fill in the remaining
         # information using set_parameter().
         self.setters[name] = (None, None, required)
         self.set_parameter(name, value, **kwargs)
+
+        # Create a callable getter function using. We override the __self__ and __name__
+        # attributes so it looks like method of this object.
+        # This allows us to reference the attribute as object.attribute for chaining.
+        def getter():
+            return self.parameters[name]
+
+        getter.__self__ = self
+        getter.__name__ = name
+        setattr(self, name, getter)
 
     def _sample_helper(self, depth, seen_nodes, **kwargs):
         """Internal recursive function to sample the model's underlying parameters
@@ -371,7 +402,7 @@ class ParameterizedNode:
                 # Check if we need to resample the parent (before accessing the attribute).
                 if setter[0] not in seen_nodes:
                     setter[0]._sample_helper(depth - 1, seen_nodes, **kwargs)
-                sampled_value = getattr(setter[0], setter[1])
+                sampled_value = setter[0].parameters[setter[1]]
             elif source_type == ParameterSource.MODEL_METHOD:
                 # Check if we need to resample the parent (before calling the method).
                 parent_node = setter.__self__
@@ -385,7 +416,7 @@ class ParameterizedNode:
                 sampled_value = setter.compute(**kwargs)
             else:
                 raise ValueError(f"Unknown ParameterSource type {source_type} for {name}")
-            setattr(self, name, sampled_value)
+            self.parameters[name] = sampled_value
 
     def sample_parameters(self, **kwargs):
         """Sample the model's underlying parameters if they are provided by a function
@@ -450,21 +481,21 @@ class ParameterizedNode:
             return {}
         seen.add(self)
 
-        values = {}
+        all_values = {}
         for name, (source_type, setter, _) in self.setters.items():
             if recursive:
                 if source_type == ParameterSource.MODEL_ATTRIBUTE:
-                    values.update(setter[0].get_all_parameter_values(True, seen))
+                    all_values.update(setter[0].get_all_parameter_values(True, seen))
                 elif source_type == ParameterSource.MODEL_METHOD:
-                    values.update(setter.__self__.get_all_parameter_values(True, seen))
+                    all_values.update(setter.__self__.get_all_parameter_values(True, seen))
                 elif source_type == ParameterSource.FUNCTION_NODE:
-                    values.update(setter.get_all_parameter_values(True, seen))
+                    all_values.update(setter.get_all_parameter_values(True, seen))
 
                 full_name = f"{str(self)}.{name}"
             else:
                 full_name = name
-            values[full_name] = getattr(self, name)
-        return values
+            all_values[full_name] = self.parameters[name]
+        return all_values
 
 
 class SingleVariableNode(ParameterizedNode):
@@ -552,7 +583,7 @@ class FunctionNode(ParameterizedNode):
 
         # Add the output arguments.
         if not outputs:
-            outputs = ["result"]
+            outputs = ["function_node_result"]
         self.outputs = outputs
         self.num_outputs = len(outputs)
         for name in outputs:
@@ -575,7 +606,7 @@ class FunctionNode(ParameterizedNode):
             if key in kwargs:
                 args[key] = kwargs[key]
             else:
-                args[key] = getattr(self, key)
+                args[key] = self.parameters[key]
         return args
 
     def _sample_helper(self, depth, seen_nodes, **kwargs):
@@ -623,7 +654,7 @@ class FunctionNode(ParameterizedNode):
         args = self._build_args_dict(**kwargs)
         results = self.func(**args)
         if self.num_outputs == 1:
-            setattr(self, f"{self.outputs[0]}", results)
+            self.parameters[self.outputs[0]] = results
         else:
             if len(results) != self.num_outputs:
                 raise ValueError(
@@ -631,6 +662,6 @@ class FunctionNode(ParameterizedNode):
                     f"Expected {self.outputs}, but got {results}."
                 )
             for i in range(self.num_outputs):
-                setattr(self, f"{self.outputs[i]}", results[i])
+                self.parameters[self.outputs[i]] = results[i]
 
         return results

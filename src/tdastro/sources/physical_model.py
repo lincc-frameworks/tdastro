@@ -45,7 +45,7 @@ class PhysicalModel(ParameterizedNode):
         if distance is not None:
             self.add_parameter("distance", distance)
         elif redshift is not None and kwargs.get("cosmology", None) is not None:
-            self._redshift_func = RedshiftDistFunc(redshift=self, **kwargs)
+            self._redshift_func = RedshiftDistFunc(redshift=self.redshift, **kwargs)
             self.add_parameter("distance", self._redshift_func)
         else:
             self.add_parameter("distance", None)
@@ -132,7 +132,13 @@ class PhysicalModel(ParameterizedNode):
         # behind it, such as a host galaxy.
         flux_density = self._evaluate(times, wavelengths, **kwargs)
         if self.background is not None:
-            flux_density += self.background._evaluate(times, wavelengths, ra=self.ra, dec=self.dec, **kwargs)
+            flux_density += self.background._evaluate(
+                times,
+                wavelengths,
+                ra=self.parameters["ra"],
+                dec=self.parameters["dec"],
+                **kwargs,
+            )
 
         for effect in self.effects:
             flux_density = effect.apply(flux_density, wavelengths, self, **kwargs)

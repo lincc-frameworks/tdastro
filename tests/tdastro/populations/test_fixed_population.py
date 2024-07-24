@@ -72,7 +72,7 @@ def test_fixed_population_sample_sources():
     counts = [0.0, 0.0, 0.0]
     for _ in range(itr):
         model = population.draw_source()
-        counts[int(model.brightness)] += 1.0
+        counts[int(model["brightness"])] += 1.0
     assert np.allclose(counts, [0.25 * itr, 0.25 * itr, 0.5 * itr], rtol=0.05)
 
     # Check the we can change a rate.
@@ -81,7 +81,7 @@ def test_fixed_population_sample_sources():
     counts = [0.0, 0.0, 0.0]
     for _ in range(itr):
         model = population.draw_source()
-        counts[int(model.brightness)] += 1.0
+        counts[int(model["brightness"])] += 1.0
     assert np.allclose(counts, [0.4 * itr, 0.2 * itr, 0.4 * itr], rtol=0.05)
 
 

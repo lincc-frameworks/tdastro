@@ -53,10 +53,10 @@ class Redshift(EffectModel):
             which will later be redshifted  back to observer-frame flux densities at the observer-frame
             times and wavelengths.
         """
-        observed_times_rel_to_t0 = observer_frame_times - self.t0
-        rest_frame_times_rel_to_t0 = observed_times_rel_to_t0 / (1 + self.redshift)
-        rest_frame_times = rest_frame_times_rel_to_t0 + self.t0
-        rest_frame_wavelengths = observer_frame_wavelengths / (1 + self.redshift)
+        observed_times_rel_to_t0 = observer_frame_times - self.parameters["t0"]
+        rest_frame_times_rel_to_t0 = observed_times_rel_to_t0 / (1 + self.parameters["redshift"])
+        rest_frame_times = rest_frame_times_rel_to_t0 + self.parameters["t0"]
+        rest_frame_wavelengths = observer_frame_wavelengths / (1 + self.parameters["redshift"])
         return (rest_frame_times, rest_frame_wavelengths)
 
     def apply(self, flux_density, wavelengths, physical_model=None, **kwargs):
@@ -79,4 +79,4 @@ class Redshift(EffectModel):
         flux_density : `numpy.ndarray`
             The redshifted results.
         """
-        return flux_density / (1 + self.redshift)
+        return flux_density / (1 + self.parameters["redshift"])

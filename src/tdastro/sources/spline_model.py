@@ -88,4 +88,4 @@ class SplineModel(PhysicalModel):
         flux_density : `numpy.ndarray`
             A length T x N matrix of SED values.
         """
-        return self.amplitude * self._spline(times, wavelengths, grid=True)
+        return self.parameters["amplitude"] * self._spline(times, wavelengths, grid=True)

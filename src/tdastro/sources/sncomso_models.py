@@ -38,7 +38,7 @@ class SncosmoWrapperModel(PhysicalModel):
         return self.source.param_names
 
     @property
-    def parameters(self):
+    def parameter_values(self):
         """Return a list of the model's parameter values."""
         return self.source.parameters
 

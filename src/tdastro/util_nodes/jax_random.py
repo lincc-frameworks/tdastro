@@ -111,6 +111,6 @@ class JaxRandomNormal(JaxRandomFunc):
             Additional function arguments.
         """
         initial_value = super().compute(**kwargs)
-        local_mean = kwargs.get("loc", self.loc)
-        local_std = kwargs.get("scale", self.scale)
+        local_mean = kwargs.get("loc", self.parameters["loc"])
+        local_std = kwargs.get("scale", self.parameters["scale"])
         return local_std * initial_value + local_mean

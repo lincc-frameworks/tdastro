@@ -40,6 +40,6 @@ class StepSource(StaticSource):
         """
         flux_density = np.zeros((len(times), len(wavelengths)))
 
-        time_mask = (times >= self.t0) & (times <= self.t1)
-        flux_density[time_mask] = self.brightness
+        time_mask = (times >= self.parameters["t0"]) & (times <= self.parameters["t1"])
+        flux_density[time_mask] = self.parameters["brightness"]
         return flux_density
