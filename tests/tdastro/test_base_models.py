@@ -87,10 +87,11 @@ def test_parameterized_node():
     assert str(model2) == "test=test_base_models.PairModel"
 
     # If we set an ID it shows up in the name.
-    model2._node_id = 100
+    model2._node_pos = 100
     assert str(model2) == "100: test=test_base_models.PairModel"
 
     # Compute value1 from model2's result and value2 from the sampler function.
+    # The sampler function is auto-wrapped in a FunctionNode.
     model3 = PairModel(value1=(model2, "value_sum"), value2=_sampler_fun)
     rand_val = model3.value2
     assert model3.result() == pytest.approx(1.5 + rand_val)
@@ -338,3 +339,18 @@ def test_function_node_obj():
 
     # We can always override the attributes with kwargs.
     assert func.compute(value1=1.0, value2=4.0) == 5.0
+
+
+def test_function_node_multi():
+    """Test that we can query a function node with multiple outputs."""
+
+    def _test_func2(value1, value2):
+        return (value1 + value2, value1 - value2)
+
+    func = FunctionNode(_test_func2, outputs=["sum", "diff"], value1=5.0, value2=6.0)
+    func.compute()
+
+    model = PairModel(value1=(func, "sum"), value2=(func, "diff"))
+    assert model.value1 == 11.0
+    assert model.value2 == -1.0
+    assert model.value_sum == 10.0
