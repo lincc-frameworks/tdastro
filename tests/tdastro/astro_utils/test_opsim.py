@@ -5,7 +5,13 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
-from tdastro.astro_utils.opsim import load_opsim_table, pointings_from_opsim, write_opsim_table
+from astropy.table import Table
+from tdastro.astro_utils.opsim import (
+    get_pointings_matched_times,
+    load_opsim_table,
+    pointings_from_opsim,
+    write_opsim_table,
+)
 
 
 def test_write_read_opsim():
@@ -70,3 +76,27 @@ def test_pointings_from_opsim():
     # We fail if we give the wrong column names.
     with pytest.raises(KeyError):
         _ = pointings_from_opsim(opsim)
+
+
+def test_get_pointings_matched_times():
+    """Test that we can extract the time, ra, and dec from an opsim data frame."""
+
+    # Create a fake opsim data frame with just time, RA, and dec.
+    values = {
+        "time": np.array([0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0]),
+        "ra": np.array([15.0, 15.0, 15.01, 15.0, 25.0, 24.99, 60.0, 5.0]),
+        "dec": np.array([-10.0, 10.0, 10.01, 9.99, 10.0, 9.99, -5.0, -1.0]),
+    }
+    pointings = Table(values)
+
+    times = get_pointings_matched_times(pointings, 15.0, 10.0, 0.5)
+    assert np.allclose(times, [1.0, 2.0, 3.0])
+
+    times = get_pointings_matched_times(pointings, 25.0, 10.0, 0.5)
+    assert np.allclose(times, [4.0, 5.0])
+
+    times = get_pointings_matched_times(pointings, 15.0, 10.0, 100.0)
+    assert np.allclose(times, [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0])
+
+    times = get_pointings_matched_times(pointings, 15.0, 10.0, 1e-6)
+    assert np.allclose(times, [1.0])

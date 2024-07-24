@@ -1,7 +1,9 @@
 import sqlite3
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
+from astropy.coordinates import angular_separation
 from astropy.table import Table
 
 
@@ -110,3 +112,37 @@ def pointings_from_opsim(
     pointings["ra"] = opsim[ra_colname].to_numpy()
     pointings["dec"] = opsim[dec_colname].to_numpy()
     return pointings
+
+
+def get_pointings_matched_times(pointings, ra, dec, fov):
+    """Get the time stamp of all the pointings that match the given (RA, dec).
+
+    Note
+    ----
+    This is a slow, exhaustive implementation for testing and comparison. We
+    need to implement something faster for the real system.
+
+    Parameters
+    ----------
+    pointings : `astropy.table.Table`
+        A table with "time", "ra", and "dec" for each pointing.
+    ra : `float`
+        The query right ascension (in degrees).
+    dec : `float`
+        The query declination (in degrees).
+    fov : `float`
+        The angular radius of the observation (in degrees).
+
+    Returns
+    -------
+    times : `numpy.ndarray`
+        The times where the query observation was within the field of view.
+    """
+    pt_ra = np.radians(pointings["ra"])
+    pt_dec = np.radians(pointings["dec"])
+    query_ra = np.full(pt_ra.shape, np.radians(ra))
+    query_dec = np.full(pt_dec.shape, np.radians(dec))
+    dist = angular_separation(pt_ra, pt_dec, query_ra, query_dec)
+
+    times = pointings["time"][dist <= np.radians(fov)]
+    return times
