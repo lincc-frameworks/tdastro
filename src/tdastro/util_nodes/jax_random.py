@@ -86,12 +86,14 @@ class JaxRandomNormal(JaxRandomFunc):
     """A wrapper for the JAX normal function that takes
     a mean and std.
 
-    Attributes
+    Parameters
     ----------
     loc : `float`
         The mean of the distribution.
     scale : `float`
         The std of the distribution.
+    **kwargs : `dict`, optional
+        Any additional keyword arguments.
     """
 
     def __init__(self, loc, scale, **kwargs):

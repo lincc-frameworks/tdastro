@@ -6,13 +6,15 @@ from tdastro.sources.physical_model import PhysicalModel
 class PeriodicSource(PhysicalModel, ABC):
     """A periodic source.
 
-    Attributes
+    Parameters
     ----------
     period : `float`
         The period of the source, in days.
     t0 : `float`
         The t0 of the zero phase, date. Could be date of the minimum or maximum light
         or any other reference time point.
+    **kwargs : `dict`, optional
+        Any additional keyword arguments.
     """
 
     def __init__(self, period, t0, **kwargs):

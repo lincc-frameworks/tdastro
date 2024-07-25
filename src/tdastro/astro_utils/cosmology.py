@@ -32,9 +32,6 @@ class RedshiftDistFunc(FunctionNode):
     ----------
     cosmology : `astropy.cosmology`
         The cosmology specification.
-    kind : `str`
-        The distance type for the Equivalency as defined by
-        astropy.cosmology.units.redshift_distance.
 
     Parameters
     ----------

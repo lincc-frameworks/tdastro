@@ -62,7 +62,7 @@ class ParameterSource(Enum):
     """
 
     CONSTANT = 1
-    MODEL_ATTRIBUTE = 2
+    MODEL_PARAMETER = 2
     MODEL_METHOD = 3
     FUNCTION_NODE = 4
 
@@ -77,7 +77,7 @@ class ParameterizedNode:
         An optional identifier (name) for the current node.
     setters : `dict` of `tuple`
         A dictionary to information about the setters for the parameters in the form:
-        (ParameterSource, setter information, required). The attributes are
+        (ParameterSource, setter information, required). The model parameters are
         stored in the order in which they need to be set.
     values : `dict`
         A dictionary mapping the parameter's name to its current value.
@@ -201,7 +201,7 @@ class ParameterizedNode:
         self.direct_dependencies = {}
         for source_type, setter, _ in self.setters.values():
             current = None
-            if source_type == ParameterSource.MODEL_ATTRIBUTE:
+            if source_type == ParameterSource.MODEL_PARAMETER:
                 current = setter[0]
             elif source_type == ParameterSource.MODEL_METHOD:
                 current = setter.__self__
@@ -240,8 +240,8 @@ class ParameterizedNode:
 
         Notes
         -----
-        * Sets an initial value for the attribute based on the given information.
-        * The attributes are stored in the order in which they are added.
+        * Sets an initial value for the model parameter based on the given information.
+        * The model parameters are stored in the order in which they are added.
 
         Parameters
         ----------
@@ -274,12 +274,12 @@ class ParameterizedNode:
             if "__self__" in value.__dir__() and isinstance(value.__self__, ParameterizedNode):
                 # Case 1a: This is a method attached to another ParameterizedNode.
 
-                # Check if this is a getter method. If so, we access the attribute directly
+                # Check if this is a getter method. If so, we access the parameter directly
                 # to save a function call.
                 method_name = value.__name__
                 parent = value.__self__
                 if method_name in parent.parameters:
-                    self.setters[name] = (ParameterSource.MODEL_ATTRIBUTE, (parent, method_name), required)
+                    self.setters[name] = (ParameterSource.MODEL_PARAMETER, (parent, method_name), required)
                     sampled_value = parent.parameters[method_name]
                 else:
                     self.setters[name] = (ParameterSource.MODEL_METHOD, value, required)
@@ -299,13 +299,13 @@ class ParameterizedNode:
             # Case 3: We are trying to access a parameter of a ParameterizedNode
             # with the same name.
             if value == self:
-                raise ValueError(f"Attribute {name} is recursively assigned to self.{name}.")
+                raise ValueError(f"Parameter {name} is recursively assigned to self.{name}.")
             if name not in value.parameters:
-                raise ValueError(f"Attribute {name} missing from {str(value)}.")
+                raise ValueError(f"Parameter {name} missing from {str(value)}.")
 
-            # We store MODEL_ATTRIBUTE setters as a tuple of (object, attribute_name).
+            # We store MODEL_PARAMETER setters as a tuple of (object, parameter_name).
             setter = (value, name)
-            self.setters[name] = (ParameterSource.MODEL_ATTRIBUTE, setter, required)
+            self.setters[name] = (ParameterSource.MODEL_PARAMETER, setter, required)
             sampled_value = value.parameters[name]
         else:
             # Case 4: The value is constant (including None).
@@ -327,8 +327,8 @@ class ParameterizedNode:
         -----
         * Checks multiple sources in the following order: Manually specified ``value``,
           an entry in ``kwargs``, or ``None``.
-        * Sets an initial value for the attribute based on the given information.
-        * The attributes are stored in the order in which they are added.
+        * Sets an initial value for the model parameter based on the given information.
+        * The model parameters are stored in the order in which they are added.
 
         Parameters
         ----------
@@ -341,7 +341,7 @@ class ParameterizedNode:
             Fail if the parameter is set to ``None``.
             Default = ``False``
         allow_overwrite : `bool`
-            Allow a subclass to overwrite the definition of the attribute
+            Allow a subclass to overwrite the definition of the parameter
             used in the superclass.
             Default = ``False``
         **kwargs : `dict`, optional
@@ -355,7 +355,7 @@ class ParameterizedNode:
         """
         # Check for parameter collision and add a place holder value.
         if hasattr(self, name) and name not in self.parameters:
-            raise KeyError(f"Parameter name {name} conflicts with a predefined object attribute.")
+            raise KeyError(f"Parameter name {name} conflicts with a predefined model parameter.")
         if self.parameters.get(name, None) is not None and not allow_overwrite:
             raise KeyError(f"Duplicate parameter set: {name}")
         self.parameters[name] = None
@@ -367,7 +367,7 @@ class ParameterizedNode:
 
         # Create a callable getter function using. We override the __self__ and __name__
         # attributes so it looks like method of this object.
-        # This allows us to reference the attribute as object.attribute for chaining.
+        # This allows us to reference the parameter as object.parameter_name for chaining.
         def getter():
             return self.parameters[name]
 
@@ -404,13 +404,13 @@ class ParameterizedNode:
 
         # Run through each parameter and sample it based on the given recipe.
         # As of Python 3.7 dictionaries are guaranteed to preserve insertion ordering,
-        # so this will iterate through attributes in the order they were inserted.
+        # so this will iterate through model parameters in the order they were inserted.
         for name, (source_type, setter, _) in self.setters.items():
             sampled_value = None
             if source_type == ParameterSource.CONSTANT:
                 sampled_value = setter
-            elif source_type == ParameterSource.MODEL_ATTRIBUTE:
-                # Check if we need to resample the parent (before accessing the attribute).
+            elif source_type == ParameterSource.MODEL_PARAMETER:
+                # Check if we need to resample the parent (before accessing the model parameter).
                 if setter[0] not in seen_nodes:
                     setter[0]._sample_helper(depth - 1, seen_nodes, **kwargs)
                 sampled_value = setter[0].parameters[setter[1]]
@@ -472,13 +472,13 @@ class ParameterizedNode:
         seen : `set`
             A set of objects that have already been processed.
         recursive : `bool`
-            Recursively extract the attribute setting of this object's dependencies.
+            Recursively extract the model parameter settings of this object's dependencies.
 
         Returns
         -------
         values : `dict`
             The dictionary mapping the combination of the object identifier and
-            attribute name to its value.
+            model parameter name to its value.
         """
         # If we haven't processed the nodes yet, do that.
         if self._node_pos is None:
@@ -495,7 +495,7 @@ class ParameterizedNode:
         all_values = {}
         for name, (source_type, setter, _) in self.setters.items():
             if recursive:
-                if source_type == ParameterSource.MODEL_ATTRIBUTE:
+                if source_type == ParameterSource.MODEL_PARAMETER:
                     all_values.update(setter[0].get_all_parameter_values(True, seen))
                 elif source_type == ParameterSource.MODEL_METHOD:
                     all_values.update(setter.__self__.get_all_parameter_values(True, seen))
@@ -546,7 +546,7 @@ class FunctionNode(ParameterizedNode):
     args_names : `list`
         A list of argument names to pass to the function.
     outputs : `list` of `str`
-        The output attributes of this function.
+        The output model parameters of this function.
     num_outputs : `int`
         The number of outputs.
 
@@ -557,8 +557,8 @@ class FunctionNode(ParameterizedNode):
     node_identifier : `str`, optional
         An identifier (or name) for the current node.
     outputs : `list` of `str`, optional
-        The output attributes of this function. If ``None`` uses
-        a single attribute ``result``.
+        The output model parameters of this function. If ``None`` uses
+        a single model parameter ``result``.
     **kwargs : `dict`, optional
         Any additional keyword arguments.
 

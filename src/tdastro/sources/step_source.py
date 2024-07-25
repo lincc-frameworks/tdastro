@@ -6,7 +6,7 @@ from tdastro.sources.static_source import StaticSource
 class StepSource(StaticSource):
     """A static source that is on for a fixed amount of time
 
-    Attributes
+    Parameters
     ----------
     brightness : `float`
         The inherent brightness
@@ -14,6 +14,8 @@ class StepSource(StaticSource):
         The time the step function starts
     t1 : `float`
         The time the step function ends
+    **kwargs : `dict`, optional
+        Any additional keyword arguments.
     """
 
     def __init__(self, brightness, t0, t1, **kwargs):

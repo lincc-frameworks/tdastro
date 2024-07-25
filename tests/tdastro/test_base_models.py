@@ -32,7 +32,7 @@ def _test_func(value1, value2):
 class PairModel(ParameterizedNode):
     """A test class for the ParameterizedNode.
 
-    Attributes
+    Parameters
     ----------
     value1 : `float`
         The first value.
@@ -40,6 +40,8 @@ class PairModel(ParameterizedNode):
         The second value.
     value_sum : `float`
         The sum of the two values.
+    **kwargs : `dict`, optional
+        Any additional keyword arguments.
     """
 
     def __init__(self, value1, value2, **kwargs):
@@ -128,7 +130,7 @@ def test_parameterized_node():
 
 
 def test_parameterized_node_overwrite():
-    """Test that we can overwrite attributes in a PairModel."""
+    """Test that we can overwrite parameters in a PairModel."""
     model1 = PairModel(value1=0.5, value2=0.5)
     assert model1["value1"] == 0.5
     assert model1["value2"] == 0.5
@@ -144,8 +146,8 @@ def test_parameterized_node_overwrite():
     assert model1["value1"] == 1.0
 
 
-def test_parameterized_node_attributes():
-    """Test that we can extract the attributes of a graph of ParameterizedNode."""
+def test_parameterized_node_parameters():
+    """Test that we can extract the parameters of a graph of ParameterizedNode."""
     model1 = PairModel(value1=0.5, value2=1.5, node_identifier="1")
     settings = model1.get_all_parameter_values(False)
     assert len(settings) == 3
@@ -153,7 +155,7 @@ def test_parameterized_node_attributes():
     assert settings["value2"] == 1.5
     assert settings["value_sum"] == 2.0
 
-    # The model has 5 attributes in the graph: 3 in model1 and 2
+    # The model has 5 parameters in the graph: 3 in model1 and 2
     # in its summation FunctionNode. Note Node ID's are -1 until
     # reset or sample is called for the first time.
     settings = model1.get_all_parameter_values(True)
@@ -181,7 +183,7 @@ def test_parameterized_node_attributes():
 
 
 def test_parameterized_node_get_dependencies():
-    """Test that we can extract the attributes of a graph of ParameterizedNode."""
+    """Test that we can extract the parameters of a graph of ParameterizedNode."""
     model1 = PairModel(value1=0.5, value2=1.5, node_identifier="1")
     assert len(model1.direct_dependencies) == 0
 
@@ -331,13 +333,13 @@ def test_function_node_obj():
     model = PairModel(value1=10.0, value2=func)
     assert model.result() == 21.0
 
-    # Function depends on the model's value2 attribute.
+    # Function depends on the model's value2 parameter.
     model = PairModel(value1=-10.0, value2=17.5)
     func = FunctionNode(_test_func, value1=5.0, value2=model.value2)
     assert model.result() == 7.5
     assert func.compute() == 22.5
 
-    # We can always override the attributes with kwargs.
+    # We can always override the node's parameters with kwargs.
     assert func.compute(value1=1.0, value2=4.0) == 5.0
 
 

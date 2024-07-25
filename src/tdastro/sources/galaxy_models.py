@@ -7,13 +7,15 @@ from tdastro.sources.physical_model import PhysicalModel
 class GaussianGalaxy(PhysicalModel):
     """A static source.
 
-    Attributes
+    Parameters
     ----------
     radius_std : `float`
         The standard deviation of the brightness as we move away
         from the galaxy's center (in degrees).
     brightness : `float`
         The inherent brightness at the center of the galaxy.
+    **kwargs : `dict`, optional
+        Any additional keyword arguments.
     """
 
     def __init__(self, brightness, radius, **kwargs):

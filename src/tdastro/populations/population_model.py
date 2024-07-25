@@ -64,7 +64,7 @@ class PopulationModel(ParameterizedNode):
         Raises
         ------
         Raises a ``AttributeError`` if the PhysicalModel does not have all of the
-        required attributes.
+        required model parameters.
         """
         for source in self.sources:
             source.add_effect(effect, allow_dups=allow_dups, **kwargs)

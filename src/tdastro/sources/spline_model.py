@@ -25,8 +25,6 @@ class SplineModel(PhysicalModel):
         The spline object for predicting the flux from a given (time, wavelength).
     name : `str`
         The name of the model being used.
-    amplitude : `float`
-        A unitless scaling parameter for the flux density values.
 
     Parameters
     ----------

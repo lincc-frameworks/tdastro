@@ -8,10 +8,13 @@ class WhiteNoise(EffectModel):
 
     Attributes
     ----------
-    scale : `float`
-        The scale of the noise.
     _rng : `numpy.random._generator.Generator`
         This object's random number generator.
+
+    Parameters
+    ----------
+    scale : `float`
+        The scale of the noise.
     """
 
     def __init__(self, scale, **kwargs):

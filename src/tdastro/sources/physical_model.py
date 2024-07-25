@@ -7,13 +7,22 @@ from tdastro.base_models import ParameterizedNode
 class PhysicalModel(ParameterizedNode):
     """A physical model of a source of flux.
 
-    Physical models can have fixed attributes (where you need to create a new model
-    to change them) and settable attributes that can be passed functions or constants.
-    They can also have special background pointers that link to another PhysicalModel
+    Physical models can have fixed attributes (where you need to create a new model or use
+    a setter function to change them) and settable model parameters that can be passed functions
+    or constants and are automatically updated by resampling the model parameters.
+
+    Physical models  can also have special background pointers that link to another PhysicalModel
     producing flux. We can chain these to have a supernova in front of a star in front
     of a static background.
 
     Attributes
+    ----------
+    background : `PhysicalModel`
+        A source of background flux such as a host galaxy.
+    effects : `list`
+        A list of effects to apply to an observations.
+
+    Parameters
     ----------
     ra : `float`
         The object's right ascension (in degrees)
@@ -27,8 +36,8 @@ class PhysicalModel(ParameterizedNode):
         the redshift and the cosmology.
     background : `PhysicalModel`
         A source of background flux such as a host galaxy.
-    effects : `list`
-        A list of effects to apply to an observations.
+    **kwargs : `dict`, optional
+        Any additional keyword arguments.
     """
 
     def __init__(self, ra=None, dec=None, redshift=None, distance=None, background=None, **kwargs):
@@ -70,7 +79,7 @@ class PhysicalModel(ParameterizedNode):
         Raises
         ------
         Raises a ``AttributeError`` if the PhysicalModel does not have all of the
-        required attributes.
+        required model parameters.
         """
         # Check that we have not added this effect before.
         if not allow_dups:
