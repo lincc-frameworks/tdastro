@@ -1,25 +1,36 @@
 """The base models used to specify the TDAstro computation graph.
 
-The computation graph is composed of ParameterizedNodes which store variables
-and encode the dependencies between individual attributes. We say that variable
-X is dependent on variable Y if the value of Y is necessary to compute the value
-of X. Thus dependencies impose an ordering of variables in the graph. Y must
-be computed before X.
+The computation graph is composed of ParameterizedNodes which store random variables
+(called "model parameters" or "parameters" for short) and encode the dependencies between
+them. Model parameters are different from object variables in that they are programmatically
+set by sampling from the graph. They are stored in a special parameters dictionary and have
+limited write access.
 
-All dynamic attributes (variables whose values change when the graph is resampled)
-in the graph must be added using ParameterizedNode.add_parameter(). This allows the graph
-to track which variables to update and how to set them. Attributes can be set from a few
+All model parameters (random variables in the probabilistic graph) must be added using
+using the ParameterizedNode.add_parameter() function. This allows the graph to track
+which parameters to update and how to set them. Parameter's values can be set from a few
 sources:
-1) A constant
+1) A constant (Example: A given standard deviation for a noise model)
 2) A static function or method (which does not have variables that are resampled).
 3) The result of evaluating a FunctionNode, which provides a computation using other
-   variables in the graph.
-4) The attribute of another ParameterizedNode.
+   parameters in the graph.
+4) The parameters of another ParameterizedNode.
 5) The method of another ParameterizedNode.
 
+We say that parameters X is dependent on parameters Y if the value of Y is necessary
+to compute the value of X. For example if X is set by evaluating a FunctionNode that
+uses parameter Y in the computation, X is dependent on Y. The dependencies impose an
+ordering of model parameters in the graph. Y must be computed before X.
+
+ParameterNodes provide semantic groupsing of individual parameters. For example we may
+have a ParameterNode representing the information needed for a Type Ia supernova.
+That node's parameters would include the variables needed to evaluate the supernova's
+lightcurve. Each of these parameters might depend on parameters in other nodes, such
+as those of the host galaxy.
+
 The execution graph is processed by starting at the final node, examining each
-attribute, and recursively proceeding 'up' the graph for any attribute that
-has a dependency. For example the function.
+model parameter for that node, and recursively proceeding 'up' the graph for any'
+of its parameters that has a dependency. For example the function.
 
 f(a, b) = x
 g(c) = y
@@ -33,8 +44,8 @@ b -/     \
           z
 c -- y -- /
 
-where z is the 'bottom' node. Attributes a, b, and c would be at the 'top' of the
-graph because they have no dependencies.  Such attributes are set by constants or
+where z is the 'bottom' node. Parameters a, b, and c would be at the 'top' of the
+graph because they have no dependencies.  Such parameters are set by constants or
 static functions.
 """
 
