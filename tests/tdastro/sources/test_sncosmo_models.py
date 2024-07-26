@@ -33,9 +33,11 @@ def test_sncomso_models_set() -> None:
 
 def test_sncomso_models_chained() -> None:
     """Test that we can create and evalue a 'hsiao' model using randomized parameters."""
+    # Generate the amplitude from a uniform distribution, but use a fixed seed so we have
+    # reproducible tests.
     model = SncosmoWrapperModel(
         "hsiao",
-        amplitude=NumpyRandomFunc("uniform", low=2.0, high=12.0),
+        amplitude=NumpyRandomFunc("uniform", low=2.0, high=12.0, seed=100),
     )
     assert np.array_equal(model.param_names, ["amplitude"])
     assert 2.0 <= model.parameter_values[0] <= 12.0
