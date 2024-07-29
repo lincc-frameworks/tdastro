@@ -29,7 +29,7 @@ lightcurve. Each of these parameters might depend on parameters in other nodes, 
 as those of the host galaxy.
 
 The execution graph is processed by starting at the final node, examining each
-model parameter for that node, and recursively proceeding 'up' the graph for any'
+model parameter for that node, and recursively proceeding 'up' the graph for any
 of its parameters that has a dependency. For example the function.
 
 f(a, b) = x
