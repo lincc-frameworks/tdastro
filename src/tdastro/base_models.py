@@ -17,7 +17,7 @@ sources:
 4) The parameters of another ParameterizedNode.
 5) The method of another ParameterizedNode.
 
-We say that parameters X is dependent on parameters Y if the value of Y is necessary
+We say that parameter X is dependent on parameter Y if the value of Y is necessary
 to compute the value of X. For example if X is set by evaluating a FunctionNode that
 uses parameter Y in the computation, X is dependent on Y. The dependencies impose an
 ordering of model parameters in the graph. Y must be computed before X.
