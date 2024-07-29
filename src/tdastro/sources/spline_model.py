@@ -25,8 +25,6 @@ class SplineModel(PhysicalModel):
         The spline object for predicting the flux from a given (time, wavelength).
     name : `str`
         The name of the model being used.
-    amplitude : `float`
-        A unitless scaling parameter for the flux density values.
 
     Parameters
     ----------
@@ -88,4 +86,4 @@ class SplineModel(PhysicalModel):
         flux_density : `numpy.ndarray`
             A length T x N matrix of SED values.
         """
-        return self.amplitude * self._spline(times, wavelengths, grid=True)
+        return self.parameters["amplitude"] * self._spline(times, wavelengths, grid=True)

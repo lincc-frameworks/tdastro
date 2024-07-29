@@ -37,7 +37,7 @@ class SncosmoWrapperModel(PhysicalModel):
         # Use the kwargs to initialize the sncosmo model's parameters.
         self.source_param_names = []
         for key, value in kwargs.items():
-            if not hasattr(self, key):
+            if key not in self.parameters:
                 self.add_parameter(key, value)
             if key in self.source.param_names:
                 self.source_param_names.append(key)
@@ -57,7 +57,7 @@ class SncosmoWrapperModel(PhysicalModel):
         """Update the parameters for the wrapped sncosmo model."""
         params = {}
         for name in self.source_param_names:
-            params[name] = getattr(self, name)
+            params[name] = self.parameters[name]
         self.source.set(**params)
 
     def get(self, name):

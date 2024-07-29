@@ -8,10 +8,13 @@ class WhiteNoise(EffectModel):
 
     Attributes
     ----------
-    scale : `float`
-        The scale of the noise.
     _rng : `numpy.random._generator.Generator`
         This object's random number generator.
+
+    Parameters
+    ----------
+    scale : `float`
+        The scale of the noise.
     """
 
     def __init__(self, scale, **kwargs):
@@ -44,4 +47,4 @@ class WhiteNoise(EffectModel):
         flux_density : `numpy.ndarray`
             The results.
         """
-        return np.random.normal(loc=flux_density, scale=self.scale)
+        return np.random.normal(loc=flux_density, scale=self.parameters["scale"])

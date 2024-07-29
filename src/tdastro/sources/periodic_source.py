@@ -6,13 +6,15 @@ from tdastro.sources.physical_model import PhysicalModel
 class PeriodicSource(PhysicalModel, ABC):
     """A periodic source.
 
-    Attributes
+    Parameters
     ----------
     period : `float`
         The period of the source, in days.
     t0 : `float`
         The t0 of the zero phase, date. Could be date of the minimum or maximum light
         or any other reference time point.
+    **kwargs : `dict`, optional
+        Any additional keyword arguments.
     """
 
     def __init__(self, period, t0, **kwargs):
@@ -57,7 +59,8 @@ class PeriodicSource(PhysicalModel, ABC):
         flux_density : `numpy.ndarray`
             A length T x N matrix of SED values.
         """
-        phases = (times - self.t0) % self.period / self.period
+        period = self.parameters["period"]
+        phases = (times - self.parameters["t0"]) % period / period
         flux_density = self._evaluate_phases(phases, wavelengths, **kwargs)
 
         return flux_density

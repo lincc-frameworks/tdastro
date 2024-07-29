@@ -1,25 +1,36 @@
 """The base models used to specify the TDAstro computation graph.
 
-The computation graph is composed of ParameterizedNodes which store variables
-and encode the dependencies between individual attributes. We say that variable
-X is dependent on variable Y if the value of Y is necessary to compute the value
-of X. Thus dependencies impose an ordering of variables in the graph. Y must
-be computed before X.
+The computation graph is composed of ParameterizedNodes which store random variables
+(called "model parameters" or "parameters" for short) and encode the dependencies between
+them. Model parameters are different from object variables in that they are programmatically
+set by sampling from the graph. They are stored in a special parameters dictionary and have
+limited write access.
 
-All dynamic attributes (variables whose values change when the graph is resampled)
-in the graph must be added using ParameterizedNode.add_parameter(). This allows the graph
-to track which variables to update and how to set them. Attributes can be set from a few
+All model parameters (random variables in the probabilistic graph) must be added using
+using the ParameterizedNode.add_parameter() function. This allows the graph to track
+which parameters to update and how to set them. Parameter's values can be set from a few
 sources:
-1) A constant
+1) A constant (Example: A given standard deviation for a noise model)
 2) A static function or method (which does not have variables that are resampled).
 3) The result of evaluating a FunctionNode, which provides a computation using other
-   variables in the graph.
-4) The attribute of another ParameterizedNode.
+   parameters in the graph.
+4) The parameters of another ParameterizedNode.
 5) The method of another ParameterizedNode.
 
+We say that parameter X is dependent on parameter Y if the value of Y is necessary
+to compute the value of X. For example if X is set by evaluating a FunctionNode that
+uses parameter Y in the computation, X is dependent on Y. The dependencies impose an
+ordering of model parameters in the graph. Y must be computed before X.
+
+ParameterNodes provide semantic groupsing of individual parameters. For example we may
+have a ParameterNode representing the information needed for a Type Ia supernova.
+That node's parameters would include the variables needed to evaluate the supernova's
+lightcurve. Each of these parameters might depend on parameters in other nodes, such
+as those of the host galaxy.
+
 The execution graph is processed by starting at the final node, examining each
-attribute, and recursively proceeding 'up' the graph for any attribute that
-has a dependency. For example the function.
+model parameter for that node, and recursively proceeding 'up' the graph for any
+of its parameters that has a dependency. For example the function.
 
 f(a, b) = x
 g(c) = y
@@ -33,12 +44,11 @@ b -/     \
           z
 c -- y -- /
 
-where z is the 'bottom' node. Attributes a, b, and c would be at the 'top' of the
-graph because they have no dependencies.  Such attributes are set by constants or
+where z is the 'bottom' node. Parameters a, b, and c would be at the 'top' of the
+graph because they have no dependencies.  Such parameters are set by constants or
 static functions.
 """
 
-import types
 from enum import Enum
 from hashlib import md5
 from os import urandom
@@ -52,7 +62,7 @@ class ParameterSource(Enum):
     """
 
     CONSTANT = 1
-    MODEL_ATTRIBUTE = 2
+    MODEL_PARAMETER = 2
     MODEL_METHOD = 3
     FUNCTION_NODE = 4
 
@@ -67,8 +77,10 @@ class ParameterizedNode:
         An optional identifier (name) for the current node.
     setters : `dict` of `tuple`
         A dictionary to information about the setters for the parameters in the form:
-        (ParameterSource, setter information, required). The attributes are
+        (ParameterSource, setter information, required). The model parameters are
         stored in the order in which they need to be set.
+    values : `dict`
+        A dictionary mapping the parameter's name to its current value.
     direct_dependencies : `dict`
         A dictionary with keys of other ParameterizedNodes on that this node needs to
         directly access. We use a dictionary to preserve ordering.
@@ -91,6 +103,7 @@ class ParameterizedNode:
 
     def __init__(self, node_identifier=None, **kwargs):
         self.setters = {}
+        self.parameters = {}
         self.direct_dependencies = {}
         self.node_identifier = node_identifier
         self._node_pos = None
@@ -177,7 +190,7 @@ class ParameterizedNode:
         # Reset the variables if needed.
         if reset_variables:
             for name in self.setters:
-                setattr(self, name, None)
+                self.parameters[name] = None
 
         # Recursively update any direct dependencies.
         for dep in self.direct_dependencies:
@@ -188,7 +201,7 @@ class ParameterizedNode:
         self.direct_dependencies = {}
         for source_type, setter, _ in self.setters.values():
             current = None
-            if source_type == ParameterSource.MODEL_ATTRIBUTE:
+            if source_type == ParameterSource.MODEL_PARAMETER:
                 current = setter[0]
             elif source_type == ParameterSource.MODEL_METHOD:
                 current = setter.__self__
@@ -198,13 +211,37 @@ class ParameterizedNode:
             if current is not None and current is not self:
                 self.direct_dependencies[current] = True
 
+    def __getitem__(self, key):
+        return self.parameters[key]
+
+    def get_parameter(self, name):
+        """Get the settable parameter with the given name.
+
+        Parameters
+        ----------
+        name : `str`
+            The name of the parameter to retrieve.
+
+        Returns
+        -------
+        any
+            The value of the parameter
+
+        Raises
+        ------
+        ``AttributeError`` if the parameter is not in the list.
+        """
+        if name not in self.parameters:
+            raise AttributeError(f"Cannot find parameter {name} in {str(self)}")
+        return self.parameters[name]
+
     def set_parameter(self, name, value=None, **kwargs):
         """Set a single *existing* parameter to the ParameterizedNode.
 
         Notes
         -----
-        * Sets an initial value for the attribute based on the given information.
-        * The attributes are stored in the order in which they are added.
+        * Sets an initial value for the model parameter based on the given information.
+        * The model parameters are stored in the order in which they are added.
 
         Parameters
         ----------
@@ -234,18 +271,21 @@ class ParameterizedNode:
 
         sampled_value = None
         if callable(value):
-            if isinstance(value, types.FunctionType):
-                # Case 1a: This is a static function (not attached to an object).
-                # Wrap the function in a FunctionNode.
-                func_node = FunctionNode(value, **kwargs)
-                self.setters[name] = (ParameterSource.FUNCTION_NODE, func_node, required)
-                sampled_value = func_node.compute()
-            elif isinstance(value.__self__, ParameterizedNode):
-                # Case 1b: This is a method attached to another ParameterizedNode.
-                self.setters[name] = (ParameterSource.MODEL_METHOD, value, required)
-                sampled_value = value(**kwargs)
+            if "__self__" in value.__dir__() and isinstance(value.__self__, ParameterizedNode):
+                # Case 1a: This is a method attached to another ParameterizedNode.
+
+                # Check if this is a getter method. If so, we access the parameter directly
+                # to save a function call.
+                method_name = value.__name__
+                parent = value.__self__
+                if method_name in parent.parameters:
+                    self.setters[name] = (ParameterSource.MODEL_PARAMETER, (parent, method_name), required)
+                    sampled_value = parent.parameters[method_name]
+                else:
+                    self.setters[name] = (ParameterSource.MODEL_METHOD, value, required)
+                    sampled_value = value(**kwargs)
             else:
-                # Case 1c: This is a general callable method from another object.
+                # Case 1b: This is a general function or callable method from another object.
                 # We treat it as static (we don't resample the other object) and
                 # wrap it in a FunctionNode.
                 func_node = FunctionNode(value, **kwargs)
@@ -256,28 +296,17 @@ class ParameterizedNode:
             self.setters[name] = (ParameterSource.FUNCTION_NODE, value, required)
             sampled_value = value.compute(**kwargs)
         elif isinstance(value, ParameterizedNode):
-            # Case 3a: We are trying to access a parameter of a ParameterizedNode
+            # Case 3: We are trying to access a parameter of a ParameterizedNode
             # with the same name.
             if value == self:
-                raise ValueError(f"Attribute {name} is recursively assigned to self.{name}.")
-            if not hasattr(value, name):
-                raise ValueError(f"Attribute {name} missing from {str(value)}.")
-            if callable(getattr(value, name)):
-                raise ValueError(f"{value}.{name} is callable and should be an attribute.")
+                raise ValueError(f"Parameter {name} is recursively assigned to self.{name}.")
+            if name not in value.parameters:
+                raise ValueError(f"Parameter {name} missing from {str(value)}.")
 
-            # We store MODEL_ATTRIBUTE setters as a tuple of (object, attribute_name).
+            # We store MODEL_PARAMETER setters as a tuple of (object, parameter_name).
             setter = (value, name)
-            self.setters[name] = (ParameterSource.MODEL_ATTRIBUTE, setter, required)
-            sampled_value = getattr(setter[0], setter[1])
-        elif isinstance(value, tuple) and len(value) >= 2 and isinstance(value[0], ParameterizedNode):
-            # Case 3b: We are trying to access a parameter of a ParameterizedNode
-            # with a different name.
-            if not hasattr(value[0], value[1]):
-                raise ValueError(f"Attribute {value[1]} missing from {str(value[0])}.")
-            elif callable(getattr(value[0], value[1])):
-                raise ValueError(f"{value[0]}.{value[1]} is callable and should be an attribute.")
-            self.setters[name] = (ParameterSource.MODEL_ATTRIBUTE, value, required)
-            sampled_value = getattr(value[0], value[1])
+            self.setters[name] = (ParameterSource.MODEL_PARAMETER, setter, required)
+            sampled_value = value.parameters[name]
         else:
             # Case 4: The value is constant (including None).
             self.setters[name] = (ParameterSource.CONSTANT, value, required)
@@ -286,7 +315,7 @@ class ParameterizedNode:
         # Check that we did get a parameter.
         if required and sampled_value is None:
             raise ValueError(f"Missing required parameter {name}")
-        setattr(self, name, sampled_value)
+        self.parameters[name] = sampled_value
 
         # Update the dependencies to account for any new nodes in the graph.
         self._update_dependencies()
@@ -298,8 +327,8 @@ class ParameterizedNode:
         -----
         * Checks multiple sources in the following order: Manually specified ``value``,
           an entry in ``kwargs``, or ``None``.
-        * Sets an initial value for the attribute based on the given information.
-        * The attributes are stored in the order in which they are added.
+        * Sets an initial value for the model parameter based on the given information.
+        * The model parameters are stored in the order in which they are added.
 
         Parameters
         ----------
@@ -312,7 +341,7 @@ class ParameterizedNode:
             Fail if the parameter is set to ``None``.
             Default = ``False``
         allow_overwrite : `bool`
-            Allow a subclass to overwrite the definition of the attribute
+            Allow a subclass to overwrite the definition of the parameter
             used in the superclass.
             Default = ``False``
         **kwargs : `dict`, optional
@@ -324,14 +353,27 @@ class ParameterizedNode:
         cannot be found.
         Raise a ``ValueError`` if the parameter is required, but set to None.
         """
-        # Check for parameter collision.
-        if hasattr(self, name) and getattr(self, name) is not None and not allow_overwrite:
+        # Check for parameter collision and add a place holder value.
+        if hasattr(self, name) and name not in self.parameters:
+            raise KeyError(f"Parameter name {name} conflicts with a predefined model parameter.")
+        if self.parameters.get(name, None) is not None and not allow_overwrite:
             raise KeyError(f"Duplicate parameter set: {name}")
+        self.parameters[name] = None
 
         # Add an entry for the setter function and fill in the remaining
         # information using set_parameter().
         self.setters[name] = (None, None, required)
         self.set_parameter(name, value, **kwargs)
+
+        # Create a callable getter function using. We override the __self__ and __name__
+        # attributes so it looks like method of this object.
+        # This allows us to reference the parameter as object.parameter_name for chaining.
+        def getter():
+            return self.parameters[name]
+
+        getter.__self__ = self
+        getter.__name__ = name
+        setattr(self, name, getter)
 
     def _sample_helper(self, depth, seen_nodes, **kwargs):
         """Internal recursive function to sample the model's underlying parameters
@@ -362,16 +404,16 @@ class ParameterizedNode:
 
         # Run through each parameter and sample it based on the given recipe.
         # As of Python 3.7 dictionaries are guaranteed to preserve insertion ordering,
-        # so this will iterate through attributes in the order they were inserted.
+        # so this will iterate through model parameters in the order they were inserted.
         for name, (source_type, setter, _) in self.setters.items():
             sampled_value = None
             if source_type == ParameterSource.CONSTANT:
                 sampled_value = setter
-            elif source_type == ParameterSource.MODEL_ATTRIBUTE:
-                # Check if we need to resample the parent (before accessing the attribute).
+            elif source_type == ParameterSource.MODEL_PARAMETER:
+                # Check if we need to resample the parent (before accessing the model parameter).
                 if setter[0] not in seen_nodes:
                     setter[0]._sample_helper(depth - 1, seen_nodes, **kwargs)
-                sampled_value = getattr(setter[0], setter[1])
+                sampled_value = setter[0].parameters[setter[1]]
             elif source_type == ParameterSource.MODEL_METHOD:
                 # Check if we need to resample the parent (before calling the method).
                 parent_node = setter.__self__
@@ -385,7 +427,7 @@ class ParameterizedNode:
                 sampled_value = setter.compute(**kwargs)
             else:
                 raise ValueError(f"Unknown ParameterSource type {source_type} for {name}")
-            setattr(self, name, sampled_value)
+            self.parameters[name] = sampled_value
 
     def sample_parameters(self, **kwargs):
         """Sample the model's underlying parameters if they are provided by a function
@@ -430,13 +472,13 @@ class ParameterizedNode:
         seen : `set`
             A set of objects that have already been processed.
         recursive : `bool`
-            Recursively extract the attribute setting of this object's dependencies.
+            Recursively extract the model parameter settings of this object's dependencies.
 
         Returns
         -------
         values : `dict`
             The dictionary mapping the combination of the object identifier and
-            attribute name to its value.
+            model parameter name to its value.
         """
         # If we haven't processed the nodes yet, do that.
         if self._node_pos is None:
@@ -450,21 +492,21 @@ class ParameterizedNode:
             return {}
         seen.add(self)
 
-        values = {}
+        all_values = {}
         for name, (source_type, setter, _) in self.setters.items():
             if recursive:
-                if source_type == ParameterSource.MODEL_ATTRIBUTE:
-                    values.update(setter[0].get_all_parameter_values(True, seen))
+                if source_type == ParameterSource.MODEL_PARAMETER:
+                    all_values.update(setter[0].get_all_parameter_values(True, seen))
                 elif source_type == ParameterSource.MODEL_METHOD:
-                    values.update(setter.__self__.get_all_parameter_values(True, seen))
+                    all_values.update(setter.__self__.get_all_parameter_values(True, seen))
                 elif source_type == ParameterSource.FUNCTION_NODE:
-                    values.update(setter.get_all_parameter_values(True, seen))
+                    all_values.update(setter.get_all_parameter_values(True, seen))
 
                 full_name = f"{str(self)}.{name}"
             else:
                 full_name = name
-            values[full_name] = getattr(self, name)
-        return values
+            all_values[full_name] = self.parameters[name]
+        return all_values
 
 
 class SingleVariableNode(ParameterizedNode):
@@ -504,7 +546,7 @@ class FunctionNode(ParameterizedNode):
     args_names : `list`
         A list of argument names to pass to the function.
     outputs : `list` of `str`
-        The output attributes of this function.
+        The output model parameters of this function.
     num_outputs : `int`
         The number of outputs.
 
@@ -515,8 +557,8 @@ class FunctionNode(ParameterizedNode):
     node_identifier : `str`, optional
         An identifier (or name) for the current node.
     outputs : `list` of `str`, optional
-        The output attributes of this function. If ``None`` uses
-        a single attribute ``result``.
+        The output model parameters of this function. If ``None`` uses
+        a single model parameter ``result``.
     **kwargs : `dict`, optional
         Any additional keyword arguments.
 
@@ -552,7 +594,7 @@ class FunctionNode(ParameterizedNode):
 
         # Add the output arguments.
         if not outputs:
-            outputs = ["result"]
+            outputs = ["function_node_result"]
         self.outputs = outputs
         self.num_outputs = len(outputs)
         for name in outputs:
@@ -575,7 +617,7 @@ class FunctionNode(ParameterizedNode):
             if key in kwargs:
                 args[key] = kwargs[key]
             else:
-                args[key] = getattr(self, key)
+                args[key] = self.parameters[key]
         return args
 
     def _sample_helper(self, depth, seen_nodes, **kwargs):
@@ -623,7 +665,7 @@ class FunctionNode(ParameterizedNode):
         args = self._build_args_dict(**kwargs)
         results = self.func(**args)
         if self.num_outputs == 1:
-            setattr(self, f"{self.outputs[0]}", results)
+            self.parameters[self.outputs[0]] = results
         else:
             if len(results) != self.num_outputs:
                 raise ValueError(
@@ -631,6 +673,6 @@ class FunctionNode(ParameterizedNode):
                     f"Expected {self.outputs}, but got {results}."
                 )
             for i in range(self.num_outputs):
-                setattr(self, f"{self.outputs[i]}", results[i])
+                self.parameters[self.outputs[i]] = results[i]
 
         return results

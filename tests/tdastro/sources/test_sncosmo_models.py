@@ -6,7 +6,7 @@ from tdastro.util_nodes.np_random import NumpyRandomFunc
 def test_sncomso_models_hsiao() -> None:
     """Test that we can create and evalue a 'hsiao' model."""
     model = SncosmoWrapperModel("hsiao", amplitude=1.0e-10)
-    assert model.amplitude == 1.0e-10
+    assert model["amplitude"] == 1.0e-10
     assert str(model) == "tdastro.sources.sncomso_models.SncosmoWrapperModel"
 
     assert np.array_equal(model.param_names, ["amplitude"])
@@ -26,7 +26,7 @@ def test_sncomso_models_set() -> None:
     assert np.array_equal(model.parameter_values, [1.0])
 
     model.set(amplitude=100.0)
-    assert model.amplitude == 100.0
+    assert model["amplitude"] == 100.0
     assert np.array_equal(model.param_names, ["amplitude"])
     assert np.array_equal(model.parameter_values, [100.0])
 

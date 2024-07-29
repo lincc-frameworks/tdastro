@@ -32,7 +32,7 @@ def _test_func(value1, value2):
 class PairModel(ParameterizedNode):
     """A test class for the ParameterizedNode.
 
-    Attributes
+    Parameters
     ----------
     value1 : `float`
         The first value.
@@ -40,6 +40,8 @@ class PairModel(ParameterizedNode):
         The second value.
     value_sum : `float`
         The sum of the two values.
+    **kwargs : `dict`, optional
+        Any additional keyword arguments.
     """
 
     def __init__(self, value1, value2, **kwargs):
@@ -50,7 +52,7 @@ class PairModel(ParameterizedNode):
 
     def get_value1(self):
         """Get the value of value1."""
-        return self.value1
+        return self["value1"]
 
     def result(self, **kwargs):
         """Add the pair of values together
@@ -65,25 +67,25 @@ class PairModel(ParameterizedNode):
         result : `float`
             The result of the addition.
         """
-        return self.value1 + self.value2
+        return self["value1"] + self["value2"]
 
 
 def test_parameterized_node():
     """Test that we can sample and create a PairModel object."""
     # Simple addition
     model1 = PairModel(value1=0.5, value2=0.5)
-    assert model1.value1 == 0.5
-    assert model1.value1 == 0.5
+    assert model1["value1"] == 0.5
+    assert model1["value2"] == 0.5
     assert model1.result() == 1.0
-    assert model1.value_sum == 1.0
+    assert model1["value_sum"] == 1.0
     assert str(model1) == "test_base_models.PairModel"
 
     # Use value1=model.value and value2=1.0
-    model2 = PairModel(value1=model1, value2=1.0, node_identifier="test")
-    assert model2.value1 == 0.5
-    assert model2.value2 == 1.0
+    model2 = PairModel(value1=model1.value1, value2=1.0, node_identifier="test")
+    assert model2["value1"] == 0.5
+    assert model2["value2"] == 1.0
     assert model2.result() == 1.5
-    assert model2.value_sum == 1.5
+    assert model2["value_sum"] == 1.5
     assert str(model2) == "test=test_base_models.PairModel"
 
     # If we set an ID it shows up in the name.
@@ -92,48 +94,48 @@ def test_parameterized_node():
 
     # Compute value1 from model2's result and value2 from the sampler function.
     # The sampler function is auto-wrapped in a FunctionNode.
-    model3 = PairModel(value1=(model2, "value_sum"), value2=_sampler_fun)
-    rand_val = model3.value2
+    model3 = PairModel(value1=model2.value_sum, value2=_sampler_fun)
+    rand_val = model3["value2"]
     assert model3.result() == pytest.approx(1.5 + rand_val)
-    assert model3.value_sum == pytest.approx(1.5 + rand_val)
+    assert model3["value_sum"] == pytest.approx(1.5 + rand_val)
 
     # Compute value1 from model3's result (which is itself the result for model2 +
     # a random value) and value2 = -1.0.
-    model4 = PairModel(value1=(model3, "value_sum"), value2=-1.0)
+    model4 = PairModel(value1=model3.value_sum, value2=-1.0)
     assert model4.result() == pytest.approx(0.5 + rand_val)
-    assert model4.value_sum == pytest.approx(0.5 + rand_val)
+    assert model4["value_sum"] == pytest.approx(0.5 + rand_val)
     final_res = model4.result()
 
     # We can resample and it should change the result.
-    while model3.value2 == rand_val:
+    while model3["value2"] == rand_val:
         model4.sample_parameters()
-    rand_val = model3.value2
+    rand_val = model3["value2"]
 
     # Nothing changes in model1 or model2
-    assert model1.value1 == 0.5
-    assert model1.value2 == 0.5
+    assert model1["value1"] == 0.5
+    assert model1["value2"] == 0.5
     assert model1.result() == 1.0
-    assert model1.value_sum == 1.0
-    assert model2.value1 == 0.5
-    assert model2.value2 == 1.0
+    assert model1["value_sum"] == 1.0
+    assert model2["value1"] == 0.5
+    assert model2["value2"] == 1.0
     assert model2.result() == 1.5
-    assert model2.value_sum == 1.5
+    assert model2["value_sum"] == 1.5
 
     # Models 3 and 4 use the data from the new random value.
     assert model3.result() == pytest.approx(1.5 + rand_val)
     assert model4.result() == pytest.approx(0.5 + rand_val)
-    assert model3.value_sum == pytest.approx(1.5 + rand_val)
-    assert model4.value_sum == pytest.approx(0.5 + rand_val)
+    assert model3["value_sum"] == pytest.approx(1.5 + rand_val)
+    assert model4["value_sum"] == pytest.approx(0.5 + rand_val)
     assert final_res != model4.result()
 
 
 def test_parameterized_node_overwrite():
-    """Test that we can overwrite attributes in a PairModel."""
+    """Test that we can overwrite parameters in a PairModel."""
     model1 = PairModel(value1=0.5, value2=0.5)
-    assert model1.value1 == 0.5
-    assert model1.value1 == 0.5
+    assert model1["value1"] == 0.5
+    assert model1["value2"] == 0.5
     assert model1.result() == 1.0
-    assert model1.value_sum == 1.0
+    assert model1["value_sum"] == 1.0
 
     # By default the overwrite fails.
     with pytest.raises(KeyError):
@@ -141,11 +143,11 @@ def test_parameterized_node_overwrite():
 
     # We can force it with allow_overwrite=True.
     model1.add_parameter("value1", value=1.0, allow_overwrite=True)
-    assert model1.value1 == 1.0
+    assert model1["value1"] == 1.0
 
 
-def test_parameterized_node_attributes():
-    """Test that we can extract the attributes of a graph of ParameterizedNode."""
+def test_parameterized_node_parameters():
+    """Test that we can extract the parameters of a graph of ParameterizedNode."""
     model1 = PairModel(value1=0.5, value2=1.5, node_identifier="1")
     settings = model1.get_all_parameter_values(False)
     assert len(settings) == 3
@@ -153,7 +155,7 @@ def test_parameterized_node_attributes():
     assert settings["value2"] == 1.5
     assert settings["value_sum"] == 2.0
 
-    # The model has 5 attributes in the graph: 3 in model1 and 2
+    # The model has 5 parameters in the graph: 3 in model1 and 2
     # in its summation FunctionNode. Note Node ID's are -1 until
     # reset or sample is called for the first time.
     settings = model1.get_all_parameter_values(True)
@@ -163,7 +165,7 @@ def test_parameterized_node_attributes():
     assert settings["0: 1=test_base_models.PairModel.value_sum"] == 2.0
 
     # Use value1=model.value1 and value2=3.0
-    model2 = PairModel(value1=model1, value2=3.0, node_identifier="2")
+    model2 = PairModel(value1=model1.value1, value2=3.0, node_identifier="2")
     settings = model2.get_all_parameter_values(False)
     assert len(settings) == 3
     assert settings["value1"] == 0.5
@@ -181,15 +183,15 @@ def test_parameterized_node_attributes():
 
 
 def test_parameterized_node_get_dependencies():
-    """Test that we can extract the attributes of a graph of ParameterizedNode."""
+    """Test that we can extract the parameters of a graph of ParameterizedNode."""
     model1 = PairModel(value1=0.5, value2=1.5, node_identifier="1")
     assert len(model1.direct_dependencies) == 0
 
-    model2 = PairModel(value1=model1, value2=3.0, node_identifier="2")
+    model2 = PairModel(value1=model1.value1, value2=3.0, node_identifier="2")
     assert len(model2.direct_dependencies) == 1
     assert model1 in model2.direct_dependencies
 
-    model3 = PairModel(value1=model1, value2=(model2, "value_sum"), node_identifier="3")
+    model3 = PairModel(value1=model1.value1, value2=model2.value_sum, node_identifier="3")
     assert len(model3.direct_dependencies) == 2
     assert model1 in model3.direct_dependencies
     assert model2 in model3.direct_dependencies
@@ -198,8 +200,8 @@ def test_parameterized_node_get_dependencies():
 def test_parameterized_node_modify():
     """Test that we can modify the parameters in a node."""
     model = PairModel(value1=0.5, value2=0.5)
-    assert model.value1 == 0.5
-    assert model.value2 == 0.5
+    assert model["value1"] == 0.5
+    assert model["value2"] == 0.5
 
     # We cannot add a parameter a second time.
     with pytest.raises(KeyError):
@@ -207,8 +209,8 @@ def test_parameterized_node_modify():
 
     # We can set the parameter.
     model.set_parameter("value1", 5.0)
-    assert model.value1 == 5.0
-    assert model.value2 == 0.5
+    assert model["value1"] == 5.0
+    assert model["value2"] == 0.5
 
     # We cannot set a value that hasn't been added.
     with pytest.raises(KeyError):
@@ -269,7 +271,7 @@ def test_parameterized_node_base_seed_fail():
 
     # But if we change the graph to link them, we don't want them
     # to have the same seed.
-    model_b.set_parameter("value1", (model_a, "value_sum"))
+    model_b.set_parameter("value1", model_a.value_sum)
     with pytest.raises(ValueError):
         model_b.sample_parameters()
 
@@ -284,7 +286,7 @@ def test_parameterized_node_base_seed_fail():
 def test_single_variable_node():
     """Test that we can create and query a SingleVariableNode."""
     node = SingleVariableNode("A", 10.0)
-    assert node.A == 10
+    assert node["A"] == 10
     assert str(node) == "tdastro.base_models.SingleVariableNode"
 
 
@@ -331,13 +333,13 @@ def test_function_node_obj():
     model = PairModel(value1=10.0, value2=func)
     assert model.result() == 21.0
 
-    # Function depends on the model's value2 attribute.
+    # Function depends on the model's value2 parameter.
     model = PairModel(value1=-10.0, value2=17.5)
-    func = FunctionNode(_test_func, value1=5.0, value2=model)
+    func = FunctionNode(_test_func, value1=5.0, value2=model.value2)
     assert model.result() == 7.5
     assert func.compute() == 22.5
 
-    # We can always override the attributes with kwargs.
+    # We can always override the node's parameters with kwargs.
     assert func.compute(value1=1.0, value2=4.0) == 5.0
 
 
@@ -347,10 +349,10 @@ def test_function_node_multi():
     def _test_func2(value1, value2):
         return (value1 + value2, value1 - value2)
 
-    func = FunctionNode(_test_func2, outputs=["sum", "diff"], value1=5.0, value2=6.0)
-    func.compute()
+    my_func = FunctionNode(_test_func2, outputs=["sum_res", "diff_res"], value1=5.0, value2=6.0)
+    my_func.compute()
 
-    model = PairModel(value1=(func, "sum"), value2=(func, "diff"))
-    assert model.value1 == 11.0
-    assert model.value2 == -1.0
-    assert model.value_sum == 10.0
+    model = PairModel(value1=my_func.sum_res, value2=my_func.diff_res)
+    assert model["value1"] == 11.0
+    assert model["value2"] == -1.0
+    assert model["value_sum"] == 10.0

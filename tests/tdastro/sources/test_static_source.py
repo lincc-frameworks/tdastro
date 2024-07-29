@@ -20,10 +20,10 @@ def _sampler_fun(magnitude, **kwargs):
 def test_static_source() -> None:
     """Test that we can sample and create a StaticSource object."""
     model = StaticSource(brightness=10.0, node_identifier="my_static_source")
-    assert model.brightness == 10.0
-    assert model.ra is None
-    assert model.dec is None
-    assert model.distance is None
+    assert model.get_parameter("brightness") == 10.0
+    assert model.get_parameter("ra") is None
+    assert model.get_parameter("dec") is None
+    assert model.get_parameter("distance") is None
     assert str(model) == "my_static_source=tdastro.sources.static_source.StaticSource"
 
     times = np.array([1, 2, 3, 4, 5, 10])
@@ -44,11 +44,11 @@ def test_static_source_host() -> None:
     """Test that we can sample and create a StaticSource object with properties
     derived from the host object."""
     host = StaticSource(brightness=15.0, ra=1.0, dec=2.0, distance=3.0)
-    model = StaticSource(brightness=10.0, ra=host, dec=host, distance=host)
-    assert model.brightness == 10.0
-    assert model.ra == 1.0
-    assert model.dec == 2.0
-    assert model.distance == 3.0
+    model = StaticSource(brightness=10.0, ra=host.ra, dec=host.dec, distance=host.distance)
+    assert model.get_parameter("brightness") == 10.0
+    assert model.get_parameter("ra") == 1.0
+    assert model.get_parameter("dec") == 2.0
+    assert model.get_parameter("distance") == 3.0
     assert str(model) == "tdastro.sources.static_source.StaticSource"
 
 
@@ -60,7 +60,7 @@ def test_static_source_resample() -> None:
     values = np.zeros((num_samples, 1))
     for i in range(num_samples):
         model.sample_parameters(magnitude=100.0)
-        values[i] = model.brightness
+        values[i] = model.get_parameter("brightness")
 
     # Check that the values fall within the expected bounds.
     assert np.all(values >= 0.0)

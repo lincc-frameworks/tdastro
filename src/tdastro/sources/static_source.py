@@ -6,10 +6,12 @@ from tdastro.sources.physical_model import PhysicalModel
 class StaticSource(PhysicalModel):
     """A static source.
 
-    Attributes
+    Parameters
     ----------
     brightness : `float`
         The inherent brightness
+    **kwargs : `dict`, optional
+        Any additional keyword arguments.
     """
 
     def __init__(self, brightness, **kwargs):
@@ -26,11 +28,11 @@ class StaticSource(PhysicalModel):
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
         **kwargs : `dict`, optional
-           Any additional keyword arguments.
+            Any additional keyword arguments.
 
         Returns
         -------
         flux_density : `numpy.ndarray`
             A length T x N matrix of SED values.
         """
-        return np.full((len(times), len(wavelengths)), self.brightness)
+        return np.full((len(times), len(wavelengths)), self.parameters["brightness"])
