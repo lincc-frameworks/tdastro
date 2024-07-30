@@ -32,7 +32,7 @@ def test_passbands_get_data_path(tmp_path):
 
         assert os.path.isdir(passbands.data_path)
         assert os.path.isdir(Path(f"{tmp_path}/band_data/"))
-        assert passbands.data_path == Path(f"{tmp_path}/band_data/")
+        assert Path(passbands.data_path) == Path(f"{tmp_path}/band_data/")
 
 
 def test_passbands_load_local_transmission_table():
