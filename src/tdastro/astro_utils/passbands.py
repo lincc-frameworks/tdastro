@@ -37,7 +37,8 @@ class Passbands:
     def _download_transmission_table(self, band_name: str, output_file: str, timeout: int = 30) -> bool:
         """Download a transmission table for a single band and save it to a file.
 
-        Files used are from: http://svo2.cab.inta-csic.es/svo/theory/fps3/index.php?mode=browse&gname=LSST
+        Files used are from:
+        http://svo2.cab.inta-csic.es/svo/theory/fps3/index.php?mode=browse&gname=LSST
 
         Parameters
         ----------
@@ -125,8 +126,8 @@ class Passbands:
         Parameters
         ----------
         transmission_table : np.ndarray
-            A 2D array with wavelengths (Angstrom) in the first column and transmission strengths in the
-            second.
+            A 2D array with wavelengths (Angstrom) in the first column and transmission strengths in
+            the second.
 
         Returns
         -------
@@ -162,15 +163,16 @@ class Passbands:
         response table. A spline model can handle this by using the band's wavelength column as the
         input wavelengths--but, this will be inconvenient for other types of models.
 
-        As of such, we should make another version that interpolates the fluxes to the wavelength grid.
+        Let's consider adding another version that interpolates the normalized system response table
+        to the wavelengths of the input fluxes.
 
         Parameters
         ----------
         flux : np.ndarray
             Array of flux values evaluated at the wavelengths in the normalized system response table.
         normalized_system_response_table : np.ndarray
-            A 2D array with wavelengths (Angstrom) in the first column and normalized system response values
-            in the second.
+            A 2D array with wavelengths (Angstrom) in the first column and normalized system response
+            values in the second.
 
         Returns
         -------
