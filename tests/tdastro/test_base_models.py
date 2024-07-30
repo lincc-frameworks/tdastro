@@ -50,10 +50,6 @@ class PairModel(ParameterizedNode):
         self.add_parameter("value2", value2, required=True, **kwargs)
         self.add_parameter("value_sum", self.result, required=True, **kwargs)
 
-    def get_value1(self):
-        """Get the value of value1."""
-        return self["value1"]
-
     def result(self, **kwargs):
         """Add the pair of values together
 
