@@ -25,11 +25,10 @@ class Passbands:
     def _get_data_path(self):
         """Find/create a data directory for the bandpass data, located in same dir as passbands.py.
 
-        NOTE! This is a temporary solution to be replaced when we implement Pooch throughout the project."""
-        # script_path = os.path.realpath(__file__)
-        # script_dir = os.path.dirname(script_path)
-        # data_dir = os.path.join(script_dir, "band_data")
-
+        Note
+        ----
+        This is a temporary solution to be replaced when we implement Pooch throughout the project.
+        """
         data_dir = os.path.join(Path(__file__).parent, "band_data")
         if not os.path.exists(data_dir):
             os.makedirs(data_dir)
@@ -119,12 +118,14 @@ class Passbands:
     def _phi_b(self, transmission_table: np.ndarray) -> np.ndarray:
         """Calculate the value of phi_b for all wavelengths in a transmission table.
 
-        This is eq. 8 from the LSST Flux Units paper. (TODO write out the equation/proper citation)
+        This is eq. 8 from "On the Choice of LSST Flux Units" (Ivezić et al.):
+
+        φb(λ) = Sb(λ)λ⁻¹ / ∫ Sb(λ)λ⁻¹ dλ
 
         Parameters
         ----------
         transmission_table : np.ndarray
-            A 2D array with wavelengths (Angstroms) in the first column and transmission strengths in the
+            A 2D array with wavelengths (Angstrom) in the first column and transmission strengths in the
             second.
 
         Returns
@@ -134,12 +135,12 @@ class Passbands:
         """
         # No interpolation in this version
         transmission_values = transmission_table[:, 1]
-        wavelengths = transmission_table[:, 0]
+        wavelengths_angstrom = transmission_table[:, 0]
         # Calculate the numerator
-        numerators = transmission_values / wavelengths
+        numerators = transmission_values / wavelengths_angstrom
         # Perform trapezoidal integration over the wavelengths to get the denominators
         denominators = scipy.integrate.trapezoid(
-            transmission_values / wavelengths, x=transmission_table[:, 0]
+            transmission_values / wavelengths_angstrom, x=transmission_table[:, 0]
         )
         # Calculate phi_b for all wavelengths
         return numerators / denominators
@@ -155,18 +156,20 @@ class Passbands:
     def _get_in_band_flux(self, flux: np.ndarray, normalized_system_response_table: np.ndarray) -> float:
         """Calculate the in-band flux for a given flux and normalized system response table.
 
-        NOTE this version requires the input fluxes to match the wavelength grid in the normalized system
+        Note
+        ----
+        This version requires the input fluxes to match the wavelength grid in the normalized system
         response table. A spline model can handle this by using the band's wavelength column as the
-        input wavelengths, but, this will be inconvenient for other types of models.
+        input wavelengths--but, this will be inconvenient for other types of models.
 
-        TODO may want to make another version that interpolates the fluxes to the wavelength grid.
+        As of such, we should make another version that interpolates the fluxes to the wavelength grid.
 
         Parameters
         ----------
         flux : np.ndarray
             Array of flux values evaluated at the wavelengths in the normalized system response table.
         normalized_system_response_table : np.ndarray
-            A 2D array with wavelengths (Angstroms) in the first column and normalized system response values
+            A 2D array with wavelengths (Angstrom) in the first column and normalized system response values
             in the second.
 
         Returns
@@ -181,7 +184,9 @@ class Passbands:
     def get_all_in_band_fluxes(self, model: PhysicalModel, times) -> np.ndarray:
         """Calculate the in-band fluxes for all bands.
 
-        NOTE given model needs to be interpolated or otherwise able to evaluate with arbitrary wavelengths.
+        Note
+        ----
+        The given model needs to be interpolable or otherwise able to be evaluated with arbitrary wavelengths.
 
         Parameters
         ----------
