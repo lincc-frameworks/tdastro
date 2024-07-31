@@ -44,10 +44,10 @@ def test_passbands_load_local_transmission_table():
         np.testing.assert_array_equal(passbands.transmission_tables["test-band"], expected_data)
 
 
-def test_passbands_load_remote_transmission_table():
+def test_passbands_download_transmission_table():
     """Test that we can download a transmission table and load the file contents."""
     with patch("urllib.request.urlretrieve", return_value=True):
-        with patch("os.path.exists", return_value=True):
+        with patch("os.path.getsize", return_value=42):  # Just needs to be non-empty
             passbands = Passbands(bands="test-band")
             assert passbands._download_transmission_table("test-band", "mock_file.dat")
 
@@ -148,7 +148,9 @@ def test_passbands_calculate_normalized_system_response_tables():
         for band_id in band_ids:
             assert band_id in passbands.normalized_system_response_tables  # band_id is in the dictionary
             assert passbands.normalized_system_response_tables[band_id].shape == (3, 2)  # 3 rows, 2 columns
-            assert np.allclose(passbands.normalized_system_response_tables[band_id][:, 1], 0.5)  # vals = 0.5
+            np.testing.assert_allclose(
+                passbands.normalized_system_response_tables[band_id][:, 1], 0.5
+            )  # vals = 0.5
 
 
 def test_passbands_get_in_band_flux():
@@ -166,9 +168,7 @@ def test_passbands_get_in_band_flux():
     # Calculate in-band flux using the method
     calculated_in_band_flux = passbands._get_in_band_flux(flux, normalized_system_response_table)
 
-    assert np.isclose(calculated_in_band_flux, expected_in_band_flux, rtol=1e-9, atol=1e-9)
-
-    # TODO maybe a different check - is this a place where we could try the color thing?
+    np.testing.assert_allclose(calculated_in_band_flux, expected_in_band_flux, rtol=1e-9, atol=1e-9)
 
 
 def test_passbands_get_all_in_band_fluxes():
