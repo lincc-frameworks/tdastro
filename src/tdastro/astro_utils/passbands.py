@@ -141,7 +141,7 @@ class Passbands:
         numerators = transmission_values / wavelengths_angstrom
         # Perform trapezoidal integration over the wavelengths to get the denominators
         denominators = scipy.integrate.trapezoid(
-            transmission_values / wavelengths_angstrom, x=transmission_table[:, 0]
+            transmission_values / wavelengths_angstrom, x=wavelengths_angstrom
         )
         # Calculate phi_b for all wavelengths
         return numerators / denominators
