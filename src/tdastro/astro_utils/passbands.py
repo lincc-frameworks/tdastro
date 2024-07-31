@@ -14,7 +14,23 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 
 
 class Passbands:
-    """Class to handle the transmission tables and normalization for different passbands."""
+    """Class to handle the transmission tables and normalization for different passbands.
+
+    Attributes
+    ----------
+    bands : list
+        A list of strings representing the band names.
+    data_path : str
+        Path to the directory where the bandpass data is stored.
+    transmission_tables : dict
+        A dictionary with band names as keys and transmission tables as values. Transmission tables
+        are 2D arrays with wavelengths (Angstrom) in the first column and transmission strengths in
+        the second.
+    normalized_system_response_tables : dict
+        A dictionary with band names as keys and normalized system response tables as values. These
+        tables are 2D arrays with wavelengths (Angstrom) in the first column and normalized system
+        response values in the second.
+    """
 
     def __init__(self, bands=None):
         if bands is None:
