@@ -73,8 +73,11 @@ class ParameterizedNode:
 
     Attributes
     ----------
-    node_identifier : `str`
-        An optional identifier (name) for the current node.
+    node_label : `str`
+        An optional human readable identifier (name) for the current node.
+    node_string : `str`
+        The full string used to identify a node. This is a combination of the nodes position
+        in the graph (if known), node_label (if provided), and class information.
     setters : `dict` of `tuple`
         A dictionary to information about the setters for the parameters in the form:
         (ParameterSource, setter information, required). The model parameters are
@@ -95,20 +98,21 @@ class ParameterizedNode:
 
     Parameters
     ----------
-    node_identifier : `str`, optional
+    node_label : `str`, optional
         An identifier (or name) for the current node.
     **kwargs : `dict`, optional
         Any additional keyword arguments.
     """
 
-    def __init__(self, node_identifier=None, **kwargs):
+    def __init__(self, node_label=None, **kwargs):
         self.setters = {}
         self.parameters = {}
         self.direct_dependencies = {}
-        self.node_identifier = node_identifier
+        self.node_label = node_label
         self._node_pos = None
         self._object_seed = None  # A default until set is called.
         self._graph_base_seed = None
+        self.node_string = None
 
         # We start all nodes with a completely random base seed.
         base_seed = int.from_bytes(urandom(4), "big")
@@ -116,9 +120,33 @@ class ParameterizedNode:
 
     def __str__(self):
         """Return the string representation of the node."""
-        name = f"{self.node_identifier}=" if self.node_identifier else ""
-        id_str = f"{self._node_pos}: " if self._node_pos is not None else ""
-        return f"{id_str}{name}{self.__class__.__module__}.{self.__class__.__qualname__}"
+        if self.node_string is None:
+            # Create and cache the node string.
+            self._update_node_string()
+        return self.node_string
+
+    def _update_node_string(self):
+        """Update the node's string."""
+        pos_string = f"{self._node_pos}:" if self._node_pos is not None else ""
+        if self.node_label is not None:
+            self.node_string = f"{pos_string}{self.node_label}"
+        else:
+            self.node_string = f"{pos_string}{self.__class__.__module__}.{self.__class__.__qualname__}"
+
+    def full_param_name(self, param_name):
+        """Get the full parameter name within a graph.
+
+        Parameters
+        ----------
+        param_name : `str`
+            The 'local' name of the parameter.
+
+        Returns
+        -------
+        full_name : `str`
+            The name of the parameter within the context of the graph.
+        """
+        return f"{self.node_string}.{param_name}"
 
     def set_seed(self, new_seed=None, graph_base_seed=None):
         """Update the object seed to the new value based.
@@ -146,7 +174,10 @@ class ParameterizedNode:
         if graph_base_seed is not None:
             self._graph_base_seed = graph_base_seed
 
+        # Force an update of the node string to make sure we have the most recent.
+        self._update_node_string()
         hashed_object_name = md5(str(self).encode())
+
         seed_offset = int(hashed_object_name.hexdigest(), base=16)
         new_seed = (self._graph_base_seed + seed_offset) % (2**32)
         self._object_seed = new_seed
@@ -185,6 +216,7 @@ class ParameterizedNode:
 
         # Update the graph ID and (possibly) the seed.
         self._node_pos = len(seen_nodes) - 1
+        self._update_node_string()
         self.set_seed(graph_base_seed=new_graph_base_seed)
 
         # Reset the variables if needed.
@@ -502,7 +534,7 @@ class ParameterizedNode:
                 elif source_type == ParameterSource.FUNCTION_NODE:
                     all_values.update(setter.get_all_parameter_values(True, seen))
 
-                full_name = f"{str(self)}.{name}"
+                full_name = self.full_param_name(name)
             else:
                 full_name = name
             all_values[full_name] = self.parameters[name]
@@ -554,7 +586,7 @@ class FunctionNode(ParameterizedNode):
     ----------
     func : `function` or `method`
         The function to call during an evaluation.
-    node_identifier : `str`, optional
+    node_label : `str`, optional
         An identifier (or name) for the current node.
     outputs : `list` of `str`, optional
         The output model parameters of this function. If ``None`` uses
@@ -580,11 +612,11 @@ class FunctionNode(ParameterizedNode):
     value1 = my_func(b=10.0)
     """
 
-    def __init__(self, func, node_identifier=None, outputs=None, **kwargs):
+    def __init__(self, func, node_label=None, outputs=None, **kwargs):
         # We set the function before calling the parent class so we can use
         # the function's name (if needed).
         self.func = func
-        super().__init__(node_identifier=node_identifier, **kwargs)
+        super().__init__(node_label=node_label, **kwargs)
 
         # Add all of the parameters from default_args or the kwargs.
         self.arg_names = []

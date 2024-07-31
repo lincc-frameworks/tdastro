@@ -19,12 +19,12 @@ def _sampler_fun(magnitude, **kwargs):
 
 def test_static_source() -> None:
     """Test that we can sample and create a StaticSource object."""
-    model = StaticSource(brightness=10.0, node_identifier="my_static_source")
+    model = StaticSource(brightness=10.0, node_label="my_static_source")
     assert model["brightness"] == 10.0
     assert model["ra"] is None
     assert model["dec"] is None
     assert model["distance"] is None
-    assert str(model) == "my_static_source=tdastro.sources.static_source.StaticSource"
+    assert str(model) == "my_static_source"
 
     times = np.array([1, 2, 3, 4, 5, 10])
     wavelengths = np.array([100.0, 200.0, 300.0])
