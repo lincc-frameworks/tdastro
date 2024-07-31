@@ -1,5 +1,6 @@
+import logging
 import os
-import time
+import socket
 import urllib.request
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -8,6 +9,8 @@ import numpy as np
 import scipy.integrate
 
 from tdastro.sources.physical_model import PhysicalModel
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 
 class Passbands:
@@ -34,11 +37,15 @@ class Passbands:
             os.makedirs(data_dir)
         self.data_path = data_dir
 
-    def _download_transmission_table(self, band_name: str, output_file: str, timeout: int = 30) -> bool:
+    def _download_transmission_table(self, band_name: str, output_file: str, timeout: int = 5) -> bool:
         """Download a transmission table for a single band and save it to a file.
 
         Files used are from:
         http://svo2.cab.inta-csic.es/svo/theory/fps3/index.php?mode=browse&gname=LSST
+
+        Note
+        ----
+        This is a temporary solution to be replaced when we implement Pooch throughout the project.
 
         Parameters
         ----------
@@ -55,28 +62,34 @@ class Passbands:
             True if the transmission table is successfully downloaded, False otherwise.
         """
         try:
+            socket.setdefaulttimeout(timeout)
+
             url = (
                 f"http://svo2.cab.inta-csic.es/svo/theory/fps3/getdata.php"
                 f"?format=ascii&id=LSST/LSST.{band_name}"
             )
+
             urllib.request.urlretrieve(url, output_file)
-            start_time = time.time()
-            while not os.path.exists(output_file):
-                if time.time() - start_time > timeout:
-                    print(f"Timeout reached while waiting for {output_file} to be created.")
-                    return False
-                time.sleep(1)
-            print(f"Downloaded: {band_name}-band transmission table.")
+
+            if os.path.getsize(output_file) == 0:
+                logging.error(f"Transmission table for {band_name} is empty.")
+                return False
+
+            logging.info(f"Downloaded: {band_name}-band transmission table.")
             return True
         except HTTPError as e:
-            print(f"HTTP error occurred when downloading transmission table for {band_name}: {e}")
+            logging.error(f"HTTP error occurred when downloading transmission table for {band_name}: {e}")
             return False
         except URLError as e:
-            print(f"URL error occurred when downloading transmission table for {band_name}: {e}")
+            logging.error(f"URL error occurred when downloading transmission table for {band_name}: {e}")
             return False
 
     def _load_transmission_table(self, band_name: str, file_path: str) -> bool:
         """Load a transmission table from a file.
+
+        Note
+        ----
+        This is a temporary solution to be replaced when we implement Pooch throughout the project.
 
         Parameters
         ----------
@@ -92,13 +105,13 @@ class Passbands:
         """
         try:
             self.transmission_tables[band_name] = np.loadtxt(file_path)
-            print(f"Loaded: {band_name}-band transmission table.")
+            logging.info(f"Loaded: {band_name}-band transmission table.")
             return True
         except ValueError as e:
-            print(f"Value error when loading transmission table for {band_name}-band: {e}")
+            logging.error(f"Value error when loading transmission table for {band_name}-band: {e}")
             return False
         except OSError as e:
-            print(f"OS error when loading transmission table for {band_name}-band: {e}")
+            logging.error(f"OS error when loading transmission table for {band_name}-band: {e}")
             return False
 
     def load_all_transmission_tables(self) -> None:
@@ -110,7 +123,7 @@ class Passbands:
 
             # Download the file, if it doesn't exist
             if not os.path.exists(file_path) and not self._download_transmission_table(band_name, file_path):
-                print(f"Transmission table for {band_name} could not be downloaded.")
+                logging.error(f"Transmission table for {band_name} could not be downloaded.")
                 continue
 
             # Load the file contents
