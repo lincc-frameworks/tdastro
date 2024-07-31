@@ -174,16 +174,6 @@ def test_passbands_get_in_band_flux():
 def test_passbands_get_all_in_band_fluxes():
     """Test that we can calculate the in-band fluxes for all bands given a PhysicalModel and times."""
 
-    class MockPhysicalModel:
-        """A mock PhysicalModel for testing purposes."""
-
-        def evaluate(self, times, wavelengths):
-            """Mock evaluate method returning a 2D array of fluxes."""
-            flux_matrix = np.zeros((len(times), len(wavelengths)))
-            for i, time in enumerate(times):
-                flux_matrix[i] = np.sin(wavelengths * time)  # Some mock flux values
-            return flux_matrix
-
     passbands = Passbands(bands=["test-band"])
 
     # Mock the normalized system response table for test-band
@@ -194,7 +184,6 @@ def test_passbands_get_all_in_band_fluxes():
     times = np.array([0.1, 0.2, 0.3])
 
     # Create a mock PhysicalModel instance
-    # model = MockPhysicalModel()
     model = SplineModel(
         times,
         [100.0, 200.0, 300.0],
