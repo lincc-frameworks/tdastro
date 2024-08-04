@@ -349,7 +349,7 @@ def test_function_node_chain():
 
 
 def test_no_resample_functions():
-    """Test that is we use the same node a dependencies in two other nodes, we do not resample it."""
+    """Test that if we use the same node as dependencies in two other nodes, we do not resample it."""
     rand_val = FunctionNode(_sampler_fun)
     init_val = rand_val.compute()
 
