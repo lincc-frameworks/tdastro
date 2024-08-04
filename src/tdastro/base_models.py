@@ -64,7 +64,7 @@ class ParameterSource:
         The type of source as defined by the class variables.
         Default = 0
     value : any
-        The information that actuall sets the parameter. Either a constant
+        The information that actually sets the parameter. Either a constant
         or the attribute name of a dependency node.
     dependency : `ParameterizedNode` or None
         The node on which this parameter is dependent
