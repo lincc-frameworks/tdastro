@@ -156,7 +156,7 @@ class ParameterizedNode:
         A dictionary mapping the parameters' names to information about the setters
         (ParameterSource). The model parameters are stored in the order in which they
         need to be set.
-    values : `dict`
+    parameters : `dict`
         A dictionary mapping the parameter's name to its current value.
     direct_dependencies : `dict`
         A dictionary with keys of other ParameterizedNodes on that this node needs to
