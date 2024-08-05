@@ -1,6 +1,6 @@
-import jax
 import random
 
+import jax
 import numpy as np
 import pytest
 from tdastro.base_models import FunctionNode, ParameterizedNode, ParameterSource, SingleVariableNode

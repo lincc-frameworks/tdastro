@@ -494,7 +494,6 @@ class ParameterizedNode:
                     setter_info.dependency._sample_helper(seen_nodes, given_args)
                 self.parameters[name] = setter_info.get_value(**given_args)
 
-
     def sample_parameters(self, given_args=None, **kwargs):
         """Sample the model's underlying parameters if they are provided by a function
         or ParameterizedNode.
@@ -793,7 +792,7 @@ class FunctionNode(ParameterizedNode):
 
         Parameters
         ----------
-         given_args : `dict`, optional
+        given_args : `dict`, optional
             A dictionary representing the given arguments for this sample run.
             This can be used as the JAX PyTree for differentiation.
         **kwargs : `dict`, optional
