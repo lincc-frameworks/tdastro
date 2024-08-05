@@ -1,5 +1,5 @@
 from astropy.cosmology import WMAP9, Planck18
-from tdastro.astro_utils.cosmology import redshift_to_distance
+from tdastro.astro_utils.cosmology import RedshiftDistFunc, redshift_to_distance
 
 
 def test_redshift_to_distance():
@@ -10,3 +10,9 @@ def test_redshift_to_distance():
     assert abs(planck18_val - wmap9_val) > 1000.0
     assert 13.0 * 1e12 < wmap9_val < 16.0 * 1e12
     assert 13.0 * 1e12 < planck18_val < 16.0 * 1e12
+
+
+def test_redshift_dist_func_node():
+    """Test the RedshiftDistFunc node."""
+    node = RedshiftDistFunc(redshift=1100, cosmology=Planck18)
+    assert 13.0 * 1e12 < node["function_node_result"] < 16.0 * 1e12
