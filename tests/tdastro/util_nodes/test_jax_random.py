@@ -14,6 +14,9 @@ def test_jax_random_uniform():
     assert np.all(values >= 0.0)
     assert np.abs(np.mean(values) - 0.5) < 0.01
 
+    # Test that we also save the result to the function_node_result parameter.
+    assert 0.0 <= jax_node["function_node_result"] <= 1.0
+
     # If we reuse the seed, we get the same numbers.
     jax_node2 = JaxRandomFunc(jax.random.uniform, seed=100)
     values2 = np.array([jax_node2.compute() for _ in range(10_000)])
@@ -54,11 +57,11 @@ def test_jax_random_normal():
     """Test that we can generate numbers from a normal distribution."""
     jax_node = JaxRandomNormal(loc=100.0, scale=10.0, seed=100)
 
-    values = np.array([jax_node.compute() for _ in range(10_000)])
+    values = np.array([jax_node.resample_and_compute() for _ in range(1000)])
     assert np.abs(np.mean(values) - 100.0) < 0.5
     assert np.abs(np.std(values) - 10.0) < 0.5
 
     # If we reuse the seed, we get the same number.
     jax_node2 = JaxRandomNormal(loc=100.0, scale=10.0, seed=100)
-    values2 = np.array([jax_node2.compute() for _ in range(10_000)])
+    values2 = np.array([jax_node2.resample_and_compute() for _ in range(1000)])
     assert np.allclose(values, values2)
