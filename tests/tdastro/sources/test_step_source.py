@@ -35,7 +35,7 @@ def _sample_end(duration):
 def test_step_source() -> None:
     """Test that we can sample and create a StepSource object."""
     host = StaticSource(brightness=150.0, ra=1.0, dec=2.0, distance=3.0)
-    model = StepSource(brightness=15.0, t0=1.0, t1=2.0, ra=host, dec=host, distance=host)
+    model = StepSource(brightness=15.0, t0=1.0, t1=2.0, ra=host.ra, dec=host.dec, distance=host.distance)
     assert model["brightness"] == 15.0
     assert model["t0"] == 1.0
     assert model["t1"] == 2.0

@@ -29,10 +29,7 @@ class JaxRandomFunc(FunctionNode):
         super().__init__(func, **kwargs)
 
         # Overwrite the func attribute using the new seed.
-        if seed is not None:
-            self.set_seed(new_seed=seed)
-        else:
-            self._key = jax.random.key(self._object_seed)
+        self.set_seed(new_seed=seed)
 
     def set_seed(self, new_seed=None, graph_base_seed=None, force_update=False):
         """Update the object seed to the new value based.
@@ -79,10 +76,17 @@ class JaxRandomFunc(FunctionNode):
 
         args = self._build_args_dict(**kwargs)
         self._key, subkey = jax.random.split(self._key)
-        return float(self.func(subkey, **args))
+        results = float(self.func(subkey, **args))
+        self._save_result_parameters(results)
+        return results
+
+    def resample_and_compute(self, **kwargs):
+        """Compute the value, forcing a resampling of the random variables."""
+        self.sample_parameters(**kwargs)
+        return self.compute(**kwargs)
 
 
-class JaxRandomNormal(JaxRandomFunc):
+class JaxRandomNormal(FunctionNode):
     """A wrapper for the JAX normal function that takes
     a mean and std.
 
@@ -92,27 +96,26 @@ class JaxRandomNormal(JaxRandomFunc):
         The mean of the distribution.
     scale : `float`
         The std of the distribution.
+    seed : `int`, optional
+        The seed to use.
     **kwargs : `dict`, optional
         Any additional keyword arguments.
     """
 
-    def __init__(self, loc, scale, **kwargs):
-        super().__init__(jax.random.normal, **kwargs)
+    def __init__(self, loc, scale, seed=None, **kwargs):
+        def _shift_and_scale(value, loc, scale):
+            return scale * value + loc
 
-        # The mean and std as attributes, but not arguments.
-        self.add_parameter("loc", loc)
-        self.add_parameter("scale", scale)
+        self.jax_func = JaxRandomFunc(jax.random.normal, **kwargs)
 
-    def compute(self, **kwargs):
-        """Generate a random number from a normal distribution
-        with the given mean and std.
+        super().__init__(_shift_and_scale, value=self.jax_func, loc=loc, scale=scale)
 
-        Parameters
-        ----------
-        **kwargs : `dict`, optional
-            Additional function arguments.
-        """
-        initial_value = super().compute(**kwargs)
-        local_mean = kwargs.get("loc", self.parameters["loc"])
-        local_std = kwargs.get("scale", self.parameters["scale"])
-        return local_std * initial_value + local_mean
+        # Set the graph base seed so that it propagates up to the JAX function.
+        # TODO: Come up with a better way of setting seeds for components.
+        if seed is not None:
+            self.update_graph_information(new_graph_base_seed=seed)
+
+    def resample_and_compute(self, **kwargs):
+        """Compute the value, forcing a resampling of the random variables."""
+        self.sample_parameters(**kwargs)
+        return self.compute(**kwargs)

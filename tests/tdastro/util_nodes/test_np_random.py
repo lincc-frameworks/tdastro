@@ -12,6 +12,9 @@ def test_numpy_random_uniform():
     assert np.all(values >= 0.0)
     assert np.abs(np.mean(values) - 0.5) < 0.01
 
+    # Test that we also save the result to the function_node_result parameter.
+    assert 0.0 <= np_node["function_node_result"] <= 1.0
+
     # If we reuse the seed, we get the same numbers.
     np_node2 = NumpyRandomFunc("uniform", seed=100)
     values2 = np.array([np_node2.compute() for _ in range(10_000)])

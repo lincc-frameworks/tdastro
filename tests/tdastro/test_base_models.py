@@ -2,7 +2,7 @@ import random
 
 import numpy as np
 import pytest
-from tdastro.base_models import FunctionNode, ParameterizedNode, SingleVariableNode
+from tdastro.base_models import FunctionNode, ParameterizedNode, ParameterSource, SingleVariableNode
 
 
 def _sampler_fun(**kwargs):
@@ -48,7 +48,12 @@ class PairModel(ParameterizedNode):
         super().__init__(**kwargs)
         self.add_parameter("value1", value1, required=True, **kwargs)
         self.add_parameter("value2", value2, required=True, **kwargs)
-        self.add_parameter("value_sum", self.result, required=True, **kwargs)
+        self.add_parameter(
+            "value_sum",
+            FunctionNode(_test_func, value1=self.value1, value2=self.value2),
+            required=True,
+            **kwargs,
+        )
 
     def result(self, **kwargs):
         """Add the pair of values together
@@ -64,6 +69,46 @@ class PairModel(ParameterizedNode):
             The result of the addition.
         """
         return self["value1"] + self["value2"]
+
+
+def test_parameter_source():
+    """Test the ParameterSource creation and setter functions."""
+    source = ParameterSource()
+    assert source.source_type == ParameterSource.UNDEFINED
+    assert source.dependency is None
+    assert source.value is None
+    assert not source.fixed
+    assert not source.required
+    with pytest.raises(ValueError):
+        _ = source.get_value()
+
+    source.set_as_constant(10.0)
+    assert source.source_type == ParameterSource.CONSTANT
+    assert source.dependency is None
+    assert source.value == 10.0
+    assert not source.fixed
+    assert not source.required
+    assert source.get_value() == 10.0
+
+    with pytest.raises(ValueError):
+        source.set_as_constant(_test_func)
+
+    node = SingleVariableNode("A", 20.0)
+    source.set_as_parameter(node, "A")
+    assert source.source_type == ParameterSource.MODEL_PARAMETER
+    assert source.dependency is node
+    assert source.value == "A"
+    assert not source.fixed
+    assert not source.required
+    assert source.get_value() == 20.0
+
+    func = FunctionNode(_test_func, value1=0.1, value2=0.4)
+    source.set_as_function(func)
+    assert source.source_type == ParameterSource.FUNCTION_NODE
+    assert source.dependency is func
+    assert not source.fixed
+    assert not source.required
+    assert source.get_value() == 0.5
 
 
 def test_parameterized_node():
@@ -181,15 +226,15 @@ def test_parameterized_node_parameters():
 
 def test_parameterized_node_get_dependencies():
     """Test that we can extract the parameters of a graph of ParameterizedNode."""
-    model1 = PairModel(value1=0.5, value2=1.5, node_label="1")
-    assert len(model1.direct_dependencies) == 0
+    model1 = PairModel(value1=0.5, value2=1.5, node_identifier="1")
+    assert len(model1.direct_dependencies) == 2
 
-    model2 = PairModel(value1=model1.value1, value2=3.0, node_label="2")
-    assert len(model2.direct_dependencies) == 1
+    model2 = PairModel(value1=model1.value1, value2=3.0, node_identifier="2")
+    assert len(model2.direct_dependencies) == 4
     assert model1 in model2.direct_dependencies
 
-    model3 = PairModel(value1=model1.value1, value2=model2.value_sum, node_label="3")
-    assert len(model3.direct_dependencies) == 2
+    model3 = PairModel(value1=model1.value1, value2=model2.value_sum, node_identifier="3")
+    assert len(model3.direct_dependencies) == 6
     assert model1 in model3.direct_dependencies
     assert model2 in model3.direct_dependencies
 
@@ -308,6 +353,25 @@ def test_function_node_chain():
     func1 = FunctionNode(_test_func, value1=1.0, value2=1.0)
     func2 = FunctionNode(_test_func, value1=func1, value2=3.0)
     assert func2.compute() == 5.0
+
+
+def test_no_resample_functions():
+    """Test that if we use the same node as dependencies in two other nodes, we do not resample it."""
+    rand_val = FunctionNode(_sampler_fun)
+    init_val = rand_val.compute()
+
+    node_a = SingleVariableNode("A", rand_val)
+    node_b = PairModel(value1=node_a.A, value2=rand_val)
+    assert node_a["A"] == init_val
+    assert node_b["value1"] == init_val
+    assert node_b["value2"] == init_val
+
+    # They should change when we resample.
+    node_b.sample_parameters()
+    new_val = node_a["A"]
+    assert new_val != init_val
+    assert node_b["value1"] == new_val
+    assert node_b["value2"] == new_val
 
 
 def test_np_sampler_method():

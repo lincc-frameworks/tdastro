@@ -48,11 +48,7 @@ class NumpyRandomFunc(FunctionNode):
         super().__init__(func, **kwargs)
 
         # Overwrite the func attribute using the new seed.
-        if seed is not None:
-            self.set_seed(new_seed=seed)
-        else:
-            self._rng = np.random.default_rng(self._object_seed)
-            self.func = getattr(self._rng, func_name)
+        self.set_seed(new_seed=seed)
 
     def set_seed(self, new_seed=None, graph_base_seed=None, force_update=False):
         """Update the object seed to the new value based.
@@ -77,16 +73,5 @@ class NumpyRandomFunc(FunctionNode):
         old_seed = self._object_seed
         super().set_seed(new_seed, graph_base_seed)
         if old_seed != self._object_seed or force_update:
-            self._rng = np.random.default_rng(self._object_seed)
+            self._rng = np.random.default_rng(seed=self._object_seed)
             self.func = getattr(self._rng, self.func_name)
-
-    def compute(self, **kwargs):
-        """Execute the wrapped numpy random number generator method.
-
-        Parameters
-        ----------
-        **kwargs : `dict`, optional
-            Additional function arguments.
-        """
-        args = self._build_args_dict(**kwargs)
-        return self.func(**args)

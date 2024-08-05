@@ -61,7 +61,7 @@ def test_other_redshift_values() -> None:
 
     for redshift in [0.0, 0.5, 2.0, 3.0, 30.0]:
         model_redshift = StepSource(brightness=brightness, t0=t0, t1=t1, redshift=redshift)
-        model_redshift.add_effect(Redshift(redshift=model_redshift, t0=model_redshift))
+        model_redshift.add_effect(Redshift(redshift=model_redshift.redshift, t0=model_redshift.t0))
         values_redshift = model_redshift.evaluate(times, wavelengths)
 
         for i, time in enumerate(times):
