@@ -14,8 +14,8 @@ def test_snia():
         redshift=NumpyRandomFunc("uniform",low=0.01,high=0.5),
     )
 
-    distmod_func = DistModFromRedshift((host,"redshift"),H0=73.,Omega_m=0.3)
-    x1_func = HostmassX1Func((host,"hostmass"))
+    distmod_func = DistModFromRedshift(host.redshift,H0=73.,Omega_m=0.3)
+    x1_func = HostmassX1Func(host.hostmass)
     c_func = NumpyRandomFunc("normal",loc=0,scale=0.02)
     m_abs_func = NumpyRandomFunc("normal",loc=-19.3,scale=0.1)
 
@@ -34,9 +34,9 @@ def test_snia():
                                  x0 = x0_func,
                                  x1 = x1_func,
                                  c = c_func,
-                                 ra=NumpyRandomFunc("normal", loc=(host,"ra"), scale=0.01),
-                                 dec=NumpyRandomFunc("normal", loc=(host,"dec"), scale=0.01),
-                                 reshift = (host,"redshift")
+                                 ra=NumpyRandomFunc("normal", loc=host.ra, scale=0.01),
+                                 dec=NumpyRandomFunc("normal", loc=host.dec, scale=0.01),
+                                 reshift = host.redshift
     )
 
     phase = np.linspace(-20, 30, 25)
