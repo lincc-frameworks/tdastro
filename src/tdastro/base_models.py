@@ -430,14 +430,21 @@ class ParameterizedNode:
         # Check for parameter collision and add a place holder value.
         if hasattr(self, name) and name not in self.parameters:
             raise KeyError(f"Parameter name {name} conflicts with a predefined model parameter.")
-        if self.parameters.get(name, None) is not None and not allow_overwrite:
-            raise KeyError(f"Duplicate parameter set: {name}")
+        if self.parameters.get(name, None) is not None:
+            if not allow_overwrite:
+                raise KeyError(f"Duplicate parameter set: {name}")
+            if fixed:
+                raise KeyError(f"Trying to overwrite a fixed parameter: {name}")
         self.parameters[name] = None
 
         # Add an entry for the setter function and fill in the remaining
         # information using set_parameter().
         self.setters[name] = ParameterSource(ParameterSource.UNDEFINED, fixed, required)
         self.set_parameter(name, value, **kwargs)
+
+        # Only constant sources can be fixed.
+        if fixed and self.setters[name].source_type != ParameterSource.CONSTANT:
+            raise ValueError(f"Tried to make {name} fixed but source_type={self.setters[name].source_type}.")
 
         # Create a callable getter function using. We override the __self__ and __name__
         # attributes so it looks like method of this object.
@@ -449,29 +456,23 @@ class ParameterizedNode:
         getter.__name__ = name
         setattr(self, name, getter)
 
-    def _sample_helper(self, depth, seen_nodes, **kwargs):
+    def _sample_helper(self, seen_nodes, given_args=None):
         """Internal recursive function to sample the model's underlying parameters
         if they are provided by a function or ParameterizedNode.
 
         Parameters
         ----------
-        depth : `int`
-            The recursive depth remaining. Used to prevent infinite loops.
-            Users should not need to set this manually.
         seen_nodes : `dict`
             A dictionary mapping nodes seen during this sampling run to their ID.
             Used to avoid sampling nodes multiple times and to validity check the graph.
-        **kwargs : `dict`, optional
-            All the keyword arguments, including the values needed to sample
-            parameters.
+        given_args : `dict`, optional
+            A dictionary representing the given arguments for this sample run.
+            This can be used as the JAX PyTree for differentiation.
 
         Raises
         ------
-        Raise a ``ValueError`` the depth of the sampling encounters a problem
-        with the order of dependencies.
+        Raise a ``ValueError`` the sampling encounters a problem with the order of dependencies.
         """
-        if depth == 0:
-            raise ValueError(f"Maximum sampling depth exceeded at {self}. Potential infinite loop.")
         if self in seen_nodes:
             return  # Nothing to do
         seen_nodes[self] = self._node_pos
@@ -480,33 +481,53 @@ class ParameterizedNode:
         # As of Python 3.7 dictionaries are guaranteed to preserve insertion ordering,
         # so this will iterate through model parameters in the order they were inserted.
         for name, setter_info in self.setters.items():
-            if setter_info.dependency is not None:
-                setter_info.dependency._sample_helper(depth - 1, seen_nodes, **kwargs)
-            self.parameters[name] = setter_info.get_value(**kwargs)
+            full_name = f"{str(self)}.{name}"
 
-    def sample_parameters(self, **kwargs):
+            # Check if this parameter is in the given set.
+            if given_args is not None and full_name in given_args:
+                if setter_info.fixed:
+                    raise ValueError(f"Trying to override fixed parameter {full_name}")
+                self.parameters[name] = given_args[full_name]
+            else:
+                # Do we need to resample a dependency?
+                if setter_info.dependency is not None:
+                    setter_info.dependency._sample_helper(seen_nodes, given_args)
+                self.parameters[name] = setter_info.get_value(**given_args)
+
+
+    def sample_parameters(self, given_args=None, **kwargs):
         """Sample the model's underlying parameters if they are provided by a function
         or ParameterizedNode.
 
         Parameters
         ----------
+        given_args : `dict`, optional
+            A dictionary representing the given arguments for this sample run.
+            This can be used as the JAX PyTree for differentiation.
         **kwargs : `dict`, optional
             All the keyword arguments, including the values needed to sample
             parameters.
 
         Raises
         ------
-        Raise a ``ValueError`` the depth of the sampling encounters a problem
-        with the order of dependencies.
+        Raise a ``ValueError`` the sampling encounters a problem with the order of dependencies.
         """
         # If the graph structure has never been set, do that now.
         if self._node_pos is None:
             nodes = set()
             self.update_graph_information(seen_nodes=nodes, reset_variables=True)
 
+        # Assemble a dictionary of parameter values to pass along comprised of
+        # given_args and kwargs.
+        args_to_use = {}
+        if given_args is not None:
+            args_to_use.update(given_args)
+        if kwargs is not None:
+            args_to_use.update(kwargs)
+
         # Resample the nodes.
         seen_nodes = {}
-        self._sample_helper(50, seen_nodes, **kwargs)
+        self._sample_helper(seen_nodes, args_to_use)
 
         # Validity check that we do not see duplicate IDs.
         seen_ids = np.array(list(seen_nodes.values()))
@@ -556,6 +577,49 @@ class ParameterizedNode:
             else:
                 full_name = name
             all_values[full_name] = self.parameters[name]
+        return all_values
+
+    def build_pytree(self, seen=None, seen_names=None):
+        """Build a JAX PyTree representation of the variables in this graph.
+
+        Parameters
+        ----------
+        seen : `set`
+            A set of objects  that have already been processed.
+            Default : ``None``
+
+        seen_names : `set`
+            A set of node names (as strings) that have already been processed.
+            Default : ``None``
+
+        Returns
+        -------
+        values : `dict`
+            The dictionary mapping the combination of the object identifier and
+            model parameter name to its value.
+        """
+        # Skip nodes that we have already seen.
+        if seen is None:
+            seen = set()
+        if self in seen:
+            return {}
+        seen.add(self)
+
+        # Check that all nodes have unique names.
+        self_name = str(self)
+        if seen_names is None:
+            seen_names = set()
+        if self_name in seen_names:
+            raise ValueError(f"Duplicate name {self_name}. Run update_graph_information() to resolve.")
+        seen_names.add(self_name)
+
+        all_values = {}
+        for name, setter_info in self.setters.items():
+            if setter_info.dependency is not None:
+                all_values.update(setter_info.dependency.build_pytree(seen, seen_names))
+            elif setter_info.source_type == ParameterSource.CONSTANT and not setter_info.fixed:
+                # Only the non-fixed, constants go into the PyTree.
+                all_values[f"{str(self)}.{name}"] = self.parameters[name]
         return all_values
 
 
@@ -666,13 +730,20 @@ class FunctionNode(ParameterizedNode):
             return super_name
         return f"{super_name}:{self.func.__name__}"
 
-    def _build_args_dict(self, **kwargs):
+    def _build_args_dict(self, given_args=None, **kwargs):
         """Build a dictionary of arguments for the function."""
         args = {}
         for key in self.arg_names:
-            # Override with the kwarg if the parameter is there.
-            if key in kwargs:
+            full_name = f"{str(self)}.{key}"
+
+            # Override with the kwarg or given_args if the parameter is there.
+            # Check with both the short and full name in given_args.
+            if given_args is not None and full_name in given_args:
+                args[key] = given_args[full_name]
+            elif key in kwargs:
                 args[key] = kwargs[key]
+            elif given_args is not None and key in given_args:
+                args[key] = given_args[key]
             else:
                 args[key] = self.parameters[key]
         return args
@@ -696,36 +767,35 @@ class FunctionNode(ParameterizedNode):
             for i in range(self.num_outputs):
                 self.parameters[self.outputs[i]] = results[i]
 
-    def _sample_helper(self, depth, seen_nodes, **kwargs):
+    def _sample_helper(self, seen_nodes, given_args=None):
         """Internal recursive function to sample the model's underlying parameters
         if they are provided by a function or ParameterizedNode.
 
         Parameters
         ----------
-        depth : `int`
-            The recursive depth remaining. Used to prevent infinite loops.
-            Users should not need to set this manually.
         seen_nodes : `dict`
             A dictionary mapping nodes seen during this sampling run to their ID.
             Used to avoid sampling nodes multiple times and to validity check the graph.
-        **kwargs : `dict`, optional
-            All the keyword arguments, including the values needed to sample
-            parameters.
+        given_args : `dict`, optional
+            A dictionary representing the given arguments for this sample run.
+            This can be used as the JAX PyTree for differentiation.
 
         Raises
         ------
-        Raise a ``ValueError`` the depth of the sampling encounters a problem
-        with the order of dependencies.
+        Raise a ``ValueError`` the sampling encounters a problem with the order of dependencies.
         """
         if self not in seen_nodes:
-            super()._sample_helper(depth, seen_nodes, **kwargs)
-            _ = self.compute(**kwargs)
+            super()._sample_helper(seen_nodes, given_args)
+            _ = self.compute(given_args=given_args)
 
-    def compute(self, **kwargs):
+    def compute(self, given_args=None, **kwargs):
         """Execute the wrapped function.
 
         Parameters
         ----------
+         given_args : `dict`, optional
+            A dictionary representing the given arguments for this sample run.
+            This can be used as the JAX PyTree for differentiation.
         **kwargs : `dict`, optional
             Additional function arguments.
 
@@ -739,7 +809,18 @@ class FunctionNode(ParameterizedNode):
                 "set func or override compute()."
             )
 
-        args = self._build_args_dict(**kwargs)
+        args = self._build_args_dict(given_args, **kwargs)
         results = self.func(**args)
         self._save_result_parameters(results)
         return results
+
+    def resample_and_compute(self, given_args=None):
+        """A helper function for JAX gradients that runs the sampling then computation.
+        Parameters
+        ----------
+        given_args : `dict`, optional
+            A dictionary representing the given arguments for this sample run.
+            This can be used as the JAX PyTree for differentiation.
+        """
+        self.sample_parameters(given_args)
+        return self.compute()
