@@ -60,6 +60,8 @@ class ParameterSource:
 
     Attributes
     ----------
+    parameter_name : `str`
+        The name of the parameter within the node (short name).
     source_type : `int`
         The type of source as defined by the class variables.
         Default = 0
@@ -74,6 +76,8 @@ class ParameterSource:
     required : `bool`
         The attribute must exist and be non-None.
         Default = ``False``
+    full_name : `str`
+        The full name of the parameter including the node information.
     """
 
     # Class variables for the source enum.
@@ -82,12 +86,13 @@ class ParameterSource:
     MODEL_PARAMETER = 2
     FUNCTION_NODE = 3
 
-    def __init__(self, source_type=0, fixed=False, required=False):
+    def __init__(self, parameter_name, source_type=0, fixed=False, required=False, node_name=""):
         self.source_type = source_type
         self.fixed = fixed
         self.required = required
         self.value = None
         self.dependency = None
+        self.set_name(parameter_name, node_name)
 
     def get_value(self, **kwargs):
         """Get the parameter's value."""
@@ -99,6 +104,25 @@ class ParameterSource:
             return self.dependency.parameters[self.value]
         else:
             raise ValueError(f"Invalid ParameterSource type {self.source_type}")
+
+    def set_name(self, parameter_name="", node_name=""):
+        """Set the name of the parameter field.
+
+        Parameter
+        ---------
+        parameter_name : `str`
+            The name of the parameter within the node (short name).
+        node_name : `str`
+            The node string for the node containing this parameter.
+        """
+        if len(parameter_name) == 0:
+            raise ValueError(f"Invalid parameter name: {parameter_name}")
+
+        self.parameter_name = parameter_name
+        if len(node_name) > 0:
+            self.full_name = f"{node_name}.{parameter_name}"
+        else:
+            self.full_name = f"{parameter_name}"
 
     def set_as_constant(self, value):
         """Set the parameter as a constant value.
@@ -202,13 +226,21 @@ class ParameterizedNode:
             self._update_node_string()
         return self.node_string
 
-    def _update_node_string(self):
+    def _update_node_string(self, extra_tag=None):
         """Update the node's string."""
         pos_string = f"{self._node_pos}:" if self._node_pos is not None else ""
         if self.node_label is not None:
             self.node_string = f"{pos_string}{self.node_label}"
         else:
             self.node_string = f"{pos_string}{self.__class__.__module__}.{self.__class__.__qualname__}"
+
+        # Allow for the appending of an extra tag.
+        if extra_tag is not None:
+            self.node_string = f"{self.node_string}:{extra_tag}"
+
+        # Update the full_name of all node's parameter setters.
+        for name, setter_info in self.setters.items():
+            setter_info.set_name(name, self.node_string)
 
     def set_seed(self, new_seed=None, graph_base_seed=None):
         """Update the object seed to the new value based.
@@ -413,7 +445,13 @@ class ParameterizedNode:
         # Add an entry for the setter function and fill in the remaining information using
         # set_parameter(). We add an initial (dummy) value here to indicate that this parameter
         # exists and was added via add_parameter().
-        self.setters[name] = ParameterSource(ParameterSource.UNDEFINED, fixed, required)
+        self.setters[name] = ParameterSource(
+            parameter_name=name,
+            source_type=ParameterSource.UNDEFINED,
+            fixed=fixed,
+            required=required,
+            node_name=str(self),
+        )
         self.set_parameter(name, value, **kwargs)
 
         # Create a callable getter function using. We override the __self__ and __name__
@@ -529,7 +567,7 @@ class ParameterizedNode:
             if recursive:
                 if setter_info.dependency is not None:
                     all_values.update(setter_info.dependency.get_all_parameter_values(True, seen))
-                full_name = f"{str(self)}.{name}"
+                full_name = setter_info.full_name
             else:
                 full_name = name
             all_values[full_name] = self.parameters[name]
@@ -631,14 +669,14 @@ class FunctionNode(ParameterizedNode):
         # Fill in the outputs.
         self.compute()
 
-    def __str__(self):
-        """Return the string representation of the function."""
-        # Extend the FunctionNode's string to include the name of the
-        # function it calls so we can wrap a variety of raw functions.
-        super_name = super().__str__()
-        if self.func is None:
-            return super_name
-        return f"{super_name}:{self.func.__name__}"
+    def _update_node_string(self, extra_tag=None):
+        """Update the node's string."""
+        if extra_tag is not None:
+            super()._update_node_string(extra_tag)
+        elif self.func is not None:
+            super()._update_node_string(self.func.__name__)
+        else:
+            super()._update_node_string()
 
     def _build_args_dict(self, **kwargs):
         """Build a dictionary of arguments for the function."""
