@@ -171,23 +171,6 @@ def test_parameterized_node():
     assert final_res != model4.result()
 
 
-def test_parameterized_node_overwrite():
-    """Test that we can overwrite parameters in a PairModel."""
-    model1 = PairModel(value1=0.5, value2=0.5)
-    assert model1["value1"] == 0.5
-    assert model1["value2"] == 0.5
-    assert model1.result() == 1.0
-    assert model1["value_sum"] == 1.0
-
-    # By default the overwrite fails.
-    with pytest.raises(KeyError):
-        model1.add_parameter("value1", value=1.0)
-
-    # We can force it with allow_overwrite=True.
-    model1.add_parameter("value1", value=1.0, allow_overwrite=True)
-    assert model1["value1"] == 1.0
-
-
 def test_parameterized_node_parameters():
     """Test that we can extract the parameters of a graph of ParameterizedNode."""
     model1 = PairModel(value1=0.5, value2=1.5, node_label="A")

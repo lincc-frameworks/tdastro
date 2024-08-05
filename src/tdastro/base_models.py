@@ -21,7 +21,7 @@ to compute the value of X. For example if X is set by evaluating a FunctionNode 
 uses parameter Y in the computation, X is dependent on Y. The dependencies impose an
 ordering of model parameters in the graph. Y must be computed before X.
 
-ParameterNodes provide semantic groupsing of individual parameters. For example we may
+ParameterNodes provide semantic groupings of individual parameters. For example we may
 have a ParameterNode representing the information needed for a Type Ia supernova.
 That node's parameters would include the variables needed to evaluate the supernova's
 lightcurve. Each of these parameters might depend on parameters in other nodes, such
@@ -293,27 +293,6 @@ class ParameterizedNode:
     def __getitem__(self, key):
         return self.parameters[key]
 
-    def get_parameter(self, name):
-        """Get the settable parameter with the given name.
-
-        Parameters
-        ----------
-        name : `str`
-            The name of the parameter to retrieve.
-
-        Returns
-        -------
-        any
-            The value of the parameter
-
-        Raises
-        ------
-        ``AttributeError`` if the parameter is not in the list.
-        """
-        if name not in self.parameters:
-            raise AttributeError(f"Cannot find parameter {name} in {str(self)}")
-        return self.parameters[name]
-
     def set_parameter(self, name, value=None, **kwargs):
         """Set a single *existing* parameter to the ParameterizedNode.
 
@@ -339,7 +318,8 @@ class ParameterizedNode:
         Raise a ``ValueError`` if the setter type is not supported.
         Raise a ``ValueError`` if the parameter is required, but set to None.
         """
-        # Check for parameter has been added and if so, find the index.
+        # Check for parameter has been added and if so, find the index. All parameters must
+        # be added first with "add_parameter()".
         if name not in self.setters:
             raise KeyError(f"Tried to set parameter {name} that has not been added.") from None
 
@@ -391,7 +371,7 @@ class ParameterizedNode:
             if setter_info.dependency is not None and setter_info.dependency is not self:
                 self.direct_dependencies[setter_info.dependency] = True
 
-    def add_parameter(self, name, value=None, required=False, allow_overwrite=False, fixed=False, **kwargs):
+    def add_parameter(self, name, value=None, required=False, fixed=False, **kwargs):
         """Add a single *new* parameter to the ParameterizedNode.
 
         Notes
@@ -411,10 +391,6 @@ class ParameterizedNode:
         required : `bool`
             Fail if the parameter is set to ``None``.
             Default = ``False``
-        allow_overwrite : `bool`
-            Allow a subclass to overwrite the definition of the parameter
-            used in the superclass.
-            Default = ``False``
         fixed : `bool`
             The attribute cannot be changed during resampling.
             Default = ``False``
@@ -430,12 +406,13 @@ class ParameterizedNode:
         # Check for parameter collision and add a place holder value.
         if hasattr(self, name) and name not in self.parameters:
             raise KeyError(f"Parameter name {name} conflicts with a predefined model parameter.")
-        if self.parameters.get(name, None) is not None and not allow_overwrite:
+        if self.parameters.get(name, None) is not None:
             raise KeyError(f"Duplicate parameter set: {name}")
         self.parameters[name] = None
 
-        # Add an entry for the setter function and fill in the remaining
-        # information using set_parameter().
+        # Add an entry for the setter function and fill in the remaining information using
+        # set_parameter(). We add an initial (dummy) value here to indicate that this parameter
+        # exists and was added via add_parameter().
         self.setters[name] = ParameterSource(ParameterSource.UNDEFINED, fixed, required)
         self.set_parameter(name, value, **kwargs)
 
@@ -597,8 +574,6 @@ class FunctionNode(ParameterizedNode):
         A list of argument names to pass to the function.
     outputs : `list` of `str`
         The output model parameters of this function.
-    num_outputs : `int`
-        The number of outputs.
 
     Parameters
     ----------
@@ -646,7 +621,6 @@ class FunctionNode(ParameterizedNode):
         if not outputs:
             outputs = ["function_node_result"]
         self.outputs = outputs
-        self.num_outputs = len(outputs)
         for name in outputs:
             # For output parameters we add a placeholder of None to set up the basic data, such as
             # the getter function and the entry in parameters. Then we change the
@@ -685,15 +659,15 @@ class FunctionNode(ParameterizedNode):
         results : any
             The results of the function.
         """
-        if self.num_outputs == 1:
+        if len(self.outputs) == 1:
             self.parameters[self.outputs[0]] = results
         else:
-            if len(results) != self.num_outputs:
+            if len(results) != len(self.outputs):
                 raise ValueError(
                     f"Incorrect number of results returned by {self.func.__name__}. "
-                    f"Expected {self.outputs}, but got {results}."
+                    f"Expected {len(self.outputs)}, but got {results}."
                 )
-            for i in range(self.num_outputs):
+            for i in range(len(self.outputs)):
                 self.parameters[self.outputs[i]] = results[i]
 
     def _sample_helper(self, depth, seen_nodes, **kwargs):
@@ -718,6 +692,8 @@ class FunctionNode(ParameterizedNode):
         with the order of dependencies.
         """
         if self not in seen_nodes:
+            # First use _sample_helper() to update the function node's inputs (dependencies).
+            # Then use compute() to update the function node's outputs.
             super()._sample_helper(depth, seen_nodes, **kwargs)
             _ = self.compute(**kwargs)
 
