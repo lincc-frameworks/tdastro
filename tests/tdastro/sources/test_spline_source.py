@@ -18,8 +18,8 @@ def test_spline_model_flat() -> None:
     expected = np.full_like(values, 1.0)
     np.testing.assert_array_almost_equal(values, expected)
 
-    model2 = SplineModel(times, wavelengths, fluxes, amplitude=5.0, node_identifier="test")
-    assert str(model2) == "test=tdastro.sources.spline_model.SplineModel"
+    model2 = SplineModel(times, wavelengths, fluxes, amplitude=5.0, node_label="test")
+    assert str(model2) == "test"
 
     values2 = model2.evaluate(test_times, test_waves)
     assert values2.shape == (5, 4)

@@ -122,16 +122,17 @@ def test_parameterized_node():
     assert str(model1) == "test_base_models.PairModel"
 
     # Use value1=model.value and value2=1.0
-    model2 = PairModel(value1=model1.value1, value2=1.0, node_identifier="test")
+    model2 = PairModel(value1=model1.value1, value2=1.0, node_label="test")
     assert model2["value1"] == 0.5
     assert model2["value2"] == 1.0
     assert model2.result() == 1.5
     assert model2["value_sum"] == 1.5
-    assert str(model2) == "test=test_base_models.PairModel"
+    assert str(model2) == "test"
 
     # If we set an ID it shows up in the name.
     model2._node_pos = 100
-    assert str(model2) == "100: test=test_base_models.PairModel"
+    model2._update_node_string()
+    assert str(model2) == "100:test"
 
     # Compute value1 from model2's result and value2 from the sampler function.
     # The sampler function is auto-wrapped in a FunctionNode.
@@ -189,24 +190,24 @@ def test_parameterized_node_overwrite():
 
 def test_parameterized_node_parameters():
     """Test that we can extract the parameters of a graph of ParameterizedNode."""
-    model1 = PairModel(value1=0.5, value2=1.5, node_identifier="1")
+    model1 = PairModel(value1=0.5, value2=1.5, node_label="A")
     settings = model1.get_all_parameter_values(False)
     assert len(settings) == 3
     assert settings["value1"] == 0.5
     assert settings["value2"] == 1.5
     assert settings["value_sum"] == 2.0
 
-    # The model has 5 parameters in the graph: 3 in model1 and 2
+    # The model has 6 parameters in the graph: 3 in model1 and 3
     # in its summation FunctionNode. Note Node ID's are -1 until
     # reset or sample is called for the first time.
     settings = model1.get_all_parameter_values(True)
     assert len(settings) == 6
-    assert settings["0: 1=test_base_models.PairModel.value1"] == 0.5
-    assert settings["0: 1=test_base_models.PairModel.value2"] == 1.5
-    assert settings["0: 1=test_base_models.PairModel.value_sum"] == 2.0
+    assert settings["0:A.value1"] == 0.5
+    assert settings["0:A.value2"] == 1.5
+    assert settings["0:A.value_sum"] == 2.0
 
     # Use value1=model.value1 and value2=3.0
-    model2 = PairModel(value1=model1.value1, value2=3.0, node_identifier="2")
+    model2 = PairModel(value1=model1.value1, value2=3.0, node_label="B")
     settings = model2.get_all_parameter_values(False)
     assert len(settings) == 3
     assert settings["value1"] == 0.5
@@ -215,12 +216,12 @@ def test_parameterized_node_parameters():
 
     settings = model2.get_all_parameter_values(True)
     assert len(settings) == 12
-    assert settings["1: 1=test_base_models.PairModel.value1"] == 0.5
-    assert settings["1: 1=test_base_models.PairModel.value2"] == 1.5
-    assert settings["1: 1=test_base_models.PairModel.value_sum"] == 2.0
-    assert settings["0: 2=test_base_models.PairModel.value1"] == 0.5
-    assert settings["0: 2=test_base_models.PairModel.value2"] == 3.0
-    assert settings["0: 2=test_base_models.PairModel.value_sum"] == 3.5
+    assert settings["1:A.value1"] == 0.5
+    assert settings["1:A.value2"] == 1.5
+    assert settings["1:A.value_sum"] == 2.0
+    assert settings["0:B.value1"] == 0.5
+    assert settings["0:B.value2"] == 3.0
+    assert settings["0:B.value_sum"] == 3.5
 
 
 def test_parameterized_node_get_dependencies():
@@ -266,33 +267,39 @@ def test_parameterized_node_seed():
     assert model_a._object_seed != model_b._object_seed
 
     # If we specify a seed, the results are the same objects with
-    # the same name (class + node_id + node_identifier) and different
+    # the same name (class + node_id + node_label) and different
     # otherwise. Everything starts with a default node_id = None.
-    model_a = PairModel(value1=0.5, value2=0.5, node_identifier="A")
-    model_b = PairModel(value1=0.5, value2=0.5, node_identifier="B")
-    model_c = PairModel(value1=0.5, value2=0.5, node_identifier="A")
-    model_d = SingleVariableNode("value1", 0.5, node_identifier="A")
+    model_a = PairModel(value1=0.5, value2=0.5, node_label="A")
+    model_b = PairModel(value1=0.5, value2=0.5, node_label="B")
+    model_c = PairModel(value1=0.5, value2=0.5, node_label="A")
+    model_d = SingleVariableNode("value1", 0.5, node_label="A")
+    model_e = SingleVariableNode("value1", 0.5, node_label="C")
 
     model_a.set_seed(graph_base_seed=10)
     model_b.set_seed(graph_base_seed=10)
     model_c.set_seed(graph_base_seed=10)
     model_d.set_seed(graph_base_seed=10)
+    model_e.set_seed(graph_base_seed=10)
 
     assert model_a._object_seed != model_b._object_seed
     assert model_a._object_seed == model_c._object_seed
-    assert model_a._object_seed != model_d._object_seed
+    assert model_a._object_seed == model_d._object_seed
+    assert model_a._object_seed != model_e._object_seed
 
     assert model_b._object_seed != model_a._object_seed
     assert model_b._object_seed != model_c._object_seed
     assert model_b._object_seed != model_d._object_seed
+    assert model_b._object_seed != model_e._object_seed
 
     assert model_c._object_seed == model_a._object_seed
     assert model_c._object_seed != model_b._object_seed
-    assert model_c._object_seed != model_d._object_seed
+    assert model_c._object_seed == model_d._object_seed
+    assert model_c._object_seed != model_e._object_seed
 
-    assert model_d._object_seed != model_a._object_seed
+    assert model_d._object_seed == model_a._object_seed
     assert model_d._object_seed != model_b._object_seed
-    assert model_d._object_seed != model_c._object_seed
+    assert model_d._object_seed == model_c._object_seed
+    assert model_d._object_seed != model_e._object_seed
 
 
 def test_parameterized_node_base_seed_fail():
