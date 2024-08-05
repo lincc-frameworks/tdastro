@@ -197,11 +197,11 @@ def test_parameterized_node_parameters():
     assert settings["value2"] == 1.5
     assert settings["value_sum"] == 2.0
 
-    # The model has 5 parameters in the graph: 3 in model1 and 2
+    # The model has 6 parameters in the graph: 3 in model1 and 3
     # in its summation FunctionNode. Note Node ID's are -1 until
     # reset or sample is called for the first time.
     settings = model1.get_all_parameter_values(True)
-    assert len(settings) == 3
+    assert len(settings) == 6
     assert settings["0:A.value1"] == 0.5
     assert settings["0:A.value2"] == 1.5
     assert settings["0:A.value_sum"] == 2.0
@@ -215,7 +215,7 @@ def test_parameterized_node_parameters():
     assert settings["value_sum"] == 3.5
 
     settings = model2.get_all_parameter_values(True)
-    assert len(settings) == 6
+    assert len(settings) == 12
     assert settings["1:A.value1"] == 0.5
     assert settings["1:A.value2"] == 1.5
     assert settings["1:A.value_sum"] == 2.0
@@ -227,14 +227,14 @@ def test_parameterized_node_parameters():
 def test_parameterized_node_get_dependencies():
     """Test that we can extract the parameters of a graph of ParameterizedNode."""
     model1 = PairModel(value1=0.5, value2=1.5, node_identifier="1")
-    assert len(model1.direct_dependencies) == 2
+    assert len(model1.direct_dependencies) == 1
 
     model2 = PairModel(value1=model1.value1, value2=3.0, node_identifier="2")
-    assert len(model2.direct_dependencies) == 4
+    assert len(model2.direct_dependencies) == 2
     assert model1 in model2.direct_dependencies
 
     model3 = PairModel(value1=model1.value1, value2=model2.value_sum, node_identifier="3")
-    assert len(model3.direct_dependencies) == 6
+    assert len(model3.direct_dependencies) == 3
     assert model1 in model3.direct_dependencies
     assert model2 in model3.direct_dependencies
 

@@ -155,7 +155,7 @@ class ParameterizedNode:
     node_string : `str`
         The full string used to identify a node. This is a combination of the nodes position
         in the graph (if known), node_label (if provided), and class information.
-    setters : `dict` of `tuple`
+    setters : `dict`
         A dictionary mapping the parameters' names to information about the setters
         (ParameterSource). The model parameters are stored in the order in which they
         need to be set.
@@ -210,21 +210,6 @@ class ParameterizedNode:
         else:
             self.node_string = f"{pos_string}{self.__class__.__module__}.{self.__class__.__qualname__}"
 
-    def full_param_name(self, param_name):
-        """Get the full parameter name within a graph.
-
-        Parameters
-        ----------
-        param_name : `str`
-            The 'local' name of the parameter.
-
-        Returns
-        -------
-        full_name : `str`
-            The name of the parameter within the context of the graph.
-        """
-        return f"{self.node_string}.{param_name}"
-
     def set_seed(self, new_seed=None, graph_base_seed=None):
         """Update the object seed to the new value based.
 
@@ -253,7 +238,7 @@ class ParameterizedNode:
 
         # Force an update of the node string to make sure we have the most recent.
         self._update_node_string()
-        hashed_object_name = md5(str(self).encode())
+        hashed_object_name = md5(self.node_string.encode())
 
         seed_offset = int(hashed_object_name.hexdigest(), base=16)
         new_seed = (self._graph_base_seed + seed_offset) % (2**32)
