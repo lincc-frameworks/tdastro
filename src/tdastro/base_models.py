@@ -371,7 +371,7 @@ class ParameterizedNode:
             if setter_info.dependency is not None and setter_info.dependency is not self:
                 self.direct_dependencies[setter_info.dependency] = True
 
-    def add_parameter(self, name, value=None, required=False, allow_overwrite=False, fixed=False, **kwargs):
+    def add_parameter(self, name, value=None, required=False, fixed=False, **kwargs):
         """Add a single *new* parameter to the ParameterizedNode.
 
         Notes
@@ -391,10 +391,6 @@ class ParameterizedNode:
         required : `bool`
             Fail if the parameter is set to ``None``.
             Default = ``False``
-        allow_overwrite : `bool`
-            Allow a subclass to overwrite the definition of the parameter
-            used in the superclass.
-            Default = ``False``
         fixed : `bool`
             The attribute cannot be changed during resampling.
             Default = ``False``
@@ -410,7 +406,7 @@ class ParameterizedNode:
         # Check for parameter collision and add a place holder value.
         if hasattr(self, name) and name not in self.parameters:
             raise KeyError(f"Parameter name {name} conflicts with a predefined model parameter.")
-        if self.parameters.get(name, None) is not None and not allow_overwrite:
+        if self.parameters.get(name, None) is not None:
             raise KeyError(f"Duplicate parameter set: {name}")
         self.parameters[name] = None
 
@@ -697,7 +693,7 @@ class FunctionNode(ParameterizedNode):
         """
         if self not in seen_nodes:
             # First use _sample_helper() to update the function node's inputs (dependencies).
-            # Then use compute() to update the function node's outputs.            
+            # Then use compute() to update the function node's outputs.
             super()._sample_helper(depth, seen_nodes, **kwargs)
             _ = self.compute(**kwargs)
 
