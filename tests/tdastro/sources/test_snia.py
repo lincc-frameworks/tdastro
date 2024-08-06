@@ -3,6 +3,8 @@ from tdastro.sources.sncomso_models import SncosmoWrapperModel
 from tdastro.util_nodes.np_random import NumpyRandomFunc
 from tdastro.astro_utils.snia_utils import X0FromDistMod,DistModFromRedshift,HostmassX1Func
 import numpy as np
+from tdastro.effects.redshift import Redshift
+
 
 def test_snia():
     """Test that we can sample and create a salt3 object."""
@@ -36,8 +38,10 @@ def test_snia():
                                  c = c_func,
                                  ra=NumpyRandomFunc("normal", loc=host.ra, scale=0.01),
                                  dec=NumpyRandomFunc("normal", loc=host.dec, scale=0.01),
-                                 reshift = host.redshift
+                                 redshift = host.redshift
     )
+
+    source.add_effect(Redshift(redshift=source.redshift, t0=source.t0))
 
     phase = np.linspace(-20, 30, 25)
     # times = phase
@@ -56,6 +60,3 @@ def test_snia():
         res['flux'].append(flux)
 
     return res
-
-
-test_snia()
