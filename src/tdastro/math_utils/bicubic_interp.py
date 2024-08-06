@@ -1,0 +1,160 @@
+"""The BicubicInterpolator is used by SALT models.
+
+It is adapted from sncosmo's BicubicInterpolator class (but implemented in JAX):
+https://github.com/sncosmo/sncosmo/blob/v2.10.1/sncosmo/salt2utils.pyx
+"""
+
+import jax.numpy as jnp
+
+from jax import jit
+from jax.lax import cond
+
+
+def _kernval(input_val):
+    """The kernval method from:
+    https://github.com/sncosmo/sncosmo/blob/v2.10.1/sncosmo/salt2utils.pyx
+    """
+    A = -0.5
+    B = A + 2.0
+    C = A + 3.0
+    x = abs(input_val)
+    if x > 2.0:
+        return 0.0
+    if x < 1.0:
+        return x * x * (B * x - C) + 1.0
+    return A * (-4.0 + x * (8.0 + x * (-5.0 + x)))
+
+
+@jit
+def _kernel_value(input_vals):
+    """A vectorized (JAX-ized) form of the kernval method."""
+    A = -0.5
+    x = jnp.abs(input_vals)
+
+    # Start with the case of 1.0 <= x <= 2.0.
+    result = A * (-4.0 + x * (8.0 + x * (-5.0 + x)))
+
+    # Override cases where x < 1.0
+    result = jnp.where(input_vals < 1.0, x * x * ((A + 2.0) * x - (A + 3.0)) + 1.0, result)
+
+    # Override cases where x > 2.0
+    result = jnp.where(input_vals > 2.0, 0.0, result)
+    return result
+
+
+class BicubicInterpolator:
+    """An object that performs bicubic interpolation over a 2-d grid.
+    
+    Attributes
+    ----------
+    x_vals : `jaxlib.xla_extension.ArrayImpl`
+        The values along the x-axis of the grid.
+    y_vals : `jaxlib.xla_extension.ArrayImpl`
+        The values along the y-axis of the grid.
+    z_vals : `jaxlib.xla_extension.ArrayImpl`
+        The values along the z-axis of the grid.
+    """
+
+    def __init__(self, x_vals, y_vals, z_vals):
+        # Load and validate the x values.
+        self.x_vals = jnp.asarray(x_vals)
+        if len(self.x_vals.shape) != 1:
+            raise ValueError(f"x values should be a 1-d array. Found shape={self.x_vals.shape}")
+        if len(self.x_vals) == 0:
+            raise ValueError("Empty x array given")
+        if jnp.any(self.x_vals[:-1] >= self.x_vals[1:]):
+            raise ValueError("x values must be in sorted order.")
+        self.n_x = len(self.x_vals)
+
+        # Load and validate the y values.
+        self.y_vals = jnp.asarray(y_vals)
+        if len(self.y_vals.shape) != 1:
+            raise ValueError(f"y values should be a 1-d array. Found shape={self.y_vals.shape}")
+        if len(self.y_vals) == 0:
+            raise ValueError("Empty y array given")
+        if jnp.any(self.y_vals[:-1] >= self.y_vals[1:]):
+            raise ValueError("y values must be in sorted order.")        
+        self.n_y = len(self.y_vals)
+
+        self.z_vals = jnp.asarray(z_vals)
+        if len(self.z_vals.shape) != 2:
+            raise ValueError(f"z values should be a 2-d array. Found shape={self.x_vals.shape}")
+        if self.z_vals.shape[0] != len(self.x_vals) or self.z_vals.shape[1] != len(self.y_vals):
+            raise ValueError(
+                f"z values wrong shape. Expected shape=({len(self.x_vals)}, {len(self.y_vals)})."
+                f" Found shape={self.x_vals.shape}."
+            )
+        
+        self.linear = jit(self._eval_linear)
+        self.cubic = jit(self._eval_cubic)
+        self.eval_one = jit(self.compute_one)
+
+    def _eval_linear(self, x_q, y_q, ix, iy):
+        ax = ((x_q - self.x_vals[ix]) / (self.x_vals[ix+1] - self.x_vals[ix]))
+        ay = ((y_q - self.y_vals[iy]) / (self.y_vals[iy+1] - self.y_vals[iy]))
+        ay2 = 1.0 - ay
+        return (
+            (1.0 - ax) * (ay2 * self.z_vals[ix][iy] + ay * self.z_vals[ix][iy+1]) +
+            ax * (ay2 * self.z_vals[ix+1][iy] + ay * self.z_vals[ix+1][iy+1])
+        )
+
+    def _eval_cubic(self, x_q, y_q, ix, iy):
+        dx = (self.x_vals[ix] - x_q) / (self.x_vals[ix+1] - self.x_vals[ix])
+        dy = (self.y_vals[iy] - y_q) / (self.y_vals[iy+1] - self.y_vals[iy])
+        wx = _kernel_value(jnp.asarray([dx-1.0, dx, dx+1.0, dx+2.0]))
+        wy = _kernel_value(jnp.asarray([dy-1.0, dy, dy+1.0, dy+2.0]))
+        return (
+            wx[0] * (
+                wy[0] * self.z_vals[ix-1][iy-1] +
+                wy[1] * self.z_vals[ix-1][iy] +
+                wy[2] * self.z_vals[ix-1][iy+1] +
+                wy[3] * self.z_vals[ix-1][iy+2]
+            ) +
+            wx[1] * (
+                wy[0] * self.z_vals[ix][iy-1] +
+                wy[1] * self.z_vals[ix][iy] +
+                wy[2] * self.z_vals[ix][iy+1] +
+                wy[3] * self.z_vals[ix][iy+2]
+            ) +
+            wx[2] * (
+                wy[0] * self.z_vals[ix+1][iy-1] +
+                wy[1] * self.z_vals[ix+1][iy] +
+                wy[2] * self.z_vals[ix+1][iy+1] +
+                wy[3] * self.z_vals[ix+1][iy+2]
+            ) +
+            wx[3] * (
+                wy[0] * self.z_vals[ix+2][iy-1] +
+                wy[1] * self.z_vals[ix+2][iy] +
+                wy[2] * self.z_vals[ix+2][iy+1] +
+                wy[3] * self.z_vals[ix+2][iy+2]
+            )
+        )
+
+    def compute_one(self, x_q, y_q):
+        ix = jnp.searchsorted(self.x_vals, x_q)
+        ix = jnp.where(ix == self.n_x - 1, self.n_x - 2, ix)
+        iy = jnp.searchsorted(self.y_vals, y_q)
+        iy = jnp.where(iy == self.n_y - 1, self.n_y - 2, iy)
+        results = cond(
+            (self.n_x < 3) | (ix == 0) | (ix > (self.n_x - 3)) | (self.n_y < 3) | (iy == 0) | (iy > (self.n_y - 3)),
+            self.linear,
+            self.cubic,
+            x_q,
+            y_q,
+            ix,
+            iy,
+        )
+
+        # Overwrite anything that went out of bounds.
+        results = jnp.where(
+            (x_q < self.x_vals[0]) | (x_q > self.x_vals[-1]) | (y_q < self.y_vals[0]) | (y_q > self.y_vals[-1]),
+            0.0,
+            results,
+        )
+
+        return results
+
+    def __call__(self, x_q, y_q):
+        x_mat = jnp.tile(jnp.asarray(x_q), (len(y_q), 1)).T
+        y_mat = jnp.tile(jnp.asarray(y_q), (len(x_q), 1))
+        return jnp.vectorize(self.eval_one)(x_mat, y_mat)
