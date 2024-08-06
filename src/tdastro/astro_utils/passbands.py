@@ -183,8 +183,11 @@ class Passbands:
                 (self.transmission_tables[band_name][:, 0], normalized_wavelengths_angstroms)
             )
 
-    def _get_in_band_flux(self, flux: np.ndarray, normalized_system_response_table: np.ndarray) -> float:
-        """Calculate the in-band flux for a given flux and normalized system response table.
+    def _get_in_band_flux(self, flux: np.ndarray, band: str) -> float:
+        """Calculate the in-band flux for a given flux and band id.
+
+        In-band flux is calculated as the integral of the product of the flux and the normalized system
+        response over the wavelengths in the band.
 
         Note
         ----
@@ -199,17 +202,17 @@ class Passbands:
         ----------
         flux : np.ndarray
             Array of flux values evaluated at the wavelengths in the normalized system response table.
-        normalized_system_response_table : np.ndarray
-            A 2D array with wavelengths (Angstrom) in the first column and normalized system response
-            values in the second.
+        band : str
+            Name of the band for which the in-band flux is to be calculated. Used to select the corresponding
+            normalized system response table.
 
         Returns
         -------
         float
             The in-band flux value.
         """
-        passband_wavelengths = normalized_system_response_table[:, 0]
-        integrand = flux * normalized_system_response_table[:, 1]
+        passband_wavelengths = self.normalized_system_response_tables[band][:, 0]
+        integrand = flux * self.normalized_system_response_tables[band][:, 1]
         return scipy.integrate.trapezoid(integrand, x=passband_wavelengths)
 
     def get_all_in_band_fluxes(self, model: PhysicalModel, times) -> np.ndarray:
@@ -242,8 +245,6 @@ class Passbands:
             all_fluxes = model.evaluate(times, wavelengths_in_band)
 
             # Compute the in-band fluxes for each time
-            in_band_fluxes = np.apply_along_axis(
-                self._get_in_band_flux, 1, all_fluxes, self.normalized_system_response_tables[band]
-            )
+            in_band_fluxes = np.apply_along_axis(self._get_in_band_flux, 1, all_fluxes, band)
             flux_matrix[:, i] = in_band_fluxes
         return flux_matrix
