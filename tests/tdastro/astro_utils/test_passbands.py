@@ -11,7 +11,7 @@ from tdastro.sources.spline_model import SplineModel
 def test_passbands_init():
     """Test that we can initialize a Passbands object with different bands."""
     passbands_default = Passbands()
-    assert passbands_default.bands == ["u", "g", "r", "i", "z", "y"]
+    assert passbands_default.bands == []
 
     passbands_ubv = Passbands(bands=["u", "b", "v"])
     assert passbands_ubv.bands == ["u", "b", "v"]
@@ -159,14 +159,19 @@ def test_passbands_get_in_band_flux():
 
     # Mock transmission table data for test-band
     normalized_system_response_table = np.array([[100.0, 0.5], [200.0, 0.75], [300.0, 0.25]])
+    passbands.normalized_system_response_tables["test-band"] = normalized_system_response_table
+
+    # Define some mock flux values
     flux = np.array([1.0, 2.0, 3.0])
 
+    # Calculate the expected in-band flux.
+    # Somewhat redundant, but good to check types, shapes, etc. remain consistent.
     expected_in_band_flux = np.trapz(
         flux * normalized_system_response_table[:, 1], x=normalized_system_response_table[:, 0]
     )
 
     # Calculate in-band flux using the method
-    calculated_in_band_flux = passbands._get_in_band_flux(flux, normalized_system_response_table)
+    calculated_in_band_flux = passbands._get_in_band_flux(flux, "test-band")
 
     np.testing.assert_allclose(calculated_in_band_flux, expected_in_band_flux, rtol=1e-9, atol=1e-9)
 
