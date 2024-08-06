@@ -19,7 +19,7 @@ class Passbands:
     Attributes
     ----------
     bands : list
-        A list of strings representing the band names.
+        A list of strings representing the band names (eg, ["u", "g", "r", "i", "z", "y"]).
     data_path : str
         Path to the directory where the bandpass data is stored.
     transmission_tables : dict
@@ -34,7 +34,7 @@ class Passbands:
 
     def __init__(self, bands=None):
         if bands is None:
-            self.bands = ["u", "g", "r", "i", "z", "y"]
+            self.bands = []
         else:
             self.bands = bands
         self.data_path = None
@@ -169,9 +169,7 @@ class Passbands:
         # Calculate the numerator
         numerators = transmission_values / wavelengths_angstrom
         # Perform trapezoidal integration over the wavelengths to get the denominators
-        denominators = scipy.integrate.trapezoid(
-            transmission_values / wavelengths_angstrom, x=wavelengths_angstrom
-        )
+        denominators = scipy.integrate.trapezoid(numerators, x=wavelengths_angstrom)
         # Calculate phi_b for all wavelengths
         return numerators / denominators
 
