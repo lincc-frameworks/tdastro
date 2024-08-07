@@ -232,17 +232,27 @@ class Passbands:
         np.ndarray
             A 2D array with in-band fluxes for all bands at all times.
         """
+        # Find the union of all wavelengths in the bands
+        all_wavelengths = np.unique(
+            np.concatenate([self.normalized_system_response_tables[band][:, 0] for band in self.bands])
+        )
+
+        # Evaluate the model at all times and wavelengths
+        all_fluxes = model.evaluate(times, all_wavelengths)
+
         # Prepare an array to hold the flux values
         flux_matrix = np.zeros((len(times), len(self.bands)))
 
         # Apply _get_in_band_flux to all fluxes
         for i, band in enumerate(self.bands):
             wavelengths_in_band = self.normalized_system_response_tables[band][:, 0]
-            # Evaluate the spline model for all times and wavelengths in the band
-            # Note we'll be double-dipping here, in that some wavelengths do exist in multiple bands
-            all_fluxes = model.evaluate(times, wavelengths_in_band)
+
+            # Find the indices of the wavelengths in the band in the union array
+            band_indices = np.searchsorted(all_wavelengths, wavelengths_in_band)
 
             # Compute the in-band fluxes for each time
-            in_band_fluxes = np.apply_along_axis(self._get_in_band_flux, 1, all_fluxes, band)
+            in_band_fluxes = np.apply_along_axis(self._get_in_band_flux, 1, all_fluxes[:, band_indices], band)
+
+            # Store the in-band fluxes in the matrix
             flux_matrix[:, i] = in_band_fluxes
         return flux_matrix
