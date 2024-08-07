@@ -172,7 +172,7 @@ def test_passbands_get_in_band_flux():
     """Test the calculation of in-band flux for given flux and normalized system response table."""
     passbands = Passbands(bands=["test-band"])
 
-    # Mock transmission table data for test-band
+    # Mock normalized system response table data for test-band
     normalized_system_response_table = np.array([[100.0, 0.5], [200.0, 0.75], [300.0, 0.25]])
     passbands.normalized_system_response_tables["test-band"] = normalized_system_response_table
 
@@ -194,25 +194,75 @@ def test_passbands_get_in_band_flux():
 def test_passbands_get_all_in_band_fluxes():
     """Test that we can calculate the in-band fluxes for all bands given a SplineModel and times."""
 
-    passbands = Passbands(bands=["a", "b"])
-
-    # Mock the normalized system response table for test-band
-    passbands.normalized_system_response_tables["a"] = np.array([[100.0, 0.5], [200.0, 0.75], [300.0, 0.25]])
-    passbands.normalized_system_response_tables["b"] = np.array([[100.0, 0.75], [200.0, 0.5], [300.0, 0.25]])
+    passbands = Passbands(bands=["a", "b", "c"])
+    passbands.transmission_tables["a"] = np.array([[100.0, 0.5], [200.0, 0.75]])
+    passbands.transmission_tables["b"] = np.array([[200.0, 0.25], [300.0, 0.5]])
+    passbands.transmission_tables["c"] = np.array([[300.0, 0.5], [400.0, 0.5]])
+    passbands.calculate_normalized_system_response_tables()
 
     # Define some mock times
-    times = np.array([0.1, 0.2, 0.3])
+    times = np.array([0.1, 0.2, 0.3, 0.4, 0.5])
+    wavelengths = np.array([100.0, 200.0, 300.0, 400.0])
 
     # Create our model
     model = SplineModel(
         times,
-        [100.0, 200.0, 300.0],
-        np.array([[1.0, 1.0, 1.0], [1.0, 1.0, 1.0], [1.0, 1.0, 1.0]]),
+        wavelengths,
+        np.array(
+            [
+                [1.0, 1.0, 1.0, 1.0],
+                [5.0, 5.0, 5.0, 5.0],
+                [9.0, 9.0, 9.0, 9.0],
+                [8.0, 8.0, 8.0, 8.0],
+                [7.0, 7.0, 7.0, 7.0],
+            ]
+        ),
         time_degree=1,
         wave_degree=1,
     )
 
-    # Calculate in-band fluxes using the method
+    # Calculate in-band fluxes
     calculated_flux_matrix = passbands.get_all_in_band_fluxes(model, times)
 
-    print(calculated_flux_matrix)  # Hmm...to discuss tomorrow (TODO)
+    # Check that the shape of the calculated flux matrix is correct
+    assert calculated_flux_matrix.shape == (5, 3)
+
+    # Check that the colors are equivalent for a flat spectrum model
+    # That is, that column B - column A == column C - column B
+    np.testing.assert_allclose(
+        calculated_flux_matrix[:, 2] - calculated_flux_matrix[:, 1],
+        calculated_flux_matrix[:, 1] - calculated_flux_matrix[:, 0],
+        rtol=1e-9,
+        atol=1e-9,
+    )
+
+    # Check with a non-flat spectrum model
+    model_b = SplineModel(
+        times,
+        wavelengths,
+        np.array(
+            [
+                [1.0, 2.0, 3.0, 4.0],
+                [5.0, 6.0, 7.0, 8.0],
+                [9.0, 9.0, 18.0, 9.0],
+                [8.0, 6.0, 4.0, 6.0],
+                [7.0, 0.0, 1.0, 1.0],
+            ]
+        ),
+        time_degree=3,
+        wave_degree=3,
+    )
+
+    # Check that we can successfully run the method with a non-flat spectrum model
+    calculated_flux_matrix_b = passbands.get_all_in_band_fluxes(model_b, times)
+
+    # Check that the shape of the calculated flux matrix is correct
+    assert calculated_flux_matrix_b.shape == (5, 3)
+
+    # Check that the colors are not equivalent for a non-flat spectrum model such as this
+    assert not np.allclose(
+        calculated_flux_matrix_b[:, 2] - calculated_flux_matrix_b[:, 1],
+        calculated_flux_matrix_b[:, 1] - calculated_flux_matrix_b[:, 0],
+        rtol=1e-9,
+        atol=1e-9,
+    )
