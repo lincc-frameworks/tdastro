@@ -1,25 +1,60 @@
-from astropy.cosmology import FlatLambdaCDM
-from tdastro.base_models import FunctionNode
 import numpy as np
-from scipy.stats.sampling import NumericalInversePolynomial
+from astropy.cosmology import FlatLambdaCDM
 from scipy.stats import norm
+from scipy.stats.sampling import NumericalInversePolynomial
+
+from tdastro.base_models import FunctionNode
+
 
 class HostmassX1Distr:
+    """
+    A class that contains the pdf of the SALT x1 parameter given the hostmass
+
+    Attributes
+    ----------
+    hostmass: `float`
+        The hostmass value.
+
+    Parameters
+    ----------
+    hostmass: `float`
+        The hostmass value.
+    """
+
     def __init__(self, hostmass):
         self.hostmass = hostmass
 
-    def _p(self,x1,hostmass = 9.):
+    def _p(self, x1, hostmass=9.0):
+        """
+        The probablity of having a value of x1 given a hostmass.
+
+        Parameters
+        ----------
+        x1: `float`
+            The x1 value.
+        hostmass: `float`
+            The hostmass value.
+
+        Returns
+        -------
+        p: `float`
+            The probablity.
+        """
         if x1 < -5 or x1 > 5:
-            p = 0.
+            p = 0.0
         else:
-            if hostmass < 10.:
-                p = np.exp(-x1**2) if x1 < 0. else 1.
+            if hostmass < 10.0:
+                p = np.exp(-(x1**2)) if x1 < 0.0 else 1.0
             else:
-                p = 1.
+                p = 1.0
         return p
 
     def pdf(self, x1):
-        return self._p(x1,hostmass=self.hostmass)*norm.pdf(x1,loc=0,scale=1)
+        """
+        The pdf of x1 given hostmass.
+
+        """
+        return self._p(x1, hostmass=self.hostmass) * norm.pdf(x1, loc=0, scale=1)
 
 
 def _hostmass_x1func(hostmass):
@@ -39,7 +74,7 @@ def _hostmass_x1func(hostmass):
     dist = HostmassX1Distr(hostmass)
     x1 = NumericalInversePolynomial(dist).rvs(1)[0]
 
-    return x1   
+    return x1
 
 
 def _x0_from_distmod(distmod, x1, c, alpha, beta, m_abs):
@@ -67,22 +102,22 @@ def _x0_from_distmod(distmod, x1, c, alpha, beta, m_abs):
     x0 : `float`
         The x0 parameter
     """
-    x0 = np.power(10., -0.4 * (distmod - alpha * x1 + beta * c + m_abs))
-
+    x0 = np.power(10.0, -0.4 * (distmod - alpha * x1 + beta * c + m_abs))
 
     return x0
 
 
-def _distmod_from_redshift(redshift,H0=73.,Omega_m=0.3):
+def _distmod_from_redshift(redshift, H0=73.0, Omega_m=0.3):
     """Compute distance modulus given redshift and cosmology.
 
     Parameters
     ----------
     redshift : `float`
         The redshift value.
-    cosmology : `astropy.cosmology`
-        The cosmology specification.
-
+    H0: `float`
+        The Hubble constant.
+    Omega_m: `float`
+        The matter density.
     Returns
     -------
     distmod : `float`
@@ -97,12 +132,6 @@ def _distmod_from_redshift(redshift,H0=73.,Omega_m=0.3):
 
 class HostmassX1Func(FunctionNode):
     """A wrapper class for the _hostmass_x1func() function.
-
-    Attributes
-    ----------
-    kind : `str`
-        The distance type for the Equivalency as defined by
-        astropy.cosmology.units.redshift_distance.
 
     Parameters
     ----------
@@ -122,14 +151,9 @@ class HostmassX1Func(FunctionNode):
             **kwargs,
         )
 
+
 class X0FromDistMod(FunctionNode):
     """A wrapper class for the _x0_from_distmod() function.
-
-    Attributes
-    ----------
-    kind : `str`
-        The distance type for the Equivalency as defined by
-        astropy.cosmology.units.redshift_distance.
 
     Parameters
     ----------
@@ -152,24 +176,19 @@ class X0FromDistMod(FunctionNode):
     def __init__(self, distmod, x1, c, alpha, beta, m_abs, **kwargs):
         # Call the super class's constructor with the needed information.
         super().__init__(
-            func = _x0_from_distmod,
-            distmod = distmod,
-            x1 = x1,
-            c = c,
-            alpha = alpha,
-            beta = beta,
-            m_abs = m_abs,
+            func=_x0_from_distmod,
+            distmod=distmod,
+            x1=x1,
+            c=c,
+            alpha=alpha,
+            beta=beta,
+            m_abs=m_abs,
             **kwargs,
         )
 
+
 class DistModFromRedshift(FunctionNode):
     """A wrapper class for the _distmod_from_redshift() function.
-
-    Attributes
-    ----------
-    kind : `str`
-        The distance type for the Equivalency as defined by
-        astropy.cosmology.units.redshift_distance.
 
     Parameters
     ----------
@@ -183,13 +202,12 @@ class DistModFromRedshift(FunctionNode):
         Any additional keyword arguments.
     """
 
-    def __init__(self, redshift,H0=73.,Omega_m=0.3, **kwargs):
+    def __init__(self, redshift, H0=73.0, Omega_m=0.3, **kwargs):
         # Call the super class's constructor with the needed information.
         super().__init__(
-            func = _distmod_from_redshift,
-            redshift = redshift,
-            H0 = H0,
-            Omega_m = Omega_m,
+            func=_distmod_from_redshift,
+            redshift=redshift,
+            H0=H0,
+            Omega_m=Omega_m,
             **kwargs,
         )
-

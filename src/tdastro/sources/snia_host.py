@@ -1,15 +1,9 @@
 from tdastro.sources.physical_model import PhysicalModel
 
-class SNIaHost(PhysicalModel):
-    """A static source.
 
-    Attributes
-    ----------
-    radius_std : `float`
-        The standard deviation of the brightness as we move away
-        from the galaxy's center (in degrees).
-    brightness : `float`
-        The inherent brightness at the center of the galaxy.
+class SNIaHost(PhysicalModel):
+    """
+    A SN Ia host galaxy model with a hostmass parameter, more to be added.
     """
 
     def __init__(self, **kwargs):
