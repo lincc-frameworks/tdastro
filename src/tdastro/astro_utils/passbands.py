@@ -169,9 +169,9 @@ class Passbands:
         # Calculate the numerator
         numerators = transmission_values / wavelengths_angstrom
         # Perform trapezoidal integration over the wavelengths to get the denominators
-        denominators = scipy.integrate.trapezoid(numerators, x=wavelengths_angstrom)
+        denominator = scipy.integrate.trapezoid(numerators, x=wavelengths_angstrom)
         # Calculate phi_b for all wavelengths
-        return numerators / denominators
+        return numerators / denominator
 
     def calculate_normalized_system_response_tables(self) -> None:
         """Calculate the normalized system response tables for all bands."""
