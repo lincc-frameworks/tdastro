@@ -103,16 +103,16 @@ def _x0_from_distmod(distmod, x1, c, alpha, beta, m_abs):
     return x0
 
 
-def _distmod_from_redshift(redshift, h0=73.0, omega_m=0.3):
+def _distmod_from_redshift(redshift, H0=73.0, Omega_m=0.3):
     """Compute distance modulus given redshift and cosmology.
 
     Parameters
     ----------
     redshift : `float`
         The redshift value.
-    h0: `float`
+    H0: `float`
         The Hubble constant.
-    omega_m: `float`
+    Omega_m: `float`
         The matter density.
     Returns
     -------
@@ -120,7 +120,7 @@ def _distmod_from_redshift(redshift, h0=73.0, omega_m=0.3):
         The distance modulus (in mag)
     """
 
-    cosmo = FlatLambdaCDM(H0=h0, Om0=omega_m)
+    cosmo = FlatLambdaCDM(H0=H0, Om0=Omega_m)
     distmod = cosmo.distmod(redshift).value
 
     return distmod
@@ -190,20 +190,20 @@ class DistModFromRedshift(FunctionNode):
     ----------
     redshift : function or constant
         The function or constant providing the redshift value.
-    h0 : constant
+    H0 : constant
         The Hubble constant.
-    omega_m : constant
+    Omega_m : constant
         The matter density Omega_m.
     **kwargs : `dict`, optional
         Any additional keyword arguments.
     """
 
-    def __init__(self, redshift, h0=73.0, omega_m=0.3, **kwargs):
+    def __init__(self, redshift, H0=73.0, Omega_m=0.3, **kwargs):
         # Call the super class's constructor with the needed information.
         super().__init__(
             func=_distmod_from_redshift,
             redshift=redshift,
-            h0=h0,
-            omega_m=omega_m,
+            H0=H0,
+            Omega_m=Omega_m,
             **kwargs,
         )
