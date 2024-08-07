@@ -130,6 +130,10 @@ def test_passbands_phi_b():
     assert np.isclose(np.trapz(u_band_phi_b, x=u_band_transmission_table[:, 0]), 1.0, rtol=1e-9, atol=1e-9)
     assert np.isclose(np.trapz(g_band_phi_b, x=g_band_transmission_table[:, 0]), 1.0, rtol=1e-9, atol=1e-9)
 
+    # Check that they match our hand-computed values
+    np.testing.assert_allclose(u_band_phi_b, [0.0075, 0.005625, 0.00125], rtol=1e-9, atol=1e-9)
+    np.testing.assert_allclose(g_band_phi_b, [0.01125, 0.00375, 0.00125], rtol=1e-9, atol=1e-9)
+
 
 def test_passbands_calculate_normalized_system_response_tables():
     """Test that we can calculate the normalized system response tables for all bands."""
@@ -140,17 +144,28 @@ def test_passbands_calculate_normalized_system_response_tables():
     passbands.transmission_tables["u"] = np.array([[100.0, 0.5], [200.0, 0.75], [300.0, 0.25]])
     passbands.transmission_tables["g"] = np.array([[100.0, 0.75], [200.0, 0.5], [300.0, 0.25]])
 
-    # Mock the _phi_b method
-    with patch.object(passbands, "_phi_b", return_value=np.array([0.5, 0.5, 0.5])):
-        passbands.calculate_normalized_system_response_tables()
+    # Expected results
+    expected_results = {
+        "u": np.array([[100.0, 0.0075], [200.0, 0.005625], [300.0, 0.00125]]),
+        "g": np.array([[100.0, 0.01125], [200.0, 0.00375], [300.0, 0.00125]]),
+    }
 
-        # Check that the normalized system response tables have been calculated for each band
-        for band_id in band_ids:
-            assert band_id in passbands.normalized_system_response_tables  # band_id is in the dictionary
-            assert passbands.normalized_system_response_tables[band_id].shape == (3, 2)  # 3 rows, 2 columns
-            np.testing.assert_allclose(
-                passbands.normalized_system_response_tables[band_id][:, 1], 0.5
-            )  # vals = 0.5
+    # Calculate the normalized system response tables
+    passbands.calculate_normalized_system_response_tables()
+
+    # Check we have not computed too many/too few bands
+    assert len(passbands.normalized_system_response_tables) == len(band_ids)
+
+    # Check that the normalized system response tables have been calculated for each band
+    for band_id in band_ids:
+        assert band_id in passbands.normalized_system_response_tables  # band_id is in the dictionary
+        assert passbands.normalized_system_response_tables[band_id].shape == (3, 2)  # 3 rows, 2 columns
+        np.testing.assert_allclose(
+            passbands.normalized_system_response_tables[band_id][:, 1],
+            expected_results[band_id][:, 1],
+            rtol=1e-9,
+            atol=1e-9,
+        )
 
 
 def test_passbands_get_in_band_flux():
