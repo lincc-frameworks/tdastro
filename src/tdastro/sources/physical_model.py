@@ -109,7 +109,7 @@ class PhysicalModel(ParameterizedNode):
         """
         raise NotImplementedError()
 
-    def evaluate(self, times, wavelengths, sample_parameters=False, graph_state=None, **kwargs):
+    def evaluate(self, times, wavelengths, graph_state=None, **kwargs):
         """Draw observations for this object and apply the noise.
 
         Parameters
@@ -118,11 +118,9 @@ class PhysicalModel(ParameterizedNode):
             A length T array of timestamps.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
-        sample_parameters : `bool`
-            Treat this evaluation as a completely new object, resampling the
-            parameters from the original provided functions.
         graph_state : `dict`, optional
-            A dictionary mapping graph parameters to their values.
+            A given setting of all the parameters and their values. If this is not
+            included then a random sampling is used.
         **kwargs : `dict`, optional
             All the other keyword arguments.
 
@@ -131,10 +129,9 @@ class PhysicalModel(ParameterizedNode):
         flux_density : `numpy.ndarray`
             A length T x N matrix of SED values.
         """
-        if sample_parameters:
-            if graph_state is not None:
-                raise ValueError("If sample_parameters is used, graph_state should be None.")
+        if graph_state is None:
             graph_state = self.sample_parameters()
+        params = self.get_local_params(graph_state)
 
         # Pre-effects are adjustments done to times and/or wavelengths, before flux density computation.
         for effect in self.effects:
@@ -149,13 +146,13 @@ class PhysicalModel(ParameterizedNode):
                 times,
                 wavelengths,
                 graph_state,
-                ra=self.parameters["ra"],
-                dec=self.parameters["dec"],
+                ra=params["ra"],
+                dec=params["dec"],
                 **kwargs,
             )
 
         for effect in self.effects:
-            flux_density = effect.apply(flux_density, wavelengths, self, graph_state, **kwargs)
+            flux_density = effect.apply(flux_density, wavelengths, graph_state, **kwargs)
         return flux_density
 
     def sample_parameters(self, **kwargs):

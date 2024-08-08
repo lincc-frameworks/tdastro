@@ -32,6 +32,8 @@ class StepSource(StaticSource):
             A length T array of timestamps.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
+        graph_state : `dict`
+            A dictionary of all the current parameter settings.
         **kwargs : `dict`, optional
            Any additional keyword arguments.
 

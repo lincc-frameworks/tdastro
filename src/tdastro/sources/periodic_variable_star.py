@@ -23,10 +23,10 @@ class PeriodicVariableStar(PeriodicSource, ABC):
 
     def __init__(self, period, t0, **kwargs):
         super().__init__(period, t0, **kwargs)
-        if self["distance"] is None:
+        if "distance" not in self.setters:
             raise ValueError("Distance parameter is required for PeriodicVariableStar")
 
-    def _evaluate_phases(self, phases, wavelengths, **kwargs):
+    def _evaluate_phases(self, phases, wavelengths, graph_state, **kwargs):
         """Draw effect-free observations for this object, as a function of phase.
 
         Parameters
@@ -35,6 +35,8 @@ class PeriodicVariableStar(PeriodicSource, ABC):
             A length T array of phases, in the range [0, 1].
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
+        graph_state : `dict`, optional
+            A given setting of all the parameters and their values.
         **kwargs : `dict`, optional
               Any additional keyword arguments.
 
@@ -43,11 +45,11 @@ class PeriodicVariableStar(PeriodicSource, ABC):
         flux_density : `numpy.ndarray`
             A length T x N matrix of SED values.
         """
-        distance = self.parameters["distance"] * PARSEC_TO_CM
-        return self._dl_dnu_domega_phases(phases, wavelengths, **kwargs) / np.square(distance)
+        distance = self.get_param(graph_state, "distance") * PARSEC_TO_CM
+        return self._dl_dnu_domega_phases(phases, wavelengths, graph_state, **kwargs) / np.square(distance)
 
     @abstractmethod
-    def _dl_dnu_domega_phases(self, phases, wavelengths, **kwargs):
+    def _dl_dnu_domega_phases(self, phases, wavelengths, graph_state, **kwargs):
         r"""Draw effect-free luminosity density per unit solid angle, as a function of phase.
 
         It is dL / d \nu / d \Omega, so the units are erg / s / Hz / sr.
@@ -63,6 +65,8 @@ class PeriodicVariableStar(PeriodicSource, ABC):
             A length T array of phases, in the range [0, 1].
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
+        graph_state : `dict`, optional
+            A given setting of all the parameters and their values.
         **kwargs : `dict`, optional
               Any additional keyword arguments.
 
@@ -108,7 +112,7 @@ class EclipsingBinaryStar(PeriodicVariableStar):
         self.add_parameter("primary_temperature", required=True, **kwargs)
         self.add_parameter("secondary_temperature", required=True, **kwargs)
 
-    def _dl_dnu_domega_phases(self, phases, wavelengths, **kwargs):
+    def _dl_dnu_domega_phases(self, phases, wavelengths, graph_state, **kwargs):
         """Draw effect-free luminosity density for this object, as a function of phase.
 
         Parameters
@@ -117,6 +121,8 @@ class EclipsingBinaryStar(PeriodicVariableStar):
             A length T array of phases, in the range [0, 1].
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
+        graph_state : `dict`, optional
+            A given setting of all the parameters and their values.
         **kwargs : `dict`, optional
               Any additional keyword arguments.
 
@@ -128,12 +134,13 @@ class EclipsingBinaryStar(PeriodicVariableStar):
         phases = phases[:, None]
 
         # Extract the parameters we need.
-        primary_temperature = self.parameters["primary_temperature"]
-        primary_radius = self.parameters["primary_radius"]
-        secondary_temperature = self.parameters["secondary_temperature"]
-        secondary_radius = self.parameters["secondary_radius"]
-        major_semiaxis = self.parameters["major_semiaxis"]
-        inclination = self.parameters["inclination"]
+        params = self.get_local_params(graph_state)
+        primary_temperature = params["primary_temperature"]
+        primary_radius = params["primary_radius"]
+        secondary_temperature = params["secondary_temperature"]
+        secondary_radius = params["secondary_radius"]
+        major_semiaxis = params["major_semiaxis"]
+        inclination = params["inclination"]
 
         primary_lum = black_body_luminosity_density_per_solid(
             primary_temperature, primary_radius, wavelengths

@@ -22,7 +22,7 @@ def test_spline_model_flat() -> None:
     model2 = SplineModel(times, wavelengths, fluxes, amplitude=5.0, node_label="test")
     assert str(model2) == "test"
 
-    state2 = model.sample_parameters()
+    state2 = model2.sample_parameters()
     values2 = model2.evaluate(test_times, test_waves, state2)
     assert values2.shape == (5, 4)
     expected2 = np.full_like(values2, 5.0)

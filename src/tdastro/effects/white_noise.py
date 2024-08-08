@@ -27,7 +27,7 @@ class WhiteNoise(EffectModel):
         super()._update_object_seed()
         self._rng = np.random.default_rng()
 
-    def apply(self, flux_density, wavelengths=None, physical_model=None, **kwargs):
+    def apply(self, flux_density, wavelengths=None, graph_state=None, **kwargs):
         """Apply the effect to observations (flux_density values)
 
         Parameters
@@ -36,9 +36,8 @@ class WhiteNoise(EffectModel):
             An array of flux density values.
         wavelengths : `numpy.ndarray`, optional
             An array of wavelengths.
-        physical_model : `PhysicalModel`
-            A PhysicalModel from which the effect may query parameters
-            such as redshift, position, or distance.
+        graph_state : `dict`
+            A dictionary mapping graph parameters to their values.
         **kwargs : `dict`, optional
            Any additional keyword arguments.
 
@@ -47,4 +46,5 @@ class WhiteNoise(EffectModel):
         flux_density : `numpy.ndarray`
             The results.
         """
-        return np.random.normal(loc=flux_density, scale=self.parameters["scale"])
+        scale = self.get_param(graph_state, "scale")
+        return np.random.normal(loc=flux_density, scale=scale)

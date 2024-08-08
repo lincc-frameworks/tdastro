@@ -36,8 +36,7 @@ def test_static_source() -> None:
 
     # We can set a value we have already added.
     model.set_parameter("brightness", 5.0)
-    state = model.sample_parameters()
-    values = model.evaluate(times, wavelengths, state)
+    values = model.evaluate(times, wavelengths)
     assert values.shape == (6, 3)
     assert np.all(values == 5.0)
 

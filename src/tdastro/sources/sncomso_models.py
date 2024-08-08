@@ -37,11 +37,10 @@ class SncosmoWrapperModel(PhysicalModel):
         # Use the kwargs to initialize the sncosmo model's parameters.
         self.source_param_names = []
         for key, value in kwargs.items():
-            if key not in self.parameters:
+            if key not in self.setters:
                 self.add_parameter(key, value)
             if key in self.source.param_names:
                 self.source_param_names.append(key)
-        self._update_sncosmo_model_parameters()
 
     @property
     def param_names(self):
@@ -53,12 +52,13 @@ class SncosmoWrapperModel(PhysicalModel):
         """Return a list of the model's parameter values."""
         return self.source.parameters
 
-    def _update_sncosmo_model_parameters(self):
+    def _update_sncosmo_model_parameters(self, graph_state):
         """Update the parameters for the wrapped sncosmo model."""
-        params = {}
+        local_params = self.get_local_params(graph_state)
+        sn_params = {}
         for name in self.source_param_names:
-            params[name] = self.parameters[name]
-        self.source.set(**params)
+            sn_params[name] = local_params[name]
+        self.source.set(**sn_params)
 
     def get(self, name):
         """Get the value of a specific parameter.
@@ -91,9 +91,9 @@ class SncosmoWrapperModel(PhysicalModel):
                 self.add_parameter(key, value)
             if key not in self.source_param_names:
                 self.source_param_names.append(key)
-        self._update_sncosmo_model_parameters()
+        self.source.set(**kwargs)
 
-    def _sample_helper(self, depth, seen_nodes, **kwargs):
+    def _sample_helper(self, graph_state, seen_nodes):
         """Internal recursive function to sample the model's underlying parameters
         if they are provided by a function or ParameterizedNode.
 
@@ -102,25 +102,22 @@ class SncosmoWrapperModel(PhysicalModel):
 
         Parameters
         ----------
-        depth : `int`
-            The recursive depth remaining. Used to prevent infinite loops.
-            Users should not need to set this manually.
+        graph_state : `dict`
+            A dictionary of dictionaries mapping node->hash, variable_name to value.
+            This data structure is modified in place to represent the current state.
         seen_nodes : `dict`
             A dictionary mapping nodes seen during this sampling run to their ID.
             Used to avoid sampling nodes multiple times and to validity check the graph.
-        **kwargs : `dict`, optional
-            All the keyword arguments, including the values needed to sample
-            parameters.
 
         Raises
         ------
         Raise a ``ValueError`` the depth of the sampling encounters a problem
         with the order of dependencies.
         """
-        super()._sample_helper(depth, seen_nodes, **kwargs)
-        self._update_sncosmo_model_parameters()
+        super()._sample_helper(graph_state, seen_nodes)
+        self._update_sncosmo_model_parameters(graph_state)
 
-    def _evaluate(self, times, wavelengths, **kwargs):
+    def _evaluate(self, times, wavelengths, graph_state=None, **kwargs):
         """Draw effect-free observations for this object.
 
         Parameters
@@ -129,6 +126,8 @@ class SncosmoWrapperModel(PhysicalModel):
             A length T array of timestamps.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
+        graph_state : `dict`, optional
+            A given setting of all the parameters and their values.
         **kwargs : `dict`, optional
            Any additional keyword arguments.
 
@@ -137,4 +136,5 @@ class SncosmoWrapperModel(PhysicalModel):
         flux_density : `numpy.ndarray`
             A length T x N matrix of SED values.
         """
+        self._update_sncosmo_model_parameters(graph_state)
         return self.source.flux(times, wavelengths)
