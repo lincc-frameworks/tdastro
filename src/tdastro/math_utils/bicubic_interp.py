@@ -6,7 +6,7 @@ https://github.com/sncosmo/sncosmo/blob/v2.10.1/sncosmo/salt2utils.pyx
 
 import jax.numpy as jnp
 
-from jax import jit
+from jax import jit, vmap
 from jax.lax import cond
 
 
@@ -65,6 +65,7 @@ class BicubicInterpolator:
         if jnp.any(self.x_vals[:-1] >= self.x_vals[1:]):
             raise ValueError("x values must be in sorted order.")
         self.n_x = len(self.x_vals)
+        self.x_step_size = jnp.append(self.x_vals[1:]-self.x_vals[:-1], jnp.asarray([1.0, 1.0]))
 
         # Load and validate the y values.
         self.y_vals = jnp.asarray(y_vals)
@@ -73,8 +74,9 @@ class BicubicInterpolator:
         if len(self.y_vals) == 0:
             raise ValueError("Empty y array given")
         if jnp.any(self.y_vals[:-1] >= self.y_vals[1:]):
-            raise ValueError("y values must be in sorted order.")        
+            raise ValueError("y values must be in sorted order.")      
         self.n_y = len(self.y_vals)
+        self.y_step_size = jnp.append(self.y_vals[1:]-self.y_vals[:-1], jnp.asarray([1.0, 1.0]))
 
         self.z_vals = jnp.asarray(z_vals)
         if len(self.z_vals.shape) != 2:
@@ -87,12 +89,13 @@ class BicubicInterpolator:
         
         self.linear = jit(self._eval_linear)
         self.cubic = jit(self._eval_cubic)
-        self.eval_one = jit(self.compute_one)
+        self.eval_row = vmap(jit(self.compute_row))
 
     def _eval_linear(self, x_q, y_q, ix, iy):
         ax = ((x_q - self.x_vals[ix]) / (self.x_vals[ix+1] - self.x_vals[ix]))
         ay = ((y_q - self.y_vals[iy]) / (self.y_vals[iy+1] - self.y_vals[iy]))
         ay2 = 1.0 - ay
+
         return (
             (1.0 - ax) * (ay2 * self.z_vals[ix][iy] + ay * self.z_vals[ix][iy+1]) +
             ax * (ay2 * self.z_vals[ix+1][iy] + ay * self.z_vals[ix+1][iy+1])
@@ -130,31 +133,57 @@ class BicubicInterpolator:
             )
         )
 
-    def compute_one(self, x_q, y_q):
-        ix = jnp.searchsorted(self.x_vals, x_q)
-        ix = jnp.where(ix == self.n_x - 1, self.n_x - 2, ix)
-        iy = jnp.searchsorted(self.y_vals, y_q)
-        iy = jnp.where(iy == self.n_y - 1, self.n_y - 2, iy)
+    def compute_row(self, x_q, y_q, ix, iy, xflag, yflag):
         results = cond(
-            (self.n_x < 3) | (ix == 0) | (ix > (self.n_x - 3)) | (self.n_y < 3) | (iy == 0) | (iy > (self.n_y - 3)),
-            self.linear,
-            self.cubic,
+            (xflag == -1) | (yflag == -1),
+            lambda x_q, y_q, ix, iy, xflag, yflag : 0.0,
+            lambda x_q, y_q, ix, iy, xflag, yflag : cond(
+                (xflag == 1) & (yflag == 1),
+                self.cubic,
+                self.linear,
+                x_q,
+                y_q,
+                ix,
+                iy,
+            ),
             x_q,
             y_q,
             ix,
             iy,
+            xflag,
+            yflag,
         )
-
-        # Overwrite anything that went out of bounds.
-        results = jnp.where(
-            (x_q < self.x_vals[0]) | (x_q > self.x_vals[-1]) | (y_q < self.y_vals[0]) | (y_q > self.y_vals[-1]),
-            0.0,
-            results,
-        )
-
         return results
 
     def __call__(self, x_q, y_q):
-        x_mat = jnp.tile(jnp.asarray(x_q), (len(y_q), 1)).T
-        y_mat = jnp.tile(jnp.asarray(y_q), (len(x_q), 1))
-        return jnp.vectorize(self.eval_one)(x_mat, y_mat)
+        n_xq = len(x_q)
+        n_yq = len(y_q)
+
+        # Find the first index *after* each of the query values with
+        # the n-1 index in each dimension mapped to n-2.
+        ix = jnp.searchsorted(self.x_vals, x_q)
+        ix = jnp.where(ix >= self.n_x - 1, self.n_x - 2, ix)
+        iy = jnp.searchsorted(self.y_vals, y_q)
+        iy = jnp.where(iy >= self.n_y - 1, self.n_y - 2, iy)
+
+        # Create the flags for which rows of each input are outside the bounds (-1),
+        # need linear interpolation (0), and can use cubic interpolation (1).
+        # Compute flags for each query indicating out of bounds (-1), use linear interpolation (0)
+        # or use cubic interpolation (1).
+        xflag = jnp.where(jnp.full(n_xq, self.n_x < 3) | (ix == 0) | (ix > (self.n_x - 3)), 0, 1)
+        xflag = jnp.where((x_q >= self.x_vals[0]) & (x_q <= self.x_vals[-1]), xflag, -1)
+        yflag = jnp.where(jnp.full(n_yq, self.n_y < 3) | (iy == 0) | (iy > (self.n_y - 3)), 0, 1)
+        yflag = jnp.where((y_q >= self.y_vals[0]) & (y_q <= self.y_vals[-1]), yflag, -1)
+
+        # Create flattened matrix versions of the key information.
+        xq_all = jnp.ravel(jnp.tile(jnp.asarray(x_q), (len(y_q), 1)).T)
+        yq_all = jnp.ravel(jnp.tile(jnp.asarray(y_q), (len(x_q), 1)))
+        ix_all = jnp.ravel(jnp.tile(ix, (len(y_q), 1)).T)
+        iy_all = jnp.ravel(jnp.tile(iy, (len(x_q), 1)))
+        xflag_all = jnp.ravel(jnp.tile(xflag, (n_yq, 1)).T)
+        yflag_all = jnp.ravel(jnp.tile(yflag, (n_xq, 1)))
+
+        # Use the vmapped function to evaluate every combination of x and y points.
+        results = self.eval_row(xq_all, yq_all, ix_all, iy_all, xflag_all, yflag_all)
+        results = results.reshape((n_xq, n_yq))
+        return results
