@@ -51,8 +51,6 @@ static functions.
 from hashlib import md5
 from os import urandom
 
-import numpy as np
-
 
 class ParameterSource:
     """ParameterSource specifies the information about where a ParameterizedNode should
@@ -85,6 +83,7 @@ class ParameterSource:
     CONSTANT = 1
     MODEL_PARAMETER = 2
     FUNCTION_NODE = 3
+    COMPUTE_OUTPUT = 4
 
     def __init__(self, parameter_name, source_type=0, fixed=False, required=False, node_name=""):
         self.source_type = source_type
@@ -93,17 +92,6 @@ class ParameterSource:
         self.value = None
         self.dependency = None
         self.set_name(parameter_name, node_name)
-
-    def get_value(self, **kwargs):
-        """Get the parameter's value."""
-        if self.source_type == ParameterSource.CONSTANT:
-            return self.value
-        elif self.source_type == ParameterSource.MODEL_PARAMETER:
-            return self.dependency.parameters[self.value]
-        elif self.source_type == ParameterSource.FUNCTION_NODE:
-            return self.dependency.parameters[self.value]
-        else:
-            raise ValueError(f"Invalid ParameterSource type {self.source_type}")
 
     def set_name(self, parameter_name="", node_name=""):
         """Set the name of the parameter field.
@@ -167,6 +155,19 @@ class ParameterSource:
         self.dependency = dependency
         self.value = param_name
 
+    def set_as_compute_output(self, param_name="function_node_result"):
+        """Set the parameter the output of this current node's compute() method.
+
+        Parameters
+        ----------
+        dependency : `ParameterizedNode`
+            The node in which to access the attribute.
+        param_name : `str`
+            The name of where the result is stored in the FunctionNode.
+        """
+        self.source_type = ParameterSource.COMPUTE_OUTPUT
+        self.value = param_name
+
 
 class ParameterizedNode:
     """Any model that uses parameters that can be set by constants,
@@ -179,12 +180,12 @@ class ParameterizedNode:
     node_string : `str`
         The full string used to identify a node. This is a combination of the nodes position
         in the graph (if known), node_label (if provided), and class information.
+    node_hash : `int`
+        A hashed version of ``node_string`` used for fast lookups.
     setters : `dict`
         A dictionary mapping the parameters' names to information about the setters
         (ParameterSource). The model parameters are stored in the order in which they
         need to be set.
-    parameters : `dict`
-        A dictionary mapping the parameter's name to its current value.
     direct_dependencies : `dict`
         A dictionary with keys of other ParameterizedNodes on that this node needs to
         directly access. We use a dictionary to preserve ordering.
@@ -207,13 +208,13 @@ class ParameterizedNode:
 
     def __init__(self, node_label=None, **kwargs):
         self.setters = {}
-        self.parameters = {}
         self.direct_dependencies = {}
         self.node_label = node_label
         self._node_pos = None
         self._object_seed = None  # A default until set is called.
         self._graph_base_seed = None
         self.node_string = None
+        self.node_hash = None
 
         # We start all nodes with a completely random base seed.
         base_seed = int.from_bytes(urandom(4), "big")
@@ -237,6 +238,10 @@ class ParameterizedNode:
         # Allow for the appending of an extra tag.
         if extra_tag is not None:
             self.node_string = f"{self.node_string}:{extra_tag}"
+
+        # Save the hashed value of the node string.
+        hashed_object_name = md5(self.node_string.encode()).hexdigest()
+        self.node_hash = int(hashed_object_name, base=16)
 
         # Update the full_name of all node's parameter setters.
         for name, setter_info in self.setters.items():
@@ -269,18 +274,15 @@ class ParameterizedNode:
             self._graph_base_seed = graph_base_seed
 
         # Force an update of the node string to make sure we have the most recent.
+        # This recomputes node_hash as well.
         self._update_node_string()
-        hashed_object_name = md5(self.node_string.encode())
-
-        seed_offset = int(hashed_object_name.hexdigest(), base=16)
-        new_seed = (self._graph_base_seed + seed_offset) % (2**32)
+        new_seed = (self._graph_base_seed + self.node_hash) % (2**32)
         self._object_seed = new_seed
 
     def update_graph_information(
         self,
         new_graph_base_seed=None,
         seen_nodes=None,
-        reset_variables=False,
     ):
         """Force an update of the graph structure and the seeds.
 
@@ -297,9 +299,6 @@ class ParameterizedNode:
         seen_nodes : `set`, optional
             A set of nodes that have already been processed to prevent infinite loops.
             Caller should not set.
-        reset_variables : `bool`
-            Force all variables to ``None`` so that the code will check their
-            dependency order when resampling.
         """
         # Make sure that we do not process the same nodes multiple times.
         if seen_nodes is None:
@@ -313,24 +312,38 @@ class ParameterizedNode:
         self._update_node_string()
         self.set_seed(graph_base_seed=new_graph_base_seed)
 
-        # Reset the variables if needed.
-        if reset_variables:
-            for name in self.setters:
-                self.parameters[name] = None
-
         # Recursively update any direct dependencies.
         for dep in self.direct_dependencies:
-            dep.update_graph_information(new_graph_base_seed, seen_nodes, reset_variables)
+            dep.update_graph_information(new_graph_base_seed, seen_nodes)
 
-    def __getitem__(self, key):
-        return self.parameters[key]
+    def get_param(self, graph_state, name):
+        """Get the value of a parameter stored in this node.
+
+        Parameters
+        ----------
+        graph_state : `dict`
+            The dictionary of graph state information.
+        name : `str`
+            The parameter name to query.
+
+        Returns
+        -------
+        any
+            The parameter value.
+
+        Raises
+        ------
+        ``KeyError`` if this parameter has not be set.
+        """
+        return graph_state[self.node_hash][name]
 
     def set_parameter(self, name, value=None, **kwargs):
         """Set a single *existing* parameter to the ParameterizedNode.
 
         Notes
         -----
-        * Sets an initial value for the model parameter based on the given information.
+        * Does NOT set an initial value for the model parameter based. The user must
+          sample the parameters for this to be set.
         * The model parameters are stored in the order in which they are added.
 
         Parameters
@@ -366,7 +379,7 @@ class ParameterizedNode:
                 # to save a function call.
                 method_name = value.__name__
                 parent = value.__self__
-                if method_name in parent.parameters:
+                if method_name in parent.setters:
                     self.setters[name].set_as_parameter(parent, method_name)
                 else:
                     raise ValueError(f"Trying to set parameter to method {method_name}")
@@ -384,18 +397,14 @@ class ParameterizedNode:
             # with the same name.
             if value == self:
                 raise ValueError(f"Parameter {name} is recursively assigned to self.{name}.")
-            if name not in value.parameters:
+            if name not in value.setters:
                 raise ValueError(f"Parameter {name} missing from {str(value)}.")
             self.setters[name].set_as_parameter(value, name)
         else:
             # Case 4: The value is constant (including None).
             self.setters[name].set_as_constant(value)
-
-        # Check that we did get a parameter.
-        sampled_value = self.setters[name].get_value(**kwargs)
-        if self.setters[name].required and sampled_value is None:
-            raise ValueError(f"Missing required parameter {name}")
-        self.parameters[name] = sampled_value
+            if self.setters[name].required and value is None:
+                raise ValueError(f"Missing required parameter {name}")
 
         # Update the dependencies to account for any new nodes in the graph.
         self.direct_dependencies = {}
@@ -410,7 +419,8 @@ class ParameterizedNode:
         -----
         * Checks multiple sources in the following order: Manually specified ``value``,
           an entry in ``kwargs``, or ``None``.
-        * Sets an initial value for the model parameter based on the given information.
+        * Does NOT set an initial value for the model parameter based. The user must
+          sample the parameters for this to be set.
         * The model parameters are stored in the order in which they are added.
 
         Parameters
@@ -436,11 +446,10 @@ class ParameterizedNode:
         Raise a ``ValueError`` if the parameter is required, but set to None.
         """
         # Check for parameter collision and add a place holder value.
-        if hasattr(self, name) and name not in self.parameters:
+        if hasattr(self, name) and name not in self.setters:
             raise KeyError(f"Parameter name {name} conflicts with a predefined model parameter.")
-        if self.parameters.get(name, None) is not None:
+        if self.setters.get(name, None) is not None:
             raise KeyError(f"Duplicate parameter set: {name}")
-        self.parameters[name] = None
 
         # Add an entry for the setter function and fill in the remaining information using
         # set_parameter(). We add an initial (dummy) value here to indicate that this parameter
@@ -458,56 +467,86 @@ class ParameterizedNode:
         # attributes so it looks like method of this object.
         # This allows us to reference the parameter as object.parameter_name for chaining.
         def getter():
-            return self.parameters[name]
+            return None
 
         getter.__self__ = self
         getter.__name__ = name
         setattr(self, name, getter)
 
-    def _sample_helper(self, depth, seen_nodes, **kwargs):
+    def compute(self, graph_state, **kwargs):
+        """Placeholder for a general compute function.
+
+        Parameters
+        ----------
+        graph_state : `dict`
+            A dictionary of dictionaries mapping node->hash, variable_name to value.
+            This data structure is modified in place to represent the current state.
+        **kwargs : `dict`, optional
+            Additional function arguments.
+        """
+        return None
+
+    def _sample_helper(self, graph_state, seen_nodes):
         """Internal recursive function to sample the model's underlying parameters
         if they are provided by a function or ParameterizedNode.
 
         Parameters
         ----------
-        depth : `int`
-            The recursive depth remaining. Used to prevent infinite loops.
-            Users should not need to set this manually.
+        graph_state : `dict`
+            A dictionary of dictionaries mapping node->hash, variable_name to value.
+            This data structure is modified in place to represent the current state.
         seen_nodes : `dict`
             A dictionary mapping nodes seen during this sampling run to their ID.
             Used to avoid sampling nodes multiple times and to validity check the graph.
-        **kwargs : `dict`, optional
-            All the keyword arguments, including the values needed to sample
-            parameters.
 
         Raises
         ------
-        Raise a ``ValueError`` the depth of the sampling encounters a problem
-        with the order of dependencies.
+        Raise a ``KeyError`` if the sampling encounters an error with the order of dependencies.
         """
-        if depth == 0:
-            raise ValueError(f"Maximum sampling depth exceeded at {self}. Potential infinite loop.")
         if self in seen_nodes:
             return  # Nothing to do
         seen_nodes[self] = self._node_pos
 
+        if self.node_hash in graph_state:
+            raise KeyError(
+                f"Node name {self.node_string} for current node has already been seen. "
+                "This indicates a problem with node naming."
+            )
+        graph_state[self.node_hash] = {}
+
         # Run through each parameter and sample it based on the given recipe.
         # As of Python 3.7 dictionaries are guaranteed to preserve insertion ordering,
         # so this will iterate through model parameters in the order they were inserted.
-        for name, setter_info in self.setters.items():
-            if setter_info.dependency is not None:
-                setter_info.dependency._sample_helper(depth - 1, seen_nodes, **kwargs)
-            self.parameters[name] = setter_info.get_value(**kwargs)
+        any_compute = False
+        for name, setter in self.setters.items():
+            if setter.dependency is not None and setter.dependency != self:
+                setter.dependency._sample_helper(graph_state, seen_nodes)
 
-    def sample_parameters(self, **kwargs):
+            if setter.source_type == ParameterSource.CONSTANT:
+                graph_state[self.node_hash][name] = setter.value
+            elif setter.source_type == ParameterSource.MODEL_PARAMETER:
+                graph_state[self.node_hash][name] = graph_state[setter.dependency.node_hash][setter.value]
+            elif setter.source_type == ParameterSource.FUNCTION_NODE:
+                graph_state[self.node_hash][name] = graph_state[setter.dependency.node_hash][setter.value]
+            elif setter.source_type == ParameterSource.COMPUTE_OUTPUT:
+                any_compute = True
+            else:
+                raise ValueError(f"Invalid ParameterSource type {setter.source_type}")
+
+        # If this is a function node and the parameters depend on the result of its own computation
+        # call the compute function to fill them in.
+        if any_compute:
+            self.compute(graph_state)
+
+    def sample_parameters(self):
         """Sample the model's underlying parameters if they are provided by a function
         or ParameterizedNode.
 
-        Parameters
-        ----------
-        **kwargs : `dict`, optional
-            All the keyword arguments, including the values needed to sample
-            parameters.
+        Returns
+        -------
+        graph_state : `dict`
+            A dictionary of dictionaries mapping node->hash, variable_name to value.
+            This data structure is modified in place to represent the current state.
 
         Raises
         ------
@@ -517,61 +556,13 @@ class ParameterizedNode:
         # If the graph structure has never been set, do that now.
         if self._node_pos is None:
             nodes = set()
-            self.update_graph_information(seen_nodes=nodes, reset_variables=True)
+            self.update_graph_information(seen_nodes=nodes)
 
         # Resample the nodes.
         seen_nodes = {}
-        self._sample_helper(50, seen_nodes, **kwargs)
-
-        # Validity check that we do not see duplicate IDs.
-        seen_ids = np.array(list(seen_nodes.values()))
-        if len(seen_ids) != len(np.unique(seen_ids)):
-            raise ValueError(
-                "The graph nodes do not have unique IDs, which can indicate the graph "
-                "structure has changed. Please use update_graph_information()."
-            )
-
-    def get_all_parameter_values(self, recursive=True, seen=None):
-        """Get the values of the current parameters and (optionally) those of
-        all their dependencies.
-
-        Effectively snapshots the state of the execution graph.
-
-        Parameters
-        ----------
-        seen : `set`
-            A set of objects that have already been processed.
-        recursive : `bool`
-            Recursively extract the model parameter settings of this object's dependencies.
-
-        Returns
-        -------
-        values : `dict`
-            The dictionary mapping the combination of the object identifier and
-            model parameter name to its value.
-        """
-        # If we haven't processed the nodes yet, do that.
-        if self._node_pos is None:
-            nodes = set()
-            self.update_graph_information(seen_nodes=nodes)
-
-        # Make sure that we do not process the same nodes multiple times.
-        if seen is None:
-            seen = set()
-        if self in seen:
-            return {}
-        seen.add(self)
-
-        all_values = {}
-        for name, setter_info in self.setters.items():
-            if recursive:
-                if setter_info.dependency is not None:
-                    all_values.update(setter_info.dependency.get_all_parameter_values(True, seen))
-                full_name = setter_info.full_name
-            else:
-                full_name = name
-            all_values[full_name] = self.parameters[name]
-        return all_values
+        results = {}
+        self._sample_helper(results, seen_nodes)
+        return results
 
 
 class SingleVariableNode(ParameterizedNode):
@@ -664,10 +655,7 @@ class FunctionNode(ParameterizedNode):
             # the getter function and the entry in parameters. Then we change the
             # type to point to own result.
             self.add_parameter(name, None)
-            self.setters[name].set_as_function(self, param_name=name)
-
-        # Fill in the outputs.
-        self.compute()
+            self.setters[name].set_as_compute_output(param_name=name)
 
     def _update_node_string(self, extra_tag=None):
         """Update the node's string."""
@@ -678,68 +666,14 @@ class FunctionNode(ParameterizedNode):
         else:
             super()._update_node_string()
 
-    def _build_args_dict(self, **kwargs):
-        """Build a dictionary of arguments for the function."""
-        args = {}
-        for key in self.arg_names:
-            # Override with the kwarg if the parameter is there.
-            if key in kwargs:
-                args[key] = kwargs[key]
-            else:
-                args[key] = self.parameters[key]
-        return args
-
-    def _save_result_parameters(self, results):
-        """Save the results as model parameters.
-
-        Parameters
-        ----------
-        results : any
-            The results of the function.
-        """
-        if len(self.outputs) == 1:
-            self.parameters[self.outputs[0]] = results
-        else:
-            if len(results) != len(self.outputs):
-                raise ValueError(
-                    f"Incorrect number of results returned by {self.func.__name__}. "
-                    f"Expected {len(self.outputs)}, but got {results}."
-                )
-            for i in range(len(self.outputs)):
-                self.parameters[self.outputs[i]] = results[i]
-
-    def _sample_helper(self, depth, seen_nodes, **kwargs):
-        """Internal recursive function to sample the model's underlying parameters
-        if they are provided by a function or ParameterizedNode.
-
-        Parameters
-        ----------
-        depth : `int`
-            The recursive depth remaining. Used to prevent infinite loops.
-            Users should not need to set this manually.
-        seen_nodes : `dict`
-            A dictionary mapping nodes seen during this sampling run to their ID.
-            Used to avoid sampling nodes multiple times and to validity check the graph.
-        **kwargs : `dict`, optional
-            All the keyword arguments, including the values needed to sample
-            parameters.
-
-        Raises
-        ------
-        Raise a ``ValueError`` the depth of the sampling encounters a problem
-        with the order of dependencies.
-        """
-        if self not in seen_nodes:
-            # First use _sample_helper() to update the function node's inputs (dependencies).
-            # Then use compute() to update the function node's outputs.
-            super()._sample_helper(depth, seen_nodes, **kwargs)
-            _ = self.compute(**kwargs)
-
-    def compute(self, **kwargs):
+    def compute(self, graph_state, **kwargs):
         """Execute the wrapped function.
 
         Parameters
         ----------
+        graph_state : `dict`
+            A dictionary of dictionaries mapping node->hash, variable_name to value.
+            This data structure is modified in place to represent the current state.
         **kwargs : `dict`, optional
             Additional function arguments.
 
@@ -753,7 +687,26 @@ class FunctionNode(ParameterizedNode):
                 "set func or override compute()."
             )
 
-        args = self._build_args_dict(**kwargs)
+        # Build a dictionary of arguments for the function."""
+        args = {}
+        for key in self.arg_names:
+            # Override with the kwarg if the parameter is there.
+            if key in kwargs:
+                args[key] = kwargs[key]
+            else:
+                args[key] = graph_state[self.node_hash][key]
+
+        # Call the function and save the results in the graph_state
         results = self.func(**args)
-        self._save_result_parameters(results)
+        if len(self.outputs) == 1:
+            graph_state[self.node_hash][self.outputs[0]] = results
+        else:
+            if len(results) != len(self.outputs):
+                raise ValueError(
+                    f"Incorrect number of results returned by {self.func.__name__}. "
+                    f"Expected {len(self.outputs)}, but got {results}."
+                )
+            for i in range(len(self.outputs)):
+                graph_state[self.node_hash][self.outputs[i]] = results[i]
+
         return results

@@ -90,7 +90,7 @@ class PhysicalModel(ParameterizedNode):
 
         self.effects.append(effect)
 
-    def _evaluate(self, times, wavelengths, **kwargs):
+    def _evaluate(self, times, wavelengths, graph_state):
         """Draw effect-free observations for this object.
 
         Parameters
@@ -99,8 +99,8 @@ class PhysicalModel(ParameterizedNode):
             A length T array of timestamps.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
-        **kwargs : `dict`, optional
-           Any additional keyword arguments.
+        graph_state : `dict`
+            A dictionary mapping graph parameters to their values.
 
         Returns
         -------
@@ -109,7 +109,7 @@ class PhysicalModel(ParameterizedNode):
         """
         raise NotImplementedError()
 
-    def evaluate(self, times, wavelengths, resample_parameters=False, **kwargs):
+    def evaluate(self, times, wavelengths, sample_parameters=False, graph_state=None, **kwargs):
         """Draw observations for this object and apply the noise.
 
         Parameters
@@ -118,60 +118,80 @@ class PhysicalModel(ParameterizedNode):
             A length T array of timestamps.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
-        resample_parameters : `bool`
+        sample_parameters : `bool`
             Treat this evaluation as a completely new object, resampling the
             parameters from the original provided functions.
+        graph_state : `dict`, optional
+            A dictionary mapping graph parameters to their values.
         **kwargs : `dict`, optional
-           Any additional keyword arguments.
+            All the other keyword arguments.
 
         Returns
         -------
         flux_density : `numpy.ndarray`
             A length T x N matrix of SED values.
         """
-        if resample_parameters:
-            self.sample_parameters(kwargs)
+        if sample_parameters:
+            if graph_state is not None:
+                raise ValueError("If sample_parameters is used, graph_state should be None.")
+            graph_state = self.sample_parameters()
 
         # Pre-effects are adjustments done to times and/or wavelengths, before flux density computation.
         for effect in self.effects:
             if hasattr(effect, "pre_effect"):
-                times, wavelengths = effect.pre_effect(times, wavelengths, **kwargs)
+                times, wavelengths = effect.pre_effect(times, wavelengths, graph_state, **kwargs)
 
         # Compute the flux density for both the current object and add in anything
         # behind it, such as a host galaxy.
-        flux_density = self._evaluate(times, wavelengths, **kwargs)
+        flux_density = self._evaluate(times, wavelengths, graph_state, **kwargs)
         if self.background is not None:
             flux_density += self.background._evaluate(
                 times,
                 wavelengths,
+                graph_state,
                 ra=self.parameters["ra"],
                 dec=self.parameters["dec"],
                 **kwargs,
             )
 
         for effect in self.effects:
-            flux_density = effect.apply(flux_density, wavelengths, self, **kwargs)
+            flux_density = effect.apply(flux_density, wavelengths, self, graph_state, **kwargs)
         return flux_density
 
-    def sample_parameters(self, include_effects=True, **kwargs):
+    def sample_parameters(self, **kwargs):
         """Sample the model's underlying parameters if they are provided by a function
         or ParameterizedModel.
 
         Parameters
         ----------
-        include_effects : `bool`
-            Resample the parameters for the effects models.
         **kwargs : `dict`, optional
             All the keyword arguments, including the values needed to sample
             parameters.
+
+        Returns
+        -------
+        graph_state : `dict`
+            A dictionary mapping graph parameters to their values.
         """
+        # If the graph has not been sampled ever, update the node positions for
+        # every node (model, background, effects).
+        if self._node_pos is None:
+            nodes = set()
+            self.update_graph_information(seen_nodes=nodes)
+            if self.background is not None:
+                self.background.update_graph_information(seen_nodes=nodes)
+            for effect in self.effects:
+                effect.update_graph_information(seen_nodes=nodes)
+
         # We use the same seen_nodes for all sampling calls so each node
         # is sampled at most one time regardless of link structure.
+        graph_state = {}
         seen_nodes = {}
         if self.background is not None:
-            self.background._sample_helper(50, seen_nodes, **kwargs)
-        self._sample_helper(50, seen_nodes, **kwargs)
+            self.background._sample_helper(graph_state, seen_nodes, **kwargs)
+        self._sample_helper(graph_state, seen_nodes, **kwargs)
 
-        if include_effects:
-            for effect in self.effects:
-                effect._sample_helper(50, seen_nodes, **kwargs)
+        for effect in self.effects:
+            effect._sample_helper(graph_state, seen_nodes, **kwargs)
+
+        return graph_state
