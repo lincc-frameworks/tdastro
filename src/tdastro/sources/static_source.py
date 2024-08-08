@@ -37,5 +37,5 @@ class StaticSource(PhysicalModel):
         flux_density : `numpy.ndarray`
             A length T x N matrix of SED values.
         """
-        brightness = graph_state[self.node_hash]["brightness"]
+        brightness = self.get_param(graph_state, "brightness")
         return np.full((len(times), len(wavelengths)), brightness)

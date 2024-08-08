@@ -337,6 +337,25 @@ class ParameterizedNode:
         """
         return graph_state[self.node_hash][name]
 
+    def get_local_params(self, graph_state):
+        """Get a dictionary of all parameters local to this node.
+
+        Parameters
+        ----------
+        graph_state : `dict`
+            The dictionary of graph state information.
+
+        Returns
+        -------
+        result : `dict`
+            A dictionary mapping the parameter name to its value.
+
+        Raises
+        ------
+        ``KeyError`` if no parameters have been set for this node.
+        """
+        return graph_state[self.node_hash]
+
     def set_parameter(self, name, value=None, **kwargs):
         """Set a single *existing* parameter to the ParameterizedNode.
 
@@ -687,7 +706,7 @@ class FunctionNode(ParameterizedNode):
                 "set func or override compute()."
             )
 
-        # Build a dictionary of arguments for the function."""
+        # Build a dictionary of arguments for the function.
         args = {}
         for key in self.arg_names:
             # Override with the kwarg if the parameter is there.
