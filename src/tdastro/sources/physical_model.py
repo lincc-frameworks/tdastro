@@ -153,7 +153,7 @@ class PhysicalModel(ParameterizedNode):
             flux_density = effect.apply(flux_density, wavelengths, self, **kwargs)
         return flux_density
 
-    def sample_parameters(self, include_effects=True, **kwargs):
+    def sample_parameters(self, include_effects=True, given_args=None, **kwargs):
         """Sample the model's underlying parameters if they are provided by a function
         or ParameterizedModel.
 
@@ -161,17 +161,37 @@ class PhysicalModel(ParameterizedNode):
         ----------
         include_effects : `bool`
             Resample the parameters for the effects models.
+        given_args : `dict`, optional
+            A dictionary representing the given arguments for this sample run.
+            This can be used as the JAX PyTree for differentiation.
         **kwargs : `dict`, optional
             All the keyword arguments, including the values needed to sample
             parameters.
         """
+        args_to_use = {}
+        if given_args is not None:
+            args_to_use.update(given_args)
+        if kwargs is not None:
+            args_to_use.update(kwargs)
+
         # We use the same seen_nodes for all sampling calls so each node
         # is sampled at most one time regardless of link structure.
         seen_nodes = {}
         if self.background is not None:
-            self.background._sample_helper(50, seen_nodes, **kwargs)
-        self._sample_helper(50, seen_nodes, **kwargs)
+            self.background._sample_helper(seen_nodes, given_args=args_to_use)
+        self._sample_helper(seen_nodes, given_args=args_to_use)
 
         if include_effects:
             for effect in self.effects:
-                effect._sample_helper(50, seen_nodes, **kwargs)
+                effect._sample_helper(seen_nodes, given_args=args_to_use)
+
+    def resample_and_compute(self, given_args=None):
+        """A helper function for JAX gradients that runs the sampling then computation.
+        Parameters
+        ----------
+        given_args : `dict`, optional
+            A dictionary representing the given arguments for this sample run.
+            This can be used as the JAX PyTree for differentiation.
+        """
+        self.sample_parameters(given_args)
+        return self.compute()

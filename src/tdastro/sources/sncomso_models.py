@@ -93,7 +93,7 @@ class SncosmoWrapperModel(PhysicalModel):
                 self.source_param_names.append(key)
         self._update_sncosmo_model_parameters()
 
-    def _sample_helper(self, depth, seen_nodes, **kwargs):
+    def _sample_helper(self, seen_nodes, **kwargs):
         """Internal recursive function to sample the model's underlying parameters
         if they are provided by a function or ParameterizedNode.
 
@@ -102,9 +102,6 @@ class SncosmoWrapperModel(PhysicalModel):
 
         Parameters
         ----------
-        depth : `int`
-            The recursive depth remaining. Used to prevent infinite loops.
-            Users should not need to set this manually.
         seen_nodes : `dict`
             A dictionary mapping nodes seen during this sampling run to their ID.
             Used to avoid sampling nodes multiple times and to validity check the graph.
@@ -114,10 +111,9 @@ class SncosmoWrapperModel(PhysicalModel):
 
         Raises
         ------
-        Raise a ``ValueError`` the depth of the sampling encounters a problem
-        with the order of dependencies.
+        Raise a ``ValueError`` the sampling encounters a problem with the order of dependencies.
         """
-        super()._sample_helper(depth, seen_nodes, **kwargs)
+        super()._sample_helper(seen_nodes, **kwargs)
         self._update_sncosmo_model_parameters()
 
     def _evaluate(self, times, wavelengths, **kwargs):
