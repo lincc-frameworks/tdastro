@@ -170,29 +170,35 @@ def test_passbands_calculate_normalized_system_response_tables():
 
 def test_passbands_get_in_band_flux():
     """Test the calculation of in-band flux for given flux and normalized system response table."""
+    # Set up the passbands object
     passbands = Passbands(bands=["test-band"])
-
-    # Mock normalized system response table data for test-band
-    normalized_system_response_table = np.array([[100.0, 0.5], [200.0, 0.75], [300.0, 0.25]])
-    passbands.normalized_system_response_tables["test-band"] = normalized_system_response_table
+    passbands.transmission_tables["test-band"] = np.array([[100.0, 0.5], [200.0, 0.75], [300.0, 0.25]])
+    passbands.calculate_normalized_system_response_tables()
 
     # Define some mock flux values
     flux = np.array([1.0, 2.0, 3.0])
 
-    # Calculate the expected in-band flux.
-    # Somewhat redundant, but good to check types, shapes, etc. remain consistent.
+    # Calculate the in-band flux we expect
+    normalized_system_response_table = passbands.normalized_system_response_tables["test-band"]
     expected_in_band_flux = np.trapz(
         flux * normalized_system_response_table[:, 1], x=normalized_system_response_table[:, 0]
     )
 
-    # Calculate in-band flux using the method
+    # Calculate in-band flux with target method
     calculated_in_band_flux = passbands._get_in_band_flux(flux, "test-band")
 
-    np.testing.assert_allclose(calculated_in_band_flux, expected_in_band_flux, rtol=1e-9, atol=1e-9)
+    # Check that the calculated in-band flux is correct
+    assert np.isclose(calculated_in_band_flux, expected_in_band_flux, rtol=1e-9, atol=1e-9)
+
+    # Check against a hand-computed value; note that this will change if we alter parameters above
+    assert np.isclose(calculated_in_band_flux, 1.6875, rtol=1e-5, atol=1e-5)
 
 
 def test_passbands_get_all_in_band_fluxes():
-    """Test that we can calculate the in-band fluxes for all bands given a SplineModel and times."""
+    """Test that we can calculate the in-band fluxes for all bands given a SplineModel and times.
+
+    Check initially for a flat spectrum model, where we can expect our colors to be equivalent; then
+    check for a non-flat spectrum model (where colors are not equivalent)."""
 
     passbands = Passbands(bands=["a", "b", "c"])
     passbands.transmission_tables["a"] = np.array([[100.0, 0.5], [200.0, 0.75]])
