@@ -251,10 +251,12 @@ class Passbands:
             band_indices = np.searchsorted(all_wavelengths_in_bands, wavelengths_in_band)
 
             # Compute the in-band fluxes for each time
-            in_band_fluxes = np.apply_along_axis(self._get_in_band_flux, 1, all_fluxes[:, band_indices], band)
+            new_band_flux_column = np.apply_along_axis(
+                self._get_in_band_flux, 1, all_fluxes[:, band_indices], band
+            )
 
             # Store the in-band fluxes in the matrix
-            in_band_fluxes[:, i] = in_band_fluxes
+            in_band_fluxes[:, i] = new_band_flux_column
         return in_band_fluxes
 
     def convert_fluxes_to_in_band_fluxes(
