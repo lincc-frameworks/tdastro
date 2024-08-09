@@ -194,8 +194,8 @@ def test_passbands_get_in_band_flux():
     assert np.isclose(calculated_in_band_flux, 1.6875, rtol=1e-5, atol=1e-5)
 
 
-def test_passbands_get_all_in_band_fluxes():
-    """Test that we can calculate the in-band fluxes for all bands given a SplineModel and times.
+def test_passbands_generate_all_in_band_fluxes():
+    """Test that we can generate the in-band fluxes for all bands given a SplineModel and times.
 
     Check initially for a flat spectrum model, where we can expect our colors to be equivalent; then
     check for a non-flat spectrum model (where colors are not equivalent)."""
@@ -228,7 +228,7 @@ def test_passbands_get_all_in_band_fluxes():
     )
 
     # Calculate in-band fluxes
-    calculated_flux_matrix = passbands.get_all_in_band_fluxes(model, times)
+    calculated_flux_matrix = passbands.generate_in_band_fluxes(model, times)
 
     # Check that the shape of the calculated flux matrix is correct
     assert calculated_flux_matrix.shape == (5, 3)
@@ -260,7 +260,7 @@ def test_passbands_get_all_in_band_fluxes():
     )
 
     # Check that we can successfully run the method with a non-flat spectrum model
-    calculated_flux_matrix_b = passbands.get_all_in_band_fluxes(model_b, times)
+    calculated_flux_matrix_b = passbands.generate_in_band_fluxes(model_b, times)
 
     # Check that the shape of the calculated flux matrix is correct
     assert calculated_flux_matrix_b.shape == (5, 3)
@@ -272,3 +272,30 @@ def test_passbands_get_all_in_band_fluxes():
         rtol=1e-9,
         atol=1e-9,
     )
+
+
+def test_convert_fluxes_to_in_band_fluxes():
+    """Test that we can convert fluxes to in-band fluxes."""
+    passbands = Passbands(bands=["a", "b", "c"])
+    passbands.transmission_tables["a"] = np.array([[100.0, 0.5], [200.0, 0.75]])
+    passbands.transmission_tables["b"] = np.array([[200.0, 0.25], [300.0, 0.5]])
+    passbands.transmission_tables["c"] = np.array([[300.0, 0.5], [400.0, 0.5]])
+    passbands.calculate_normalized_system_response_tables()
+
+    # Define some mock flux values
+    fluxes = np.array(
+        [
+            [1.0, 2.0, 3.0, 4.0],
+            [5.0, 6.0, 7.0, 8.0],
+            [9.0, 10.0, 9.0, 8.0],
+            [8.0, 8.0, 8.0, 8.0],
+            [7.0, 8.0, 9.0, 10.0],
+        ]
+    )
+    wavelengths = np.array([100.0, 200.0, 300.0, 400.0])
+
+    # Calculate the in-band fluxes
+    in_band_fluxes = passbands.convert_fluxes_to_in_band_fluxes(wavelengths, fluxes)
+
+    # Check that the shape of the in-band fluxes matrix is correct
+    assert in_band_fluxes.shape == (5, 3)

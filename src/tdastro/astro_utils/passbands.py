@@ -213,7 +213,7 @@ class Passbands:
         integrand = flux * self.normalized_system_response_tables[band][:, 1]
         return scipy.integrate.trapezoid(integrand, x=passband_wavelengths)
 
-    def get_all_in_band_fluxes(self, model: PhysicalModel, times) -> np.ndarray:
+    def generate_in_band_fluxes(self, model: PhysicalModel, times: np.ndarray) -> np.ndarray:
         """Calculate the in-band fluxes for all bands.
 
         Note
@@ -233,26 +233,71 @@ class Passbands:
             A 2D array with in-band fluxes for all bands at all times.
         """
         # Find the union of all wavelengths in the bands
-        all_wavelengths = np.unique(
+        all_wavelengths_in_bands = np.unique(
             np.concatenate([self.normalized_system_response_tables[band][:, 0] for band in self.bands])
         )
 
         # Evaluate the model at all times and wavelengths
-        all_fluxes = model.evaluate(times, all_wavelengths)
+        all_fluxes = model.evaluate(times, all_wavelengths_in_bands)
 
         # Prepare an array to hold the flux values
-        flux_matrix = np.zeros((len(times), len(self.bands)))
+        in_band_fluxes = np.zeros((len(times), len(self.bands)))
 
         # Apply _get_in_band_flux to all fluxes
         for i, band in enumerate(self.bands):
             wavelengths_in_band = self.normalized_system_response_tables[band][:, 0]
 
             # Find the indices of the wavelengths in the band in the union array
-            band_indices = np.searchsorted(all_wavelengths, wavelengths_in_band)
+            band_indices = np.searchsorted(all_wavelengths_in_bands, wavelengths_in_band)
 
             # Compute the in-band fluxes for each time
             in_band_fluxes = np.apply_along_axis(self._get_in_band_flux, 1, all_fluxes[:, band_indices], band)
 
             # Store the in-band fluxes in the matrix
-            flux_matrix[:, i] = in_band_fluxes
-        return flux_matrix
+            in_band_fluxes[:, i] = in_band_fluxes
+        return in_band_fluxes
+
+    def convert_fluxes_to_in_band_fluxes(
+        self, wavelengths_angstrom: np.ndarray, fluxes: np.ndarray
+    ) -> np.ndarray:
+        """Convert fluxes to in-band fluxes for all bands.
+
+        Parameters
+        ----------
+        wavelengths_angstrom : np.ndarray
+            A 1D array with wavelengths in Angstrom.
+        fluxes : np.ndarray
+            A 2D array with flux values, where columns correspond to wavelengths in the wavelengths_angstrom
+            array, and rows correspond to different times.
+
+        Returns
+        -------
+        np.ndarray
+            A 2D array with in-band fluxes for all bands at all times.
+        """
+        # Check given wavelengths, which should either match or be a superset of the wavelengths in the bands
+        all_wavelengths_in_bands = np.unique(
+            np.concatenate([self.normalized_system_response_tables[band][:, 0] for band in self.bands])
+        )
+        if not np.all(np.isin(all_wavelengths_in_bands, wavelengths_angstrom)):
+            raise ValueError(
+                "The given wavelengths neither match nor are a superset of the wavelengths in the "
+                "transmission tables."
+            )
+
+        # Prepare an array to hold the in-band flux values
+        in_band_fluxes = np.zeros((len(fluxes), len(self.bands)))
+
+        # Apply _get_in_band_flux to all fluxes
+        for i, band in enumerate(self.bands):
+            wavelengths_in_band = self.normalized_system_response_tables[band][:, 0]
+
+            # Find the indices of the wavelengths in the band in the union array
+            band_indices = np.searchsorted(all_wavelengths_in_bands, wavelengths_in_band)
+
+            # Compute the in-band fluxes for each time
+            new_band_col = np.apply_along_axis(self._get_in_band_flux, 1, fluxes[:, band_indices], band)
+
+            # Store the in-band fluxes in the matrix
+            in_band_fluxes[:, i] = new_band_col
+        return in_band_fluxes
