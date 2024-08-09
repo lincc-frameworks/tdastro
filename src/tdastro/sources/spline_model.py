@@ -69,7 +69,7 @@ class SplineModel(PhysicalModel):
         self._wavelengths = wavelengths
         self._spline = RectBivariateSpline(times, wavelengths, flux, kx=time_degree, ky=wave_degree)
 
-    def _evaluate(self, times, wavelengths, **kwargs):
+    def _evaluate(self, times, wavelengths, graph_state, **kwargs):
         """Draw effect-free observations for this object.
 
         Parameters
@@ -78,6 +78,8 @@ class SplineModel(PhysicalModel):
             A length T array of timestamps.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
+        graph_state : `dict`, optional
+            A dictionary mapping graph parameters to their values.
         **kwargs : `dict`, optional
            Any additional keyword arguments.
 
@@ -86,4 +88,5 @@ class SplineModel(PhysicalModel):
         flux_density : `numpy.ndarray`
             A length T x N matrix of SED values.
         """
-        return self.parameters["amplitude"] * self._spline(times, wavelengths, grid=True)
+        params = self.get_local_params(graph_state)
+        return params["amplitude"] * self._spline(times, wavelengths, grid=True)

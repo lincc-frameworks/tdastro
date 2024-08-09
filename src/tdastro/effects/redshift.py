@@ -33,7 +33,7 @@ class Redshift(EffectModel):
         self.add_parameter("redshift", redshift, required=True, **kwargs)
         self.add_parameter("t0", t0, required=True, **kwargs)
 
-    def pre_effect(self, observer_frame_times, observer_frame_wavelengths, **kwargs):
+    def pre_effect(self, observer_frame_times, observer_frame_wavelengths, graph_state, **kwargs):
         """Calculate the rest-frame times and wavelengths needed to give us the observer-frame times
         and wavelengths (given the redshift).
 
@@ -43,6 +43,8 @@ class Redshift(EffectModel):
             The times at which the observation is made.
         observer_frame_wavelengths : numpy.ndarray
             The wavelengths at which the observation is made.
+        graph_state : `dict`
+            A dictionary mapping graph parameters to their values.
         **kwargs : `dict`, optional
            Any additional keyword arguments.
 
@@ -53,13 +55,14 @@ class Redshift(EffectModel):
             which will later be redshifted  back to observer-frame flux densities at the observer-frame
             times and wavelengths.
         """
-        observed_times_rel_to_t0 = observer_frame_times - self.parameters["t0"]
-        rest_frame_times_rel_to_t0 = observed_times_rel_to_t0 / (1 + self.parameters["redshift"])
-        rest_frame_times = rest_frame_times_rel_to_t0 + self.parameters["t0"]
-        rest_frame_wavelengths = observer_frame_wavelengths / (1 + self.parameters["redshift"])
+        params = self.get_local_params(graph_state)
+        observed_times_rel_to_t0 = observer_frame_times - params["t0"]
+        rest_frame_times_rel_to_t0 = observed_times_rel_to_t0 / (1 + params["redshift"])
+        rest_frame_times = rest_frame_times_rel_to_t0 + params["t0"]
+        rest_frame_wavelengths = observer_frame_wavelengths / (1 + params["redshift"])
         return (rest_frame_times, rest_frame_wavelengths)
 
-    def apply(self, flux_density, wavelengths, physical_model=None, **kwargs):
+    def apply(self, flux_density, wavelengths, graph_state=None, **kwargs):
         """Apply the effect to observations (flux_density values).
 
         Parameters
@@ -68,9 +71,8 @@ class Redshift(EffectModel):
             A length T X N matrix of flux density values.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
-        physical_model : `PhysicalModel`
-            A PhysicalModel from which the effect may query parameters such as redshift, position, or
-            distance.
+        graph_state : `dict`, optional
+            A dictionary mapping graph parameters to their values.
         **kwargs : `dict`, optional
             Any additional keyword arguments.
 
@@ -79,4 +81,4 @@ class Redshift(EffectModel):
         flux_density : `numpy.ndarray`
             The redshifted results.
         """
-        return flux_density / (1 + self.parameters["redshift"])
+        return flux_density / (1 + self.get_param(graph_state, "redshift"))

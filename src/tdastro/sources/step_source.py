@@ -23,7 +23,7 @@ class StepSource(StaticSource):
         self.add_parameter("t0", t0, required=True, **kwargs)
         self.add_parameter("t1", t1, required=True, **kwargs)
 
-    def _evaluate(self, times, wavelengths, **kwargs):
+    def _evaluate(self, times, wavelengths, graph_state, **kwargs):
         """Draw effect-free observations for this object.
 
         Parameters
@@ -32,6 +32,8 @@ class StepSource(StaticSource):
             A length T array of timestamps.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
+        graph_state : `dict`
+            A dictionary of all the current parameter settings.
         **kwargs : `dict`, optional
            Any additional keyword arguments.
 
@@ -41,7 +43,8 @@ class StepSource(StaticSource):
             A length T x N matrix of SED values.
         """
         flux_density = np.zeros((len(times), len(wavelengths)))
+        params = self.get_local_params(graph_state)
 
-        time_mask = (times >= self.parameters["t0"]) & (times <= self.parameters["t1"])
-        flux_density[time_mask] = self.parameters["brightness"]
+        time_mask = (times >= params["t0"]) & (times <= params["t1"])
+        flux_density[time_mask] = params["brightness"]
         return flux_density

@@ -36,18 +36,21 @@ def test_step_source() -> None:
     """Test that we can sample and create a StepSource object."""
     host = StaticSource(brightness=150.0, ra=1.0, dec=2.0, distance=3.0)
     model = StepSource(brightness=15.0, t0=1.0, t1=2.0, ra=host.ra, dec=host.dec, distance=host.distance)
-    assert model["brightness"] == 15.0
-    assert model["t0"] == 1.0
-    assert model["t1"] == 2.0
-    assert model["ra"] == 1.0
-    assert model["dec"] == 2.0
-    assert model["distance"] == 3.0
+    state = model.sample_parameters()
+
+    param_values = model.get_local_params(state)
+    assert param_values["brightness"] == 15.0
+    assert param_values["t0"] == 1.0
+    assert param_values["t1"] == 2.0
+    assert param_values["ra"] == 1.0
+    assert param_values["dec"] == 2.0
+    assert param_values["distance"] == 3.0
 
     times = np.array([0.0, 1.0, 2.0, 3.0])
     wavelengths = np.array([100.0, 200.0])
     expected = np.array([[0.0, 0.0], [15.0, 15.0], [15.0, 15.0], [0.0, 0.0]])
 
-    values = model.evaluate(times, wavelengths)
+    values = model.evaluate(times, wavelengths, state)
     assert values.shape == (4, 2)
     assert np.array_equal(values, expected)
 
@@ -67,10 +70,10 @@ def test_step_source_resample() -> None:
     t_end_vals = np.zeros((num_samples, 1))
     t_start_vals = np.zeros((num_samples, 1))
     for i in range(num_samples):
-        model.sample_parameters()
-        brightness_vals[i] = model["brightness"]
-        t_end_vals[i] = model["t1"]
-        t_start_vals[i] = model["t0"]
+        state = model.sample_parameters()
+        brightness_vals[i] = model.get_param(state, "brightness")
+        t_end_vals[i] = model.get_param(state, "t1")
+        t_start_vals[i] = model.get_param(state, "t0")
 
     # Check that the values fall within the expected bounds.
     assert np.all(brightness_vals >= 0.0)

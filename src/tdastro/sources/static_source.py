@@ -18,7 +18,7 @@ class StaticSource(PhysicalModel):
         super().__init__(**kwargs)
         self.add_parameter("brightness", brightness, required=True, **kwargs)
 
-    def _evaluate(self, times, wavelengths, **kwargs):
+    def _evaluate(self, times, wavelengths, graph_state, **kwargs):
         """Draw effect-free observations for this object.
 
         Parameters
@@ -27,6 +27,8 @@ class StaticSource(PhysicalModel):
             A length T array of timestamps.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
+        graph_state : `dict`
+            A dictionary mapping graph parameters to their values.
         **kwargs : `dict`, optional
             Any additional keyword arguments.
 
@@ -35,4 +37,5 @@ class StaticSource(PhysicalModel):
         flux_density : `numpy.ndarray`
             A length T x N matrix of SED values.
         """
-        return np.full((len(times), len(wavelengths)), self.parameters["brightness"])
+        brightness = self.get_param(graph_state, "brightness")
+        return np.full((len(times), len(wavelengths)), brightness)

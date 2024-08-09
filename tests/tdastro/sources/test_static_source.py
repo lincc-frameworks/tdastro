@@ -20,16 +20,17 @@ def _sampler_fun(magnitude, **kwargs):
 def test_static_source() -> None:
     """Test that we can sample and create a StaticSource object."""
     model = StaticSource(brightness=10.0, node_label="my_static_source")
-    assert model["brightness"] == 10.0
-    assert model["ra"] is None
-    assert model["dec"] is None
-    assert model["distance"] is None
-    assert str(model) == "my_static_source"
+    state = model.sample_parameters()
+    assert model.get_param(state, "brightness") == 10.0
+    assert model.get_param(state, "ra") is None
+    assert model.get_param(state, "dec") is None
+    assert model.get_param(state, "distance") is None
+    assert str(model) == "0:my_static_source"
 
     times = np.array([1, 2, 3, 4, 5, 10])
     wavelengths = np.array([100.0, 200.0, 300.0])
 
-    values = model.evaluate(times, wavelengths)
+    values = model.evaluate(times, wavelengths, state)
     assert values.shape == (6, 3)
     assert np.all(values == 10.0)
 
@@ -45,11 +46,16 @@ def test_static_source_host() -> None:
     derived from the host object."""
     host = StaticSource(brightness=15.0, ra=1.0, dec=2.0, distance=3.0)
     model = StaticSource(brightness=10.0, ra=host.ra, dec=host.dec, distance=host.distance)
-    assert model["brightness"] == 10.0
-    assert model["ra"] == 1.0
-    assert model["dec"] == 2.0
-    assert model["distance"] == 3.0
-    assert str(model) == "tdastro.sources.static_source.StaticSource"
+    state = model.sample_parameters()
+
+    assert model.get_param(state, "brightness") == 10.0
+    assert model.get_param(state, "ra") == 1.0
+    assert model.get_param(state, "dec") == 2.0
+    assert model.get_param(state, "distance") == 3.0
+    assert str(model) == "0:tdastro.sources.static_source.StaticSource"
+
+    # Test that we have given a different name to the host.
+    assert str(host) == "1:tdastro.sources.static_source.StaticSource"
 
 
 def test_static_source_resample() -> None:
@@ -59,8 +65,8 @@ def test_static_source_resample() -> None:
     num_samples = 100
     values = np.zeros((num_samples, 1))
     for i in range(num_samples):
-        model.sample_parameters(magnitude=100.0)
-        values[i] = model["brightness"]
+        state = model.sample_parameters()
+        values[i] = model.get_param(state, "brightness")
 
     # Check that the values fall within the expected bounds.
     assert np.all(values >= 0.0)

@@ -6,7 +6,7 @@ from tdastro.sources.periodic_source import PeriodicSource
 class SineSource(PeriodicSource):
     """A simple sine source with power (Rayleigh–Jeans) spectrum."""
 
-    def _evaluate_phases(self, phases, wavelengths, **kwargs):
+    def _evaluate_phases(self, phases, wavelengths, graph_state, **kwargs):
         del kwargs
 
         amplitude = 2 + np.sin(2 * np.pi * phases[:, None])
