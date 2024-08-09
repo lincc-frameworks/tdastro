@@ -9,9 +9,9 @@ class PhysicalModel(ParameterizedNode):
 
     Physical models can have fixed attributes (where you need to create a new model or use
     a setter function to change them) and settable model parameters that can be passed functions
-    or constants and are automatically updated by resampling the model parameters.
+    or constants and are stored in the graph's (external) graph_state dictionary.
 
-    Physical models  can also have special background pointers that link to another PhysicalModel
+    Physical models can also have special background pointers that link to another PhysicalModel
     producing flux. We can chain these to have a supernova in front of a star in front
     of a static background.
 

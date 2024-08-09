@@ -1,10 +1,11 @@
 """The base models used to specify the TDAstro computation graph.
 
-The computation graph is composed of ParameterizedNodes which store random variables
+The computation graph is composed of ParameterizedNodes which compute random variables
 (called "model parameters" or "parameters" for short) and encode the dependencies between
-them. Model parameters are different from object variables in that they are programmatically
-set by sampling from the graph. They are stored in a special parameters dictionary and have
-limited write access.
+them. Model parameters are different from object variables in that they are *not* stored
+within the object, but rather programmatically set in an external graph_state dictionary by
+sampling the graph. The user does not need to access the internals of graph_state directly,
+but rather can treat it as an opaque object to pass around.
 
 All model parameters (random variables in the probabilistic graph) must be added using
 using the ParameterizedNode.add_parameter() function. This allows the graph to track
@@ -319,6 +320,11 @@ class ParameterizedNode:
     def get_param(self, graph_state, name):
         """Get the value of a parameter stored in this node.
 
+        Note
+        ----
+        This is an optional helper function that accesses the internals of graph_state
+        using the node's information (e.g. its hash value).
+
         Parameters
         ----------
         graph_state : `dict`
@@ -342,6 +348,11 @@ class ParameterizedNode:
 
     def get_local_params(self, graph_state):
         """Get a dictionary of all parameters local to this node.
+
+        Note
+        ----
+        This is an optional helper function that accesses the internals of graph_state
+        using the node's information (e.g. its hash value).
 
         Parameters
         ----------
@@ -513,7 +524,9 @@ class ParameterizedNode:
 
     def _sample_helper(self, graph_state, seen_nodes):
         """Internal recursive function to sample the model's underlying parameters
-        if they are provided by a function or ParameterizedNode.
+        if they are provided by a function or ParameterizedNode. All sampled
+        parameters for all nodes are stored in the graph_state dictionary, which is
+        modified in-place.
 
         Parameters
         ----------
@@ -554,6 +567,7 @@ class ParameterizedNode:
             elif setter.source_type == ParameterSource.FUNCTION_NODE:
                 graph_state[self.node_hash][name] = graph_state[setter.dependency.node_hash][setter.value]
             elif setter.source_type == ParameterSource.COMPUTE_OUTPUT:
+                # Computed parameters are set only after all the other (input) parameters.
                 any_compute = True
             else:
                 raise ValueError(f"Invalid ParameterSource type {setter.source_type}")
@@ -583,7 +597,7 @@ class ParameterizedNode:
             nodes = set()
             self.update_graph_information(seen_nodes=nodes)
 
-        # Resample the nodes.
+        # Resample the nodes. All information is stored in the returned results dictionary.
         seen_nodes = {}
         results = {}
         self._sample_helper(results, seen_nodes)
@@ -694,6 +708,9 @@ class FunctionNode(ParameterizedNode):
     def compute(self, graph_state, **kwargs):
         """Execute the wrapped function.
 
+        The input arguments are taken from the current graph_state and the outputs
+        are written to graph_state.
+
         Parameters
         ----------
         graph_state : `dict`
@@ -701,6 +718,12 @@ class FunctionNode(ParameterizedNode):
             This data structure is modified in place to represent the current state.
         **kwargs : `dict`, optional
             Additional function arguments.
+
+        Returns
+        -------
+        results : any
+            The result of the computation. This return value is provided so that testing
+            functions can easily access the results.
 
         Raises
         ------
