@@ -111,8 +111,7 @@ class SncosmoWrapperModel(PhysicalModel):
 
         Raises
         ------
-        Raise a ``ValueError`` the depth of the sampling encounters a problem
-        with the order of dependencies.
+        Raise a ``ValueError`` the sampling encounters a problem with the order of dependencies.
         """
         super()._sample_helper(graph_state, seen_nodes)
         self._update_sncosmo_model_parameters(graph_state)

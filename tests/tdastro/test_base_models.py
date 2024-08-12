@@ -1,5 +1,6 @@
 import random
 
+import jax
 import numpy as np
 import pytest
 from tdastro.base_models import FunctionNode, ParameterizedNode, ParameterSource, SingleVariableNode
@@ -259,6 +260,27 @@ def test_parameterized_node_base_seed_fail():
     model_b.sample_parameters()
 
 
+def test_parameterized_node_build_pytree():
+    """Test that we can extract the PyTree of a graph."""
+    model1 = PairModel(value1=0.5, value2=1.5, node_label="A")
+    model2 = PairModel(value1=model1.value1, value2=3.0, node_label="B")
+    model2.update_graph_information()
+    pytree = model2.build_pytree()
+
+    assert len(pytree) == 3
+    assert pytree["1:A.value1"] == 0.5
+    assert pytree["1:A.value2"] == 1.5
+    assert pytree["0:B.value2"] == 3.0
+
+    # Manually set value2 to fixed and check that it no longer appears in the pytree.
+    model1.setters["value2"].fixed = True
+
+    pytree = model2.build_pytree()
+    assert len(pytree) == 2
+    assert pytree["1:A.value1"] == 0.5
+    assert pytree["0:B.value2"] == 3.0
+
+
 def test_single_variable_node():
     """Test that we can create and query a SingleVariableNode."""
     node = SingleVariableNode("A", 10.0)
@@ -357,3 +379,27 @@ def test_function_node_multi():
     assert model.get_param(state, "value1") == 11.0
     assert model.get_param(state, "value2") == -1.0
     assert model.get_param(state, "value_sum") == 10.0
+
+
+def test_function_node_jax():
+    """Test that we can perform a JAX grad computation on a graph of function nodes."""
+
+    def _test_func2(value1, value2):
+        return value1 / value2
+
+    # Create a function of a / b + c
+    div_node = FunctionNode(_test_func2, value1=4.0, value2=0.5, node_label="div")
+    sum_node = FunctionNode(_test_func, value1=1.0, value2=div_node, node_label="sum")
+    graph_state = sum_node.sample_parameters()
+
+    pytree = sum_node.build_pytree()
+    assert len(pytree) == 3
+
+    gr_func = jax.value_and_grad(sum_node.resample_and_compute)
+    values, gradients = gr_func(pytree)
+    assert len(gradients) == 3
+    print(gradients)
+    assert values == 9.0
+    assert gradients["0:sum:_test_func.value1"] == 1.0
+    assert gradients["1:div:_test_func2.value1"] == 2.0
+    assert gradients["1:div:_test_func2.value2"] == -16.0

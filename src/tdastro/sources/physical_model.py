@@ -155,12 +155,15 @@ class PhysicalModel(ParameterizedNode):
             flux_density = effect.apply(flux_density, wavelengths, graph_state, **kwargs)
         return flux_density
 
-    def sample_parameters(self, **kwargs):
+    def sample_parameters(self, given_args=None, **kwargs):
         """Sample the model's underlying parameters if they are provided by a function
         or ParameterizedModel.
 
         Parameters
         ----------
+        given_args : `dict`, optional
+            A dictionary representing the given arguments for this sample run.
+            This can be used as the JAX PyTree for differentiation.
         **kwargs : `dict`, optional
             All the keyword arguments, including the values needed to sample
             parameters.
@@ -180,15 +183,21 @@ class PhysicalModel(ParameterizedNode):
             for effect in self.effects:
                 effect.update_graph_information(seen_nodes=nodes)
 
+        args_to_use = {}
+        if given_args is not None:
+            args_to_use.update(given_args)
+        if kwargs is not None:
+            args_to_use.update(kwargs)
+
         # We use the same seen_nodes for all sampling calls so each node
         # is sampled at most one time regardless of link structure.
         graph_state = {}
         seen_nodes = {}
         if self.background is not None:
-            self.background._sample_helper(graph_state, seen_nodes, **kwargs)
-        self._sample_helper(graph_state, seen_nodes, **kwargs)
+            self.background._sample_helper(graph_state, seen_nodes, args_to_use, **kwargs)
+        self._sample_helper(graph_state, seen_nodes, args_to_use, **kwargs)
 
         for effect in self.effects:
-            effect._sample_helper(graph_state, seen_nodes, **kwargs)
+            effect._sample_helper(graph_state, seen_nodes, args_to_use, **kwargs)
 
         return graph_state
