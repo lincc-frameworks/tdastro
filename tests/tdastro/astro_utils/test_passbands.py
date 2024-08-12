@@ -93,8 +93,9 @@ def test_passbands_load_all_transmission_tables(tmp_path):
         passbands.data_path = os.path.join(tmp_path, "band_data/")
 
         # Mock the _download_transmission_table and _load_transmission_table methods
-        with patch.object(passbands, "_download_transmission_table", return_value=True), patch.object(
-            passbands, "_load_transmission_table", return_value=True
+        with (
+            patch.object(passbands, "_download_transmission_table", return_value=True),
+            patch.object(passbands, "_load_transmission_table", return_value=True),
         ):
             passbands.load_all_transmission_tables()
 

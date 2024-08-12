@@ -93,7 +93,7 @@ class SncosmoWrapperModel(PhysicalModel):
                 self.source_param_names.append(key)
         self.source.set(**kwargs)
 
-    def _sample_helper(self, graph_state, seen_nodes):
+    def _sample_helper(self, graph_state, seen_nodes, given_args=None):
         """Internal recursive function to sample the model's underlying parameters
         if they are provided by a function or ParameterizedNode.
 
@@ -108,12 +108,15 @@ class SncosmoWrapperModel(PhysicalModel):
         seen_nodes : `dict`
             A dictionary mapping nodes seen during this sampling run to their ID.
             Used to avoid sampling nodes multiple times and to validity check the graph.
+        given_args : `dict`, optional
+            A dictionary representing the given arguments for this sample run.
+            This can be used as the JAX PyTree for differentiation.
 
         Raises
         ------
         Raise a ``ValueError`` the sampling encounters a problem with the order of dependencies.
         """
-        super()._sample_helper(graph_state, seen_nodes)
+        super()._sample_helper(graph_state, seen_nodes, given_args)
         self._update_sncosmo_model_parameters(graph_state)
 
     def _evaluate(self, times, wavelengths, graph_state=None, **kwargs):

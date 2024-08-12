@@ -61,7 +61,7 @@ class JaxRandomFunc(FunctionNode):
         if old_seed != self._object_seed or force_update:
             self._key = jax.random.key(self._object_seed)
 
-    def compute(self, graph_state, **kwargs):
+    def compute(self, graph_state, given_args=None, **kwargs):
         """Execute the wrapped JAX sampling function.
 
         Parameters
@@ -69,6 +69,9 @@ class JaxRandomFunc(FunctionNode):
         graph_state : `dict`
             A dictionary of dictionaries mapping node->hash, variable_name to value.
             This data structure is modified in place to represent the current state.
+        given_args : `dict`, optional
+            A dictionary representing the given arguments for this sample run.
+            This can be used as the JAX PyTree for differentiation.
         **kwargs : `dict`, optional
             Additional function arguments.
 
@@ -85,8 +88,10 @@ class JaxRandomFunc(FunctionNode):
         # Build a dictionary of arguments for the function.
         args = {}
         for key in self.arg_names:
-            # Override with the kwarg if the parameter is there.
-            if key in kwargs:
+            # Override with the given arg or kwarg in that order.
+            if given_args is not None and self.setters[key].full_name in given_args:
+                args[key] = given_args[self.setters[key].full_name]
+            elif key in kwargs:
                 args[key] = kwargs[key]
             else:
                 args[key] = graph_state[self.node_hash][key]

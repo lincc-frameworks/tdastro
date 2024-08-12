@@ -571,12 +571,11 @@ class ParameterizedNode:
             if given_args is not None and setter.full_name in given_args:
                 if setter.fixed:
                     raise ValueError(f"Trying to override fixed parameter {setter.full_name}")
-                graph_state[self.node_hash][name] = given_args[full_name]
-                self.parameters[name] = given_args[setter.full_name]
+                graph_state[self.node_hash][name] = given_args[setter.full_name]
             else:
                 # Check if we need to sample this parameter's dependency node.
                 if setter.dependency is not None and setter.dependency != self:
-                    setter.dependency._sample_helper(graph_state, seen_nodes)
+                    setter.dependency._sample_helper(graph_state, seen_nodes, given_args)
 
                 # Set the result from the correct source.
                 if setter.source_type == ParameterSource.CONSTANT:
@@ -594,7 +593,7 @@ class ParameterizedNode:
         # If this is a function node and the parameters depend on the result of its own computation
         # call the compute function to fill them in.
         if any_compute:
-            self.compute(graph_state)
+            self.compute(graph_state, given_args)
 
     def sample_parameters(self, given_args=None):
         """Sample the model's underlying parameters if they are provided by a function
@@ -627,19 +626,17 @@ class ParameterizedNode:
         self._sample_helper(results, seen_nodes, given_args)
         return results
 
-    def build_pytree(self, seen=None, seen_names=None):
+    def build_pytree(self, graph_state, seen=None):
         """Build a JAX PyTree representation of the variables in this graph.
 
         Parameters
         ----------
+        graph_state : `dict`
+            A dictionary of dictionaries mapping node->hash, variable_name to value.
+            This data structure is modified in place to represent the current state.
         seen : `set`
             A set of objects  that have already been processed.
             Default : ``None``
-
-        seen_names : `set`
-            A set of node names (as strings) that have already been processed.
-            Default : ``None``
-
         Returns
         -------
         values : `dict`
@@ -653,21 +650,13 @@ class ParameterizedNode:
             return {}
         seen.add(self)
 
-        # Check that all nodes have unique names.
-        self_name = str(self)
-        if seen_names is None:
-            seen_names = set()
-        if self_name in seen_names:
-            raise ValueError(f"Duplicate name {self_name}. Run update_graph_information() to resolve.")
-        seen_names.add(self_name)
-
         all_values = {}
         for name, setter_info in self.setters.items():
             if setter_info.dependency is not None:
-                all_values.update(setter_info.dependency.build_pytree(seen, seen_names))
+                all_values.update(setter_info.dependency.build_pytree(graph_state, seen))
             elif setter_info.source_type == ParameterSource.CONSTANT and not setter_info.fixed:
                 # Only the non-fixed, constants go into the PyTree.
-                all_values[f"{str(self)}.{name}"] = self.parameters[name]
+                all_values[setter_info.full_name] = graph_state[self.node_hash][name]
         return all_values
 
 
@@ -809,7 +798,7 @@ class FunctionNode(ParameterizedNode):
         args = {}
         for key in self.arg_names:
             # Override with the given arg or kwarg in that order.
-            if self.setters[key].full_name in given_args:
+            if given_args is not None and self.setters[key].full_name in given_args:
                 args[key] = given_args[self.setters[key].full_name]
             elif key in kwargs:
                 args[key] = kwargs[key]
@@ -831,7 +820,7 @@ class FunctionNode(ParameterizedNode):
 
         return results
 
-    def resample_and_compute(self, graph_state, given_args=None):
+    def resample_and_compute(self, given_args=None):
         """A helper function for JAX gradients that runs the sampling then computation.
 
         Parameters
@@ -843,5 +832,5 @@ class FunctionNode(ParameterizedNode):
             A dictionary representing the given arguments for this sample run.
             This can be used as the JAX PyTree for differentiation.
         """
-        self.sample_parameters(graph_state, given_args)
+        graph_state = self.sample_parameters(given_args)
         return self.compute(graph_state, given_args)

@@ -264,8 +264,8 @@ def test_parameterized_node_build_pytree():
     """Test that we can extract the PyTree of a graph."""
     model1 = PairModel(value1=0.5, value2=1.5, node_label="A")
     model2 = PairModel(value1=model1.value1, value2=3.0, node_label="B")
-    model2.update_graph_information()
-    pytree = model2.build_pytree()
+    graph_state = model2.sample_parameters()
+    pytree = model2.build_pytree(graph_state)
 
     assert len(pytree) == 3
     assert pytree["1:A.value1"] == 0.5
@@ -275,7 +275,7 @@ def test_parameterized_node_build_pytree():
     # Manually set value2 to fixed and check that it no longer appears in the pytree.
     model1.setters["value2"].fixed = True
 
-    pytree = model2.build_pytree()
+    pytree = model2.build_pytree(graph_state)
     assert len(pytree) == 2
     assert pytree["1:A.value1"] == 0.5
     assert pytree["0:B.value2"] == 3.0
@@ -392,8 +392,9 @@ def test_function_node_jax():
     sum_node = FunctionNode(_test_func, value1=1.0, value2=div_node, node_label="sum")
     graph_state = sum_node.sample_parameters()
 
-    pytree = sum_node.build_pytree()
+    pytree = sum_node.build_pytree(graph_state)
     assert len(pytree) == 3
+    print(pytree)
 
     gr_func = jax.value_and_grad(sum_node.resample_and_compute)
     values, gradients = gr_func(pytree)
