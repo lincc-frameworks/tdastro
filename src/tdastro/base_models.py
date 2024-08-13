@@ -455,7 +455,7 @@ class ParameterizedNode:
         -----
         * Checks multiple sources in the following order: Manually specified ``value``,
           an entry in ``kwargs``, or ``None``.
-        * Does NOT set an initial value for the model parameter based. The user must
+        * Does NOT set an initial value for the model parameter. The user must
           sample the parameters for this to be set.
         * The model parameters are stored in the order in which they are added.
 
