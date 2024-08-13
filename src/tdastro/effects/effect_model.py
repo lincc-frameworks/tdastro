@@ -9,7 +9,7 @@ class EffectModel(ParameterizedNode):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def apply(self, flux_density, wavelengths=None, physical_model=None, **kwargs):
+    def apply(self, flux_density, wavelengths=None, graph_state=None, **kwargs):
         """Apply the effect to observations (flux_density values)
 
         Parameters
@@ -18,9 +18,8 @@ class EffectModel(ParameterizedNode):
             A length T X N matrix of flux density values.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
-        physical_model : `PhysicalModel`
-            A PhysicalModel from which the effect may query parameters
-            such as redshift, position, or distance.
+        graph_state : `dict`
+            A dictionary mapping graph parameters to their values.
         **kwargs : `dict`, optional
            Any additional keyword arguments.
 

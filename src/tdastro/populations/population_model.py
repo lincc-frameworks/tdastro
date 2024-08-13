@@ -69,7 +69,7 @@ class PopulationModel(ParameterizedNode):
         for source in self.sources:
             source.add_effect(effect, allow_dups=allow_dups, **kwargs)
 
-    def evaluate(self, samples, times, wavelengths, resample_parameters=False, **kwargs):
+    def evaluate(self, samples, times, wavelengths, **kwargs):
         """Draw observations from a single (randomly sampled) source.
 
         Parameters
@@ -80,9 +80,6 @@ class PopulationModel(ParameterizedNode):
             A length T array of timestamps.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
-        resample_parameters : `bool`
-            Treat this evaluation as a completely new object, resampling the
-            parameters from the original provided functions.
         **kwargs : `dict`, optional
            Any additional keyword arguments.
 
@@ -97,6 +94,7 @@ class PopulationModel(ParameterizedNode):
         results = []
         for _ in range(samples):
             source = self.draw_source()
-            object_fluxes = source.evaluate(times, wavelengths, resample_parameters, **kwargs)
+            state = source.sample_parameters()
+            object_fluxes = source.evaluate(times, wavelengths, state, **kwargs)
             results.append(object_fluxes)
         return np.array(results)

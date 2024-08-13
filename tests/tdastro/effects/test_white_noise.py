@@ -21,14 +21,9 @@ def test_white_noise() -> None:
 def test_white_noise_random() -> None:
     """Test that we can resample effects to change their parameters."""
     rand_generator = NumpyRandomFunc("uniform", low=1.0, high=2.0)
-    wn_effect = WhiteNoise(scale=rand_generator)
-    scale = wn_effect["scale"]
-    wn_effect.sample_parameters()
-    assert scale != wn_effect["scale"]
-
-    # We can resample when it is added to a PhysicalObject.
     model = StaticSource(brightness=10.0)
     model.add_effect(WhiteNoise(scale=rand_generator))
-    scale = model.effects[0]["scale"]
-    model.sample_parameters()
-    assert model.effects[0]["scale"] != scale
+    state1 = model.sample_parameters()
+    scale = model.effects[0].get_param(state1, "scale")
+    state2 = model.sample_parameters()
+    assert model.effects[0].get_param(state2, "scale") != scale

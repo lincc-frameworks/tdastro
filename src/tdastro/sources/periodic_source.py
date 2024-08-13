@@ -23,7 +23,7 @@ class PeriodicSource(PhysicalModel, ABC):
         self.add_parameter("t0", t0, required=True, **kwargs)
 
     @abstractmethod
-    def _evaluate_phases(self, phases, wavelengths, **kwargs):
+    def _evaluate_phases(self, phases, wavelengths, graph_state, **kwargs):
         """Draw effect-free observations for this object, as a function of phase.
 
         Parameters
@@ -32,6 +32,8 @@ class PeriodicSource(PhysicalModel, ABC):
             A length T array of phases, in the range [0, 1].
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
+        graph_state : `dict`, optional
+            A given setting of all the parameters and their values.
         **kwargs : `dict`, optional
               Any additional keyword arguments.
 
@@ -42,7 +44,7 @@ class PeriodicSource(PhysicalModel, ABC):
         """
         raise NotImplementedError()
 
-    def _evaluate(self, times, wavelengths, **kwargs):
+    def _evaluate(self, times, wavelengths, graph_state, **kwargs):
         """Draw effect-free observations for this object.
 
         Parameters
@@ -51,6 +53,8 @@ class PeriodicSource(PhysicalModel, ABC):
             A length T array of timestamps.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
+        graph_state : `dict`, optional
+            A given setting of all the parameters and their values.
         **kwargs : `dict`, optional
            Any additional keyword arguments.
 
@@ -59,8 +63,9 @@ class PeriodicSource(PhysicalModel, ABC):
         flux_density : `numpy.ndarray`
             A length T x N matrix of SED values.
         """
-        period = self.parameters["period"]
-        phases = (times - self.parameters["t0"]) % period / period
-        flux_density = self._evaluate_phases(phases, wavelengths, **kwargs)
+        params = self.get_local_params(graph_state)
+        period = params["period"]
+        phases = (times - params["t0"]) % period / period
+        flux_density = self._evaluate_phases(phases, wavelengths, graph_state, **kwargs)
 
         return flux_density

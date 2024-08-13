@@ -72,7 +72,8 @@ def test_fixed_population_sample_sources():
     counts = [0.0, 0.0, 0.0]
     for _ in range(itr):
         model = population.draw_source()
-        counts[int(model["brightness"])] += 1.0
+        state = model.sample_parameters()
+        counts[int(model.get_param(state, "brightness"))] += 1.0
     assert np.allclose(counts, [0.25 * itr, 0.25 * itr, 0.5 * itr], rtol=0.05)
 
     # Check the we can change a rate.
@@ -81,7 +82,8 @@ def test_fixed_population_sample_sources():
     counts = [0.0, 0.0, 0.0]
     for _ in range(itr):
         model = population.draw_source()
-        counts[int(model["brightness"])] += 1.0
+        state = model.sample_parameters()
+        counts[int(model.get_param(state, "brightness"))] += 1.0
     assert np.allclose(counts, [0.4 * itr, 0.2 * itr, 0.4 * itr], rtol=0.05)
 
 
@@ -100,7 +102,7 @@ def test_fixed_population_sample_fluxes():
     num_samples = 10_000
     times = np.array([1, 2, 3, 4, 5])
     wavelengths = np.array([100.0, 200.0, 300.0])
-    fluxes = population.evaluate(num_samples, times, wavelengths, resample_parameters=True)
+    fluxes = population.evaluate(num_samples, times, wavelengths)
 
     # Check that the fluxes are constant within a sample. Also check that we have
     # More than 4 values (since we are resampling a model with a random parameter).

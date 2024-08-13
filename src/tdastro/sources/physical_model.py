@@ -9,9 +9,9 @@ class PhysicalModel(ParameterizedNode):
 
     Physical models can have fixed attributes (where you need to create a new model or use
     a setter function to change them) and settable model parameters that can be passed functions
-    or constants and are automatically updated by resampling the model parameters.
+    or constants and are stored in the graph's (external) graph_state dictionary.
 
-    Physical models  can also have special background pointers that link to another PhysicalModel
+    Physical models can also have special background pointers that link to another PhysicalModel
     producing flux. We can chain these to have a supernova in front of a star in front
     of a static background.
 
@@ -90,7 +90,7 @@ class PhysicalModel(ParameterizedNode):
 
         self.effects.append(effect)
 
-    def _evaluate(self, times, wavelengths, **kwargs):
+    def _evaluate(self, times, wavelengths, graph_state):
         """Draw effect-free observations for this object.
 
         Parameters
@@ -99,8 +99,8 @@ class PhysicalModel(ParameterizedNode):
             A length T array of timestamps.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
-        **kwargs : `dict`, optional
-           Any additional keyword arguments.
+        graph_state : `dict`
+            A dictionary mapping graph parameters to their values.
 
         Returns
         -------
@@ -109,7 +109,7 @@ class PhysicalModel(ParameterizedNode):
         """
         raise NotImplementedError()
 
-    def evaluate(self, times, wavelengths, resample_parameters=False, **kwargs):
+    def evaluate(self, times, wavelengths, graph_state=None, **kwargs):
         """Draw observations for this object and apply the noise.
 
         Parameters
@@ -118,56 +118,71 @@ class PhysicalModel(ParameterizedNode):
             A length T array of timestamps.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
-        resample_parameters : `bool`
-            Treat this evaluation as a completely new object, resampling the
-            parameters from the original provided functions.
+        graph_state : `dict`, optional
+            A given setting of all the parameters and their values. If this is not
+            included then a random sampling is used.
         **kwargs : `dict`, optional
-           Any additional keyword arguments.
+            All the other keyword arguments.
 
         Returns
         -------
         flux_density : `numpy.ndarray`
             A length T x N matrix of SED values.
         """
-        if resample_parameters:
-            self.sample_parameters(kwargs)
+        if graph_state is None:
+            graph_state = self.sample_parameters()
+        params = self.get_local_params(graph_state)
 
         # Pre-effects are adjustments done to times and/or wavelengths, before flux density computation.
         for effect in self.effects:
             if hasattr(effect, "pre_effect"):
-                times, wavelengths = effect.pre_effect(times, wavelengths, **kwargs)
+                times, wavelengths = effect.pre_effect(times, wavelengths, graph_state, **kwargs)
 
         # Compute the flux density for both the current object and add in anything
         # behind it, such as a host galaxy.
-        flux_density = self._evaluate(times, wavelengths, **kwargs)
+        flux_density = self._evaluate(times, wavelengths, graph_state, **kwargs)
         if self.background is not None:
             flux_density += self.background._evaluate(
                 times,
                 wavelengths,
-                ra=self.parameters["ra"],
-                dec=self.parameters["dec"],
+                graph_state,
+                ra=params["ra"],
+                dec=params["dec"],
                 **kwargs,
             )
 
         for effect in self.effects:
-            flux_density = effect.apply(flux_density, wavelengths, self, **kwargs)
+            flux_density = effect.apply(flux_density, wavelengths, graph_state, **kwargs)
         return flux_density
 
-    def sample_parameters(self, include_effects=True, given_args=None, **kwargs):
+    def sample_parameters(self, given_args=None, **kwargs):
         """Sample the model's underlying parameters if they are provided by a function
         or ParameterizedModel.
 
         Parameters
         ----------
-        include_effects : `bool`
-            Resample the parameters for the effects models.
         given_args : `dict`, optional
             A dictionary representing the given arguments for this sample run.
             This can be used as the JAX PyTree for differentiation.
         **kwargs : `dict`, optional
             All the keyword arguments, including the values needed to sample
             parameters.
+
+        Returns
+        -------
+        graph_state : `dict`
+            A dictionary mapping graph parameters to their values.
         """
+        # If the graph has not been sampled ever, update the node positions for
+        # every node (model, background, effects).
+        if self._node_pos is None:
+            nodes = set()
+            self.update_graph_information(seen_nodes=nodes)
+            if self.background is not None:
+                self.background.update_graph_information(seen_nodes=nodes)
+            for effect in self.effects:
+                effect.update_graph_information(seen_nodes=nodes)
+
         args_to_use = {}
         if given_args is not None:
             args_to_use.update(given_args)
@@ -176,22 +191,13 @@ class PhysicalModel(ParameterizedNode):
 
         # We use the same seen_nodes for all sampling calls so each node
         # is sampled at most one time regardless of link structure.
+        graph_state = {}
         seen_nodes = {}
         if self.background is not None:
-            self.background._sample_helper(seen_nodes, given_args=args_to_use)
-        self._sample_helper(seen_nodes, given_args=args_to_use)
+            self.background._sample_helper(graph_state, seen_nodes, args_to_use, **kwargs)
+        self._sample_helper(graph_state, seen_nodes, args_to_use, **kwargs)
 
-        if include_effects:
-            for effect in self.effects:
-                effect._sample_helper(seen_nodes, given_args=args_to_use)
+        for effect in self.effects:
+            effect._sample_helper(graph_state, seen_nodes, args_to_use, **kwargs)
 
-    def resample_and_compute(self, given_args=None):
-        """A helper function for JAX gradients that runs the sampling then computation.
-        Parameters
-        ----------
-        given_args : `dict`, optional
-            A dictionary representing the given arguments for this sample run.
-            This can be used as the JAX PyTree for differentiation.
-        """
-        self.sample_parameters(given_args)
-        return self.compute()
+        return graph_state

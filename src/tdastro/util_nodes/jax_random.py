@@ -26,6 +26,7 @@ class JaxRandomFunc(FunctionNode):
     """
 
     def __init__(self, func, seed=None, **kwargs):
+        self._fixed_seed = seed
         super().__init__(func, **kwargs)
 
         # Overwrite the func attribute using the new seed.
@@ -51,16 +52,26 @@ class JaxRandomFunc(FunctionNode):
             Reset the random number generator even if the seed has not change.
             This should only be set to ``True`` for testing.
         """
+        # If we have set a fixed seed for this node, use that.
+        if new_seed is None and self._fixed_seed is not None:
+            new_seed = self._fixed_seed
+
         old_seed = self._object_seed
         super().set_seed(new_seed, graph_base_seed)
         if old_seed != self._object_seed or force_update:
             self._key = jax.random.key(self._object_seed)
 
-    def compute(self, **kwargs):
+    def compute(self, graph_state, given_args=None, **kwargs):
         """Execute the wrapped JAX sampling function.
 
         Parameters
         ----------
+        graph_state : `dict`
+            A dictionary of dictionaries mapping node->hash, variable_name to value.
+            This data structure is modified in place to represent the current state.
+        given_args : `dict`, optional
+            A dictionary representing the given arguments for this sample run.
+            This can be used as the JAX PyTree for differentiation.
         **kwargs : `dict`, optional
             Additional function arguments.
 
@@ -74,16 +85,26 @@ class JaxRandomFunc(FunctionNode):
                 "set func or override compute()."
             )
 
-        args = self._build_args_dict(**kwargs)
+        # Build a dictionary of arguments for the function.
+        args = {}
+        for key in self.arg_names:
+            # Override with the given arg or kwarg in that order.
+            if given_args is not None and self.setters[key].full_name in given_args:
+                args[key] = given_args[self.setters[key].full_name]
+            elif key in kwargs:
+                args[key] = kwargs[key]
+            else:
+                args[key] = graph_state[self.node_hash][key]
         self._key, subkey = jax.random.split(self._key)
+
         results = float(self.func(subkey, **args))
-        self._save_result_parameters(results)
+        graph_state[self.node_hash][self.outputs[0]] = results
         return results
 
-    def resample_and_compute(self, **kwargs):
-        """Compute the value, forcing a resampling of the random variables."""
-        self.sample_parameters(**kwargs)
-        return self.compute(**kwargs)
+    def generate(self, **kwargs):
+        """A helper function for testing that regenerates the parameters."""
+        state = self.sample_parameters()
+        return self.compute(state, **kwargs)
 
 
 class JaxRandomNormal(FunctionNode):
@@ -115,7 +136,7 @@ class JaxRandomNormal(FunctionNode):
         if seed is not None:
             self.update_graph_information(new_graph_base_seed=seed)
 
-    def resample_and_compute(self, **kwargs):
-        """Compute the value, forcing a resampling of the random variables."""
-        self.sample_parameters(**kwargs)
-        return self.compute(**kwargs)
+    def generate(self, **kwargs):
+        """A helper function for testing that regenerates the parameters."""
+        state = self.sample_parameters()
+        return self.compute(state, **kwargs)

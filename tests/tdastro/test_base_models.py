@@ -56,21 +56,6 @@ class PairModel(ParameterizedNode):
             **kwargs,
         )
 
-    def result(self, **kwargs):
-        """Add the pair of values together
-
-        Parameters
-        ----------
-        **kwargs : `dict`, optional
-            Any additional keyword arguments.
-
-        Returns
-        -------
-        result : `float`
-            The result of the addition.
-        """
-        return self["value1"] + self["value2"]
-
 
 def test_parameter_source():
     """Test the ParameterSource creation and setter functions."""
@@ -82,8 +67,6 @@ def test_parameter_source():
     assert source.value is None
     assert not source.fixed
     assert not source.required
-    with pytest.raises(ValueError):
-        _ = source.get_value()
 
     source.set_as_constant(10.0)
     assert source.parameter_name == "test"
@@ -93,7 +76,6 @@ def test_parameter_source():
     assert source.value == 10.0
     assert not source.fixed
     assert not source.required
-    assert source.get_value() == 10.0
 
     source.set_name("my_var", "my_node")
     assert source.parameter_name == "my_var"
@@ -109,7 +91,6 @@ def test_parameter_source():
     assert source.value == "A"
     assert not source.fixed
     assert not source.required
-    assert source.get_value() == 20.0
 
     func = FunctionNode(_test_func, value1=0.1, value2=0.4)
     source.set_as_function(func)
@@ -117,26 +98,27 @@ def test_parameter_source():
     assert source.dependency is func
     assert not source.fixed
     assert not source.required
-    assert source.get_value() == 0.5
 
 
 def test_parameterized_node():
     """Test that we can sample and create a PairModel object."""
     # Simple addition
     model1 = PairModel(value1=0.5, value2=0.5)
-    assert model1["value1"] == 0.5
-    assert model1["value2"] == 0.5
-    assert model1.result() == 1.0
-    assert model1["value_sum"] == 1.0
     assert str(model1) == "test_base_models.PairModel"
+
+    state = model1.sample_parameters()
+    assert model1.get_param(state, "value1") == 0.5
+    assert model1.get_param(state, "value2") == 0.5
+    assert model1.get_param(state, "value_sum") == 1.0
 
     # Use value1=model.value and value2=1.0
     model2 = PairModel(value1=model1.value1, value2=1.0, node_label="test")
-    assert model2["value1"] == 0.5
-    assert model2["value2"] == 1.0
-    assert model2.result() == 1.5
-    assert model2["value_sum"] == 1.5
     assert str(model2) == "test"
+
+    state = model2.sample_parameters()
+    assert model2.get_param(state, "value1") == 0.5
+    assert model2.get_param(state, "value2") == 1.0
+    assert model2.get_param(state, "value_sum") == 1.5
 
     # If we set an ID it shows up in the name.
     model2._node_pos = 100
@@ -146,74 +128,33 @@ def test_parameterized_node():
     # Compute value1 from model2's result and value2 from the sampler function.
     # The sampler function is auto-wrapped in a FunctionNode.
     model3 = PairModel(value1=model2.value_sum, value2=_sampler_fun)
-    rand_val = model3["value2"]
-    assert model3.result() == pytest.approx(1.5 + rand_val)
-    assert model3["value_sum"] == pytest.approx(1.5 + rand_val)
+    state = model3.sample_parameters()
+    rand_val = model3.get_param(state, "value2")
+    assert model3.get_param(state, "value_sum") == pytest.approx(1.5 + rand_val)
 
     # Compute value1 from model3's result (which is itself the result for model2 +
     # a random value) and value2 = -1.0.
     model4 = PairModel(value1=model3.value_sum, value2=-1.0)
-    assert model4.result() == pytest.approx(0.5 + rand_val)
-    assert model4["value_sum"] == pytest.approx(0.5 + rand_val)
-    final_res = model4.result()
+    state = model4.sample_parameters()
+    rand_val = model3.get_param(state, "value2")
+    assert model4.get_param(state, "value_sum") == pytest.approx(0.5 + rand_val)
 
     # We can resample and it should change the result.
-    while model3["value2"] == rand_val:
-        model4.sample_parameters()
-    rand_val = model3["value2"]
+    new_state = model4.sample_parameters()
+    rand_val = model3.get_param(new_state, "value2")
 
     # Nothing changes in model1 or model2
-    assert model1["value1"] == 0.5
-    assert model1["value2"] == 0.5
-    assert model1.result() == 1.0
-    assert model1["value_sum"] == 1.0
-    assert model2["value1"] == 0.5
-    assert model2["value2"] == 1.0
-    assert model2.result() == 1.5
-    assert model2["value_sum"] == 1.5
+    assert model1.get_param(new_state, "value1") == 0.5
+    assert model1.get_param(new_state, "value2") == 0.5
+    assert model1.get_param(new_state, "value_sum") == 1.0
+    assert model2.get_param(new_state, "value1") == 0.5
+    assert model2.get_param(new_state, "value2") == 1.0
+    assert model2.get_param(new_state, "value_sum") == 1.5
 
     # Models 3 and 4 use the data from the new random value.
-    assert model3.result() == pytest.approx(1.5 + rand_val)
-    assert model4.result() == pytest.approx(0.5 + rand_val)
-    assert model3["value_sum"] == pytest.approx(1.5 + rand_val)
-    assert model4["value_sum"] == pytest.approx(0.5 + rand_val)
-    assert final_res != model4.result()
-
-
-def test_parameterized_node_parameters():
-    """Test that we can extract the parameters of a graph of ParameterizedNode."""
-    model1 = PairModel(value1=0.5, value2=1.5, node_label="A")
-    settings = model1.get_all_parameter_values(False)
-    assert len(settings) == 3
-    assert settings["value1"] == 0.5
-    assert settings["value2"] == 1.5
-    assert settings["value_sum"] == 2.0
-
-    # The model has 6 parameters in the graph: 3 in model1 and 3
-    # in its summation FunctionNode. Note Node ID's are -1 until
-    # reset or sample is called for the first time.
-    settings = model1.get_all_parameter_values(True)
-    assert len(settings) == 6
-    assert settings["0:A.value1"] == 0.5
-    assert settings["0:A.value2"] == 1.5
-    assert settings["0:A.value_sum"] == 2.0
-
-    # Use value1=model.value1 and value2=3.0
-    model2 = PairModel(value1=model1.value1, value2=3.0, node_label="B")
-    settings = model2.get_all_parameter_values(False)
-    assert len(settings) == 3
-    assert settings["value1"] == 0.5
-    assert settings["value2"] == 3.0
-    assert settings["value_sum"] == 3.5
-
-    settings = model2.get_all_parameter_values(True)
-    assert len(settings) == 12
-    assert settings["1:A.value1"] == 0.5
-    assert settings["1:A.value2"] == 1.5
-    assert settings["1:A.value_sum"] == 2.0
-    assert settings["0:B.value1"] == 0.5
-    assert settings["0:B.value2"] == 3.0
-    assert settings["0:B.value_sum"] == 3.5
+    assert model3.get_param(new_state, "value_sum") == pytest.approx(1.5 + rand_val)
+    assert model4.get_param(new_state, "value_sum") == pytest.approx(0.5 + rand_val)
+    assert model4.get_param(state, "value_sum") != model4.get_param(new_state, "value_sum")
 
 
 def test_parameterized_node_get_dependencies():
@@ -234,8 +175,6 @@ def test_parameterized_node_get_dependencies():
 def test_parameterized_node_modify():
     """Test that we can modify the parameters in a node."""
     model = PairModel(value1=0.5, value2=0.5)
-    assert model["value1"] == 0.5
-    assert model["value2"] == 0.5
 
     # We cannot add a parameter a second time.
     with pytest.raises(KeyError):
@@ -243,8 +182,6 @@ def test_parameterized_node_modify():
 
     # We can set the parameter.
     model.set_parameter("value1", 5.0)
-    assert model["value1"] == 5.0
-    assert model["value2"] == 0.5
 
     # We cannot set a value that hasn't been added.
     with pytest.raises(KeyError):
@@ -312,7 +249,7 @@ def test_parameterized_node_base_seed_fail():
     # But if we change the graph to link them, we don't want them
     # to have the same seed.
     model_b.set_parameter("value1", model_a.value_sum)
-    with pytest.raises(ValueError):
+    with pytest.raises(KeyError):
         model_b.sample_parameters()
 
     # We need to reset the node IDs (their positions within the graph)
@@ -327,8 +264,8 @@ def test_parameterized_node_build_pytree():
     """Test that we can extract the PyTree of a graph."""
     model1 = PairModel(value1=0.5, value2=1.5, node_label="A")
     model2 = PairModel(value1=model1.value1, value2=3.0, node_label="B")
-    model2.update_graph_information()
-    pytree = model2.build_pytree()
+    graph_state = model2.sample_parameters()
+    pytree = model2.build_pytree(graph_state)
 
     assert len(pytree) == 3
     assert pytree["1:A.value1"] == 0.5
@@ -338,7 +275,7 @@ def test_parameterized_node_build_pytree():
     # Manually set value2 to fixed and check that it no longer appears in the pytree.
     model1.setters["value2"].fixed = True
 
-    pytree = model2.build_pytree()
+    pytree = model2.build_pytree(graph_state)
     assert len(pytree) == 2
     assert pytree["1:A.value1"] == 0.5
     assert pytree["0:B.value2"] == 3.0
@@ -347,60 +284,63 @@ def test_parameterized_node_build_pytree():
 def test_single_variable_node():
     """Test that we can create and query a SingleVariableNode."""
     node = SingleVariableNode("A", 10.0)
-    assert node["A"] == 10
     assert str(node) == "tdastro.base_models.SingleVariableNode"
+
+    state = node.sample_parameters()
+    assert node.get_param(state, "A") == 10
 
 
 def test_function_node_basic():
     """Test that we can create and query a FunctionNode."""
     my_func = FunctionNode(_test_func, value1=1.0, value2=2.0)
-    assert my_func.compute() == 3.0
-    assert my_func.compute(value2=3.0) == 4.0
-    assert my_func.compute(value2=3.0, unused_param=5.0) == 4.0
-    assert my_func.compute(value2=3.0, value1=1.0) == 4.0
-    assert str(my_func) == "tdastro.base_models.FunctionNode:_test_func"
+    state = my_func.sample_parameters()
+
+    assert my_func.compute(state) == 3.0
+    assert my_func.compute(state, value2=3.0) == 4.0
+    assert my_func.compute(state, value2=3.0, unused_param=5.0) == 4.0
+    assert my_func.compute(state, value2=3.0, value1=1.0) == 4.0
+    assert str(my_func) == "0:tdastro.base_models.FunctionNode:_test_func"
 
 
 def test_function_node_chain():
     """Test that we can create and query a chained FunctionNode."""
     func1 = FunctionNode(_test_func, value1=1.0, value2=1.0)
     func2 = FunctionNode(_test_func, value1=func1, value2=3.0)
-    assert func2.compute() == 5.0
+    state = func2.sample_parameters()
+
+    assert func2.compute(state) == 5.0
 
 
 def test_no_resample_functions():
     """Test that if we use the same node as dependencies in two other nodes, we do not resample it."""
     rand_val = FunctionNode(_sampler_fun)
-    init_val = rand_val.compute()
-
     node_a = SingleVariableNode("A", rand_val)
     node_b = PairModel(value1=node_a.A, value2=rand_val)
-    assert node_a["A"] == init_val
-    assert node_b["value1"] == init_val
-    assert node_b["value2"] == init_val
+    state = node_b.sample_parameters()
+
+    # All the values should be the same (no resampling of A.)
+    assert node_b.get_param(state, "value1") == node_a.get_param(state, "A")
+    assert node_b.get_param(state, "value2") == node_a.get_param(state, "A")
 
     # They should change when we resample.
-    node_b.sample_parameters()
-    new_val = node_a["A"]
-    assert new_val != init_val
-    assert node_b["value1"] == new_val
-    assert node_b["value2"] == new_val
+    new_state = node_b.sample_parameters()
+    assert node_a.get_param(state, "A") != node_a.get_param(new_state, "A")
+    assert node_b.get_param(new_state, "value1") == node_a.get_param(new_state, "A")
+    assert node_b.get_param(new_state, "value2") == node_a.get_param(new_state, "A")
 
 
 def test_np_sampler_method():
     """Test that we can wrap numpy random functions."""
     rng = np.random.default_rng(1001)
-    my_func = FunctionNode(rng.normal, loc=10.0, scale=1.0)
+    my_func = FunctionNode(rng.normal, loc=10.0, scale=1.0, outputs=["val"])
 
     # Sample 1000 times with the default values. Check that we are near
     # the expected mean and not everything is equal.
-    vals = np.array([my_func.compute() for _ in range(1000)])
+    vals = []
+    for _ in range(1000):
+        state = my_func.sample_parameters()
+        vals.append(my_func.get_param(state, "val"))
     assert abs(np.mean(vals) - 10.0) < 1.0
-    assert not np.all(vals == vals[0])
-
-    # Override the mean and resample.
-    vals = np.array([my_func.compute(loc=25.0) for _ in range(1000)])
-    assert abs(np.mean(vals) - 25.0) < 1.0
     assert not np.all(vals == vals[0])
 
 
@@ -411,16 +351,19 @@ def test_function_node_obj():
     # The model depends on the function.
     func = FunctionNode(_test_func, value1=5.0, value2=6.0)
     model = PairModel(value1=10.0, value2=func)
-    assert model.result() == 21.0
+    state = model.sample_parameters()
+    assert model.get_param(state, "value_sum") == 21.0
 
     # Function depends on the model's value2 parameter.
     model = PairModel(value1=-10.0, value2=17.5)
-    func = FunctionNode(_test_func, value1=5.0, value2=model.value2)
-    assert model.result() == 7.5
-    assert func.compute() == 22.5
+    func = FunctionNode(_test_func, value1=5.0, value2=model.value2, outputs=["res"])
+    state = func.sample_parameters()
+
+    assert model.get_param(state, "value_sum") == 7.5
+    assert func.get_param(state, "res") == 22.5
 
     # We can always override the node's parameters with kwargs.
-    assert func.compute(value1=1.0, value2=4.0) == 5.0
+    assert func.compute(state, value1=1.0, value2=4.0) == 5.0
 
 
 def test_function_node_multi():
@@ -430,12 +373,12 @@ def test_function_node_multi():
         return (value1 + value2, value1 - value2)
 
     my_func = FunctionNode(_test_func2, outputs=["sum_res", "diff_res"], value1=5.0, value2=6.0)
-    my_func.compute()
-
     model = PairModel(value1=my_func.sum_res, value2=my_func.diff_res)
-    assert model["value1"] == 11.0
-    assert model["value2"] == -1.0
-    assert model["value_sum"] == 10.0
+    state = model.sample_parameters()
+
+    assert model.get_param(state, "value1") == 11.0
+    assert model.get_param(state, "value2") == -1.0
+    assert model.get_param(state, "value_sum") == 10.0
 
 
 def test_function_node_jax():
@@ -447,10 +390,11 @@ def test_function_node_jax():
     # Create a function of a / b + c
     div_node = FunctionNode(_test_func2, value1=4.0, value2=0.5, node_label="div")
     sum_node = FunctionNode(_test_func, value1=1.0, value2=div_node, node_label="sum")
-    sum_node.sample_parameters()
+    graph_state = sum_node.sample_parameters()
 
-    pytree = sum_node.build_pytree()
+    pytree = sum_node.build_pytree(graph_state)
     assert len(pytree) == 3
+    print(pytree)
 
     gr_func = jax.value_and_grad(sum_node.resample_and_compute)
     values, gradients = gr_func(pytree)

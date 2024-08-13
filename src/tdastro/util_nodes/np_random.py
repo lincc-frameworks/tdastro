@@ -39,6 +39,7 @@ class NumpyRandomFunc(FunctionNode):
 
     def __init__(self, func_name, seed=None, **kwargs):
         self.func_name = func_name
+        self._fixed_seed = seed
 
         # Use a temporary random number generator to seed the function.
         self._rng = np.random.default_rng()
@@ -70,8 +71,17 @@ class NumpyRandomFunc(FunctionNode):
             Reset the random number generator even if the seed has not change.
             This should only be set to ``True`` for testing.
         """
+        # If we have set a fixed seed for this node, use that.
+        if new_seed is None and self._fixed_seed is not None:
+            new_seed = self._fixed_seed
+
         old_seed = self._object_seed
         super().set_seed(new_seed, graph_base_seed)
         if old_seed != self._object_seed or force_update:
             self._rng = np.random.default_rng(seed=self._object_seed)
             self.func = getattr(self._rng, self.func_name)
+
+    def generate(self, **kwargs):
+        """A helper function for testing that regenerates the output."""
+        state = self.sample_parameters()
+        return self.compute(state, **kwargs)
