@@ -626,6 +626,36 @@ class ParameterizedNode:
         self._sample_helper(results, seen_nodes, given_args)
         return results
 
+    def get_all_node_info(self, field, seen_nodes=None):
+        """Return a list of requested information for each node.
+
+        Parameters
+        ----------
+        field : `str`
+            The name of the attribute to extract from the node.
+            Common examples are: "node_hash" and "node_string"
+        seen_nodes : `set`
+            A set of objects that have already been processed.
+            Modified in place if provided.
+
+        Returns
+        -------
+        result : `list`
+            A list of values for each unique node in the graph.
+        """
+        # Check if we have already processed this node.
+        if seen_nodes is None:
+            seen_nodes = set()
+        if self in seen_nodes:
+            return []  # Nothing to do
+        seen_nodes.add(self)
+
+        # Get the information for this node and all its dependencies.
+        result = [getattr(self, field)]
+        for dep in self.direct_dependencies:
+            result.extend(dep.get_all_node_info(field, seen_nodes))
+        return result
+
     def build_pytree(self, graph_state, seen=None):
         """Build a JAX PyTree representation of the variables in this graph.
 
@@ -635,7 +665,7 @@ class ParameterizedNode:
             A dictionary of dictionaries mapping node->hash, variable_name to value.
             This data structure is modified in place to represent the current state.
         seen : `set`
-            A set of objects  that have already been processed.
+            A set of objects that have already been processed.
             Default : ``None``
         Returns
         -------
