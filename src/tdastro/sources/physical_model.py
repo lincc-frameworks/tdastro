@@ -90,6 +90,9 @@ class PhysicalModel(ParameterizedNode):
 
         self.effects.append(effect)
 
+        # Reset the node position to indicate the graph has changed.
+        self.node_pos = None
+
     def _evaluate(self, times, wavelengths, graph_state):
         """Draw effect-free observations for this object.
 
@@ -109,7 +112,7 @@ class PhysicalModel(ParameterizedNode):
         """
         raise NotImplementedError()
 
-    def evaluate(self, times, wavelengths, graph_state=None, **kwargs):
+    def evaluate(self, times, wavelengths, graph_state=None, given_args=None, rng_info=None, **kwargs):
         """Draw observations for this object and apply the noise.
 
         Parameters
@@ -118,9 +121,14 @@ class PhysicalModel(ParameterizedNode):
             A length T array of timestamps.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
-        graph_state : `dict`, optional
-            A given setting of all the parameters and their values. If this is not
-            included then a random sampling is used.
+        graph_state : `dict`
+            A given setting of all the parameters and their values.
+        given_args : `dict`, optional
+            A dictionary representing the given arguments for this sample run.
+            This can be used as the JAX PyTree for differentiation.
+        rng_info : `dict`, optional
+            A dictionary of random number generator information for each node, such as
+            the JAX keys or the numpy rngs.
         **kwargs : `dict`, optional
             All the other keyword arguments.
 
@@ -130,7 +138,7 @@ class PhysicalModel(ParameterizedNode):
             A length T x N matrix of SED values.
         """
         if graph_state is None:
-            graph_state = self.sample_parameters()
+            graph_state = self.sample_parameters(given_args=given_args, rng_info=rng_info, **kwargs)
         params = self.get_local_params(graph_state)
 
         # Pre-effects are adjustments done to times and/or wavelengths, before flux density computation.
@@ -155,7 +163,7 @@ class PhysicalModel(ParameterizedNode):
             flux_density = effect.apply(flux_density, wavelengths, graph_state, **kwargs)
         return flux_density
 
-    def sample_parameters(self, given_args=None, **kwargs):
+    def sample_parameters(self, given_args=None, rng_info=None, **kwargs):
         """Sample the model's underlying parameters if they are provided by a function
         or ParameterizedModel.
 
@@ -164,6 +172,9 @@ class PhysicalModel(ParameterizedNode):
         given_args : `dict`, optional
             A dictionary representing the given arguments for this sample run.
             This can be used as the JAX PyTree for differentiation.
+        rng_info : `dict`, optional
+            A dictionary of random number generator information for each node, such as
+            the JAX keys or the numpy rngs.
         **kwargs : `dict`, optional
             All the keyword arguments, including the values needed to sample
             parameters.
@@ -175,13 +186,13 @@ class PhysicalModel(ParameterizedNode):
         """
         # If the graph has not been sampled ever, update the node positions for
         # every node (model, background, effects).
-        if self._node_pos is None:
+        if self.node_pos is None:
             nodes = set()
-            self.update_graph_information(seen_nodes=nodes)
+            self.set_graph_positions(seen_nodes=nodes)
             if self.background is not None:
-                self.background.update_graph_information(seen_nodes=nodes)
+                self.background.set_graph_positions(seen_nodes=nodes)
             for effect in self.effects:
-                effect.update_graph_information(seen_nodes=nodes)
+                effect.set_graph_positions(seen_nodes=nodes)
 
         args_to_use = {}
         if given_args is not None:
@@ -194,11 +205,11 @@ class PhysicalModel(ParameterizedNode):
         graph_state = {}
         seen_nodes = {}
         if self.background is not None:
-            self.background._sample_helper(graph_state, seen_nodes, args_to_use, **kwargs)
-        self._sample_helper(graph_state, seen_nodes, args_to_use, **kwargs)
+            self.background._sample_helper(graph_state, seen_nodes, args_to_use, rng_info, **kwargs)
+        self._sample_helper(graph_state, seen_nodes, args_to_use, rng_info, **kwargs)
 
         for effect in self.effects:
-            effect._sample_helper(graph_state, seen_nodes, args_to_use, **kwargs)
+            effect._sample_helper(graph_state, seen_nodes, args_to_use, rng_info, **kwargs)
 
         return graph_state
 

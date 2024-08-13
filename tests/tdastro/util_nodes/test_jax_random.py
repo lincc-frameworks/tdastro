@@ -6,7 +6,6 @@ from tdastro.util_nodes.jax_random import JaxRandomFunc, JaxRandomNormal
 def test_jax_random_uniform():
     """Test that we can generate numbers from a uniform distribution."""
     jax_node = JaxRandomFunc(jax.random.uniform, seed=100)
-    jax_node.set_seed(new_seed=100)
 
     values = np.array([jax_node.generate() for _ in range(10_000)])
     assert len(np.unique(values)) > 10
@@ -28,11 +27,6 @@ def test_jax_random_uniform():
     jax_node2 = JaxRandomFunc(jax.random.uniform, seed=101)
     values2 = np.array([jax_node2.generate() for _ in range(10_000)])
     assert not np.allclose(values, values2)
-
-    # We can also set the seed with `set_seed()`
-    jax_node2.set_seed(100)
-    values2 = np.array([jax_node2.generate() for _ in range(10_000)])
-    assert np.allclose(values, values2)
 
     # We can change the range.
     jax_node3 = JaxRandomFunc(jax.random.uniform, seed=101, minval=10.0, maxval=20.0)

@@ -5,6 +5,28 @@ import jax.random
 from tdastro.base_models import FunctionNode
 
 
+def build_jax_keys(node_hashes, base_key):
+    """Construct a dictionary of node's hash value to the JAX key.
+
+    Parameters
+    ----------
+    node_hashes : iterable
+        All of the node hash values as constructed by hashing the nodes' node_string.
+    base_key : int or `jax._src.prng.PRNGKeyArray`
+        The key on which to base the keys for the individual node's.
+
+    Returns
+    -------
+    keys : `dict`
+        A dictionary mapping each node's hash value to a unique JAX key.
+    """
+    keys = {}
+    for value in node_hashes:
+        new_seed = (value + base_key) % (2**32)
+        keys[value] = jax.random.key(new_seed)
+    return keys
+
+
 class JaxRandomFunc(FunctionNode):
     """The base class for JAX random number generators.
 
@@ -27,41 +49,10 @@ class JaxRandomFunc(FunctionNode):
 
     def __init__(self, func, seed=None, **kwargs):
         self._fixed_seed = seed
+        self._key = jax.random.key(seed)
         super().__init__(func, **kwargs)
 
-        # Overwrite the func attribute using the new seed.
-        self.set_seed(new_seed=seed)
-
-    def set_seed(self, new_seed=None, graph_base_seed=None, force_update=False):
-        """Update the object seed to the new value based.
-
-        The new value can be: 1) a given seed (new_seed), 2) a value computed from
-        the graph's base seed (graph_base_seed) and the object's string representation,
-        or a completely random seed (if neither option is set).
-
-        WARNING: This seed should almost never be set manually. Using the duplicate
-        seeds for multiple graph instances or runs will produce biased samples.
-
-        Parameters
-        ----------
-        new_seed : `int`, optional
-            The given seed
-        graph_base_seed : `int`, optional
-            A base random seed to use for this specific evaluation graph.
-        force_update : `bool`
-            Reset the random number generator even if the seed has not change.
-            This should only be set to ``True`` for testing.
-        """
-        # If we have set a fixed seed for this node, use that.
-        if new_seed is None and self._fixed_seed is not None:
-            new_seed = self._fixed_seed
-
-        old_seed = self._object_seed
-        super().set_seed(new_seed, graph_base_seed)
-        if old_seed != self._object_seed or force_update:
-            self._key = jax.random.key(self._object_seed)
-
-    def compute(self, graph_state, given_args=None, **kwargs):
+    def compute(self, graph_state, given_args=None, rng_info=None, **kwargs):
         """Execute the wrapped JAX sampling function.
 
         Parameters
@@ -72,6 +63,9 @@ class JaxRandomFunc(FunctionNode):
         given_args : `dict`, optional
             A dictionary representing the given arguments for this sample run.
             This can be used as the JAX PyTree for differentiation.
+        rng_info : `dict`, optional
+            A dictionary of random number generator information for each node, such as
+            the JAX keys or the numpy rngs.
         **kwargs : `dict`, optional
             Additional function arguments.
 
@@ -85,6 +79,14 @@ class JaxRandomFunc(FunctionNode):
                 "set func or override compute()."
             )
 
+        # If a key is provided, use (and cycle) that. Otherwise use the internal seed≥
+        if rng_info is not None and self.node_hash in rng_info:
+            next_key, current_key = jax.random.split(rng_info[self.node_hash])
+            rng_info[self.node_hash] = next_key
+        else:
+            next_key, current_key = jax.random.split(self._key)
+            self._key = next_key
+
         # Build a dictionary of arguments for the function.
         args = {}
         for key in self.arg_names:
@@ -95,16 +97,28 @@ class JaxRandomFunc(FunctionNode):
                 args[key] = kwargs[key]
             else:
                 args[key] = graph_state[self.node_hash][key]
-        self._key, subkey = jax.random.split(self._key)
 
-        results = float(self.func(subkey, **args))
+        # Generate the results.
+        results = float(self.func(current_key, **args))
         graph_state[self.node_hash][self.outputs[0]] = results
         return results
 
-    def generate(self, **kwargs):
-        """A helper function for testing that regenerates the parameters."""
-        state = self.sample_parameters()
-        return self.compute(state, **kwargs)
+    def generate(self, given_args=None, rng_info=None, **kwargs):
+        """A helper function for testing that regenerates the parameters.
+
+        Parameters
+        ----------
+        given_args : `dict`, optional
+            A dictionary representing the given arguments for this sample run.
+            This can be used as the JAX PyTree for differentiation.
+        rng_info : `dict`, optional
+            A dictionary of random number generator information for each node, such as
+            the JAX keys or the numpy rngs.
+        **kwargs : `dict`, optional
+            Additional function arguments.
+        """
+        state = self.sample_parameters(given_args, rng_info)
+        return self.compute(state, given_args, rng_info, **kwargs)
 
 
 class JaxRandomNormal(FunctionNode):
@@ -127,16 +141,22 @@ class JaxRandomNormal(FunctionNode):
         def _shift_and_scale(value, loc, scale):
             return scale * value + loc
 
-        self.jax_func = JaxRandomFunc(jax.random.normal, **kwargs)
-
+        self.jax_func = JaxRandomFunc(jax.random.normal, seed, **kwargs)
         super().__init__(_shift_and_scale, value=self.jax_func, loc=loc, scale=scale)
 
-        # Set the graph base seed so that it propagates up to the JAX function.
-        # TODO: Come up with a better way of setting seeds for components.
-        if seed is not None:
-            self.update_graph_information(new_graph_base_seed=seed)
+    def generate(self, given_args=None, rng_info=None, **kwargs):
+        """A helper function for testing that regenerates the parameters.
 
-    def generate(self, **kwargs):
-        """A helper function for testing that regenerates the parameters."""
-        state = self.sample_parameters()
-        return self.compute(state, **kwargs)
+        Parameters
+        ----------
+        given_args : `dict`, optional
+            A dictionary representing the given arguments for this sample run.
+            This can be used as the JAX PyTree for differentiation.
+        rng_info : `dict`, optional
+            A dictionary of random number generator information for each node, such as
+            the JAX keys or the numpy rngs.
+        **kwargs : `dict`, optional
+            Any additional keyword arguments.
+        """
+        state = self.sample_parameters(given_args, rng_info)
+        return self.compute(state, given_args, rng_info, **kwargs)

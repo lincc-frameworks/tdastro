@@ -22,11 +22,6 @@ def test_numpy_random_uniform():
     values2 = np.array([np_node2.generate() for _ in range(10_000)])
     assert not np.allclose(values, values2)
 
-    # We can also set the seed with `set_seed()`
-    np_node2.set_seed(100)
-    values2 = np.array([np_node2.generate() for _ in range(10_000)])
-    assert np.allclose(values, values2)
-
     # We can change the range.
     np_node3 = NumpyRandomFunc("uniform", low=10.0, high=20.0)
     values = np.array([np_node3.generate() for _ in range(10_000)])
