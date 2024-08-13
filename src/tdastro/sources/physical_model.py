@@ -130,7 +130,7 @@ class PhysicalModel(ParameterizedNode):
             A length T x N matrix of SED values.
         """
         if resample_parameters:
-            self.sample_parameters(kwargs)
+            self.sample_parameters(**kwargs)
 
         # Pre-effects are adjustments done to times and/or wavelengths, before flux density computation.
         for effect in self.effects:
