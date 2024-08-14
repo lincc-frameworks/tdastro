@@ -4,7 +4,68 @@ from os import urandom
 
 import numpy as np
 
-from tdastro.base_models import FunctionNode
+from tdastro.base_models import FunctionNode, ParameterizedNode
+
+
+def build_rngs_from_hashes(node_hashes, base_seed=None):
+    """Construct a dictionary a list of each node's hash value to a
+    numpy random number generator from the list of hash values.
+
+    Parameters
+    ----------
+    node_hashes : iterable
+        All of the node hash values as constructed by hashing the nodes' node_string.
+    base_seed : int
+        The key on which to base the keys for the individual node's.
+
+    Returns
+    -------
+    rngs : `dict`
+        A dictionary mapping each node's hash value to a unique numpy rng.
+
+    Raises
+    ------
+    ``ValueError`` if duplicates appear in ``node_hashes``.
+    """
+    if base_seed is None:
+        base_seed = base_seed = int.from_bytes(urandom(4), "big")
+
+    # Create a key entry for each node.
+    rngs = {}
+    for value in node_hashes:
+        if value in rngs:
+            raise ValueError(f"Key collision for value {value}")
+
+        new_seed = (value + base_seed) % (2**32)
+        rngs[value] = np.random.default_rng(seed=new_seed)
+    return rngs
+
+
+def build_rngs_from_nodes(nodes, base_seed=None):
+    """Construct a dictionary a list of each node's hash value to a
+    numpy random number generator from the list of hash values.
+
+    Parameters
+    ----------
+    nodes : iterable or `ParameterizedNode`
+        All of the nodes.
+    base_seed : `int`
+        The key on which to base the keys for the individual node's.
+
+    Returns
+    -------
+    keys : `dict`
+        A dictionary mapping each node's hash value to a unique JAX key.
+    """
+    if isinstance(nodes, ParameterizedNode):
+        nodes = [nodes]
+
+    # Recursively generate the list of nodes' hash values for all dependencies.
+    seen_nodes = set()
+    hash_list = []
+    for node in nodes:
+        hash_list.extend(node.get_all_node_info("node_hash", seen_nodes))
+    return build_rngs_from_hashes(hash_list, base_seed)
 
 
 class NumpyRandomFunc(FunctionNode):
@@ -53,6 +114,17 @@ class NumpyRandomFunc(FunctionNode):
             raise ValueError(f"Random function {func_name} does not exist.")
         func = getattr(self._rng, func_name)
         super().__init__(func, **kwargs)
+
+    def set_seed(self, new_seed):
+        """Update the random number generator's seed a given value.
+
+        Parameters
+        ----------
+        new_seed : `int`
+            The given seed
+        """
+        self._rng = np.random.default_rng(seed=new_seed)
+        self.func = getattr(self._rng, self.func_name)
 
     def compute(self, graph_state, given_args=None, rng_info=None, **kwargs):
         """Execute the wrapped function.

@@ -93,6 +93,29 @@ class PhysicalModel(ParameterizedNode):
         # Reset the node position to indicate the graph has changed.
         self.node_pos = None
 
+    def set_all_graph_positions(self):
+        """Finalize the graph structure by setting the node positions for the current node,
+        its background, and all effects."""
+
+    def set_graph_positions(self, seen_nodes=None):
+        """Force an update of the graph structure (numbering of each node).
+
+        Parameters
+        ----------
+        seen_nodes : `set`, optional
+            A set of nodes that have already been processed to prevent infinite loops.
+            Caller should not set.
+        """
+        if seen_nodes is None:
+            seen_nodes = set()
+
+        # Set the graph positions for each node, its background, and all of its effects.
+        super().set_graph_positions(seen_nodes=seen_nodes)
+        if self.background is not None:
+            self.background.set_graph_positions(seen_nodes=seen_nodes)
+        for effect in self.effects:
+            effect.set_graph_positions(seen_nodes=seen_nodes)
+
     def _evaluate(self, times, wavelengths, graph_state):
         """Draw effect-free observations for this object.
 
@@ -187,12 +210,7 @@ class PhysicalModel(ParameterizedNode):
         # If the graph has not been sampled ever, update the node positions for
         # every node (model, background, effects).
         if self.node_pos is None:
-            nodes = set()
-            self.set_graph_positions(seen_nodes=nodes)
-            if self.background is not None:
-                self.background.set_graph_positions(seen_nodes=nodes)
-            for effect in self.effects:
-                effect.set_graph_positions(seen_nodes=nodes)
+            self.set_graph_positions()
 
         args_to_use = {}
         if given_args is not None:

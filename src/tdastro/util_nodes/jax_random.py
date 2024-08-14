@@ -1,18 +1,60 @@
-"""Wrapper classes for calling JAX random number generators."""
+"""Wrapper classes for calling JAX random number generators.
+
+JAX random number generators are stateless and require a key to be passed in.
+The JaxRandomFunc class uses the key to generate the sample and also rotates
+the key so it can be used in future queries.
+"""
+
+from os import urandom
 
 import jax.random
 
-from tdastro.base_models import FunctionNode
+from tdastro.base_models import FunctionNode, ParameterizedNode
 
 
-def build_jax_keys(node_hashes, base_key):
-    """Construct a dictionary of node's hash value to the JAX key.
+def build_jax_keys_from_hashes(node_hashes, base_seed=None):
+    """Construct a dictionary a list of each node's hash value to a JAX key
+    from the list of hash values.
 
     Parameters
     ----------
     node_hashes : iterable
         All of the node hash values as constructed by hashing the nodes' node_string.
-    base_key : int or `jax._src.prng.PRNGKeyArray`
+    base_seed : `int`
+        The key on which to base the keys for the individual node's.
+
+    Returns
+    -------
+    keys : `dict`
+        A dictionary mapping each node's hash value to a unique JAX key.
+
+    Raises
+    ------
+    ``ValueError`` if duplicates appear in ``node_hashes``.
+    """
+    if base_seed is None:
+        base_seed = base_seed = int.from_bytes(urandom(4), "big")
+
+    # Create a key entry for each node.
+    keys = {}
+    for value in node_hashes:
+        if value in keys:
+            raise ValueError(f"Key collision for value {value}")
+
+        new_seed = (value + base_seed) % (2**32)
+        keys[value] = jax.random.key(new_seed)
+    return keys
+
+
+def build_jax_keys_from_nodes(nodes, base_seed=None):
+    """Construct a dictionary a list of each node's hash value to a JAX key
+    from the list of nodes.
+
+    Parameters
+    ----------
+    nodes : iterable or `ParameterizedNode`
+        All of the nodes.
+    base_seed : `int`
         The key on which to base the keys for the individual node's.
 
     Returns
@@ -20,26 +62,24 @@ def build_jax_keys(node_hashes, base_key):
     keys : `dict`
         A dictionary mapping each node's hash value to a unique JAX key.
     """
-    keys = {}
-    for value in node_hashes:
-        new_seed = (value + base_key) % (2**32)
-        keys[value] = jax.random.key(new_seed)
-    return keys
+    if isinstance(nodes, ParameterizedNode):
+        nodes = [nodes]
+
+    # Recursively generate the list of nodes' hash values for all dependencies.
+    seen_nodes = set()
+    hash_list = []
+    for node in nodes:
+        hash_list.extend(node.get_all_node_info("node_hash", seen_nodes))
+    return build_jax_keys_from_hashes(hash_list, base_seed)
 
 
 class JaxRandomFunc(FunctionNode):
     """The base class for JAX random number generators.
 
-    Attributes
-    ----------
-    _key : `jax._src.prng.PRNGKeyArray`
-
     Parameters
     ----------
     func : function
         The JAX function to sample.
-    seed : `int`, optional
-        The seed to use.
 
     Note
     ----
@@ -47,9 +87,7 @@ class JaxRandomFunc(FunctionNode):
     each call produces a new pseudorandom number.
     """
 
-    def __init__(self, func, seed=None, **kwargs):
-        self._fixed_seed = seed
-        self._key = jax.random.key(seed)
+    def __init__(self, func, **kwargs):
         super().__init__(func, **kwargs)
 
     def compute(self, graph_state, given_args=None, rng_info=None, **kwargs):
@@ -78,14 +116,14 @@ class JaxRandomFunc(FunctionNode):
                 "func parameter is None for a JAXRandom. You need to either "
                 "set func or override compute()."
             )
+        if rng_info is None:
+            raise ValueError("JAX random number generation requires a JAX key. None given.")
+        if self.node_hash not in rng_info:
+            raise ValueError(f"No JAX found for node hash {self.node_hash} in {rng_info}.")
 
-        # If a key is provided, use (and cycle) that. Otherwise use the internal seed≥
-        if rng_info is not None and self.node_hash in rng_info:
-            next_key, current_key = jax.random.split(rng_info[self.node_hash])
-            rng_info[self.node_hash] = next_key
-        else:
-            next_key, current_key = jax.random.split(self._key)
-            self._key = next_key
+        # Split the key and save the other have to use later.
+        next_key, current_key = jax.random.split(rng_info[self.node_hash])
+        rng_info[self.node_hash] = next_key
 
         # Build a dictionary of arguments for the function.
         args = {}
@@ -137,11 +175,11 @@ class JaxRandomNormal(FunctionNode):
         Any additional keyword arguments.
     """
 
-    def __init__(self, loc, scale, seed=None, **kwargs):
+    def __init__(self, loc, scale, **kwargs):
         def _shift_and_scale(value, loc, scale):
             return scale * value + loc
 
-        self.jax_func = JaxRandomFunc(jax.random.normal, seed, **kwargs)
+        self.jax_func = JaxRandomFunc(jax.random.normal, **kwargs)
         super().__init__(_shift_and_scale, value=self.jax_func, loc=loc, scale=scale)
 
     def generate(self, given_args=None, rng_info=None, **kwargs):

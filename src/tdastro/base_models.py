@@ -252,7 +252,7 @@ class ParameterizedNode:
             return
         seen_nodes.add(self)
 
-        # Update the graph ID and (possibly) the seed.
+        # Update the node's position in the graph and its string.
         self.node_pos = len(seen_nodes) - 1
         self._update_node_string()
 
@@ -599,6 +599,13 @@ class ParameterizedNode:
         result : `list`
             A list of values for each unique node in the graph.
         """
+        # Check if the node might have incomplete information.
+        if self.node_pos is None and (field == "node_pos" or field == "node_hash"):
+            raise ValueError(
+                f"Node {self.node_string} is missing position. You must call "
+                f"set_graph_positions() before querying {field}."
+            )
+
         # Check if we have already processed this node.
         if seen_nodes is None:
             seen_nodes = set()
@@ -629,6 +636,13 @@ class ParameterizedNode:
             The dictionary mapping the combination of the object identifier and
             model parameter name to its value.
         """
+        # Check if the node might have incomplete information.
+        if self.node_pos is None:
+            raise ValueError(
+                f"Node {self.node_string} is missing position. You must call "
+                "set_graph_positions() before building a pytree."
+            )
+
         # Skip nodes that we have already seen.
         if seen is None:
             seen = set()
