@@ -93,10 +93,6 @@ class PhysicalModel(ParameterizedNode):
         # Reset the node position to indicate the graph has changed.
         self.node_pos = None
 
-    def set_all_graph_positions(self):
-        """Finalize the graph structure by setting the node positions for the current node,
-        its background, and all effects."""
-
     def set_graph_positions(self, seen_nodes=None):
         """Force an update of the graph structure (numbering of each node).
 
