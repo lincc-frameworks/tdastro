@@ -201,3 +201,33 @@ class PhysicalModel(ParameterizedNode):
             effect._sample_helper(graph_state, seen_nodes, args_to_use, **kwargs)
 
         return graph_state
+
+    def get_all_node_info(self, field, seen_nodes=None):
+        """Return a list of requested information for each node.
+
+        Parameters
+        ----------
+        field : `str`
+            The name of the attribute to extract from the node.
+            Common examples are: "node_hash" and "node_string"
+        seen_nodes : `set`
+            A set of objects that have already been processed.
+            Modified in place if provided.
+
+        Returns
+        -------
+        result : `list`
+            A list of values for each unique node in the graph.
+        """
+        # Check if we have already processed this node.
+        if seen_nodes is None:
+            seen_nodes = set()
+
+        # Get the information for this node, the background, all effects,
+        # and each of their dependencies.
+        result = super().get_all_node_info(field, seen_nodes)
+        if self.background is not None:
+            result.extend(self.background.get_all_node_info(field, seen_nodes))
+        for effect in self.effects:
+            result.extend(effect.get_all_node_info(field, seen_nodes))
+        return result

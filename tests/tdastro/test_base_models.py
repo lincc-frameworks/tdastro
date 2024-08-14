@@ -159,17 +159,43 @@ def test_parameterized_node():
 
 def test_parameterized_node_get_dependencies():
     """Test that we can extract the parameters of a graph of ParameterizedNode."""
-    model1 = PairModel(value1=0.5, value2=1.5, node_identifier="1")
+    model1 = PairModel(value1=0.5, value2=1.5, node_label="1")
     assert len(model1.direct_dependencies) == 1
 
-    model2 = PairModel(value1=model1.value1, value2=3.0, node_identifier="2")
+    model2 = PairModel(value1=model1.value1, value2=3.0, node_label="2")
     assert len(model2.direct_dependencies) == 2
     assert model1 in model2.direct_dependencies
 
-    model3 = PairModel(value1=model1.value1, value2=model2.value_sum, node_identifier="3")
+    model3 = PairModel(value1=model1.value1, value2=model2.value_sum, node_label="3")
     assert len(model3.direct_dependencies) == 3
     assert model1 in model3.direct_dependencies
     assert model2 in model3.direct_dependencies
+
+
+def test_parameterized_node_get_info():
+    """Test that we can extract the parameters of a graph of ParameterizedNode."""
+    model1 = PairModel(value1=0.5, value2=1.5, node_label="node1")
+    model2 = PairModel(value1=model1.value1, value2=3.0, node_label="node2")
+    model3 = PairModel(value1=model1.value1, value2=model2.value_sum, node_label="node3")
+
+    # We need to finalize the model names to include the node's position in the string.
+    model3.update_graph_information()
+
+    # Get the node strings.
+    node_strings = model3.get_all_node_info("node_string")
+    assert len(node_strings) == 6
+    assert "0:node3" in node_strings
+    assert "1:node1" in node_strings
+    assert "3:node2" in node_strings
+
+    # Get the node hash values and check they are all unique.
+    node_hashes = model3.get_all_node_info("node_hash")
+    assert len(node_hashes) == len(set(node_hashes))
+
+    # Get the node positions. These should be integers [0, 5]
+    node_pos = model3.get_all_node_info("_node_pos")
+    for i in range(6):
+        assert i in node_pos
 
 
 def test_parameterized_node_modify():

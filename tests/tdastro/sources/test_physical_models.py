@@ -1,4 +1,5 @@
 from astropy.cosmology import Planck18
+from tdastro.effects.white_noise import WhiteNoise
 from tdastro.sources.physical_model import PhysicalModel
 
 
@@ -38,3 +39,23 @@ def test_physical_model():
     state = model4.sample_parameters()
     assert model4.get_param(state, "redshift") == 1100.0
     assert model4.get_param(state, "distance") is None
+
+
+def test_physical_model_get_all_node_info():
+    """Test that we can query get_all_node_info from a PhysicalModel."""
+    bg_model = PhysicalModel(ra=1.0, dec=2.0, distance=3.0, redshift=0.0, node_label="bg")
+    source_model = PhysicalModel(
+        ra=1.0,
+        dec=2.0,
+        distance=3.0,
+        redshift=0.0,
+        background=bg_model,
+        node_label="source",
+    )
+    source_model.add_effect(WhiteNoise(10.0, node_label="noise"))
+
+    node_labels = source_model.get_all_node_info("node_label")
+    assert len(node_labels) == 3
+    assert "bg" in node_labels
+    assert "source" in node_labels
+    assert "noise" in node_labels
