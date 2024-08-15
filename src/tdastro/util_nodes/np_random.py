@@ -1,8 +1,71 @@
 """Wrapper classes for calling numpy random number generators."""
 
+from os import urandom
+
 import numpy as np
 
-from tdastro.base_models import FunctionNode
+from tdastro.base_models import FunctionNode, ParameterizedNode
+
+
+def build_rngs_from_hashes(node_hashes, base_seed=None):
+    """Construct a dictionary a list of each node's hash value to a
+    numpy random number generator.
+
+    Parameters
+    ----------
+    node_hashes : iterable
+        All of the node hash values as constructed by hashing the nodes' node_string.
+    base_seed : int
+        The key on which to base the keys for the individual nodes.
+
+    Returns
+    -------
+    rngs : `dict`
+        A dictionary mapping each node's hash value to a unique numpy rng.
+
+    Raises
+    ------
+    ``ValueError`` if duplicates appear in ``node_hashes``.
+    """
+    if base_seed is None:
+        base_seed = base_seed = int.from_bytes(urandom(4), "big")
+
+    # Create a key entry for each node.
+    rngs = {}
+    for value in node_hashes:
+        if value in rngs:
+            raise ValueError(f"Key collision for value {value}")
+
+        new_seed = (value + base_seed) % (2**32)
+        rngs[value] = np.random.default_rng(seed=new_seed)
+    return rngs
+
+
+def build_rngs_from_nodes(nodes, base_seed=None):
+    """Construct a dictionary mapping each node's hash value to a
+    numpy random number generator.
+
+    Parameters
+    ----------
+    nodes : iterable or `ParameterizedNode`
+        All of the nodes.
+    base_seed : `int`
+        The key on which to base the keys for the individual nodes.
+
+    Returns
+    -------
+    keys : `dict`
+        A dictionary mapping each node's hash value to a numpy random number generator.
+    """
+    if isinstance(nodes, ParameterizedNode):
+        nodes = [nodes]
+
+    # Recursively generate the list of nodes' hash values for all dependencies.
+    seen_nodes = set()
+    hash_list = []
+    for node in nodes:
+        hash_list.extend(node.get_all_node_info("node_hash", seen_nodes))
+    return build_rngs_from_hashes(hash_list, base_seed)
 
 
 class NumpyRandomFunc(FunctionNode):
@@ -39,49 +102,83 @@ class NumpyRandomFunc(FunctionNode):
 
     def __init__(self, func_name, seed=None, **kwargs):
         self.func_name = func_name
-        self._fixed_seed = seed
 
-        # Use a temporary random number generator to seed the function.
-        self._rng = np.random.default_rng()
+        # Get a default random number generator for this object, using the
+        # given seed if one is provided.
+        if seed is None:
+            seed = int.from_bytes(urandom(4), "big")
+        self._rng = np.random.default_rng(seed=seed)
+
+        # Check that the function exists in numpy's random number generator library.
         if not hasattr(self._rng, func_name):
             raise ValueError(f"Random function {func_name} does not exist.")
         func = getattr(self._rng, func_name)
         super().__init__(func, **kwargs)
 
-        # Overwrite the func attribute using the new seed.
-        self.set_seed(new_seed=seed)
-
-    def set_seed(self, new_seed=None, graph_base_seed=None, force_update=False):
-        """Update the object seed to the new value based.
-
-        The new value can be: 1) a given seed (new_seed), 2) a value computed from
-        the graph's base seed (graph_base_seed) and the object's string representation,
-        or a completely random seed (if neither option is set).
-
-        WARNING: This seed should almost never be set manually. Using the duplicate
-        seeds for multiple graph instances or runs will produce biased samples.
+    def set_seed(self, new_seed):
+        """Update the random number generator's seed to a given value.
 
         Parameters
         ----------
-        new_seed : `int`, optional
+        new_seed : `int`
             The given seed
-        graph_base_seed : `int`, optional
-            A base random seed to use for this specific evaluation graph.
-        force_update : `bool`
-            Reset the random number generator even if the seed has not change.
-            This should only be set to ``True`` for testing.
         """
-        # If we have set a fixed seed for this node, use that.
-        if new_seed is None and self._fixed_seed is not None:
-            new_seed = self._fixed_seed
+        self._rng = np.random.default_rng(seed=new_seed)
+        self.func = getattr(self._rng, self.func_name)
 
-        old_seed = self._object_seed
-        super().set_seed(new_seed, graph_base_seed)
-        if old_seed != self._object_seed or force_update:
-            self._rng = np.random.default_rng(seed=self._object_seed)
-            self.func = getattr(self._rng, self.func_name)
+    def compute(self, graph_state, given_args=None, rng_info=None, **kwargs):
+        """Execute the wrapped function.
 
-    def generate(self, **kwargs):
-        """A helper function for testing that regenerates the output."""
-        state = self.sample_parameters()
-        return self.compute(state, **kwargs)
+        The input arguments are taken from the current graph_state and the outputs
+        are written to graph_state.
+
+        Parameters
+        ----------
+        graph_state : `dict`
+            A dictionary of dictionaries mapping node->hash, variable_name to value.
+            This data structure is modified in place to represent the current state.
+        given_args : `dict`, optional
+            A dictionary representing the given arguments for this sample run.
+            This can be used as the JAX PyTree for differentiation.
+        rng_info : `dict`, optional
+            A dictionary of random number generator information for each node, such as
+            the JAX keys or the numpy rngs.
+        **kwargs : `dict`, optional
+            Additional function arguments.
+
+        Returns
+        -------
+        results : any
+            The result of the computation. This return value is provided so that testing
+            functions can easily access the results.
+
+        Raises
+        ------
+        ``ValueError`` is ``func`` attribute is ``None``.
+        """
+        # If we are given a numpy random number generator, use that for this sample.
+        if rng_info is not None and self.node_hash in rng_info:
+            old_func = self.func
+            self.func = getattr(rng_info[self.node_hash], self.func_name)
+            result = super().compute(graph_state, given_args, rng_info, **kwargs)
+            self.func = old_func
+        else:
+            result = super().compute(graph_state, given_args, rng_info, **kwargs)
+        return result
+
+    def generate(self, given_args=None, rng_info=None, **kwargs):
+        """A helper function for testing that regenerates the output.
+
+        Parameters
+        ----------
+        given_args : `dict`, optional
+            A dictionary representing the given arguments for this sample run.
+            This can be used as the JAX PyTree for differentiation.
+        rng_info : `dict`, optional
+            A dictionary of random number generator information for each node, such as
+            the JAX keys or the numpy rngs.
+        **kwargs : `dict`, optional
+            Additional function arguments.
+        """
+        state = self.sample_parameters(given_args, rng_info)
+        return self.compute(state, given_args, rng_info, **kwargs)

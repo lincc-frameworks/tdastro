@@ -121,7 +121,7 @@ def test_parameterized_node():
     assert model2.get_param(state, "value_sum") == 1.5
 
     # If we set an ID it shows up in the name.
-    model2._node_pos = 100
+    model2.node_pos = 100
     model2._update_node_string()
     assert str(model2) == "100:test"
 
@@ -179,7 +179,7 @@ def test_parameterized_node_get_info():
     model3 = PairModel(value1=model1.value1, value2=model2.value_sum, node_label="node3")
 
     # We need to finalize the model names to include the node's position in the string.
-    model3.update_graph_information()
+    model3.set_graph_positions()
 
     # Get the node strings.
     node_strings = model3.get_all_node_info("node_string")
@@ -193,7 +193,7 @@ def test_parameterized_node_get_info():
     assert len(node_hashes) == len(set(node_hashes))
 
     # Get the node positions. These should be integers [0, 5]
-    node_pos = model3.get_all_node_info("_node_pos")
+    node_pos = model3.get_all_node_info("node_pos")
     for i in range(6):
         assert i in node_pos
 
@@ -212,78 +212,6 @@ def test_parameterized_node_modify():
     # We cannot set a value that hasn't been added.
     with pytest.raises(KeyError):
         model.set_parameter("brightness", 5.0)
-
-
-def test_parameterized_node_seed():
-    """Test that we can set a random seed for the entire graph."""
-    # Left unspecified we use full random seeds.
-    model_a = PairModel(value1=0.5, value2=0.5)
-    model_b = PairModel(value1=0.5, value2=0.5)
-    assert model_a._object_seed != model_b._object_seed
-
-    # If we specify a seed, the results are the same objects with
-    # the same name (class + node_id + node_label) and different
-    # otherwise. Everything starts with a default node_id = None.
-    model_a = PairModel(value1=0.5, value2=0.5, node_label="A")
-    model_b = PairModel(value1=0.5, value2=0.5, node_label="B")
-    model_c = PairModel(value1=0.5, value2=0.5, node_label="A")
-    model_d = SingleVariableNode("value1", 0.5, node_label="A")
-    model_e = SingleVariableNode("value1", 0.5, node_label="C")
-
-    model_a.set_seed(graph_base_seed=10)
-    model_b.set_seed(graph_base_seed=10)
-    model_c.set_seed(graph_base_seed=10)
-    model_d.set_seed(graph_base_seed=10)
-    model_e.set_seed(graph_base_seed=10)
-
-    assert model_a._object_seed != model_b._object_seed
-    assert model_a._object_seed == model_c._object_seed
-    assert model_a._object_seed == model_d._object_seed
-    assert model_a._object_seed != model_e._object_seed
-
-    assert model_b._object_seed != model_a._object_seed
-    assert model_b._object_seed != model_c._object_seed
-    assert model_b._object_seed != model_d._object_seed
-    assert model_b._object_seed != model_e._object_seed
-
-    assert model_c._object_seed == model_a._object_seed
-    assert model_c._object_seed != model_b._object_seed
-    assert model_c._object_seed == model_d._object_seed
-    assert model_c._object_seed != model_e._object_seed
-
-    assert model_d._object_seed == model_a._object_seed
-    assert model_d._object_seed != model_b._object_seed
-    assert model_d._object_seed == model_c._object_seed
-    assert model_d._object_seed != model_e._object_seed
-
-
-def test_parameterized_node_base_seed_fail():
-    """Test that we can set a random seed for the entire graph."""
-    model_a = PairModel(value1=0.5, value2=0.5)
-    model_a.set_seed(graph_base_seed=10)
-    model_a.sample_parameters()
-
-    model_b = PairModel(value1=1.5, value2=0.5)
-    model_b.set_seed(graph_base_seed=10)
-    model_b.sample_parameters()
-
-    # The models have the same string and seed, but that's desired since they
-    # are not in the same graph.
-    assert str(model_a) == str(model_b)
-    assert model_a._object_seed == model_b._object_seed
-
-    # But if we change the graph to link them, we don't want them
-    # to have the same seed.
-    model_b.set_parameter("value1", model_a.value_sum)
-    with pytest.raises(KeyError):
-        model_b.sample_parameters()
-
-    # We need to reset the node IDs (their positions within the graph)
-    # so they have unique identifiers and seeds.
-    model_b.update_graph_information()
-    assert str(model_a) != str(model_b)
-    assert model_a._object_seed != model_b._object_seed
-    model_b.sample_parameters()
 
 
 def test_parameterized_node_build_pytree():
