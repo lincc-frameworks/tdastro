@@ -9,14 +9,14 @@ from tdastro.base_models import FunctionNode, ParameterizedNode
 
 def build_rngs_from_hashes(node_hashes, base_seed=None):
     """Construct a dictionary a list of each node's hash value to a
-    numpy random number generator from the list of hash values.
+    numpy random number generator.
 
     Parameters
     ----------
     node_hashes : iterable
         All of the node hash values as constructed by hashing the nodes' node_string.
     base_seed : int
-        The key on which to base the keys for the individual node's.
+        The key on which to base the keys for the individual nodes.
 
     Returns
     -------
@@ -42,20 +42,20 @@ def build_rngs_from_hashes(node_hashes, base_seed=None):
 
 
 def build_rngs_from_nodes(nodes, base_seed=None):
-    """Construct a dictionary a list of each node's hash value to a
-    numpy random number generator from the list of hash values.
+    """Construct a dictionary mapping each node's hash value to a
+    numpy random number generator.
 
     Parameters
     ----------
     nodes : iterable or `ParameterizedNode`
         All of the nodes.
     base_seed : `int`
-        The key on which to base the keys for the individual node's.
+        The key on which to base the keys for the individual nodes.
 
     Returns
     -------
     keys : `dict`
-        A dictionary mapping each node's hash value to a unique JAX key.
+        A dictionary mapping each node's hash value to a numpy random number generator.
     """
     if isinstance(nodes, ParameterizedNode):
         nodes = [nodes]
@@ -116,7 +116,7 @@ class NumpyRandomFunc(FunctionNode):
         super().__init__(func, **kwargs)
 
     def set_seed(self, new_seed):
-        """Update the random number generator's seed a given value.
+        """Update the random number generator's seed to a given value.
 
         Parameters
         ----------

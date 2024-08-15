@@ -13,15 +13,14 @@ from tdastro.base_models import FunctionNode, ParameterizedNode
 
 
 def build_jax_keys_from_hashes(node_hashes, base_seed=None):
-    """Construct a dictionary a list of each node's hash value to a JAX key
-    from the list of hash values.
+    """Construct a dictionary mapping each node's hash value to a unique JAX key.
 
     Parameters
     ----------
     node_hashes : iterable
         All of the node hash values as constructed by hashing the nodes' node_string.
     base_seed : `int`
-        The key on which to base the keys for the individual node's.
+        The key on which to base the keys for the individual nodes.
 
     Returns
     -------
@@ -55,7 +54,7 @@ def build_jax_keys_from_nodes(nodes, base_seed=None):
     nodes : iterable or `ParameterizedNode`
         All of the nodes.
     base_seed : `int`
-        The key on which to base the keys for the individual node's.
+        The key on which to base the keys for the individual nodes.
 
     Returns
     -------
