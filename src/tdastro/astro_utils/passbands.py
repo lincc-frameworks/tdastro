@@ -33,6 +33,7 @@ class PassbandGroup:
             self._load_preset(preset)
 
         if passbands is not None:
+            self.passbands = {}
             for passband in passbands:
                 self.passbands[passband.label] = passband  # This overrides any preset passbands
 
