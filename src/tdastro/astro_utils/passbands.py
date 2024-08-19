@@ -29,6 +29,8 @@ class PassbandGroup:
         passbands : list, optional
             A list of Passband objects assigned to the group.
         """
+        self.passbands = {}
+
         if preset is not None:
             self._load_preset(preset)
 
@@ -86,7 +88,25 @@ class PassbandGroup:
 
 
 class Passband:
-    """A passband contains information about its transmission curve and calculates its normalization."""
+    """A passband contains information about its transmission curve and calculates its normalization.
+
+    Attributes
+    ----------
+    label : str
+        The label of the passband.
+     survey : str
+        The survey to which the passband belongs.
+    full_name : str
+        The full name of the passband.
+    table_path : str
+        The path to the transmission table file.
+    table_url : str
+        The URL to download the transmission table file.
+    transmission_table : np.ndarray
+        A 2D array where the first col is wavelengths (Angstrom) and the second col is transmission values.
+    normalized_transmission_table : np.ndarray
+        A 2D array of wavelengths and normalized transmissions.
+    """
 
     def __init__(self, survey, label, table_path=None, table_url=""):
         self.label = label
@@ -188,6 +208,18 @@ class Passband:
 
         where f(λ) is the specific flux of an object at the top of the atmosphere, and φ_b(λ) is the
         normalized system response for given band b."
+
+        Parameters
+        ----------
+        flux_density_matrix : np.ndarray
+            A 2D array of flux densities where rows are times and columns are wavelengths.
+        wavelengths_angstrom : np.ndarray
+            An array of wavelengths in Angstroms corresponding to the columns of flux_density_matrix.
+
+        Returns
+        -------
+        np.ndarray
+            An array of bandfluxes.
         """
         # Check that the grid of wavelengths_angstrom matches the band's transmission table
         # NOTE: this is where we would handle interpolation and exterpolation as needed--PR incoming!
