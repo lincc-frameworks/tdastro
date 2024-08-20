@@ -5,6 +5,11 @@ from tdastro.effects.redshift import Redshift
 from tdastro.sources.sncomso_models import SncosmoWrapperModel
 from tdastro.sources.snia_host import SNIaHost
 from tdastro.util_nodes.np_random import NumpyRandomFunc
+from tdastro.astro_utils.opsim import (
+    get_pointings_matched_times,
+    load_opsim_table,
+    pointings_from_opsim,
+)
 
 
 def test_snia():
@@ -58,9 +63,18 @@ def test_snia():
     passbands.load_all_transmission_tables()
     passbands.calculate_normalized_system_response_tables()
 
+    # opsim_file = "/Users/mi/Work/tdastro/opsim_db/baseline_v3.4_10yrs.db"
+    # opsim_table = load_opsim_table(opsim_file)
+
+    # pointings = pointings_from_opsim(opsim_table)
+
     for _n in range(0, 10):
         flux = source.evaluate(phase, wavelengths, resample_parameters=True)
         p = source.get_all_parameter_values(True)
+
+        # ra = p[]
+        # dec = p[]
+        # times = get_pointings_matched_times(pointings, ra, dec, fov=3.5)
 
         res["parameter_values"].append(p)
         res["flux"].append(flux)
