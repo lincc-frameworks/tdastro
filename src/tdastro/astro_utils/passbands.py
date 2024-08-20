@@ -145,7 +145,8 @@ class Passband:
         """
         if self.table_url == "":
             if self.survey == "LSST":
-                # TODO consider: https://github.com/lsst/throughputs/blob/main/baseline/filter_g.dat
+                # TODO: This area will be changed with incoming Pooch data manager PR :)
+                # Consider: https://github.com/lsst/throughputs/blob/main/baseline/filter_g.dat
                 # Or check with Mi's link (unless that was above)
                 self.table_url = (
                     f"http://svo2.cab.inta-csic.es/svo/theory/fps3/getdata.php"
@@ -178,12 +179,8 @@ class Passband:
 
         φ_b(λ) = S_b(λ)λ⁻¹ / ∫ S_b(λ)λ⁻¹ dλ
 
-        where S_b(λ) is the system response of the passband.
-
-        Notes
-        -----
-        - We use transmission table here to represent S_b(λ).
-        - There is currently no interpolation implemented (but coming very soon).
+        where S_b(λ) is the system response of the passband. Note that we use the transmission table
+        here as our S_b(λ).
 
         Returns
         -------
@@ -219,11 +216,14 @@ class Passband:
         Returns
         -------
         np.ndarray
-            An array of bandfluxes.
+            An array of bandfluxes with length flux_density_matrix, where each element is the bandflux
+            at the corresponding time.
         """
+        # TODO: This area will be changed with incoming interpolation/exterpolation PR :)
         # Check that the grid of wavelengths_angstrom matches the band's transmission table
-        # NOTE: this is where we would handle interpolation and exterpolation as needed--PR incoming!
-        # For now, min check: the bounds of the flux density grid are within the transmission table bounds
+        # TODO
+        # For now, min exterpolation check: the bounds of the flux density grid are within the transmission
+        # table bounds
         if (
             wavelengths_angstrom[-1] < self.normalized_transmission_table[-1, 0]
             or wavelengths_angstrom[0] > self.normalized_transmission_table[0, 0]
