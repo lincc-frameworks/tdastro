@@ -212,7 +212,7 @@ class PhysicalModel(ParameterizedNode):
         if given_args is not None:
             args_to_use.update(given_args)
         if kwargs is not None:
-            args_to_use.update(kwargs)
+            args_to_use.update(**kwargs)
 
         # We use the same seen_nodes for all sampling calls so each node
         # is sampled at most one time regardless of link structure.
