@@ -7,6 +7,8 @@ from urllib.error import HTTPError, URLError
 import numpy as np
 import scipy.integrate
 
+from tdastro.astro_utils import interpolation
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 
@@ -117,6 +119,10 @@ class Passband:
         self.transmission_table = self._load_transmission_table()
         self.normalized_transmission_table = self._normalize_transmission_table()
 
+    def __str__(self) -> str:
+        """Return a string representation of the Passband."""
+        return f"Passband: {self.full_name}"
+
     def _load_transmission_table(self) -> np.ndarray:
         """Load a transmission table from a file or URL.
 
@@ -183,7 +189,6 @@ class Passband:
         Notes
         -----
         - We use transmission table here to represent S_b(λ).
-        - There is currently no interpolation implemented (but coming very soon).
 
         Returns
         -------
@@ -199,7 +204,9 @@ class Passband:
         normalized_transmissions = numerators / denominator
         return np.column_stack((wavelengths_angstrom, normalized_transmissions))
 
-    def fluxes_to_bandflux(self, flux_density_matrix, wavelengths_angstrom) -> np.ndarray:
+    def fluxes_to_bandflux(
+        self, flux_density_matrix, wavelengths_angstrom, interpolate_to_grid=None
+    ) -> np.ndarray:
         """Calculate the bandflux for a given set of flux densities.
 
         This is eq. 7 from "On the Choice of LSST Flux Units" (Ivezić et al.):
@@ -215,14 +222,33 @@ class Passband:
             A 2D array of flux densities where rows are times and columns are wavelengths.
         wavelengths_angstrom : np.ndarray
             An array of wavelengths in Angstroms corresponding to the columns of flux_density_matrix.
+        interpolate_to_grid : int, optional
+            The unit of the grid (in Angstrom) to which the flux density matrix and normalized transmission
+            table should be interpolated.
 
         Returns
         -------
         np.ndarray
             An array of bandfluxes.
         """
-        # Check that the grid of wavelengths_angstrom matches the band's transmission table
-        # NOTE: this is where we would handle interpolation and exterpolation as needed--PR incoming!
+        n_t_table = self.normalized_transmission_table
+
+        # Interpolate the flux density matrix and normalized transmission table to the same grid, if needed
+        if interpolate_to_grid is not None:
+            wavelengths_angstrom = interpolation.to_grid(
+                interpolate_to_grid, wavelengths_angstrom, flux_density_matrix
+            )
+
+        elif not interpolation.grids_have_same_step(wavelengths_angstrom, n_t_table[:, 0]):
+            raise ValueError(
+                f"Interpolation needed: grids do not match. "
+                f"Flux density grid step size is{interpolation.get_grid_step(wavelengths_angstrom)}; "
+                f"Transmission table grid step size is "
+                f"{interpolation.get_grid_step(self.normalized_transmission_table[:, 0])}. "
+                f"Consider using the interpolate_to_grid parameter."
+            )
+
+        # TODO replace the following with forthcoming exterpolation astro_utils code
         # For now, min check: the bounds of the flux density grid are within the transmission table bounds
         if (
             wavelengths_angstrom[-1] < self.normalized_transmission_table[-1, 0]
