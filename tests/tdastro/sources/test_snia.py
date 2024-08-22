@@ -1,15 +1,17 @@
 import numpy as np
-from tdastro.astro_utils.passbands import Passbands
-from tdastro.astro_utils.snia_utils import DistModFromRedshift, HostmassX1Func, X0FromDistMod
-from tdastro.effects.redshift import Redshift
-from tdastro.sources.sncomso_models import SncosmoWrapperModel
-from tdastro.sources.snia_host import SNIaHost
-from tdastro.util_nodes.np_random import NumpyRandomFunc
+from astropy import constants as const
+from astropy import units as u
 from tdastro.astro_utils.opsim import (
     get_pointings_matched_times,
     load_opsim_table,
     pointings_from_opsim,
 )
+from tdastro.astro_utils.passbands import Passband, PassbandGroup
+from tdastro.astro_utils.snia_utils import DistModFromRedshift, HostmassX1Func, X0FromDistMod
+from tdastro.effects.redshift import Redshift
+from tdastro.sources.sncomso_models import SncosmoWrapperModel
+from tdastro.sources.snia_host import SNIaHost
+from tdastro.util_nodes.np_random import NumpyRandomFunc
 
 
 def test_snia():
@@ -19,7 +21,7 @@ def test_snia():
         ra=NumpyRandomFunc("uniform", low=0.0, high=360.0),
         dec=NumpyRandomFunc("uniform", low=-90.0, high=90.0),
         hostmass=NumpyRandomFunc("uniform", low=7, high=12),
-        redshift=NumpyRandomFunc("uniform", low=0.01, high=1.0),
+        redshift=NumpyRandomFunc("uniform", low=0.01, high=0.02),
     )
 
     distmod_func = DistModFromRedshift(host.redshift, H0=73.0, Omega_m=0.3)
@@ -38,7 +40,7 @@ def test_snia():
 
     source = SncosmoWrapperModel(
         "salt2-h17",
-        t0=0,
+        t0=NumpyRandomFunc("uniform", low=60796, high=64448),
         x0=x0_func,
         x1=x1_func,
         c=c_func,
@@ -47,39 +49,79 @@ def test_snia():
         redshift=host.redshift,
     )
 
-    source.add_effect(Redshift(redshift=source.redshift, t0=source.t0))
+    source.add_effect(Redshift(redshift=source.redshift, t0=0))
 
-    phase = np.linspace(-5, 30, 20)
-    # times = phase
-    wavelengths = np.linspace(3000, 8000, 200)
-    # print(phase)
-    # print(wavelengths)
-    # print("parameters (x0,x1,c,hostmass,ra,dec,redshift):")
+    phase_rest = np.linspace(-5, 30, 20)
+    wavelengths_rest = np.linspace(2000, 11000, 200)
 
-    res = {"wavelengths": wavelengths, "phase": phase, "flux": [], "parameter_values": [], "bandfluxes": []}
+    res = {
+        "wavelengths_rest": wavelengths_rest,
+        "phase_rest": phase_rest,
+        "flux_flam": [],
+        "flux_fnu": [],
+        "parameter_values": [],
+        "bandfluxes": [],
+        "times": [],
+    }
 
-    passbands = Passbands(["g", "r", "i", "z"])
+    passbands = PassbandGroup(
+        passbands=[
+            Passband(
+                "LSST", "g", table_url="https://github.com/lsst/throughputs/blob/main/baseline/total_g.dat"
+            ),
+            Passband(
+                "LSST", "r", table_url="https://github.com/lsst/throughputs/blob/main/baseline/total_r.dat"
+            ),
+        ]
+    )
 
-    passbands.load_all_transmission_tables()
-    passbands.calculate_normalized_system_response_tables()
+    opsim_file = "/Users/mi/Work/tdastro/opsim_db/baseline_v3.4_10yrs.db"
+    opsim_table = load_opsim_table(opsim_file)
 
-    # opsim_file = "/Users/mi/Work/tdastro/opsim_db/baseline_v3.4_10yrs.db"
-    # opsim_table = load_opsim_table(opsim_file)
+    pointings = pointings_from_opsim(opsim_table)
 
-    # pointings = pointings_from_opsim(opsim_table)
+    print("Done loading opsim.")
 
     for _n in range(0, 10):
-        flux = source.evaluate(phase, wavelengths, resample_parameters=True)
-        p = source.get_all_parameter_values(True)
+        state = source.sample_parameters()
 
-        # ra = p[]
-        # dec = p[]
-        # times = get_pointings_matched_times(pointings, ra, dec, fov=3.5)
+        z = source.get_param(state, "redshift")
+        wave_obs = wavelengths_rest * (1.0 + z)
+        phase_obs = phase_rest * (1.0 + z)
+
+        ra = source.get_param(state, "ra")
+        dec = source.get_param(state, "dec")
+        times = get_pointings_matched_times(pointings, ra, dec, fov=3.5)
+        # Note that we don't have filter info yet.
+
+        t0 = source.get_param(state, "t0")
+        phase_obs = times - t0
+        idx = (phase_obs > -20) & (phase_obs < 60)
+        phase_obs = phase_obs[idx]
+
+        # times = t0 + phase_obs
+
+        res["times"].append(times[idx])
+
+        p = {}
+        for parname in ["t0", "x0", "x1", "c", "redshift"]:
+            p[parname] = source.get_param(state, parname)
+        for parname in ["hostmass"]:
+            p[parname] = host.get_param(state, parname)
+        for parname in ["distmod"]:
+            p[parname] = x0_func.get_param(state, parname)
 
         res["parameter_values"].append(p)
-        res["flux"].append(flux)
 
-        bandfluxes = passbands.get_all_in_band_fluxes(source, phase)
+        flux_flam = source.evaluate(phase_obs, wave_obs, graph_state=state)
+        flux_flam = flux_flam * (u.erg / u.second / u.cm**2 / u.AA)
+        res["flux_flam"].append(flux_flam)
+
+        # convert ergs/s/cm^2/A to ergs/s/cm^2/Hz
+        flux_fnu = (flux_flam * (wave_obs * u.AA) ** 2 / const.c).to(u.erg / u.second / u.cm**2 / u.Hz)
+        res["flux_fnu"].append(flux_fnu)
+
+        bandfluxes = passbands.fluxes_to_bandfluxes(flux_fnu, wave_obs)
         res["bandfluxes"].append(bandfluxes)
 
     return res
