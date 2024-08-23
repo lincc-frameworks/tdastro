@@ -5,7 +5,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
-from tdastro.astro_utils.opsim import OpSim
+from tdastro.astro_utils.mag_flux import flux2mag
+from tdastro.astro_utils.opsim import (
+    OpSim,
+)
 
 
 def test_create_opsim():
@@ -14,6 +17,7 @@ def test_create_opsim():
         "observationStartMJD": np.array([0.0, 1.0, 2.0, 3.0, 4.0]),
         "fieldRA": np.array([15.0, 30.0, 15.0, 0.0, 60.0]),
         "fieldDec": np.array([-10.0, -5.0, 0.0, 5.0, 10.0]),
+        "zp_nJy": np.ones(5),
     }
     pdf = pd.DataFrame(values)
 
@@ -39,6 +43,7 @@ def test_create_opsim_custom_names():
         "custom_time": np.array([0.0, 1.0, 2.0, 3.0, 4.0]),
         "custom_ra": np.array([15.0, 30.0, 15.0, 0.0, 60.0]),
         "custom_dec": np.array([-10.0, -5.0, 0.0, 5.0, 10.0]),
+        "custom_zp": np.ones(5),
     }
 
     # Load fails if we use the default colmap.
@@ -46,7 +51,7 @@ def test_create_opsim_custom_names():
         _ = OpSim(values)
 
     # Load succeeds if we pass in a customer dictionary.
-    colmap = {"ra": "custom_ra", "dec": "custom_dec", "time": "custom_time"}
+    colmap = {"ra": "custom_ra", "dec": "custom_dec", "time": "custom_time", "zp": "custom_zp"}
     ops_data = OpSim(values, colmap)
     assert len(ops_data) == 5
 
@@ -60,6 +65,7 @@ def test_write_read_opsim():
         "observationStartMJD": np.array([0.0, 1.0, 2.0, 3.0, 4.0]),
         "fieldRA": np.array([15.0, 30.0, 15.0, 0.0, 60.0]),
         "fieldDec": np.array([-10.0, -5.0, 0.0, 5.0, 10.0]),
+        "zp_nJy": np.ones(5),
     }
     ops_data = OpSim(pd.DataFrame(values))
 
@@ -95,6 +101,7 @@ def test_obsim_range_search():
         "observationStartMJD": np.array([0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0]),
         "fieldRA": np.array([15.0, 15.0, 15.01, 15.0, 25.0, 24.99, 60.0, 5.0]),
         "fieldDec": np.array([-10.0, 10.0, 10.01, 9.99, 10.0, 9.99, -5.0, -1.0]),
+        "zp_nJy": np.ones(8),
     }
     ops_data = OpSim(values)
 
@@ -122,6 +129,7 @@ def test_opsim_get_observed_times():
         "observationStartMJD": np.array([0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0]),
         "fieldRA": np.array([15.0, 15.0, 15.01, 15.0, 25.0, 24.99, 60.0, 5.0]),
         "fieldDec": np.array([-10.0, 10.0, 10.01, 9.99, 10.0, 9.99, -5.0, -1.0]),
+        "zp_nJy": np.ones(8),
     }
     ops_data = OpSim(values)
 
@@ -142,3 +150,70 @@ def test_opsim_get_observed_times():
     assert np.allclose(times[0], [1.0, 2.0, 3.0])
     assert np.allclose(times[1], [4.0, 5.0])
     assert len(times[2]) == 0
+
+
+def test_magnitude_electron_zeropoint():
+    """Test that instrumental zeropoints are correct"""
+    opsim = OpSim({"fieldRA": [], "fieldDec": [], "observationStartMJD": [], "zp_nJy": []})
+
+    # Reproducing magnitude corresponding to S/N=5 from
+    # https://smtn-002.lsst.io/v/OPSIM-1171/index.html
+    fwhm_eff = {
+        "u": 0.92,
+        "g": 0.87,
+        "r": 0.83,
+        "i": 0.80,
+        "z": 0.78,
+        "y": 0.76,
+    }
+    fwhm_eff_getter = np.vectorize(fwhm_eff.get)
+    sky_brightness = {
+        "u": 23.05,
+        "g": 22.25,
+        "r": 21.20,
+        "i": 20.46,
+        "z": 19.61,
+        "y": 18.60,
+    }
+    sky_brightness_getter = np.vectorize(sky_brightness.get)
+
+    bands = list(fwhm_eff.keys())
+    exptime = 30
+    airmass = 1
+    s2n = 5
+    zp = opsim._magnitude_electron_zeropoint(bands, airmass, exptime)
+    sky_count_per_arcsec_sq = np.power(10.0, -0.4 * (sky_brightness_getter(bands) - zp))
+    readout_per_arcsec_sq = opsim.read_noise**2 / opsim.pixel_scale**2
+    dark_per_arcsec_sq = opsim.dark_current * exptime / opsim.pixel_scale**2
+    count_per_arcsec_sq = sky_count_per_arcsec_sq + readout_per_arcsec_sq + dark_per_arcsec_sq
+
+    area = 2.266 * fwhm_eff_getter(bands) ** 2  # effective seeing area in arcsec^2
+    n_background = count_per_arcsec_sq * area
+    # sky-dominated regime would be n_signal = s2n * np.sqrt(n_background)
+    n_signal = 0.5 * (s2n**2 + np.sqrt(s2n**4 + 4 * s2n**2 * n_background))
+    mag_signal = zp - 2.5 * np.log10(n_signal)
+
+    m5_desired = {
+        "u": 23.70,
+        "g": 24.97,
+        "r": 24.52,
+        "i": 24.13,
+        "z": 23.56,
+        "y": 22.55,
+    }
+    assert list(m5_desired) == bands
+    m5_desired_getter = np.vectorize(m5_desired.get)
+
+    np.testing.assert_allclose(mag_signal, m5_desired_getter(bands), atol=0.1)
+
+
+def test_flux_electron_zeropoint():
+    """Test that flux zeropoints are correct"""
+    # Here we just check that magnitude-flux conversion is correct
+    opsim = OpSim({"fieldRA": [], "fieldDec": [], "observationStartMJD": [], "zp_nJy": []})
+    airmass = np.array([1, 1.5, 2]).reshape(-1, 1, 1)
+    exptime = np.array([30, 38, 45]).reshape(1, -1, 1)
+    bands = ["u", "g", "r", "i", "z", "y"]
+    mag = opsim._magnitude_electron_zeropoint(bands, airmass, exptime)
+    flux = opsim._flux_electron_zeropoint(bands, airmass, exptime)
+    np.testing.assert_allclose(mag, flux2mag(flux), rtol=1e-10)
