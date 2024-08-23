@@ -22,6 +22,14 @@ class PassbandGroup:
     def __init__(self, preset=None, passbands=None):
         """Initialize a PassbandGroup object.
 
+        Attributes
+        ----------
+        preset : str, optional
+            A pre-defined set of passbands to load.
+        passbands : dict
+            A dictionary of Passband objects assigned to the group. The keys are the passbands' full names:
+            eg, LSST_u, LSST_g, HSC_u, etc.
+
         Parameters
         ----------
         preset : str, optional
@@ -37,13 +45,13 @@ class PassbandGroup:
         if passbands is not None:
             self.passbands = {}
             for passband in passbands:
-                self.passbands[passband.label] = passband  # This overrides any preset passbands
+                self.passbands[passband.full_name] = passband  # This overrides any preset passbands
 
     def __str__(self) -> str:
         """Return a string representation of the PassbandGroup."""
         return (
             f"PassbandGroup containing {len(self.passbands)} passbands: "
-            f"{', '.join([passband.full_name for passband in self.passbands.values()])}"
+            f"{', '.join(self.passbands.keys())}"
         )
 
     def _load_preset(self, preset):
@@ -56,12 +64,12 @@ class PassbandGroup:
         """
         if preset == "LSST":
             self.passbands = {
-                "u": Passband("LSST", "u"),
-                "g": Passband("LSST", "g"),
-                "r": Passband("LSST", "r"),
-                "i": Passband("LSST", "i"),
-                "z": Passband("LSST", "z"),
-                "y": Passband("LSST", "y"),
+                "LSST_u": Passband("LSST", "u"),
+                "LSST_g": Passband("LSST", "g"),
+                "LSST_r": Passband("LSST", "r"),
+                "LSST_i": Passband("LSST", "i"),
+                "LSST_z": Passband("LSST", "z"),
+                "LSST_y": Passband("LSST", "y"),
             }
         else:
             raise ValueError(f"Unknown passband preset: {preset}")
@@ -93,8 +101,8 @@ class Passband:
     Attributes
     ----------
     label : str
-        The label of the passband.
-     survey : str
+        The label of the passband. Note that this is not unique across surveys.
+    survey : str
         The survey to which the passband belongs.
     full_name : str
         The full name of the passband.
@@ -108,17 +116,23 @@ class Passband:
         A 2D array of wavelengths and normalized transmissions.
     """
 
-    def __init__(self, survey, label, table_path=None, table_url=""):
+    def __init__(self, survey, label, table_path=None, table_url=None):
         self.label = label
         self.survey = survey
         self.full_name = f"{survey}_{label}"
-        self.table_path = table_path
-        self.table_url = table_url
-        self.transmission_table = self._load_transmission_table()
+        self.transmission_table = self._load_transmission_table(table_path=table_path, table_url=table_url)
         self.normalized_transmission_table = self._normalize_transmission_table()
 
-    def _load_transmission_table(self) -> np.ndarray:
+    def _load_transmission_table(self, table_path=None, table_url=None) -> np.ndarray:
         """Load a transmission table from a file or URL.
+
+        Parameters
+        ----------
+        table_path : str, optional
+            The path to the transmission table file. If None, a passbands directory will be created in the
+            current directory.
+        table_url : str, optional
+            The URL to download the transmission table file, if it does not exist locally.
 
         Returns
         -------
@@ -126,28 +140,33 @@ class Passband:
             A 2D array where the first column is wavelengths (Angstrom) and the second column is transmission
             values.
         """
-        if self.table_path is None:
-            self.table_path = os.path.join(
-                os.path.dirname(__file__), f"passbands/{self.survey}/{self.label}.dat"
-            )
-            os.makedirs(os.path.dirname(self.table_path), exist_ok=True)
-        if not os.path.exists(self.table_path):
-            self._download_transmission_table()
-        return np.loadtxt(self.table_path)
+        if table_path is None:
+            table_path = os.path.join(os.path.dirname(__file__), f"passbands/{self.survey}/{self.label}.dat")
+            os.makedirs(os.path.dirname(table_path), exist_ok=True)
+        if not os.path.exists(table_path):
+            self._download_transmission_table(table_path, table_url)
+        return np.loadtxt(table_path)
 
-    def _download_transmission_table(self) -> bool:
+    def _download_transmission_table(self, table_path, table_url=None) -> bool:
         """Download a transmission table from a URL.
+
+        Parameters
+        ----------
+        table_path : str
+            The path to save the downloaded transmission table.
+        table_url : str, optional
+            The URL to download the transmission table file. If None, the URL will be constructed based on
+            the survey and label. This is only available for the LSST survey at the moment.
 
         Returns
         -------
         bool
             True if the download was successful, False otherwise.
         """
-        if self.table_url == "":
+        if table_url is None:
             if self.survey == "LSST":
                 # TODO: This area will be changed with incoming Pooch data manager PR :)
-                # Consider: https://github.com/lsst/throughputs/blob/main/baseline/filter_g.dat
-                # Or check with Mi's link (unless that was above)
+                # Consider: https://github.com/lsst/throughputs/blob/main/baseline/total_g.dat
                 self.table_url = (
                     f"http://svo2.cab.inta-csic.es/svo/theory/fps3/getdata.php"
                     f"?format=ascii&id=LSST/LSST.{self.label}"
@@ -155,11 +174,12 @@ class Passband:
             else:
                 raise NotImplementedError(
                     f"Transmission table download is not yet implemented for survey: {self.survey}."
+                    "Please provide a table URL."
                 )
         try:
             socket.setdefaulttimeout(10)
-            urllib.request.urlretrieve(self.table_url, self.table_path)
-            if os.path.getsize(self.table_path) == 0:
+            urllib.request.urlretrieve(table_url, table_path)
+            if os.path.getsize(table_path) == 0:
                 logging.error(f"Transmission table downloaded for {self.full_name} is empty.")
                 return False
             else:
