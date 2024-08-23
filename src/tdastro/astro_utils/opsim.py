@@ -135,7 +135,7 @@ class OpSim:
 
         con.close()
 
-    def range_search(self, query_ra, query_dec, fov):
+    def range_search(self, query_ra, query_dec, radius):
         """Return the indices of the opsim pointings that fall within the field
         of view of the query point(s).
 
@@ -145,7 +145,7 @@ class OpSim:
             The query right ascension (in degrees).
         query_dec : `float` or `numpy.ndarray`
             The query declination (in degrees).
-        fov : `float`
+        radius : `float`
             The angular radius of the observation (in degrees).
 
         Returns
@@ -162,11 +162,11 @@ class OpSim:
         z = np.sin(dec_rad)
         cart_query = np.array([x, y, z]).T
 
-        # Adjust the angular FOV to a cartesian search radius and perform the search.
-        adjusted_fov = 2.0 * np.sin(0.5 * np.radians(fov))
-        return self._kd_tree.query_ball_point(cart_query, adjusted_fov)
+        # Adjust the angular radius to a cartesian search radius and perform the search.
+        adjusted_radius = 2.0 * np.sin(0.5 * np.radians(radius))
+        return self._kd_tree.query_ball_point(cart_query, adjusted_radius)
 
-    def get_observed_times(self, query_ra, query_dec, fov):
+    def get_observed_times(self, query_ra, query_dec, radius):
         """Return the times when the query point falls within the field of view of
         a pointing in the survey.
 
@@ -176,7 +176,7 @@ class OpSim:
             The query right ascension (in degrees).
         query_dec : `float` or `numpy.ndarray`
             The query declination (in degrees).
-        fov : `float`
+        radius : `float`
             The angular radius of the observation (in degrees).
 
         Returns
@@ -185,7 +185,7 @@ class OpSim:
             Depending on the input, this is either an array of times (for a single query point)
             or an array of arrays of times (for multiple query points).
         """
-        neighbors = self.range_search(query_ra, query_dec, fov)
+        neighbors = self.range_search(query_ra, query_dec, radius)
         times = self.table[self.colmap["time"]].to_numpy()
 
         if isinstance(query_ra, float):
