@@ -18,7 +18,7 @@ def test_sncomso_models_hsiao() -> None:
     # unrealistically high amplitude.
     #     model = sncosmo.Model(source='hsiao')
     #     model.set(z=0.0, t0=0.0, amplitude=2.0e10)
-    #     model.flux(54990., [4000., 4100., 4200.])
+    #     model.flux(5., [4000., 4100., 4200.])
     fluxes = model.evaluate([5.0], [4000.0, 4100.0, 4200.0])
     assert np.allclose(fluxes, [133.98143039, 152.74613574, 134.40916824])
 
