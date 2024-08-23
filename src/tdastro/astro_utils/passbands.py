@@ -166,7 +166,7 @@ class Passband:
             if self.survey == "LSST":
                 # TODO: This area will be changed with incoming Pooch data manager PR :)
                 # Consider: https://github.com/lsst/throughputs/blob/main/baseline/total_g.dat
-                self.table_url = (
+                table_url = (
                     f"http://svo2.cab.inta-csic.es/svo/theory/fps3/getdata.php"
                     f"?format=ascii&id=LSST/LSST.{self.label}"
                 )
