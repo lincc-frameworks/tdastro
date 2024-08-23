@@ -29,7 +29,7 @@ class GaussianGalaxy(PhysicalModel):
         Parameters
         ----------
         times : `numpy.ndarray`
-            A length T array of timestamps.
+            A length T array of rest frame timestamps.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
         graph_state : `dict`, optional
