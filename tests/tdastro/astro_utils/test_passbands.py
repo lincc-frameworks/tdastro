@@ -13,12 +13,12 @@ def test_passband_init():
     # Test that the PassbandGroup class can be initialized with a preset
     lsst_passband_group = PassbandGroup(preset="LSST")
     assert len(lsst_passband_group.passbands) == 6
-    assert "u" in lsst_passband_group.passbands
-    assert "g" in lsst_passband_group.passbands
-    assert "r" in lsst_passband_group.passbands
-    assert "i" in lsst_passband_group.passbands
-    assert "z" in lsst_passband_group.passbands
-    assert "y" in lsst_passband_group.passbands
+    assert "LSST_u" in lsst_passband_group.passbands
+    assert "LSST_g" in lsst_passband_group.passbands
+    assert "LSST_r" in lsst_passband_group.passbands
+    assert "LSST_i" in lsst_passband_group.passbands
+    assert "LSST_z" in lsst_passband_group.passbands
+    assert "LSST_y" in lsst_passband_group.passbands
 
     # Test that the PassbandGroup class can be initialized with a list of Passband objects
     lsst_gri_passbands = [
@@ -28,9 +28,10 @@ def test_passband_init():
     ]
     lsst_gri_passband_group = PassbandGroup(passbands=lsst_gri_passbands)
     assert len(lsst_gri_passband_group.passbands) == 3
-    assert "g" in lsst_gri_passband_group.passbands
-    assert "r" in lsst_gri_passband_group.passbands
-    assert "i" in lsst_gri_passband_group.passbands
+    assert "LSST_g" in lsst_gri_passband_group.passbands
+    assert "LSST_r" in lsst_gri_passband_group.passbands
+    assert "LSST_i" in lsst_gri_passband_group.passbands
+    assert "LSST_u" not in lsst_gri_passband_group.passbands
 
     # Test that the PassbandGroup class can be initialized with non-LSST passbands
     gaia_passbands = [
@@ -52,9 +53,9 @@ def test_passband_init():
     ]
     gaia_passband_group = PassbandGroup(passbands=gaia_passbands)
     assert len(gaia_passband_group.passbands) == 3
-    assert "0.Gbp" in gaia_passband_group.passbands
-    assert "0.G" in gaia_passband_group.passbands
-    assert "0.Grp" in gaia_passband_group.passbands
+    assert "GAIA_0.Gbp" in gaia_passband_group.passbands
+    assert "GAIA_0.G" in gaia_passband_group.passbands
+    assert "GAIA_0.Grp" in gaia_passband_group.passbands
 
     # Test that the PassbandGroup class raises an error for an unknown preset
     try:
@@ -242,13 +243,13 @@ def test_passband_group_fluxes_to_bandfluxes(tmp_path):
 
     # Compare results
     bandfluxes = test_passband_group.fluxes_to_bandfluxes(flux, wavelengths)
-    for label in test_passband_group.passbands:
-        assert label in bandfluxes
-        assert bandfluxes[label].shape == (5,)
+    for passband in test_passband_group.passbands:
+        assert passband in bandfluxes
+        assert bandfluxes[passband].shape == (5,)
         assert np.allclose(
-            bandfluxes[label],
+            bandfluxes[passband],
             np.trapz(
-                flux * test_passband_group.passbands[label].normalized_transmission_table[:, 1],
+                flux * test_passband_group.passbands[passband].normalized_transmission_table[:, 1],
                 x=wavelengths,
                 axis=1,
             ),
