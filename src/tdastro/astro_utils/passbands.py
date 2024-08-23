@@ -96,7 +96,7 @@ class Passband:
     ----------
     label : str
         The label of the passband.
-     survey : str
+    survey : str
         The survey to which the passband belongs.
     full_name : str
         The full name of the passband.
@@ -204,8 +204,59 @@ class Passband:
         normalized_transmissions = numerators / denominator
         return np.column_stack((wavelengths_angstrom, normalized_transmissions))
 
+    def _interpolate(
+        self, initial_fluxes, intial_wavelengths, initial_norm_trans_table, target_grid_step=None
+    ):
+        """Interpolate the flux density matrix and normalized transmission table to the same grid.
+
+        Parameters
+        ----------
+        initial_fluxes : np.ndarray
+            A 2D array of flux densities where rows are times and columns are wavelengths.
+        intial_wavelengths : np.ndarray
+            An array of wavelengths in Angstroms corresponding to the columns of initial_fluxes.
+        initial_norm_trans_table : np.ndarray
+            A 2D array of wavelengths and normalized transmissions.
+        target_grid_step : int, optional
+            The unit of the grid (in Angstrom) to which the flux density matrix and normalized transmission
+            table should be interpolated.
+
+        Returns
+        -------
+        tuple of np.ndarray
+            A tuple of interpolated flux densities, wavelengths, and normalized transmission table.
+        """
+        if target_grid_step is None:
+            # If grids already match, we can just return the intial arrays
+            if interpolation.grids_have_same_step(intial_wavelengths, initial_norm_trans_table[:, 0]):
+                return (initial_fluxes, intial_wavelengths, initial_norm_trans_table)
+            # Otherwise, if the given wavelength grid is uniform, interpolate transmisison table to match
+            elif interpolation.get_grid_step(intial_wavelengths) is not None:
+                target_grid_step = interpolation.get_grid_step(intial_wavelengths)
+            # Otherwise, ask for target grid step
+            else:
+                raise ValueError(
+                    "Interpolation needed; grids do not match. Consider using the target_grid_step parameter."
+                )
+
+        interp_wavelengths = intial_wavelengths
+        interp_fluxes = initial_fluxes
+        if target_grid_step != interpolation.get_grid_step(intial_wavelengths):
+            interp_wavelengths = interpolation.interpolate_wavelengths(intial_wavelengths, target_grid_step)
+            interp_fluxes = interpolation.interpolate_matrix_along_wavelengths(
+                initial_fluxes, intial_wavelengths, interp_wavelengths
+            )
+
+        interp_norm_trans_table = initial_norm_trans_table
+        if target_grid_step != interpolation.get_grid_step(initial_norm_trans_table[:, 0]):
+            interp_norm_trans_table = interpolation.interpolate_transmission_table(
+                initial_norm_trans_table, interp_wavelengths
+            )
+
+        return (interp_fluxes, interp_wavelengths, interp_norm_trans_table)
+
     def fluxes_to_bandflux(
-        self, flux_density_matrix, wavelengths_angstrom, interpolate_to_grid=None
+        self, _flux_density_matrix, _wavelengths_angstrom, target_grid_step=None
     ) -> np.ndarray:
         """Calculate the bandflux for a given set of flux densities.
 
@@ -222,7 +273,7 @@ class Passband:
             A 2D array of flux densities where rows are times and columns are wavelengths.
         wavelengths_angstrom : np.ndarray
             An array of wavelengths in Angstroms corresponding to the columns of flux_density_matrix.
-        interpolate_to_grid : int, optional
+        target_grid_step : float, optional
             The unit of the grid (in Angstrom) to which the flux density matrix and normalized transmission
             table should be interpolated.
 
@@ -231,43 +282,22 @@ class Passband:
         np.ndarray
             An array of bandfluxes.
         """
-        n_t_table = self.normalized_transmission_table
-
-        # Interpolate the flux density matrix and normalized transmission table to the same grid, if needed
-        if interpolate_to_grid is not None:
-            wavelengths_angstrom = interpolation.to_grid(
-                interpolate_to_grid, wavelengths_angstrom, flux_density_matrix
-            )
-
-        elif not interpolation.grids_have_same_step(wavelengths_angstrom, n_t_table[:, 0]):
-            raise ValueError(
-                f"Interpolation needed: grids do not match. "
-                f"Flux density grid step size is{interpolation.get_grid_step(wavelengths_angstrom)}; "
-                f"Transmission table grid step size is "
-                f"{interpolation.get_grid_step(self.normalized_transmission_table[:, 0])}. "
-                f"Consider using the interpolate_to_grid parameter."
-            )
-
-        # TODO replace the following with forthcoming exterpolation astro_utils code
-        # For now, min check: the bounds of the flux density grid are within the transmission table bounds
-        if (
-            wavelengths_angstrom[-1] < self.normalized_transmission_table[-1, 0]
-            or wavelengths_angstrom[0] > self.normalized_transmission_table[0, 0]
-        ):
-            raise ValueError(
-                f"Extrapolation needed: flux density interval [{wavelengths_angstrom[0]}, "
-                f"{wavelengths_angstrom[-1]}] is outside the transmission table interval "
-                f"[{self.normalized_transmission_table[0, 0]}, {self.normalized_transmission_table[-1, 0]}]."
-            )
+        # Interpolate the flux density matrix and normalized transmission table to the same grid
+        (flux_density_matrix, wavelengths_angstrom, normalized_transmission_table) = self._interpolate(
+            _flux_density_matrix,
+            _wavelengths_angstrom,
+            self.normalized_transmission_table,
+            target_grid_step=target_grid_step,
+        )
 
         # Get only the flux densities that are within the passband's wavelength range
-        passband_wavelengths = self.normalized_transmission_table[:, 0]
+        passband_wavelengths = normalized_transmission_table[:, 0]
         passband_wavelengths_indices = np.searchsorted(wavelengths_angstrom, passband_wavelengths)
         passband_flux_density_matrix = flux_density_matrix[:, passband_wavelengths_indices]
 
         # Calculate the bandflux as ∫ f(λ)φ_b(λ) dλ,
         # where f(λ) is the in-band flux density and φ_b(λ) is the normalized system response
-        integrand = passband_flux_density_matrix * self.normalized_transmission_table[:, 1]
+        integrand = passband_flux_density_matrix * normalized_transmission_table[:, 1]
         bandfluxes = scipy.integrate.trapezoid(integrand, x=passband_wavelengths)
 
         return bandfluxes
