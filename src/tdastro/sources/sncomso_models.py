@@ -29,10 +29,14 @@ class SncosmoWrapperModel(PhysicalModel):
         Any additional keyword arguments.
     """
 
-    def __init__(self, source_name, **kwargs):
+    def __init__(self, source_name, t0=0.0, **kwargs):
         super().__init__(**kwargs)
         self.source_name = source_name
         self.source = get_source(source_name)
+
+        # Set the object's t0 as a parameter for the PhysicalModel, but
+        # not the sncosmo model.
+        self.add_parameter("t0", t0)
 
         # Use the kwargs to initialize the sncosmo model's parameters.
         self.source_param_names = []
@@ -128,7 +132,7 @@ class SncosmoWrapperModel(PhysicalModel):
         Parameters
         ----------
         times : `numpy.ndarray`
-            A length T array of timestamps.
+            A length T array of rest frame timestamps.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
         graph_state : `dict`, optional
@@ -141,5 +145,6 @@ class SncosmoWrapperModel(PhysicalModel):
         flux_density : `numpy.ndarray`
             A length T x N matrix of SED values.
         """
+        t0 = self.get_param(graph_state, "t0")
         self._update_sncosmo_model_parameters(graph_state)
-        return self.source.flux(times, wavelengths)
+        return self.source.flux(times - t0, wavelengths)

@@ -1,5 +1,7 @@
 """The base PhysicalModel used for all sources."""
 
+import numpy as np
+
 from tdastro.astro_utils.cosmology import RedshiftDistFunc
 from tdastro.base_models import ParameterizedNode
 
@@ -118,7 +120,7 @@ class PhysicalModel(ParameterizedNode):
         Parameters
         ----------
         times : `numpy.ndarray`
-            A length T array of timestamps.
+            A length T array of rest frame timestamps.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
         graph_state : `dict`
@@ -137,7 +139,7 @@ class PhysicalModel(ParameterizedNode):
         Parameters
         ----------
         times : `numpy.ndarray`
-            A length T array of timestamps.
+            A length T array of observer frame timestamps.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
         graph_state : `dict`
@@ -156,6 +158,11 @@ class PhysicalModel(ParameterizedNode):
         flux_density : `numpy.ndarray`
             A length T x N matrix of SED values.
         """
+        # Make sure times and wavelengths are numpy arrays.
+        times = np.array(times)
+        wavelengths = np.array(wavelengths)
+
+        # Check if we need to sample the graph.
         if graph_state is None:
             graph_state = self.sample_parameters(given_args=given_args, rng_info=rng_info, **kwargs)
         params = self.get_local_params(graph_state)
