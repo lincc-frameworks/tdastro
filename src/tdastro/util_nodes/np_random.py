@@ -156,15 +156,16 @@ class NumpyRandomFunc(FunctionNode):
         ------
         ``ValueError`` is ``func`` attribute is ``None``.
         """
+        args = self._build_inputs(graph_state, given_args, **kwargs)
+
         # If we are given a numpy random number generator, use that for this sample.
         if rng_info is not None and self.node_hash in rng_info:
-            old_func = self.func
-            self.func = getattr(rng_info[self.node_hash], self.func_name)
-            result = super().compute(graph_state, given_args, rng_info, **kwargs)
-            self.func = old_func
+            func = getattr(rng_info[self.node_hash], self.func_name)
+            results = func(**args)
         else:
-            result = super().compute(graph_state, given_args, rng_info, **kwargs)
-        return result
+            results = self.func(**args)
+        self._save_results(results, graph_state)
+        return results
 
     def generate(self, given_args=None, rng_info=None, **kwargs):
         """A helper function for testing that regenerates the output.

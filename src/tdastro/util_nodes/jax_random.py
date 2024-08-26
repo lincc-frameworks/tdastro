@@ -124,20 +124,10 @@ class JaxRandomFunc(FunctionNode):
         next_key, current_key = jax.random.split(rng_info[self.node_hash])
         rng_info[self.node_hash] = next_key
 
-        # Build a dictionary of arguments for the function.
-        args = {}
-        for key in self.arg_names:
-            # Override with the given arg or kwarg in that order.
-            if given_args is not None and self.setters[key].full_name in given_args:
-                args[key] = given_args[self.setters[key].full_name]
-            elif key in kwargs:
-                args[key] = kwargs[key]
-            else:
-                args[key] = graph_state[self.node_hash][key]
-
         # Generate the results.
+        args = self._build_inputs(graph_state, given_args, **kwargs)
         results = float(self.func(current_key, **args))
-        graph_state[self.node_hash][self.outputs[0]] = results
+        self._save_results(results, graph_state)
         return results
 
     def generate(self, given_args=None, rng_info=None, **kwargs):
