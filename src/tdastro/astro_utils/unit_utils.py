@@ -1,7 +1,7 @@
 from astropy import constants as const
-from astropy import units as u
 
-def flam_to_fnu(flux_flam,wavelengths,wave_unit=None, flam_unit=None,fnu_unit=None):
+
+def flam_to_fnu(flux_flam, wavelengths, wave_unit=None, flam_unit=None, fnu_unit=None):
     """
     Covert flux from f_lambda unit to f_nu unit
     """
