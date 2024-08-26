@@ -232,13 +232,11 @@ class PhysicalModel(ParameterizedNode):
         graph_state = GraphState(num_samples)
         seen_nodes = {}
         if self.background is not None:
-            self.background._sample_helper(
-                graph_state, seen_nodes, args_to_use, num_samples, rng_info, **kwargs
-            )
-        self._sample_helper(graph_state, seen_nodes, args_to_use, num_samples, rng_info, **kwargs)
+            self.background._sample_helper(graph_state, seen_nodes, args_to_use, rng_info, **kwargs)
+        self._sample_helper(graph_state, seen_nodes, args_to_use, rng_info, **kwargs)
 
         for effect in self.effects:
-            effect._sample_helper(graph_state, seen_nodes, args_to_use, num_samples, rng_info, **kwargs)
+            effect._sample_helper(graph_state, seen_nodes, args_to_use, rng_info, **kwargs)
 
         return graph_state
 

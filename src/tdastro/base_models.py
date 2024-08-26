@@ -530,18 +530,16 @@ class ParameterizedNode:
                 if setter.source_type == ParameterSource.CONSTANT:
                     graph_state.set(self.node_hash, name, setter.value)
                 elif setter.source_type == ParameterSource.MODEL_PARAMETER:
-                    graph_state.set_from_reference(
+                    graph_state.set(
                         self.node_hash,
                         name,
-                        setter.dependency.node_hash,
-                        setter.value,
+                        graph_state[setter.dependency.node_hash][setter.value],
                     )
                 elif setter.source_type == ParameterSource.FUNCTION_NODE:
-                    graph_state.set_from_reference(
+                    graph_state.set(
                         self.node_hash,
                         name,
-                        setter.dependency.node_hash,
-                        setter.value,
+                        graph_state[setter.dependency.node_hash][setter.value],
                     )
                 elif setter.source_type == ParameterSource.COMPUTE_OUTPUT:
                     # Computed parameters are set only after all the other (input) parameters.
@@ -771,6 +769,58 @@ class FunctionNode(ParameterizedNode):
         else:
             super()._update_node_string()
 
+    def _build_inputs(self, graph_state, given_args=None, **kwargs):
+        """Build the input arguments for the function.
+
+        Parameters
+        ----------
+        graph_state : `GraphState`
+            An object mapping graph parameters to their values. This object is modified
+            in place as it is sampled.
+        given_args : `dict`, optional
+            A dictionary representing the given arguments for this sample run.
+            This can be used as the JAX PyTree for differentiation.
+        **kwargs : `dict`, optional
+            Additional function arguments.
+
+        Returns
+        -------
+        args : `dict`
+            A dictionary of input argument to value.
+        """
+        args = {}
+        for key in self.arg_names:
+            # Override with the given arg or kwarg in that order.
+            if given_args is not None and self.setters[key].full_name in given_args:
+                args[key] = given_args[self.setters[key].full_name]
+            elif key in kwargs:
+                args[key] = kwargs[key]
+            else:
+                args[key] = graph_state[self.node_hash][key]
+        return args
+
+    def _save_results(self, results, graph_state):
+        """Save the results to the graph state.
+
+        Parameters
+        ----------
+        results : iterable
+            The function's results.
+        graph_state : `GraphState`
+            An object mapping graph parameters to their values. This object is modified
+            in place as it is sampled.
+        """
+        if len(self.outputs) == 1:
+            graph_state.set(self.node_hash, self.outputs[0], results)
+        else:
+            if len(results) != len(self.outputs):
+                raise ValueError(
+                    f"Incorrect number of results returned by {self.func.__name__}. "
+                    f"Expected {len(self.outputs)}, but got {results}."
+                )
+            for i in range(len(self.outputs)):
+                graph_state.set(self.node_hash, self.outputs[i], results[i])
+
     def compute(self, graph_state, given_args=None, rng_info=None, **kwargs):
         """Execute the wrapped function.
 
@@ -785,9 +835,6 @@ class FunctionNode(ParameterizedNode):
         given_args : `dict`, optional
             A dictionary representing the given arguments for this sample run.
             This can be used as the JAX PyTree for differentiation.
-        num_samples : `int`
-            A count of the number of samples to compute.
-            Default: 1
         rng_info : `dict`, optional
             A dictionary of random number generator information for each node, such as
             the JAX keys or the numpy rngs.
@@ -810,30 +857,10 @@ class FunctionNode(ParameterizedNode):
                 "set func or override compute()."
             )
 
-        # Build a dictionary of arguments for the function.
-        args = {}
-        for key in self.arg_names:
-            # Override with the given arg or kwarg in that order.
-            if given_args is not None and self.setters[key].full_name in given_args:
-                args[key] = given_args[self.setters[key].full_name]
-            elif key in kwargs:
-                args[key] = kwargs[key]
-            else:
-                args[key] = graph_state[self.node_hash][key]
-
         # Call the function and save the results in the graph_state
+        args = self._build_inputs(graph_state, given_args, **kwargs)
         results = self.func(**args)
-        if len(self.outputs) == 1:
-            graph_state.set(self.node_hash, self.outputs[0], results)
-        else:
-            if len(results) != len(self.outputs):
-                raise ValueError(
-                    f"Incorrect number of results returned by {self.func.__name__}. "
-                    f"Expected {len(self.outputs)}, but got {results}."
-                )
-            for i in range(len(self.outputs)):
-                graph_state.set(self.node_hash, self.outputs[i], results[i])
-
+        self._save_results(results, graph_state)
         return results
 
     def resample_and_compute(self, given_args=None, rng_info=None):

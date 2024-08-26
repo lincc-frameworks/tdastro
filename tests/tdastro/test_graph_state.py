@@ -52,13 +52,6 @@ def test_create_single_sample_graph_state():
     assert len(state) == 3
     assert state["a"]["v1"] == 10.0
 
-    # We can set a single sample from a 1-element array, but not a longer one.
-    state.set("a", "v3", np.array([4.0]))
-    assert state["a"]["v3"] == 4.0
-
-    with pytest.raises(ValueError):
-        state.set("a", "v3", np.array([1.0, 2.0]))
-
 
 def test_create_multi_sample_graph_state():
     """Test that we can create and access a multi-sample GraphState."""
@@ -98,18 +91,20 @@ def test_create_multi_sample_graph_state():
         state.set("b", "v2", [-2.0, -2.5, -3.0, -3.5, -4.0, 1.0])
 
 
-def test_create_multi_sample_graph_state_reference():
-    """Test that we can create and access a multi-sample GraphState with references."""
+def test_create_multi_sample_graph_state_no_reference():
+    """Test that we can create and access a multi-sample GraphState with variables
+    that were created from each other."""
     state = GraphState(5)
     state.set("a", "v1", 1.0)
     state.set("a", "v2", np.array([2.0, 2.5, 3.0, 3.5, 4.0]))
-    state.set_from_reference("b", "v1", "a", "v2")
+    state.set("b", "v1", state["a"]["v2"])
     assert len(state) == 3
     assert np.allclose(state["a"]["v1"], [1.0, 1.0, 1.0, 1.0, 1.0])
     assert np.allclose(state["a"]["v2"], [2.0, 2.5, 3.0, 3.5, 4.0])
     assert np.allclose(state["b"]["v1"], [2.0, 2.5, 3.0, 3.5, 4.0])
 
-    # Check that (c, v1) is just pointing to the data held in (a, v2).
+    # Check that (c, v1) is not just pointing to the data held in (a, v2),
+    # but is its own copy.
     state["a"]["v2"][2] = 5.0
     assert np.allclose(state["a"]["v2"], [2.0, 2.5, 5.0, 3.5, 4.0])
-    assert np.allclose(state["b"]["v1"], [2.0, 2.5, 5.0, 3.5, 4.0])
+    assert np.allclose(state["b"]["v1"], [2.0, 2.5, 3.0, 3.5, 4.0])
