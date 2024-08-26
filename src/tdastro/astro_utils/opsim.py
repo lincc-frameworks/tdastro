@@ -2,11 +2,14 @@ import sqlite3
 from pathlib import Path
 
 import numpy as np
-import numpy.typing as npt
 import pandas as pd
 from scipy.spatial import KDTree
 
-from tdastro.astro_utils.mag_flux import mag2flux
+from tdastro.astro_utils.zeropoint import (
+    _lsstcam_extinction_coeff,
+    _lsstcam_zeropoint_per_sec_zenith,
+    flux_electron_zeropoint,
+)
 
 _rubin_opsim_colnames = {
     "time": "observationStartMJD",
@@ -15,38 +18,6 @@ _rubin_opsim_colnames = {
     "zp": "zp_nJy",  # We add this column to the table
 }
 """Default mapping of short column names to Rubin OpSim column names."""
-
-# See _flux_zeropoint for discription of the following two dictionaries
-# https://community.lsst.org/t/release-of-v3-4-simulations/8548/12
-_lsstcam_extinction_coeff = {
-    "u": -0.458,
-    "g": -0.208,
-    "r": -0.122,
-    "i": -0.074,
-    "z": -0.057,
-    "y": -0.095,
-}
-"""The extinction coefficients for the LSST filters.
-
-Values are from
-https://community.lsst.org/t/release-of-v3-4-simulations/8548/12
-"""
-_lsstcam_zeropoint_per_sec_zenith = {
-    "u": 26.524,
-    "g": 28.508,
-    "r": 28.361,
-    "i": 28.171,
-    "z": 27.782,
-    "y": 26.818,
-}
-"""The zeropoints for the LSST filters at zenith
-
-This is magnitude that produces 1 electron in a 1 second exposure,
-see _assign_zero_points() docs for more details.
-
-Values are from
-https://community.lsst.org/t/release-of-v3-4-simulations/8548/12
-"""
 
 LSSTCAM_PIXEL_SCALE = 0.2
 """The pixel scale for the LSST camera in arcseconds per pixel."""
@@ -108,10 +79,6 @@ class OpSim:  # noqa: D101
     _kd_tree : `scipy.spatial.KDTree` or None
         A kd_tree of the OpSim pointings for fast spatial queries. We use the scipy
         kd-tree instead of astropy's functions so we can directly control caching.
-    _ext_coeff : `dict` or None, optional
-        Mapping of filter names to extinction coefficients.
-    _zp_per_sec : `dict` or None, optional
-        Mapping of filter names to zeropoints at zenith.
     _pixel_scale : `float` or None, optional
         The pixel scale for the LSST camera in arcseconds per pixel.
     _read_noise : `float` or None, optional
@@ -127,6 +94,7 @@ class OpSim:  # noqa: D101
         self,
         table,
         colmap=None,
+        *,
         ext_coeff=None,
         zp_per_sec=None,
         pixel_scale=None,
@@ -183,69 +151,9 @@ class OpSim:  # noqa: D101
         # Construct the kd-tree.
         self._kd_tree = KDTree(cart_coords)
 
-    def _magnitude_electron_zeropoint(
-        self, filtername: npt.ArrayLike, airmass: npt.ArrayLike, exptime: npt.ArrayLike
-    ) -> npt.ArrayLike:
-        """Photometric zeropoint (magnitude that produces 1 electron) for
-        LSST bandpasses (v1.9), using a standard atmosphere scaled
-        for different airmasses and scaled for exposure times.
-
-        Parameters
-        ----------
-        filtername : ndarray of str
-            The filter for which to return the photometric zeropoint.
-        airmass : ndarray of float
-            The airmass at which to return the photometric zeropoint.
-        exptime : ndarray of float
-            The exposure time for which to return the photometric zeropoint.
-
-        Returns
-        -------
-        ndarray of float
-            AB mags that produces 1 electron.
-
-        Notes
-        -----
-        Typically, zeropoints are defined as the magnitude of a source
-        which would produce 1 count in a 1 second exposure -
-        here we use *electron* counts, not ADU counts.
-
-        Authored by Lynne Jones:
-        https://community.lsst.org/t/release-of-v3-4-simulations/8548/12
-        """
-        # calculated with syseng_throughputs v1.9
-        return (
-            self.zp_per_sec_getter(filtername)
-            + self.ext_coeff_getter(filtername) * (airmass - 1)
-            + 2.5 * np.log10(exptime)
-        )
-
-    def _flux_electron_zeropoint(
-        self, filtername: npt.ArrayLike, airmass: npt.ArrayLike, exptime: npt.ArrayLike
-    ) -> npt.ArrayLike:
-        """Flux (nJy) per electron for LSST bandpasses
-
-        Parameters
-        ----------
-        filtername : nparray of str
-            The filter for which to return the photometric zeropoint.
-        airmass : ndarray of float
-            The airmass at which to return the photometric zeropoint.
-        exptime : ndarray of float
-            The exposure time for which to return the photometric zeropoint.
-
-        Returns
-        -------
-        ndarray of float
-            Flux (nJy) per electron.
-        """
-
-        mag_zp_electron = self._magnitude_electron_zeropoint(filtername, airmass, exptime)
-        return mag2flux(mag_zp_electron)
-
     def _assign_zero_points(self, col_name):
         """Assign instrumental zero points in nJy to the OpSim tables"""
-        self.table[col_name] = self._flux_electron_zeropoint(
+        self.table[col_name] = flux_electron_zeropoint(
             self.table[self.colmap["filter"]],
             self.table[self.colmap["airmass"]],
             self.table[self.colmap["visitExposureTime"]],

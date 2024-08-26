@@ -5,7 +5,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
-from tdastro.astro_utils.mag_flux import flux2mag
 from tdastro.astro_utils.opsim import (
     OpSim,
 )
@@ -152,68 +151,7 @@ def test_opsim_get_observed_times():
     assert len(times[2]) == 0
 
 
-def test_magnitude_electron_zeropoint():
-    """Test that instrumental zeropoints are correct"""
-    opsim = OpSim({"fieldRA": [], "fieldDec": [], "observationStartMJD": [], "zp_nJy": []})
-
-    # Reproducing magnitude corresponding to S/N=5 from
-    # https://smtn-002.lsst.io/v/OPSIM-1171/index.html
-    fwhm_eff = {
-        "u": 0.92,
-        "g": 0.87,
-        "r": 0.83,
-        "i": 0.80,
-        "z": 0.78,
-        "y": 0.76,
-    }
-    fwhm_eff_getter = np.vectorize(fwhm_eff.get)
-    sky_brightness = {
-        "u": 23.05,
-        "g": 22.25,
-        "r": 21.20,
-        "i": 20.46,
-        "z": 19.61,
-        "y": 18.60,
-    }
-    sky_brightness_getter = np.vectorize(sky_brightness.get)
-
-    bands = list(fwhm_eff.keys())
-    exptime = 30
-    airmass = 1
-    s2n = 5
-    zp = opsim._magnitude_electron_zeropoint(bands, airmass, exptime)
-    sky_count_per_arcsec_sq = np.power(10.0, -0.4 * (sky_brightness_getter(bands) - zp))
-    readout_per_arcsec_sq = opsim.read_noise**2 / opsim.pixel_scale**2
-    dark_per_arcsec_sq = opsim.dark_current * exptime / opsim.pixel_scale**2
-    count_per_arcsec_sq = sky_count_per_arcsec_sq + readout_per_arcsec_sq + dark_per_arcsec_sq
-
-    area = 2.266 * fwhm_eff_getter(bands) ** 2  # effective seeing area in arcsec^2
-    n_background = count_per_arcsec_sq * area
-    # sky-dominated regime would be n_signal = s2n * np.sqrt(n_background)
-    n_signal = 0.5 * (s2n**2 + np.sqrt(s2n**4 + 4 * s2n**2 * n_background))
-    mag_signal = zp - 2.5 * np.log10(n_signal)
-
-    m5_desired = {
-        "u": 23.70,
-        "g": 24.97,
-        "r": 24.52,
-        "i": 24.13,
-        "z": 23.56,
-        "y": 22.55,
-    }
-    assert list(m5_desired) == bands
-    m5_desired_getter = np.vectorize(m5_desired.get)
-
-    np.testing.assert_allclose(mag_signal, m5_desired_getter(bands), atol=0.1)
-
-
-def test_flux_electron_zeropoint():
-    """Test that flux zeropoints are correct"""
-    # Here we just check that magnitude-flux conversion is correct
-    opsim = OpSim({"fieldRA": [], "fieldDec": [], "observationStartMJD": [], "zp_nJy": []})
-    airmass = np.array([1, 1.5, 2]).reshape(-1, 1, 1)
-    exptime = np.array([30, 38, 45]).reshape(1, -1, 1)
-    bands = ["u", "g", "r", "i", "z", "y"]
-    mag = opsim._magnitude_electron_zeropoint(bands, airmass, exptime)
-    flux = opsim._flux_electron_zeropoint(bands, airmass, exptime)
-    np.testing.assert_allclose(mag, flux2mag(flux), rtol=1e-10)
+def test_opsim_docstring():
+    """Test if OpSim class has a docstring"""
+    assert OpSim.__doc__ is not None
+    assert len(OpSim.__doc__) > 100
