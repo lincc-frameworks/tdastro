@@ -765,9 +765,9 @@ class FunctionNode(ParameterizedNode):
         """Build the input arguments for the function.
         Parameters
         ----------
-        graph_state : `GraphState`
-            An object mapping graph parameters to their values. This object is modified
-            in place as it is sampled.
+        graph_state : `dict`
+            A dictionary of dictionaries mapping node->hash, variable_name to value.
+            This data structure is modified in place to represent the current state.
         given_args : `dict`, optional
             A dictionary representing the given arguments for this sample run.
             This can be used as the JAX PyTree for differentiation.
@@ -795,9 +795,9 @@ class FunctionNode(ParameterizedNode):
         ----------
         results : iterable
             The function's results.
-        graph_state : `GraphState`
-            An object mapping graph parameters to their values. This object is modified
-            in place as it is sampled.
+        graph_state : `dict`
+            A dictionary of dictionaries mapping node->hash, variable_name to value.
+            This data structure is modified in place to represent the current state.
         """
         if len(self.outputs) == 1:
             graph_state[self.node_hash][self.outputs[0]] = results
