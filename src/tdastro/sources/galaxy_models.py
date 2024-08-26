@@ -32,8 +32,8 @@ class GaussianGalaxy(PhysicalModel):
             A length T array of rest frame timestamps.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
-        graph_state : `dict`, optional
-            A given setting of all the parameters and their values.
+        graph_state : `GraphState`
+            An object mapping graph parameters to their values.
         ra : `float`, optional
             The right ascension of the observations in degrees.
         dec : `float`, optional

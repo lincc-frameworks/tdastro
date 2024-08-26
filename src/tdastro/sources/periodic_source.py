@@ -32,8 +32,8 @@ class PeriodicSource(PhysicalModel, ABC):
             A length T array of phases, in the range [0, 1].
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
-        graph_state : `dict`, optional
-            A given setting of all the parameters and their values.
+        graph_state : `GraphState`
+            An object mapping graph parameters to their values.
         **kwargs : `dict`, optional
               Any additional keyword arguments.
 
@@ -53,8 +53,8 @@ class PeriodicSource(PhysicalModel, ABC):
             A length T array of rest frame timestamps.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
-        graph_state : `dict`, optional
-            A given setting of all the parameters and their values.
+        graph_state : `GraphState`
+            An object mapping graph parameters to their values.
         **kwargs : `dict`, optional
            Any additional keyword arguments.
 

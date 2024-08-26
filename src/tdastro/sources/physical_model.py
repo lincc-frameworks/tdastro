@@ -4,6 +4,7 @@ import numpy as np
 
 from tdastro.astro_utils.cosmology import RedshiftDistFunc
 from tdastro.base_models import ParameterizedNode
+from tdastro.graph_state import GraphState
 
 
 class PhysicalModel(ParameterizedNode):
@@ -123,8 +124,8 @@ class PhysicalModel(ParameterizedNode):
             A length T array of rest frame timestamps.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
-        graph_state : `dict`
-            A dictionary mapping graph parameters to their values.
+        graph_state : `GraphState`
+            An object mapping graph parameters to their values.
 
         Returns
         -------
@@ -142,8 +143,8 @@ class PhysicalModel(ParameterizedNode):
             A length T array of observer frame timestamps.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
-        graph_state : `dict`
-            A given setting of all the parameters and their values.
+        graph_state : `GraphState`, optional
+            An object mapping graph parameters to their values.
         given_args : `dict`, optional
             A dictionary representing the given arguments for this sample run.
             This can be used as the JAX PyTree for differentiation.
@@ -164,7 +165,9 @@ class PhysicalModel(ParameterizedNode):
 
         # Check if we need to sample the graph.
         if graph_state is None:
-            graph_state = self.sample_parameters(given_args=given_args, rng_info=rng_info, **kwargs)
+            graph_state = self.sample_parameters(
+                given_args=given_args, num_samples=1, rng_info=rng_info, **kwargs
+            )
         params = self.get_local_params(graph_state)
 
         # Pre-effects are adjustments done to times and/or wavelengths, before flux density computation.
@@ -189,7 +192,7 @@ class PhysicalModel(ParameterizedNode):
             flux_density = effect.apply(flux_density, wavelengths, graph_state, **kwargs)
         return flux_density
 
-    def sample_parameters(self, given_args=None, rng_info=None, **kwargs):
+    def sample_parameters(self, given_args=None, num_samples=1, rng_info=None, **kwargs):
         """Sample the model's underlying parameters if they are provided by a function
         or ParameterizedModel.
 
@@ -198,6 +201,9 @@ class PhysicalModel(ParameterizedNode):
         given_args : `dict`, optional
             A dictionary representing the given arguments for this sample run.
             This can be used as the JAX PyTree for differentiation.
+        num_samples : `int`
+            A count of the number of samples to compute.
+            Default: 1
         rng_info : `dict`, optional
             A dictionary of random number generator information for each node, such as
             the JAX keys or the numpy rngs.
@@ -207,8 +213,8 @@ class PhysicalModel(ParameterizedNode):
 
         Returns
         -------
-        graph_state : `dict`
-            A dictionary mapping graph parameters to their values.
+        graph_state : `GraphState`
+            An object mapping graph parameters to their values.
         """
         # If the graph has not been sampled ever, update the node positions for
         # every node (model, background, effects).
@@ -223,14 +229,16 @@ class PhysicalModel(ParameterizedNode):
 
         # We use the same seen_nodes for all sampling calls so each node
         # is sampled at most one time regardless of link structure.
-        graph_state = {}
+        graph_state = GraphState(num_samples)
         seen_nodes = {}
         if self.background is not None:
-            self.background._sample_helper(graph_state, seen_nodes, args_to_use, rng_info, **kwargs)
-        self._sample_helper(graph_state, seen_nodes, args_to_use, rng_info, **kwargs)
+            self.background._sample_helper(
+                graph_state, seen_nodes, args_to_use, num_samples, rng_info, **kwargs
+            )
+        self._sample_helper(graph_state, seen_nodes, args_to_use, num_samples, rng_info, **kwargs)
 
         for effect in self.effects:
-            effect._sample_helper(graph_state, seen_nodes, args_to_use, rng_info, **kwargs)
+            effect._sample_helper(graph_state, seen_nodes, args_to_use, num_samples, rng_info, **kwargs)
 
         return graph_state
 

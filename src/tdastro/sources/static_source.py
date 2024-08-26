@@ -27,8 +27,8 @@ class StaticSource(PhysicalModel):
             A length T array of rest frame timestamps.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
-        graph_state : `dict`
-            A dictionary mapping graph parameters to their values.
+        graph_state : `GraphState`
+            An object mapping graph parameters to their values.
         **kwargs : `dict`, optional
             Any additional keyword arguments.
 
@@ -37,5 +37,5 @@ class StaticSource(PhysicalModel):
         flux_density : `numpy.ndarray`
             A length T x N matrix of SED values.
         """
-        brightness = self.get_param(graph_state, "brightness")
-        return np.full((len(times), len(wavelengths)), brightness)
+        params = self.get_local_params(graph_state)
+        return np.full((len(times), len(wavelengths)), params["brightness"])
