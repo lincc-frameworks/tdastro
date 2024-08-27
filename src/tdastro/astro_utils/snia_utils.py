@@ -49,6 +49,17 @@ class HostmassX1Distr:
         """
         The pdf of x1 given hostmass.
 
+        Parameters
+        ----------
+        x1: `float`
+            The x1 value.
+        hostmass: `float`
+            The hostmass value.
+
+        Returns
+        -------
+        The pdf function of x1 given hostmass.
+
         """
         return self._p(x1, hostmass=self.hostmass) * norm.pdf(x1, loc=0, scale=1)
 
@@ -114,6 +125,7 @@ def _distmod_from_redshift(redshift, H0=73.0, Omega_m=0.3):
         The Hubble constant.
     Omega_m: `float`
         The matter density.
+
     Returns
     -------
     distmod : `float`
