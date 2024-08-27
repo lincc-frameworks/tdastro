@@ -5,7 +5,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
-from tdastro.astro_utils.opsim import OpSim
+from tdastro.astro_utils.opsim import (
+    OpSim,
+)
 
 
 def test_create_opsim():
@@ -14,6 +16,7 @@ def test_create_opsim():
         "observationStartMJD": np.array([0.0, 1.0, 2.0, 3.0, 4.0]),
         "fieldRA": np.array([15.0, 30.0, 15.0, 0.0, 60.0]),
         "fieldDec": np.array([-10.0, -5.0, 0.0, 5.0, 10.0]),
+        "zp_nJy": np.ones(5),
     }
     pdf = pd.DataFrame(values)
 
@@ -39,6 +42,7 @@ def test_create_opsim_custom_names():
         "custom_time": np.array([0.0, 1.0, 2.0, 3.0, 4.0]),
         "custom_ra": np.array([15.0, 30.0, 15.0, 0.0, 60.0]),
         "custom_dec": np.array([-10.0, -5.0, 0.0, 5.0, 10.0]),
+        "custom_zp": np.ones(5),
     }
 
     # Load fails if we use the default colmap.
@@ -46,7 +50,7 @@ def test_create_opsim_custom_names():
         _ = OpSim(values)
 
     # Load succeeds if we pass in a customer dictionary.
-    colmap = {"ra": "custom_ra", "dec": "custom_dec", "time": "custom_time"}
+    colmap = {"ra": "custom_ra", "dec": "custom_dec", "time": "custom_time", "zp": "custom_zp"}
     ops_data = OpSim(values, colmap)
     assert len(ops_data) == 5
 
@@ -60,6 +64,7 @@ def test_write_read_opsim():
         "observationStartMJD": np.array([0.0, 1.0, 2.0, 3.0, 4.0]),
         "fieldRA": np.array([15.0, 30.0, 15.0, 0.0, 60.0]),
         "fieldDec": np.array([-10.0, -5.0, 0.0, 5.0, 10.0]),
+        "zp_nJy": np.ones(5),
     }
     ops_data = OpSim(pd.DataFrame(values))
 
@@ -95,6 +100,7 @@ def test_obsim_range_search():
         "observationStartMJD": np.array([0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0]),
         "fieldRA": np.array([15.0, 15.0, 15.01, 15.0, 25.0, 24.99, 60.0, 5.0]),
         "fieldDec": np.array([-10.0, 10.0, 10.01, 9.99, 10.0, 9.99, -5.0, -1.0]),
+        "zp_nJy": np.ones(8),
     }
     ops_data = OpSim(values)
 
@@ -122,6 +128,7 @@ def test_opsim_get_observed_times():
         "observationStartMJD": np.array([0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0]),
         "fieldRA": np.array([15.0, 15.0, 15.01, 15.0, 25.0, 24.99, 60.0, 5.0]),
         "fieldDec": np.array([-10.0, 10.0, 10.01, 9.99, 10.0, 9.99, -5.0, -1.0]),
+        "zp_nJy": np.ones(8),
     }
     ops_data = OpSim(values)
 
@@ -142,3 +149,9 @@ def test_opsim_get_observed_times():
     assert np.allclose(times[0], [1.0, 2.0, 3.0])
     assert np.allclose(times[1], [4.0, 5.0])
     assert len(times[2]) == 0
+
+
+def test_opsim_docstring():
+    """Test if OpSim class has a docstring"""
+    assert OpSim.__doc__ is not None
+    assert len(OpSim.__doc__) > 100
