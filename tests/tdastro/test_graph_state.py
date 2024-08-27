@@ -91,9 +91,9 @@ def test_create_multi_sample_graph_state():
         state.set("b", "v2", [-2.0, -2.5, -3.0, -3.5, -4.0, 1.0])
 
 
-def test_create_multi_sample_graph_state_no_reference():
+def test_create_multi_sample_graph_state_reference():
     """Test that we can create and access a multi-sample GraphState with variables
-    that were created from each other."""
+    that were created from each other (with and without references)."""
     state = GraphState(5)
     state.set("a", "v1", 1.0)
     state.set("a", "v2", np.array([2.0, 2.5, 3.0, 3.5, 4.0]))
@@ -103,8 +103,17 @@ def test_create_multi_sample_graph_state_no_reference():
     assert np.allclose(state["a"]["v2"], [2.0, 2.5, 3.0, 3.5, 4.0])
     assert np.allclose(state["b"]["v1"], [2.0, 2.5, 3.0, 3.5, 4.0])
 
-    # Check that (c, v1) is not just pointing to the data held in (a, v2),
-    # but is its own copy.
+    # Check that (b, v1) is just pointing to the data held in (a, v2).
     state["a"]["v2"][2] = 5.0
     assert np.allclose(state["a"]["v2"], [2.0, 2.5, 5.0, 3.5, 4.0])
-    assert np.allclose(state["b"]["v1"], [2.0, 2.5, 3.0, 3.5, 4.0])
+    assert np.allclose(state["b"]["v1"], [2.0, 2.5, 5.0, 3.5, 4.0])
+
+    # If we set force_copy to True then (b, v1) should point to its own
+    # copy of the data and not inherit any changes to (a, v2).
+    state2 = GraphState(5)
+    state2.set("a", "v1", 1.0)
+    state2.set("a", "v2", np.array([2.0, 2.5, 3.0, 3.5, 4.0]))
+    state2.set("b", "v1", state2["a"]["v2"], force_copy=True)
+    state2["a"]["v2"][2] = 5.0
+    assert np.allclose(state2["a"]["v2"], [2.0, 2.5, 5.0, 3.5, 4.0])
+    assert np.allclose(state2["b"]["v1"], [2.0, 2.5, 3.0, 3.5, 4.0])
