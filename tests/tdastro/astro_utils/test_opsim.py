@@ -93,6 +93,45 @@ def test_write_read_opsim():
         ops_data.write_opsim_table(filename, overwrite=True)
 
 
+def test_opsim_filter_on_value():
+    """Check that we can filter indices based on matching data in another column."""
+    values = {
+        "observationStartMJD": np.array([0.0, 1.0, 2.0, 3.0, 4.0]),
+        "fieldRA": np.array([15.0, 30.0, 15.0, 0.0, 60.0]),
+        "fieldDec": np.array([-10.0, -5.0, 0.0, 5.0, 10.0]),
+        "filter": np.array(["r", "g", "r", "g", "r"]),
+        "zp_nJy": np.ones(5),
+    }
+    ops_data = OpSim(values)
+
+    assert np.array_equal(
+        ops_data.filter_on_value(np.array([0, 1, 2, 3, 4]), "filter", "r"),
+        np.array([0, 2, 4]),
+    )
+    assert np.array_equal(
+        ops_data.filter_on_value(np.array([0, 1, 2, 3, 4]), "filter", "g"),
+        np.array([1, 3]),
+    )
+    assert np.array_equal(
+        ops_data.filter_on_value(np.array([1, 2, 4]), "filter", "r"),
+        np.array([2, 4]),
+    )
+    assert np.array_equal(
+        ops_data.filter_on_value(np.array([1, 2, 4]), "filter", "g"),
+        np.array([1]),
+    )
+
+    # Use column mapping "time" -> "observationStartMJD"
+    assert np.array_equal(
+        ops_data.filter_on_value(np.array([0, 1, 2, 3, 4]), "time", 1.0),
+        np.array([1]),
+    )
+
+    # Fail with no matching column
+    with pytest.raises(KeyError):
+        _ = (ops_data.filter_on_value(np.array([0, 1, 2, 3, 4]), "unknown_colname", 1.0),)
+
+
 def test_obsim_range_search():
     """Test that we can extract the time, ra, and dec from an opsim data frame."""
     # Create a fake opsim data frame with just time, RA, and dec.

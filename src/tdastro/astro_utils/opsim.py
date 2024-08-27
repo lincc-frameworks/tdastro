@@ -138,10 +138,44 @@ class OpSim:  # noqa: D101
         """Access the underlying opsim table."""
         return self.table[key]
 
+    def get_column(self, colname, fail_on_missing=True):
+        """Get a specific column from the table, using the mapping of
+        column names if needed.
+
+        Parameters
+        ----------
+        colname : `str`
+            The name of the column. Can be either the name in the original table
+            or the one provided in the colmap.
+        fail_on_missing : `bool`
+            Raise an error if the column is not found.
+
+        Return
+        ------
+        column: `pandas.core.series.Series` or `None`
+            Return the column if it exists Otherwise returns None or raises a
+            KeyError depending on the setting of fail_on_missing.
+
+        Raises
+        ------
+        Raises a KeyError of the column is not in the data and fail_on_missing is True.
+        """
+        # If the name is in the column map,
+        if colname in self.colmap:
+            colname = self.colmap[colname]
+
+        # Get the column from the table.
+        if colname in self.table.columns:
+            return self.table[colname]
+        else:
+            if fail_on_missing:
+                raise KeyError(f"Column {colname} not found in OpSim")
+            return None
+
     def _build_kd_tree(self):
         """Construct the KD-tree from the opsim table."""
-        ra_rad = np.radians(self.table[self.colmap["ra"]].to_numpy())
-        dec_rad = np.radians(self.table[self.colmap["dec"]].to_numpy())
+        ra_rad = np.radians(self.get_column("ra").to_numpy())
+        dec_rad = np.radians(self.get_column("dec").to_numpy())
         # Convert the pointings to Cartesian coordinates on a unit sphere.
         x = np.cos(dec_rad) * np.cos(ra_rad)
         y = np.cos(dec_rad) * np.sin(ra_rad)
@@ -154,9 +188,9 @@ class OpSim:  # noqa: D101
     def _assign_zero_points(self, col_name):
         """Assign instrumental zero points in nJy to the OpSim tables"""
         self.table[col_name] = flux_electron_zeropoint(
-            self.table[self.colmap["filter"]],
-            self.table[self.colmap["airmass"]],
-            self.table[self.colmap["visitExposureTime"]],
+            self.get_column("filter"),
+            self.get_column("airmass"),
+            self.get_column("visitExposureTime"),
         )
 
     @classmethod
@@ -227,7 +261,35 @@ class OpSim:  # noqa: D101
 
         con.close()
 
-    def range_search(self, query_ra, query_dec, radius):
+    def filter_on_value(self, indices, colname, value):
+        """Filter a list of indices to those matching the given filter.
+
+        For example to extract observations that are only in the red band,
+        we could use:
+            matching_inds = my_opsim.filter_on_value(indices, "filter", "r")
+
+        Parameters
+        ----------
+        indices : `numpy.ndarray`
+            An array of indices to check.
+        colname : `str`
+            The name of column on which to match.
+        value : `str`
+            The value to match.
+
+        Returns
+        -------
+        result : `numpy.ndarray`
+            An array containing the indices whose value in column colname
+            matches the given value.
+        """
+        if len(indices) == 0:
+            return np.array([])
+
+        col_vals = self.get_column(colname)
+        return indices[col_vals[indices] == value]
+
+    def range_search(self, query_ra, query_dec, radius, filter_name=None):
         """Return the indices of the opsim pointings that fall within the field
         of view of the query point(s).
 
@@ -239,12 +301,14 @@ class OpSim:  # noqa: D101
             The query declination (in degrees).
         radius : `float`
             The angular radius of the observation (in degrees).
+        filter_name : `str`, optional
+            If provided, only returns observations in that filter.
 
         Returns
         -------
-        inds : `list[int]` or `list[numpy.ndarray]`
-            Depending on the input, this is either a list of indices for a single query point
-            or a list of arrays (of indices) for an array of query points.
+        inds : `numpy.ndarray[int]` or `numpy.ndarray[numpy.ndarray[int]]`
+            Depending on the input, this is either an array of indices for a single query point
+            or am array of arrays (of indices) for an array of query points.
         """
         # Transform the query point(s) to 3-d Cartesian coordinate(s).
         ra_rad = np.radians(query_ra)
@@ -256,9 +320,20 @@ class OpSim:  # noqa: D101
 
         # Adjust the angular radius to a cartesian search radius and perform the search.
         adjusted_radius = 2.0 * np.sin(0.5 * np.radians(radius))
-        return self._kd_tree.query_ball_point(cart_query, adjusted_radius)
+        inds = np.array(self._kd_tree.query_ball_point(cart_query, adjusted_radius))
+    
+        # Do a post search match on filter if needed.
+        if filter_name is not None:
+            if isinstance(query_ra, float):
+                inds = self.filter_on_value(inds, "filter", filter_name)
+            else:
+                # We filter each row individually.
+                for i, row in enumerate(inds):
+                    inds[i] = self.filter_on_value(row, "filter", filter_name)
 
-    def get_observed_times(self, query_ra, query_dec, radius):
+        return inds
+
+    def get_observed_times(self, query_ra, query_dec, radius, filter_name=None):
         """Return the times when the query point falls within the field of view of
         a pointing in the survey.
 
@@ -270,21 +345,29 @@ class OpSim:  # noqa: D101
             The query declination (in degrees).
         radius : `float`
             The angular radius of the observation (in degrees).
-
+        filter_name : `str`, optional
+            If provided, only returns observations in that filter.
+    
         Returns
         -------
         results : `numpy.ndarray`
             Depending on the input, this is either an array of times (for a single query point)
             or an array of arrays of times (for multiple query points).
         """
-        neighbors = self.range_search(query_ra, query_dec, radius)
+        neighbors = self.range_search(query_ra, query_dec, radius, filter_name)
         times = self.table[self.colmap["time"]].to_numpy()
 
         if isinstance(query_ra, float):
-            return times[neighbors]
+            if len(neighbors) > 0:
+                return times[neighbors]
+            else:
+                return np.array([])
         else:
             num_queries = len(query_ra)
             results = np.full((num_queries), None)
             for i in range(num_queries):
-                results[i] = times[neighbors[i]]
+                if len(neighbors[i]) > 0:
+                    results[i] = times[neighbors[i]]
+                else:
+                    results[i] = np.array([])
         return results
