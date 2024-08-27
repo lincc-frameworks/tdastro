@@ -857,7 +857,8 @@ class FunctionNode(ParameterizedNode):
                 "set func or override compute()."
             )
 
-        # Call the function and save the results in the graph_state
+        # Build a dictionary of arguments for the function, call the function, and save
+        # the results in the graph state.
         args = self._build_inputs(graph_state, given_args, **kwargs)
         results = self.func(**args)
         self._save_results(results, graph_state)
