@@ -41,7 +41,9 @@ class HostmassX1Distr:
             The probablity.
         """
 
-        p = 0.0 if x1 < -5 or x1 > 5 else (np.exp(-(x1**2)) if x1 < 0.0 else 1.0) if hostmass < 10.0 else 1.0
+        p = np.exp(-(np.max(0, x1)**2)
+        p = np.where(np.logical_and(x1 >= -5, x1 <= 5), p, 0.0)
+        p = np.where(hostmass < 10.0, p, 1.0)
 
         return p
 
