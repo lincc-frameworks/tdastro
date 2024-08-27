@@ -59,3 +59,19 @@ def test_physical_model_get_all_node_info():
     assert "bg" in node_labels
     assert "source" in node_labels
     assert "noise" in node_labels
+
+
+def test_physical_model_build_np_rngs():
+    """Test that we can build a dictionary of random number generators from a PhysicalModel."""
+    bg_model = PhysicalModel(ra=1.0, dec=2.0, distance=3.0, redshift=0.0, node_label="bg")
+    source_model = PhysicalModel(
+        ra=1.0,
+        dec=2.0,
+        distance=3.0,
+        redshift=0.0,
+        background=bg_model,
+        node_label="source",
+    )
+    source_model.add_effect(WhiteNoise(10.0, node_label="noise"))
+    np_rngs = source_model.build_np_rngs(base_seed=10)
+    assert len(np_rngs) == 3

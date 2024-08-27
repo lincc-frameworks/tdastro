@@ -4,6 +4,7 @@ import numpy as np
 
 from tdastro.astro_utils.cosmology import RedshiftDistFunc
 from tdastro.base_models import ParameterizedNode
+from tdastro.util_nodes.np_random import build_rngs_from_hashes
 
 
 class PhysicalModel(ParameterizedNode):
@@ -263,3 +264,25 @@ class PhysicalModel(ParameterizedNode):
         for effect in self.effects:
             result.extend(effect.get_all_node_info(field, seen_nodes))
         return result
+
+    def build_np_rngs(self, base_seed=None):
+        """Construct a dictionary of random generators for this model.
+
+        Parameters
+        ----------
+        base_seed : `int`
+            The key on which to base the keys for the individual nodes.
+
+        Returns
+        -------
+        np_rngs : `dict`
+            A dictionary mapping each node's hash value to a numpy random number generator.
+        """
+        # If the graph has not been sampled ever, update the node positions for
+        # every node (model, background, effects).
+        if self.node_pos is None:
+            self.set_graph_positions()
+
+        node_hashes = self.get_all_node_info("node_hash")
+        np_rngs = build_rngs_from_hashes(node_hashes, base_seed)
+        return np_rngs
