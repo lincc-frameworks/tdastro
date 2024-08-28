@@ -570,7 +570,7 @@ class ParameterizedNode:
 
         Returns
         -------
-        graph_state : `dict`
+        graph_state : `GraphState`
             A dictionary of dictionaries mapping node->hash, variable_name to either a
             value or array of values. This data structure is modified in place to represent
             the model's state(s).
