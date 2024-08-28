@@ -55,6 +55,12 @@ def test_create_opsim_custom_names():
     assert len(ops_data) == 5
 
 
+def test_read_small_opsim(opsim_small):
+    """Read in a small OpSim file from the testing data directory."""
+    ops_data = OpSim.from_db(opsim_small)
+    assert len(ops_data) == 300
+
+
 def test_write_read_opsim():
     """Create a minimal opsim data frame, test that we can write it,
     and test that we can correctly read it back in."""
