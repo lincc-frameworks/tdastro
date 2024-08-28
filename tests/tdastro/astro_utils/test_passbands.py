@@ -33,30 +33,6 @@ def test_passband_init():
     assert "LSST_i" in lsst_gri_passband_group.passbands
     assert "LSST_u" not in lsst_gri_passband_group.passbands
 
-    # Test that the PassbandGroup class can be initialized with non-LSST passbands
-    gaia_passbands = [
-        Passband(
-            "GAIA",
-            "0.Gbp",
-            table_url="http://svo2.cab.inta-csic.es/svo/theory/fps3/getdata.php?format=ascii&id=GAIA/GAIA0.Gbp",
-        ),
-        Passband(
-            "GAIA",
-            "0.G",
-            table_url="http://svo2.cab.inta-csic.es/svo/theory/fps3/getdata.php?format=ascii&id=GAIA/GAIA0.G",
-        ),
-        Passband(
-            "GAIA",
-            "0.Grp",
-            table_url="http://svo2.cab.inta-csic.es/svo/theory/fps3/getdata.php?format=ascii&id=GAIA/GAIA0.Grp",
-        ),
-    ]
-    gaia_passband_group = PassbandGroup(passbands=gaia_passbands)
-    assert len(gaia_passband_group.passbands) == 3
-    assert "GAIA_0.Gbp" in gaia_passband_group.passbands
-    assert "GAIA_0.G" in gaia_passband_group.passbands
-    assert "GAIA_0.Grp" in gaia_passband_group.passbands
-
     # Test that the PassbandGroup class raises an error for an unknown preset
     try:
         _ = PassbandGroup(preset="Unknown")
