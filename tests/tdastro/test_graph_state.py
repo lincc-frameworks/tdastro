@@ -28,7 +28,7 @@ def test_create_single_sample_graph_state():
     assert a_vals["v1"] == 1.0
     assert a_vals["v2"] == 2.0
 
-    # Can't access the second value of a single element sample.
+    # Can't access an out-of-bounds sample_num.
     with pytest.raises(ValueError):
         _ = state.get_node_state("a", 2)
 
