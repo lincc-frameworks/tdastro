@@ -285,6 +285,7 @@ class OpSim:  # noqa: D101
         """
         if len(indices) == 0:
             return np.array([])
+        indices = np.array(indices)
 
         col_vals = self.get_column(colname)
         return indices[col_vals[indices] == value]
@@ -321,7 +322,7 @@ class OpSim:  # noqa: D101
         # Adjust the angular radius to a cartesian search radius and perform the search.
         adjusted_radius = 2.0 * np.sin(0.5 * np.radians(radius))
         inds = np.array(self._kd_tree.query_ball_point(cart_query, adjusted_radius))
-    
+
         # Do a post search match on filter if needed.
         if filter_name is not None:
             if isinstance(query_ra, float):
@@ -347,7 +348,7 @@ class OpSim:  # noqa: D101
             The angular radius of the observation (in degrees).
         filter_name : `str`, optional
             If provided, only returns observations in that filter.
-    
+
         Returns
         -------
         results : `numpy.ndarray`

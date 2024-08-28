@@ -140,6 +140,7 @@ def test_obsim_range_search():
         "fieldRA": np.array([15.0, 15.0, 15.01, 15.0, 25.0, 24.99, 60.0, 5.0]),
         "fieldDec": np.array([-10.0, 10.0, 10.01, 9.99, 10.0, 9.99, -5.0, -1.0]),
         "zp_nJy": np.ones(8),
+        "filter": np.array(["r", "g", "r", "g", "r", "g", "r", "g"]),
     }
     ops_data = OpSim(values)
 
@@ -150,6 +151,12 @@ def test_obsim_range_search():
     assert set(ops_data.range_search(15.0, 10.0, 1e-6)) == set([1])
     assert set(ops_data.range_search(15.02, 10.0, 1e-6)) == set()
 
+    # Test single query with filter matching.
+    assert set(ops_data.range_search(15.0, 10.0, 0.5, filter_name="r")) == set([2])
+    assert set(ops_data.range_search(15.0, 10.0, 0.5, filter_name="g")) == set([1, 3])
+    assert set(ops_data.range_search(15.0, 10.0, 100.0, filter_name="r")) == set([0, 2, 4, 6])
+    assert set(ops_data.range_search(15.0, 10.0, 100.0, filter_name="b")) == set()
+
     # Test a batched query.
     query_ra = np.array([15.0, 25.0, 15.0])
     query_dec = np.array([10.0, 10.0, 5.0])
@@ -157,6 +164,15 @@ def test_obsim_range_search():
     assert len(neighbors) == 3
     assert set(neighbors[0]) == set([1, 2, 3])
     assert set(neighbors[1]) == set([4, 5])
+    assert set(neighbors[2]) == set()
+
+    # Test a batched query with filter matching.
+    query_ra = np.array([15.0, 25.0, 15.0])
+    query_dec = np.array([10.0, 10.0, 5.0])
+    neighbors = ops_data.range_search(query_ra, query_dec, 0.5, filter_name="g")
+    assert len(neighbors) == 3
+    assert set(neighbors[0]) == set([1, 3])
+    assert set(neighbors[1]) == set([5])
     assert set(neighbors[2]) == set()
 
 
