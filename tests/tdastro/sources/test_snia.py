@@ -40,7 +40,7 @@ def draw_single_random_sn(
         dec = source.get_param(state, "dec")
         obs = opsim_data.get_observations(ra, dec, radius=1.75, cols=["time", "filter"])
 
-        times = obs["times"]
+        times = obs["time"]
         phase_obs = times - t0
         times = np.sort(times[(phase_obs > -20) & (phase_obs < 50)])
         # Note that we don't have filter info yet.
