@@ -42,6 +42,7 @@ def make_sampled_opsim(ra_vals, dec_vals, time_step, num_visits):
     num_obs = len(opsim_data["observationStartMJD"])
     opsim_data["zp_nJy"] = np.ones(num_obs)
     opsim_data["filter"] = np.full((num_obs), "r")
+    opsim_data["filter"][0::2] = "g"
 
     return OpSim(opsim_data)
 
