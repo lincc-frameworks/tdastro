@@ -1,6 +1,6 @@
 {
     "benchmarks.time_chained_evaluate": {
-        "code": "def time_chained_evaluate():\n    \"\"\"Time the generation of random numbers with an numpy generation node.\"\"\"\n\n    def _add_func(a, b):\n        return a + b\n\n    # Generate a starting mean and scale from uniform distributions. Use those to\n    # generate a sample from the normal distribution. Then shift that sample by -5.0.\n    loc_node = NumpyRandomFunc(\"uniform\", low=10.0, high=20.0)\n    scale_node = NumpyRandomFunc(\"uniform\", low=0.5, high=1.0)\n    norm_node = NumpyRandomFunc(\"normal\", loc=loc_node, scale=scale_node)\n    val_node = FunctionNode(_add_func, a=norm_node, b=-5.0)\n\n    # Generate 100,000 samples.\n    for _ in range(100_000):\n        _ = val_node.sample_parameters()",
+        "code": "def time_chained_evaluate():\n    \"\"\"Time the generation of random numbers with an numpy generation node.\"\"\"\n\n    def _add_func(a, b):\n        return a + b\n\n    # Generate a starting mean and scale from uniform distributions. Use those to\n    # generate a sample from the normal distribution. Then shift that sample by -5.0.\n    loc_node = NumpyRandomFunc(\"uniform\", low=10.0, high=20.0)\n    scale_node = NumpyRandomFunc(\"uniform\", low=0.5, high=1.0)\n    norm_node = NumpyRandomFunc(\"normal\", loc=loc_node, scale=scale_node)\n    val_node = FunctionNode(_add_func, a=norm_node, b=-5.0)\n\n    # Generate 100,000 samples.\n    _ = val_node.sample_parameters(num_samples=100_000)",
         "min_run_count": 2,
         "name": "benchmarks.time_chained_evaluate",
         "number": 0,
@@ -11,7 +11,7 @@
         "sample_time": 0.01,
         "type": "time",
         "unit": "seconds",
-        "version": "9374def8dbd7ba817aa30bb5e1ae777f5f09cf6166f29e777241b82864d36e2f",
+        "version": "b4af9f0021b65861c69db8702dd0a230a74916ac2d379702d0c9d1f047d711f2",
         "warmup_time": -1
     },
     "version": 2
