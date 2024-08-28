@@ -65,6 +65,16 @@ def test_numpy_random_uniform():
     assert np.abs(np.mean(values) - 11.0) < 0.5
 
 
+def test_numpy_random_uniform_multi():
+    """Test that we can many generate numbers at once from a uniform distribution."""
+    np_node = NumpyRandomFunc("uniform")
+    state = np_node.sample_parameters(num_samples=10_000)
+    samples = np_node.get_param(state, "function_node_result")
+    assert len(samples) == 10_000
+    assert len(np.unique(samples)) > 1_000
+    assert np.abs(np.mean(samples) - 0.5) < 0.01
+
+
 def test_numpy_random_normal():
     """Test that we can generate numbers from a normal distribution."""
     np_node = NumpyRandomFunc("normal", loc=100.0, scale=10.0, seed=100)

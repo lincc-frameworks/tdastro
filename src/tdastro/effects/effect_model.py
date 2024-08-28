@@ -18,8 +18,8 @@ class EffectModel(ParameterizedNode):
             A length T X N matrix of flux density values.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
-        graph_state : `dict`
-            A dictionary mapping graph parameters to their values.
+        graph_state : `GraphState`
+            An object mapping graph parameters to their values.
         **kwargs : `dict`, optional
            Any additional keyword arguments.
 

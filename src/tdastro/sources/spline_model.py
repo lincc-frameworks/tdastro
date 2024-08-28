@@ -78,8 +78,8 @@ class SplineModel(PhysicalModel):
             A length T array of rest frame timestamps.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
-        graph_state : `dict`, optional
-            A dictionary mapping graph parameters to their values.
+        graph_state : `GraphState`
+            An object mapping graph parameters to their values.
         **kwargs : `dict`, optional
            Any additional keyword arguments.
 

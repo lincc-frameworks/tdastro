@@ -58,7 +58,7 @@ class SncosmoWrapperModel(PhysicalModel):
 
     def _update_sncosmo_model_parameters(self, graph_state):
         """Update the parameters for the wrapped sncosmo model."""
-        local_params = self.get_local_params(graph_state)
+        local_params = graph_state.get_node_state(self.node_hash, 0)
         sn_params = {}
         for name in self.source_param_names:
             sn_params[name] = local_params[name]
@@ -97,7 +97,7 @@ class SncosmoWrapperModel(PhysicalModel):
                 self.source_param_names.append(key)
         self.source.set(**kwargs)
 
-    def _sample_helper(self, graph_state, seen_nodes, given_args=None, rng_info=None):
+    def _sample_helper(self, graph_state, seen_nodes, given_args=None, num_samples=1, rng_info=None):
         """Internal recursive function to sample the model's underlying parameters
         if they are provided by a function or ParameterizedNode.
 
@@ -106,15 +106,18 @@ class SncosmoWrapperModel(PhysicalModel):
 
         Parameters
         ----------
-        graph_state : `dict`
-            A dictionary of dictionaries mapping node->hash, variable_name to value.
-            This data structure is modified in place to represent the current state.
+        graph_state : `GraphState`
+            An object mapping graph parameters to their values. This object is modified
+            in place as it is sampled.
         seen_nodes : `dict`
             A dictionary mapping nodes seen during this sampling run to their ID.
             Used to avoid sampling nodes multiple times and to validity check the graph.
         given_args : `dict`, optional
             A dictionary representing the given arguments for this sample run.
             This can be used as the JAX PyTree for differentiation.
+        num_samples : `int`
+            A count of the number of samples to compute.
+            Default: 1
         rng_info : `dict`, optional
             A dictionary of random number generator information for each node, such as
             the JAX keys or the numpy rngs.
@@ -135,8 +138,8 @@ class SncosmoWrapperModel(PhysicalModel):
             A length T array of rest frame timestamps.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
-        graph_state : `dict`, optional
-            A given setting of all the parameters and their values.
+        graph_state : `GraphState`
+            An object mapping graph parameters to their values.
         **kwargs : `dict`, optional
            Any additional keyword arguments.
 
@@ -145,6 +148,6 @@ class SncosmoWrapperModel(PhysicalModel):
         flux_density : `numpy.ndarray`
             A length T x N matrix of SED values.
         """
-        t0 = self.get_param(graph_state, "t0")
+        params = self.get_local_params(graph_state)
         self._update_sncosmo_model_parameters(graph_state)
-        return self.source.flux(times - t0, wavelengths)
+        return self.source.flux(times - params["t0"], wavelengths)

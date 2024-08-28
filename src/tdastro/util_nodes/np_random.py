@@ -134,9 +134,9 @@ class NumpyRandomFunc(FunctionNode):
 
         Parameters
         ----------
-        graph_state : `dict`
-            A dictionary of dictionaries mapping node->hash, variable_name to value.
-            This data structure is modified in place to represent the current state.
+        graph_state : `GraphState`
+            An object mapping graph parameters to their values. This object is modified
+            in place as it is sampled.
         given_args : `dict`, optional
             A dictionary representing the given arguments for this sample run.
             This can be used as the JAX PyTree for differentiation.
@@ -157,17 +157,18 @@ class NumpyRandomFunc(FunctionNode):
         ``ValueError`` is ``func`` attribute is ``None``.
         """
         args = self._build_inputs(graph_state, given_args, **kwargs)
+        num_samples = None if graph_state.num_samples == 1 else graph_state.num_samples
 
-        # If we are given a numpy random number generator, use that for this sample.
+        # If a random number generator is given use that. Otherwise use the default one.
         if rng_info is not None and self.node_hash in rng_info:
             func = getattr(rng_info[self.node_hash], self.func_name)
-            results = func(**args)
+            results = func(**args, size=num_samples)
         else:
-            results = self.func(**args)
+            results = self.func(**args, size=num_samples)
         self._save_results(results, graph_state)
         return results
 
-    def generate(self, given_args=None, rng_info=None, **kwargs):
+    def generate(self, given_args=None, num_samples=1, rng_info=None, **kwargs):
         """A helper function for testing that regenerates the output.
 
         Parameters
@@ -175,11 +176,14 @@ class NumpyRandomFunc(FunctionNode):
         given_args : `dict`, optional
             A dictionary representing the given arguments for this sample run.
             This can be used as the JAX PyTree for differentiation.
+        num_samples : `int`
+            A count of the number of samples to compute.
+            Default: 1
         rng_info : `dict`, optional
             A dictionary of random number generator information for each node, such as
             the JAX keys or the numpy rngs.
         **kwargs : `dict`, optional
             Additional function arguments.
         """
-        state = self.sample_parameters(given_args, rng_info)
+        state = self.sample_parameters(given_args, num_samples, rng_info)
         return self.compute(state, given_args, rng_info, **kwargs)

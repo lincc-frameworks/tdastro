@@ -21,5 +21,4 @@ def time_chained_evaluate():
     val_node = FunctionNode(_add_func, a=norm_node, b=-5.0)
 
     # Generate 100,000 samples.
-    for _ in range(100_000):
-        _ = val_node.sample_parameters()
+    _ = val_node.sample_parameters(num_samples=100_000)

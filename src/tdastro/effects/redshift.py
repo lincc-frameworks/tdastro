@@ -43,8 +43,8 @@ class Redshift(EffectModel):
             The times at which the observation is made.
         observer_frame_wavelengths : numpy.ndarray
             The wavelengths at which the observation is made.
-        graph_state : `dict`
-            A dictionary mapping graph parameters to their values.
+        graph_state : `GraphState`
+            An object mapping graph parameters to their values.
         **kwargs : `dict`, optional
            Any additional keyword arguments.
 
@@ -71,8 +71,8 @@ class Redshift(EffectModel):
             A length T X N matrix of flux density values.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
-        graph_state : `dict`, optional
-            A dictionary mapping graph parameters to their values.
+        graph_state : `GraphState`
+            An object mapping graph parameters to their values.
         **kwargs : `dict`, optional
             Any additional keyword arguments.
 
@@ -81,4 +81,5 @@ class Redshift(EffectModel):
         flux_density : `numpy.ndarray`
             The redshifted results.
         """
-        return flux_density / (1 + self.get_param(graph_state, "redshift"))
+        params = self.get_local_params(graph_state)
+        return flux_density / (1 + params["redshift"])

@@ -94,9 +94,9 @@ class JaxRandomFunc(FunctionNode):
 
         Parameters
         ----------
-        graph_state : `dict`
-            A dictionary of dictionaries mapping node->hash, variable_name to value.
-            This data structure is modified in place to represent the current state.
+        graph_state : `GraphState`
+            An object mapping graph parameters to their values. This object is modified
+            in place as it is sampled.
         given_args : `dict`, optional
             A dictionary representing the given arguments for this sample run.
             This can be used as the JAX PyTree for differentiation.
@@ -126,11 +126,15 @@ class JaxRandomFunc(FunctionNode):
 
         # Generate the results.
         args = self._build_inputs(graph_state, given_args, **kwargs)
-        results = float(self.func(current_key, **args))
-        self._save_results(results, graph_state)
+        if graph_state.num_samples == 1:
+            results = float(self.func(current_key, **args))
+        else:
+            use_shape = [graph_state.num_samples]
+            results = self.func(current_key, shape=use_shape, **args)
+        graph_state.set(self.node_hash, self.outputs[0], results)
         return results
 
-    def generate(self, given_args=None, rng_info=None, **kwargs):
+    def generate(self, given_args=None, num_samples=1, rng_info=None, **kwargs):
         """A helper function for testing that regenerates the parameters.
 
         Parameters
@@ -138,13 +142,16 @@ class JaxRandomFunc(FunctionNode):
         given_args : `dict`, optional
             A dictionary representing the given arguments for this sample run.
             This can be used as the JAX PyTree for differentiation.
+        num_samples : `int`
+            A count of the number of samples to compute.
+            Default: 1
         rng_info : `dict`, optional
             A dictionary of random number generator information for each node, such as
             the JAX keys or the numpy rngs.
         **kwargs : `dict`, optional
             Additional function arguments.
         """
-        state = self.sample_parameters(given_args, rng_info)
+        state = self.sample_parameters(given_args, num_samples, rng_info)
         return self.compute(state, given_args, rng_info, **kwargs)
 
 
@@ -171,7 +178,7 @@ class JaxRandomNormal(FunctionNode):
         self.jax_func = JaxRandomFunc(jax.random.normal, **kwargs)
         super().__init__(_shift_and_scale, value=self.jax_func, loc=loc, scale=scale)
 
-    def generate(self, given_args=None, rng_info=None, **kwargs):
+    def generate(self, given_args=None, num_samples=1, rng_info=None, **kwargs):
         """A helper function for testing that regenerates the parameters.
 
         Parameters
@@ -179,11 +186,14 @@ class JaxRandomNormal(FunctionNode):
         given_args : `dict`, optional
             A dictionary representing the given arguments for this sample run.
             This can be used as the JAX PyTree for differentiation.
+        num_samples : `int`
+            A count of the number of samples to compute.
+            Default: 1
         rng_info : `dict`, optional
             A dictionary of random number generator information for each node, such as
             the JAX keys or the numpy rngs.
         **kwargs : `dict`, optional
             Any additional keyword arguments.
         """
-        state = self.sample_parameters(given_args, rng_info)
+        state = self.sample_parameters(given_args, num_samples, rng_info)
         return self.compute(state, given_args, rng_info, **kwargs)
