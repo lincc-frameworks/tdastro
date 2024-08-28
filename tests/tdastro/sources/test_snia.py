@@ -38,7 +38,9 @@ def draw_single_random_sn(
     if opsim:
         ra = source.get_param(state, "ra")
         dec = source.get_param(state, "dec")
-        times = opsim_data.get_observed_times(ra, dec, radius=1.75)
+        obs = opsim_data.get_observations(ra, dec, radius=1.75, cols=["time", "filter"])
+
+        times = obs["time"]
         phase_obs = times - t0
         times = np.sort(times[(phase_obs > -20) & (phase_obs < 50)])
         # Note that we don't have filter info yet.
@@ -68,13 +70,30 @@ def draw_single_random_sn(
     return res
 
 
-def test_snia_end2end(opsim=False, nsample=1, return_result=False, phase_rest=None, wavelengths_rest=None):
+def test_snia_end2end(
+    opsim_small,
+    opsim_db_file=None,
+    opsim=True,
+    nsample=1,
+    return_result=False,
+    phase_rest=None,
+    wavelengths_rest=None,
+):
     """Test that we can sample and create SN Ia simulation using the salt3 model."""
+
+    opsim_data = OpSim.from_db(opsim_db_file if opsim_db_file else opsim_small) if opsim else None
+
+    ra_min = opsim_data["fieldRA"].min() if opsim_data else 0.0
+    ra_max = opsim_data["fieldRA"].max() if opsim_data else 360.0
+    dec_min = opsim_data["fieldDec"].min() if opsim_data else -90.0
+    dec_max = opsim_data["fieldDec"].max() if opsim_data else 33.5
+    t_min = opsim_data["observationStartMJD"].min() if opsim_data else 60796.0
+    t_max = opsim_data["observationStartMJD"].max() if opsim_data else 64448.0
 
     # Create a host galaxy anywhere on the sky.
     host = SNIaHost(
-        ra=NumpyRandomFunc("uniform", low=0.0, high=360.0),
-        dec=NumpyRandomFunc("uniform", low=-90.0, high=33.5),
+        ra=NumpyRandomFunc("uniform", low=ra_min, high=ra_max),
+        dec=NumpyRandomFunc("uniform", low=dec_min, high=dec_max),
         hostmass=NumpyRandomFunc("uniform", low=7, high=12),
         redshift=NumpyRandomFunc("uniform", low=0.01, high=0.02),
     )
@@ -97,7 +116,7 @@ def test_snia_end2end(opsim=False, nsample=1, return_result=False, phase_rest=No
 
     source = SncosmoWrapperModel(
         sncosmo_modelname,
-        t0=NumpyRandomFunc("uniform", low=60796, high=64448),
+        t0=NumpyRandomFunc("uniform", low=t_min, high=t_max),
         x0=x0_func,
         x1=x1_func,
         c=c_func,
@@ -118,13 +137,6 @@ def test_snia_end2end(opsim=False, nsample=1, return_result=False, phase_rest=No
             ),
         ]
     )
-
-    if opsim:
-        opsim_file = "/Users/mi/Work/tdastro/opsim_db/baseline_v3.4_10yrs.db"
-        opsim_table = OpSim.from_db(opsim_file)
-        opsim_data = OpSim(opsim_table)
-    else:
-        opsim_data = None
 
     res_list = []
 
@@ -158,8 +170,11 @@ def test_snia_end2end(opsim=False, nsample=1, return_result=False, phase_rest=No
         model.update(saltpars)
         z = p["redshift"]
         wave = wavelengths_rest * (1 + z)
-        time = phase_rest * (1 + z) + p["t0"]
-        assert np.allclose(res["times"], time)
+        if opsim is None:
+            time = phase_rest * (1 + z) + p["t0"]
+            assert np.allclose(res["times"], time)
+        else:
+            time = res["times"]
 
         flux_sncosmo = model.flux(time, wave)
         assert np.allclose(res["flux_flam"] * 1e10, flux_sncosmo * 1e10)
