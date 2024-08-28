@@ -258,33 +258,36 @@ class OpSim:  # noqa: D101
         adjusted_radius = 2.0 * np.sin(0.5 * np.radians(radius))
         return self._kd_tree.query_ball_point(cart_query, adjusted_radius)
 
-    def get_observed_times(self, query_ra, query_dec, radius):
-        """Return the times when the query point falls within the field of view of
-        a pointing in the survey.
+    def get_observations(self, query_ra, query_dec, radius, cols=None):
+        """Return the observation information when the query point falls within
+        the field of view of a pointing in the survey.
 
         Parameters
         ----------
-        query_ra : `float` or `numpy.ndarray`
+        query_ra : `float`
             The query right ascension (in degrees).
-        query_dec : `float` or `numpy.ndarray`
+        query_dec : `float`
             The query declination (in degrees).
         radius : `float`
             The angular radius of the observation (in degrees).
+        cols : `list`
+            A list of the names of columns to extract. If `None` returns all the
+            columns.
 
         Returns
         -------
-        results : `numpy.ndarray`
-            Depending on the input, this is either an array of times (for a single query point)
-            or an array of arrays of times (for multiple query points).
+        results : `dict`
+            A dictionary mapping the given column name to a numpy array of values.
         """
         neighbors = self.range_search(query_ra, query_dec, radius)
-        times = self.table[self.colmap["time"]].to_numpy()
 
-        if isinstance(query_ra, float):
-            return times[neighbors]
-        else:
-            num_queries = len(query_ra)
-            results = np.full((num_queries), None)
-            for i in range(num_queries):
-                results[i] = times[neighbors[i]]
+        results = {}
+        if cols is None:
+            cols = self.table.columns.to_list()
+        for col in cols:
+            # Allow the user to specify either the original or mapped column names.
+            table_col = self.colmap.get(col, col)
+            if table_col not in self.table.columns:
+                raise KeyError(f"Unrecognized column name {table_col}")
+            results[col] = self.table[table_col][neighbors].to_numpy()
         return results

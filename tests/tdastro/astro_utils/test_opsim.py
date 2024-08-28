@@ -127,7 +127,7 @@ def test_obsim_range_search():
     assert set(neighbors[2]) == set()
 
 
-def test_opsim_get_observed_times():
+def test_opsim_get_observations():
     """Test that we can extract the time, ra, and dec from an opsim data frame."""
     # Create a fake opsim data frame with just time, RA, and dec.
     values = {
@@ -138,23 +138,36 @@ def test_opsim_get_observed_times():
     }
     ops_data = OpSim(values)
 
-    assert np.allclose(ops_data.get_observed_times(15.0, 10.0, 0.5), [1.0, 2.0, 3.0])
-    assert np.allclose(ops_data.get_observed_times(25.0, 10.0, 0.5), [4.0, 5.0])
-    assert np.allclose(
-        ops_data.get_observed_times(15.0, 10.0, 100.0),
-        [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0],
-    )
-    assert np.allclose(ops_data.get_observed_times(15.0, 10.0, 1e-6), [1.0])
-    assert len(ops_data.get_observed_times(15.02, 10.0, 1e-6)) == 0
+    # Test basic queries (all columns).
+    obs = ops_data.get_observations(15.0, 10.0, 0.5)
+    assert len(obs) == 4
+    assert np.allclose(obs["observationStartMJD"], [1.0, 2.0, 3.0])
 
-    # Test a batched query.
-    query_ra = np.array([15.0, 25.0, 15.0])
-    query_dec = np.array([10.0, 10.0, 5.0])
-    times = ops_data.get_observed_times(query_ra, query_dec, 0.5)
-    assert len(times) == 3
-    assert np.allclose(times[0], [1.0, 2.0, 3.0])
-    assert np.allclose(times[1], [4.0, 5.0])
-    assert len(times[2]) == 0
+    obs = ops_data.get_observations(25.0, 10.0, 0.5)
+    assert np.allclose(obs["observationStartMJD"], [4.0, 5.0])
+
+    obs = ops_data.get_observations(15.0, 10.0, 100.0)
+    assert np.allclose(obs["observationStartMJD"], [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0])
+
+    obs = ops_data.get_observations(15.0, 10.0, 1e-6)
+    assert np.allclose(obs["observationStartMJD"], [1.0])
+
+    obs = ops_data.get_observations(15.02, 10.0, 1e-6)
+    assert len(obs["observationStartMJD"]) == 0
+
+    # Test we can get a subset of columns.
+    obs = ops_data.get_observations(15.0, 10.0, 0.5, cols=["observationStartMJD", "zp_nJy"])
+    assert len(obs) == 2
+    assert np.allclose(obs["observationStartMJD"], [1.0, 2.0, 3.0])
+
+    # Test we can use the colmap names.
+    obs = ops_data.get_observations(15.0, 10.0, 0.5, cols=["time", "ra"])
+    assert len(obs) == 2
+    assert np.allclose(obs["time"], [1.0, 2.0, 3.0])
+
+    # Test we fail with an unrecognized column name.
+    with pytest.raises(KeyError):
+        _ = ops_data.get_observations(15.0, 10.0, 0.5, cols=["time", "custom_col"])
 
 
 def test_opsim_docstring():
