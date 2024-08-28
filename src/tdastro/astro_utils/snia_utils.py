@@ -30,19 +30,19 @@ class HostmassX1Distr:
 
         Parameters
         ----------
-        x1: `float`
+        x1: `numpy.ndarray`
             The x1 value.
         hostmass: `float`
             The hostmass value.
 
         Returns
         -------
-        p: `float`
+        p: `numpy.ndarray`
             The probablity.
         """
 
-        p = np.exp(-(np.max(0, x1)**2)
-        p = np.where(np.logical_and(x1 >= -5, x1 <= 5), p, 0.0)
+        p = np.exp(-(np.minimum(0, x1) ** 2))
+        p = np.where(np.logical_and(x1 > -5, x1 < 5), p, 0.0)
         p = np.where(hostmass < 10.0, p, 1.0)
 
         return p
@@ -53,7 +53,7 @@ class HostmassX1Distr:
 
         Parameters
         ----------
-        x1: `float`
+        x1: `numpy.ndarray`
             The x1 value.
         hostmass: `float`
             The hostmass value.
