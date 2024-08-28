@@ -22,7 +22,7 @@ def test_create_single_sample_graph_state():
     with pytest.raises(KeyError):
         _ = state["c"]["v1"]
 
-    # Check tht we can get all the values for a specific node.
+    # Check that we can get all the values for a specific node.
     a_vals = state.get_node_state("a")
     assert len(a_vals) == 2
     assert a_vals["v1"] == 1.0
