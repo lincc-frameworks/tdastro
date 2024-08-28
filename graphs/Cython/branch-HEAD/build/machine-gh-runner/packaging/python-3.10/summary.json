@@ -1,1 +1,1 @@
-[{"name": "benchmarks.time_chained_evaluate", "idx": null, "pretty_name": "benchmarks.time_chained_evaluate", "last_rev": 283, "last_value": 1.2154070764999858, "last_err": 0.37288922217233056, "prev_value": null, "change_rev": null}]
+[{"name": "benchmarks.time_chained_evaluate", "idx": null, "pretty_name": "benchmarks.time_chained_evaluate", "last_rev": 285, "last_value": 1.2090827640000157, "last_err": 0.018615164934483903, "prev_value": 1.0836575669999888, "change_rev": [226, 230]}]
