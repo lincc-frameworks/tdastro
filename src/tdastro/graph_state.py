@@ -107,7 +107,7 @@ class GraphState:
 
         # Set the actual values.
         if self.num_samples == 1:
-            # If this GraphStae holds only a single sample, set it from the given value.
+            # If this GraphState holds only a single sample, set it from the given value.
             self.states[node_name][var_name] = value
         elif hasattr(value, "__len__") and hasattr(value, "copy"):
             # If we are given an array of samples, confirm it is the correct length and use it.
