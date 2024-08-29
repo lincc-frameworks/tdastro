@@ -121,6 +121,31 @@ class GraphState:
             # If the GraphState holds N samples and we got a single value, make an array of it.
             self.states[node_name][var_name] = np.full((self.num_samples), value)
 
+    def update(self, inputs, force_copy=False):
+        """Set multiple parameters' value in the GraphState from a GraphState or a
+        dictionary of the same form.
+
+        Parameters
+        ----------
+        inputs : `GraphState` or `dict`
+            Values to copy.
+        force_copy : `bool`
+            Make a copy of data in an array. If set to ``False`` this will link
+            to the array, saving memory and computation time.
+            Default: ``False``
+        """
+        if isinstance(inputs, GraphState):
+            if self.num_samples != inputs.num_samples:
+                raise ValueError("GraphSates must have the same number of samples.")
+            new_states = inputs.states
+        else:
+            new_states = inputs
+
+        # Set the values one by one.
+        for node_name, node_vars in new_states.items():
+            for var_name, value in node_vars.items():
+                self.set(node_name, var_name, value, force_copy=force_copy)
+
     def extract_single_sample(self, sample_num):
         """Create a new GraphState with a single sample state.
 
