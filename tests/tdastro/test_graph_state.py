@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from tdastro.graph_state import GraphState
+from tdastro.graph_state import GraphState, transpose_dict_of_list
 
 
 def test_create_single_sample_graph_state():
@@ -117,3 +117,27 @@ def test_create_multi_sample_graph_state_reference():
     state2["a"]["v2"][2] = 5.0
     assert np.allclose(state2["a"]["v2"], [2.0, 2.5, 5.0, 3.5, 4.0])
     assert np.allclose(state2["b"]["v1"], [2.0, 2.5, 3.0, 3.5, 4.0])
+
+
+def test_transpose_dict_of_list():
+    """Test the transpose_dict_of_list helper function"""
+    input_dict = {
+        "a": [1, 2, 3],
+        "b": [4, 5, 6],
+        "c": [7, 8, 9],
+    }
+    expected = [
+        {"a": 1, "b": 4, "c": 7},
+        {"a": 2, "b": 5, "c": 8},
+        {"a": 3, "b": 6, "c": 9},
+    ]
+    output_list = transpose_dict_of_list(input_dict, 3)
+    assert len(output_list) == 3
+    for i in range(3):
+        assert expected[i] == output_list[i]
+
+    # We fail if num_elem does not match the list lengths.
+    with pytest.raises(ValueError):
+        _ = transpose_dict_of_list(input_dict, 0)
+    with pytest.raises(ValueError):
+        _ = transpose_dict_of_list(input_dict, 4)
