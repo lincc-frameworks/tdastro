@@ -125,6 +125,11 @@ class GraphState:
         """Set multiple parameters' value in the GraphState from a GraphState or a
         dictionary of the same form.
 
+        Note
+        ----
+        The number of samples in input must either match the number of samples in the
+        current object or be 1.
+
         Parameters
         ----------
         inputs : `GraphState` or `dict`
@@ -133,15 +138,21 @@ class GraphState:
             Make a copy of data in an array. If set to ``False`` this will link
             to the array, saving memory and computation time.
             Default: ``False``
+
+        Raises
+        ------
+        ValueError if the input an invalid number of samples.
         """
         if isinstance(inputs, GraphState):
-            if self.num_samples != inputs.num_samples:
+            if self.num_samples != inputs.num_samples and inputs.num_samples != 1:
                 raise ValueError("GraphSates must have the same number of samples.")
             new_states = inputs.states
         else:
             new_states = inputs
 
-        # Set the values one by one.
+        # Set the values one by one. The set function takes care of expanding
+        # any values that are constants (e.g. float or int) to match the correct
+        # number of samples.
         for node_name, node_vars in new_states.items():
             for var_name, value in node_vars.items():
                 self.set(node_name, var_name, value, force_copy=force_copy)
