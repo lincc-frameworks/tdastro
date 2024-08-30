@@ -63,6 +63,8 @@ class ParameterSource:
     ----------
     parameter_name : `str`
         The name of the parameter within the node (short name).
+    node_name : `str`
+        The name of the parent node.
     source_type : `int`
         The type of source as defined by the class variables.
         Default = 0
@@ -77,8 +79,6 @@ class ParameterSource:
     required : `bool`
         The attribute must exist and be non-None.
         Default = ``False``
-    full_name : `str`
-        The full name of the parameter including the node information.
     """
 
     # Class variables for the source enum.
@@ -89,32 +89,13 @@ class ParameterSource:
     COMPUTE_OUTPUT = 4
 
     def __init__(self, parameter_name, source_type=0, fixed=False, required=False, node_name=""):
+        self.parameter_name = parameter_name
+        self.node_name = node_name
         self.source_type = source_type
         self.fixed = fixed
         self.required = required
         self.value = None
         self.dependency = None
-        self.node_name = node_name
-        self.set_name(parameter_name, node_name)
-
-    def set_name(self, parameter_name="", node_name=""):
-        """Set the name of the parameter field.
-
-        Parameter
-        ---------
-        parameter_name : `str`
-            The name of the parameter within the node (short name).
-        node_name : `str`
-            The node string for the node containing this parameter.
-        """
-        if len(parameter_name) == 0:
-            raise ValueError(f"Invalid parameter name: {parameter_name}")
-
-        self.parameter_name = parameter_name
-        if len(node_name) > 0:
-            self.full_name = f"{node_name}.{parameter_name}"
-        else:
-            self.full_name = f"{parameter_name}"
 
     def set_as_constant(self, value):
         """Set the parameter as a constant value.
@@ -211,6 +192,7 @@ class ParameterizedNode:
         self.node_label = node_label
         self.node_pos = None
         self.node_string = None
+        self.node_hash = None
 
     def __str__(self):
         """Return the string representation of the node."""
@@ -235,9 +217,9 @@ class ParameterizedNode:
         hashed_object_name = md5(self.node_string.encode()).hexdigest()
         self.node_hash = int(hashed_object_name, base=16)
 
-        # Update the full_name of all node's parameter setters.
-        for name, setter_info in self.setters.items():
-            setter_info.set_name(name, self.node_string)
+        # Update the node_name of all node's parameter setters.
+        for _, setter_info in self.setters.items():
+            setter_info.node_name = self.node_string
 
     def set_graph_positions(self, seen_nodes=None):
         """Force an update of the graph structure (numbering of each node).

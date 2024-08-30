@@ -61,7 +61,7 @@ def test_parameter_source():
     """Test the ParameterSource creation and setter functions."""
     source = ParameterSource("test")
     assert source.parameter_name == "test"
-    assert source.full_name == "test"
+    assert source.node_name == ""
     assert source.source_type == ParameterSource.UNDEFINED
     assert source.dependency is None
     assert source.value is None
@@ -70,16 +70,11 @@ def test_parameter_source():
 
     source.set_as_constant(10.0)
     assert source.parameter_name == "test"
-    assert source.full_name == "test"
     assert source.source_type == ParameterSource.CONSTANT
     assert source.dependency is None
     assert source.value == 10.0
     assert not source.fixed
     assert not source.required
-
-    source.set_name("my_var", "my_node")
-    assert source.parameter_name == "my_var"
-    assert source.full_name == "my_node.my_var"
 
     with pytest.raises(ValueError):
         source.set_as_constant(_test_func)
