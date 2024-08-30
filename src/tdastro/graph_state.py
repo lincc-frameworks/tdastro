@@ -170,3 +170,35 @@ class GraphState:
                 else:
                     new_state.states[node_name][var_name] = value[sample_num]
         return new_state
+
+
+def transpose_dict_of_list(input_dict, num_elem):
+    """Transpose a dictionary of iterables to a list of dictionaries.
+
+    Parameters
+    ----------
+    input_dict : `dict`
+        A dictionary of iterables, each of which is length num_elem.
+    num_elem : `int`
+        The length of the iterables.
+
+    Returns
+    -------
+    output_list : `list`
+        A length num_elem list of dictionaries, each with the same keys mapping
+        to a single value.
+
+    Raises
+    ------
+    ``ValueError`` if any of the iterables have different lengths.
+    """
+    if num_elem < 1:
+        raise ValueError(f"Trying to transpose a dictionary with {num_elem} elements")
+
+    output_list = [{} for _ in range(num_elem)]
+    for key, values in input_dict.items():
+        if len(values) != num_elem:
+            raise ValueError(f"Entry {key} has length {len(values)}. Expected {num_elem}.")
+        for i in range(num_elem):
+            output_list[i][key] = values[i]
+    return output_list

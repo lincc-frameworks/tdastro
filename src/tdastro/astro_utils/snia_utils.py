@@ -1,9 +1,9 @@
 import numpy as np
 from astropy.cosmology import FlatLambdaCDM
 from scipy.stats import norm
-from scipy.stats.sampling import NumericalInversePolynomial
 
 from tdastro.base_models import FunctionNode
+from tdastro.util_nodes.scipy_random import NumericalInversePolynomialFunc
 
 
 class HostmassX1Distr:
@@ -66,26 +66,6 @@ class HostmassX1Distr:
         return self._p(x1, hostmass=self.hostmass) * norm.pdf(x1, loc=0, scale=1)
 
 
-def _hostmass_x1func(hostmass):
-    """Sample x1 as a function of hostmass.
-
-    Parameters
-    ----------
-    hostmass : `float`
-        The hostmass value.
-
-    Returns
-    -------
-    x1 : `float`
-        The x1 parameter in the SALT3 model
-    """
-
-    dist = HostmassX1Distr(hostmass)
-    x1 = NumericalInversePolynomial(dist).rvs(1)[0]
-
-    return x1
-
-
 def _x0_from_distmod(distmod, x1, c, alpha, beta, m_abs):
     """Calculate the SALT3 x0 parameter given distance modulus based on Tripp relation.
     distmod = -2.5*log10(x0) + alpha * x1 - beta * c - m_abs
@@ -140,23 +120,23 @@ def _distmod_from_redshift(redshift, H0=73.0, Omega_m=0.3):
     return distmod
 
 
-class HostmassX1Func(FunctionNode):
-    """A wrapper class for the _hostmass_x1func() function.
+class HostmassX1Func(NumericalInversePolynomialFunc):
+    """A class for sampling from the HostmassX1Distr.
 
     Parameters
     ----------
     hostmass : function or constant
         The function or constant providing the hostmass value.
-    skewness : constant
-        Skewness parameter that defines the skewed normal distribution.
     **kwargs : `dict`, optional
         Any additional keyword arguments.
     """
 
     def __init__(self, hostmass, **kwargs):
         # Call the super class's constructor with the needed information.
+        # We use the HostmassX1Distr class so a new instance will be created
+        # each sample.
         super().__init__(
-            func=_hostmass_x1func,
+            dist=HostmassX1Distr,
             hostmass=hostmass,
             **kwargs,
         )
