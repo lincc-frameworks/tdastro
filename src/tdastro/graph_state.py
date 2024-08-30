@@ -56,6 +56,14 @@ class GraphState:
     def __len__(self):
         return self.num_parameters
 
+    def __str__(self):
+        str_lines = []
+        for node_name, node_vars in self.states.items():
+            str_lines.append(f"{node_name}:")
+            for var_name, value in node_vars.items():
+                str_lines.append(f"    {var_name}: {value}")
+        return "\n".join(str_lines)
+
     def __getitem__(self, key):
         """Access the dictionary of parameter values for a node name."""
         return self.states[key]
