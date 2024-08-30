@@ -119,6 +119,27 @@ def test_create_multi_sample_graph_state_reference():
     assert np.allclose(state2["b"]["v1"], [2.0, 2.5, 3.0, 3.5, 4.0])
 
 
+def test_graph_state_fixed():
+    """Test that we respected the 'fixed' flag for GraphState."""
+    state = GraphState()
+    assert len(state) == 0
+    state.set("a", "v1", 1.0)
+    state.set("a", "v2", 2.0)
+    state.set("b", "v1", 3.0, fixed=True)
+    assert len(state) == 3
+    assert state["a"]["v1"] == 1.0
+    assert state["a"]["v2"] == 2.0
+    assert state["b"]["v1"] == 3.0
+
+    # Try changing each of the states. Only two should actually change.
+    state.set("a", "v1", 4.0)
+    state.set("a", "v2", 5.0)
+    state.set("b", "v1", 6.0)
+    assert state["a"]["v1"] == 4.0
+    assert state["a"]["v2"] == 5.0
+    assert state["b"]["v1"] == 3.0
+
+
 def test_graph_state_update():
     """Test that we can update a single sample GraphState."""
     state = GraphState()
