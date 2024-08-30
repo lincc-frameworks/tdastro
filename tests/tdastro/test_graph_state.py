@@ -119,6 +119,112 @@ def test_create_multi_sample_graph_state_reference():
     assert np.allclose(state2["b"]["v1"], [2.0, 2.5, 3.0, 3.5, 4.0])
 
 
+def test_graph_state_fixed():
+    """Test that we respected the 'fixed' flag for GraphState."""
+    state = GraphState()
+    assert len(state) == 0
+    state.set("a", "v1", 1.0)
+    state.set("a", "v2", 2.0)
+    state.set("b", "v1", 3.0, fixed=True)
+    assert len(state) == 3
+    assert state["a"]["v1"] == 1.0
+    assert state["a"]["v2"] == 2.0
+    assert state["b"]["v1"] == 3.0
+
+    # Try changing each of the states. Only two should actually change.
+    state.set("a", "v1", 4.0)
+    state.set("a", "v2", 5.0)
+    state.set("b", "v1", 6.0)
+    assert state["a"]["v1"] == 4.0
+    assert state["a"]["v2"] == 5.0
+    assert state["b"]["v1"] == 3.0
+
+
+def test_graph_state_update():
+    """Test that we can update a single sample GraphState."""
+    state = GraphState()
+    state.set("a", "v1", 1.0)
+    state.set("a", "v2", 2.0)
+    state.set("b", "v1", 3.0)
+
+    state2 = GraphState()
+    state2.set("a", "v1", 4.0)
+    state2.set("a", "v3", 5.0)
+    state2.set("c", "v1", 6.0)
+    state2.set("c", "v2", 7.0)
+
+    assert len(state) == 3
+    assert len(state2) == 4
+
+    # We set 3 new parameters and overwrite one.
+    state.update(state2)
+    assert len(state) == 6
+    assert state["a"]["v1"] == 4.0
+    assert state["a"]["v2"] == 2.0
+    assert state["a"]["v3"] == 5.0
+    assert state["b"]["v1"] == 3.0
+    assert state["c"]["v1"] == 6.0
+    assert state["c"]["v2"] == 7.0
+
+    # We set 3 new parameters and overwrite one.
+    state3 = {"a": {"v2": 8.0, "v4": 9.0}, "d": {"v1": 10.0}}
+    state.update(state3)
+    assert len(state) == 8
+    assert state["a"]["v1"] == 4.0
+    assert state["a"]["v2"] == 8.0
+    assert state["a"]["v3"] == 5.0
+    assert state["a"]["v4"] == 9.0
+    assert state["b"]["v1"] == 3.0
+    assert state["c"]["v1"] == 6.0
+    assert state["c"]["v2"] == 7.0
+    assert state["d"]["v1"] == 10.0
+
+    # Test we cannot update with mismatched number of samples.
+    state4 = GraphState(num_samples=2)
+    state4.set("e", "v1", 1.0)
+    with pytest.raises(ValueError):
+        state.update(state4)
+
+
+def test_graph_state_update_multi():
+    """Test that we can update a single sample GraphState."""
+    state = GraphState(num_samples=3)
+    state.set("a", "v1", [1.0, 2.0, 3.0])
+    state.set("a", "v2", [3.0, 4.0, 5.0])
+    state.set("b", "v1", [6.0, 7.0, 8.0])
+
+    state2 = GraphState(num_samples=3)
+    state2.set("a", "v1", [9.0, 10.0, 11.0])
+    state2.set("c", "v1", [12.0, 13.0, 14.0])
+
+    assert len(state) == 3
+    assert len(state2) == 2
+
+    # We set one new parameter and overwrite one.
+    state.update(state2)
+    assert len(state) == 4
+    assert np.allclose(state["a"]["v1"], [9.0, 10.0, 11.0])
+    assert np.allclose(state["a"]["v2"], [3.0, 4.0, 5.0])
+    assert np.allclose(state["b"]["v1"], [6.0, 7.0, 8.0])
+    assert np.allclose(state["c"]["v1"], [12.0, 13.0, 14.0])
+
+    # If we add a parameter with sample_size = 1, we correctly expand it out.
+    state3 = {"a": {"v2": 15.0}, "d": {"v1": 16.0}}
+    state.update(state3)
+    assert len(state) == 5
+    assert np.allclose(state["a"]["v1"], [9.0, 10.0, 11.0])
+    assert np.allclose(state["a"]["v2"], [15.0, 15.0, 15.0])
+    assert np.allclose(state["b"]["v1"], [6.0, 7.0, 8.0])
+    assert np.allclose(state["c"]["v1"], [12.0, 13.0, 14.0])
+    assert np.allclose(state["d"]["v1"], [16.0, 16.0, 16.0])
+
+    # Test we cannot update with mismatched number of samples.
+    state4 = GraphState(num_samples=2)
+    state4.set("e", "v1", 1.0)
+    with pytest.raises(ValueError):
+        state.update(state4)
+
+
 def test_transpose_dict_of_list():
     """Test the transpose_dict_of_list helper function"""
     input_dict = {
