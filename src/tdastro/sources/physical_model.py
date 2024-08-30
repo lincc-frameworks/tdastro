@@ -222,22 +222,19 @@ class PhysicalModel(ParameterizedNode):
         if self.node_pos is None:
             self.set_graph_positions()
 
-        args_to_use = {}
-        if given_args is not None:
-            args_to_use.update(given_args)
-        if kwargs is not None:
-            args_to_use.update(kwargs)
-
         # We use the same seen_nodes for all sampling calls so each node
         # is sampled at most one time regardless of link structure.
         graph_state = GraphState(num_samples)
+        if given_args is not None:
+            graph_state.update(given_args, all_fixed=True)
+
         seen_nodes = {}
         if self.background is not None:
-            self.background._sample_helper(graph_state, seen_nodes, args_to_use, rng_info, **kwargs)
-        self._sample_helper(graph_state, seen_nodes, args_to_use, rng_info, **kwargs)
+            self.background._sample_helper(graph_state, seen_nodes, rng_info, **kwargs)
+        self._sample_helper(graph_state, seen_nodes, rng_info, **kwargs)
 
         for effect in self.effects:
-            effect._sample_helper(graph_state, seen_nodes, args_to_use, rng_info, **kwargs)
+            effect._sample_helper(graph_state, seen_nodes, rng_info, **kwargs)
 
         return graph_state
 

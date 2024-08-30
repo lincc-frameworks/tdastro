@@ -219,7 +219,7 @@ def test_parameterized_node_build_pytree():
     model1 = PairModel(value1=0.5, value2=1.5, node_label="A")
     model2 = PairModel(value1=model1.value1, value2=3.0, node_label="B")
     graph_state = model2.sample_parameters()
-    
+
     pytree = model2.build_pytree(graph_state)
     assert pytree["1:A"]["value1"] == 0.5
     assert pytree["1:A"]["value2"] == 1.5

@@ -89,7 +89,7 @@ class JaxRandomFunc(FunctionNode):
     def __init__(self, func, **kwargs):
         super().__init__(func, **kwargs)
 
-    def compute(self, graph_state, given_args=None, rng_info=None, **kwargs):
+    def compute(self, graph_state, rng_info=None, **kwargs):
         """Execute the wrapped JAX sampling function.
 
         Parameters
@@ -97,9 +97,6 @@ class JaxRandomFunc(FunctionNode):
         graph_state : `GraphState`
             An object mapping graph parameters to their values. This object is modified
             in place as it is sampled.
-        given_args : `dict`, optional
-            A dictionary representing the given arguments for this sample run.
-            This can be used as the JAX PyTree for differentiation.
         rng_info : `dict`, optional
             A dictionary of random number generator information for each node, such as
             the JAX keys or the numpy rngs.
@@ -125,7 +122,7 @@ class JaxRandomFunc(FunctionNode):
         rng_info[self.node_hash] = next_key
 
         # Generate the results.
-        args = self._build_inputs(graph_state, given_args, **kwargs)
+        args = self._build_inputs(graph_state, **kwargs)
         if graph_state.num_samples == 1:
             results = float(self.func(current_key, **args))
         else:
@@ -152,7 +149,7 @@ class JaxRandomFunc(FunctionNode):
             Additional function arguments.
         """
         state = self.sample_parameters(given_args, num_samples, rng_info)
-        return self.compute(state, given_args, rng_info, **kwargs)
+        return self.compute(state, rng_info, **kwargs)
 
 
 class JaxRandomNormal(FunctionNode):
@@ -196,4 +193,4 @@ class JaxRandomNormal(FunctionNode):
             Any additional keyword arguments.
         """
         state = self.sample_parameters(given_args, num_samples, rng_info)
-        return self.compute(state, given_args, rng_info, **kwargs)
+        return self.compute(state, rng_info, **kwargs)

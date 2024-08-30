@@ -38,6 +38,11 @@ class GraphState:
         value or array of values.
     num_samples : `int`
         A count of the number of samples stored in the GraphState.
+    num_parameters : `int`
+        The total number of parameters stored in a single sample within GraphState.
+    fixed_vars : `dict`
+        A dictionary mapping the node name to a set of the variable names that
+        are fixed in this GraphState instance.
     """
 
     def __init__(self, num_samples=1):
@@ -46,6 +51,7 @@ class GraphState:
         self.num_samples = num_samples
         self.num_parameters = 0
         self.states = {}
+        self.fixed_vars = {}
 
     def __len__(self):
         return self.num_parameters
@@ -82,7 +88,7 @@ class GraphState:
                 values[var_name] = val[sample_num]
         return values
 
-    def set(self, node_name, var_name, value, force_copy=False):
+    def set(self, node_name, var_name, value, force_copy=False, fixed=False):
         """Set a (new) parameter's value(s) in the GraphState from a given constant value
         or an array of length num_samples (to set all the values at once).
 
@@ -98,12 +104,20 @@ class GraphState:
             Make a copy of data in an array. If set to ``False`` this will link
             to the array, saving memory and computation time.
             Default: ``False``
+        fixed : `bool`
+            Treat this parameter as fixed and do not change it during subsequent calls to set.
+            Default: ``False``
         """
         # Update the meta data.
         if node_name not in self.states:
             self.states[node_name] = {}
+            self.fixed_vars[node_name] = set()
         if var_name not in self.states[node_name]:
             self.num_parameters += 1
+
+        # Check if this parameter is fixed. If so, skip the set.
+        if var_name in self.fixed_vars[node_name]:
+            return
 
         # Set the actual values.
         if self.num_samples == 1:
@@ -120,6 +134,49 @@ class GraphState:
         else:
             # If the GraphState holds N samples and we got a single value, make an array of it.
             self.states[node_name][var_name] = np.full((self.num_samples), value)
+
+        # Mark the variable as fixed if needed.
+        if fixed:
+            self.fixed_vars[node_name].add(var_name)
+
+    def update(self, inputs, force_copy=False, all_fixed=False):
+        """Set multiple parameters' value in the GraphState from a GraphState or a
+        dictionary of the same form.
+
+        Note
+        ----
+        The number of samples in input must either match the number of samples in the
+        current object or be 1.
+
+        Parameters
+        ----------
+        inputs : `GraphState` or `dict`
+            Values to copy.
+        force_copy : `bool`
+            Make a copy of data in an array. If set to ``False`` this will link
+            to the array, saving memory and computation time.
+            Default: ``False``
+        all_fixed : `bool`
+            Treat all the parameters in inputs as fixed.
+            Default: ``False``
+
+        Raises
+        ------
+        ValueError if the input an invalid number of samples.
+        """
+        if isinstance(inputs, GraphState):
+            if self.num_samples != inputs.num_samples and inputs.num_samples != 1:
+                raise ValueError("GraphSates must have the same number of samples.")
+            new_states = inputs.states
+        else:
+            new_states = inputs
+
+        # Set the values one by one. The set function takes care of expanding
+        # any values that are constants (e.g. float or int) to match the correct
+        # number of samples.
+        for node_name, node_vars in new_states.items():
+            for var_name, value in node_vars.items():
+                self.set(node_name, var_name, value, force_copy=force_copy, fixed=all_fixed)
 
     def extract_single_sample(self, sample_num):
         """Create a new GraphState with a single sample state.

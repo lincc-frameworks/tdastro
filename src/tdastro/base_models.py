@@ -463,7 +463,7 @@ class ParameterizedNode:
         getter.__name__ = name
         setattr(self, name, getter)
 
-    def compute(self, graph_state, given_args=None, rng_info=None, **kwargs):
+    def compute(self, graph_state, rng_info=None, **kwargs):
         """Placeholder for a general compute function.
 
         Parameters
@@ -471,9 +471,6 @@ class ParameterizedNode:
         graph_state : `GraphState`
             An object mapping graph parameters to their values. This object is modified
             in place as it is sampled.
-        given_args : `dict`, optional
-            A dictionary representing the given arguments for this sample run.
-            This can be used as the JAX PyTree for differentiation.
         rng_info : `dict`, optional
             A dictionary of random number generator information for each node, such as
             the JAX keys or the numpy rngs.
@@ -482,7 +479,7 @@ class ParameterizedNode:
         """
         return None
 
-    def _sample_helper(self, graph_state, seen_nodes, given_args=None, rng_info=None):
+    def _sample_helper(self, graph_state, seen_nodes, rng_info=None):
         """Internal recursive function to sample the model's underlying parameters
         if they are provided by a function or ParameterizedNode. All sampled
         parameters for all nodes are stored in the graph_state dictionary, which is
@@ -496,9 +493,6 @@ class ParameterizedNode:
         seen_nodes : `dict`
             A dictionary mapping nodes seen during this sampling run to their ID.
             Used to avoid sampling nodes multiple times and to validity check the graph.
-        given_args : `dict`, optional
-            A dictionary representing the given arguments for this sample run.
-            This can be used as the JAX PyTree for differentiation.
         rng_info : `dict`, optional
             A dictionary of random number generator information for each node, such as
             the JAX keys or the numpy rngs.
@@ -516,41 +510,35 @@ class ParameterizedNode:
         # so this will iterate through model parameters in the order they were inserted.
         any_compute = False
         for name, setter in self.setters.items():
-            # If we are given the argument use that and do not worry about the dependencies.
-            if given_args is not None and setter.full_name in given_args:
-                if setter.fixed:
-                    raise ValueError(f"Trying to override fixed parameter {setter.full_name}")
-                graph_state.set(self.node_string, name, given_args[setter.full_name])
-            else:
-                # Check if we need to sample this parameter's dependency node.
-                if setter.dependency is not None and setter.dependency != self:
-                    setter.dependency._sample_helper(graph_state, seen_nodes, given_args, rng_info)
+            # Check if we need to sample this parameter's dependency node.
+            if setter.dependency is not None and setter.dependency != self:
+                setter.dependency._sample_helper(graph_state, seen_nodes, rng_info)
 
-                # Set the result from the correct source.
-                if setter.source_type == ParameterSource.CONSTANT:
-                    graph_state.set(self.node_string, name, setter.value)
-                elif setter.source_type == ParameterSource.MODEL_PARAMETER:
-                    graph_state.set(
-                        self.node_string,
-                        name,
-                        graph_state[setter.dependency.node_string][setter.value],
-                    )
-                elif setter.source_type == ParameterSource.FUNCTION_NODE:
-                    graph_state.set(
-                        self.node_string,
-                        name,
-                        graph_state[setter.dependency.node_string][setter.value],
-                    )
-                elif setter.source_type == ParameterSource.COMPUTE_OUTPUT:
-                    # Computed parameters are set only after all the other (input) parameters.
-                    any_compute = True
-                else:
-                    raise ValueError(f"Invalid ParameterSource type {setter.source_type}")
+            # Set the result from the correct source.
+            if setter.source_type == ParameterSource.CONSTANT:
+                graph_state.set(self.node_string, name, setter.value)
+            elif setter.source_type == ParameterSource.MODEL_PARAMETER:
+                graph_state.set(
+                    self.node_string,
+                    name,
+                    graph_state[setter.dependency.node_string][setter.value],
+                )
+            elif setter.source_type == ParameterSource.FUNCTION_NODE:
+                graph_state.set(
+                    self.node_string,
+                    name,
+                    graph_state[setter.dependency.node_string][setter.value],
+                )
+            elif setter.source_type == ParameterSource.COMPUTE_OUTPUT:
+                # Computed parameters are set only after all the other (input) parameters.
+                any_compute = True
+            else:
+                raise ValueError(f"Invalid ParameterSource type {setter.source_type}")
 
         # If this is a function node and the parameters depend on the result of its own computation
         # call the compute function to fill them in.
         if any_compute:
-            self.compute(graph_state, given_args, rng_info)
+            self.compute(graph_state, rng_info)
 
     def sample_parameters(self, given_args=None, num_samples=1, rng_info=None):
         """Sample the model's underlying parameters if they are provided by a function
@@ -584,10 +572,14 @@ class ParameterizedNode:
             nodes = set()
             self.set_graph_positions(seen_nodes=nodes)
 
+        # Create space for the results and set all the given_args as fixed parameters.
+        results = GraphState(num_samples)
+        if given_args is not None:
+            results.update(given_args, all_fixed=True)
+
         # Resample the nodes. All information is stored in the returned results dictionary.
         seen_nodes = {}
-        results = GraphState(num_samples)
-        self._sample_helper(results, seen_nodes, given_args, rng_info)
+        self._sample_helper(results, seen_nodes, rng_info)
         return results
 
     def get_all_node_info(self, field, seen_nodes=None):
@@ -772,7 +764,7 @@ class FunctionNode(ParameterizedNode):
         else:
             super()._update_node_string()
 
-    def _build_inputs(self, graph_state, given_args=None, **kwargs):
+    def _build_inputs(self, graph_state, **kwargs):
         """Build the input arguments for the function.
 
         Parameters
@@ -780,9 +772,6 @@ class FunctionNode(ParameterizedNode):
         graph_state : `GraphState`
             An object mapping graph parameters to their values. This object is modified
             in place as it is sampled.
-        given_args : `dict`, optional
-            A dictionary representing the given arguments for this sample run.
-            This can be used as the JAX PyTree for differentiation.
         **kwargs : `dict`, optional
             Additional function arguments.
 
@@ -793,10 +782,7 @@ class FunctionNode(ParameterizedNode):
         """
         args = {}
         for key in self.arg_names:
-            # Override with the given arg or kwarg in that order.
-            if given_args is not None and self.setters[key].full_name in given_args:
-                args[key] = given_args[self.setters[key].full_name]
-            elif key in kwargs:
+            if key in kwargs:
                 args[key] = kwargs[key]
             else:
                 args[key] = graph_state[self.node_string][key]
@@ -824,7 +810,7 @@ class FunctionNode(ParameterizedNode):
             for i in range(len(self.outputs)):
                 graph_state.set(self.node_string, self.outputs[i], results[i])
 
-    def compute(self, graph_state, given_args=None, rng_info=None, **kwargs):
+    def compute(self, graph_state, rng_info=None, **kwargs):
         """Execute the wrapped function.
 
         The input arguments are taken from the current graph_state and the outputs
@@ -835,9 +821,6 @@ class FunctionNode(ParameterizedNode):
         graph_state : `GraphState`
             An object mapping graph parameters to their values. This object is modified
             in place as it is sampled.
-        given_args : `dict`, optional
-            A dictionary representing the given arguments for this sample run.
-            This can be used as the JAX PyTree for differentiation.
         rng_info : `dict`, optional
             A dictionary of random number generator information for each node, such as
             the JAX keys or the numpy rngs.
@@ -862,7 +845,7 @@ class FunctionNode(ParameterizedNode):
 
         # Build a dictionary of arguments for the function, call the function, and save
         # the results in the graph state.
-        args = self._build_inputs(graph_state, given_args, **kwargs)
+        args = self._build_inputs(graph_state, **kwargs)
         results = self.func(**args)
         self._save_results(results, graph_state)
         return results
@@ -880,4 +863,4 @@ class FunctionNode(ParameterizedNode):
             the JAX keys or the numpy rngs.
         """
         graph_state = self.sample_parameters(given_args, 1, rng_info)
-        return self.compute(graph_state, given_args, rng_info)
+        return self.compute(graph_state, rng_info)
