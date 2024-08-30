@@ -58,7 +58,7 @@ class SncosmoWrapperModel(PhysicalModel):
 
     def _update_sncosmo_model_parameters(self, graph_state):
         """Update the parameters for the wrapped sncosmo model."""
-        local_params = graph_state.get_node_state(self.node_hash, 0)
+        local_params = graph_state.get_node_state(self.node_string, 0)
         sn_params = {}
         for name in self.source_param_names:
             sn_params[name] = local_params[name]

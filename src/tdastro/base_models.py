@@ -94,6 +94,7 @@ class ParameterSource:
         self.required = required
         self.value = None
         self.dependency = None
+        self.node_name = node_name
         self.set_name(parameter_name, node_name)
 
     def set_name(self, parameter_name="", node_name=""):
@@ -184,7 +185,7 @@ class ParameterizedNode:
         The full string used to identify a node. This is a combination of the nodes position
         in the graph (if known), node_label (if provided), and class information.
     node_hash : `int`
-        A hashed version of ``node_string`` used for fast lookups.
+        A precomputed hashed version of ``node_string``.
     setters : `dict`
         A dictionary mapping the parameters' names to information about the setters
         (ParameterSource). The model parameters are stored in the order in which they
@@ -210,7 +211,6 @@ class ParameterizedNode:
         self.node_label = node_label
         self.node_pos = None
         self.node_string = None
-        self.node_hash = None
 
     def __str__(self):
         """Return the string representation of the node."""
@@ -225,7 +225,7 @@ class ParameterizedNode:
         if self.node_label is not None:
             self.node_string = f"{pos_string}{self.node_label}"
         else:
-            self.node_string = f"{pos_string}{self.__class__.__module__}.{self.__class__.__qualname__}"
+            self.node_string = f"{pos_string}{self.__class__.__qualname__}"
 
         # Allow for the appending of an extra tag.
         if extra_tag is not None:
@@ -290,7 +290,7 @@ class ParameterizedNode:
         """
         if graph_state is None:
             raise ValueError(f"Unable to look ip parameter={name}. No graph_state given.")
-        return graph_state[self.node_hash][name]
+        return graph_state[self.node_string][name]
 
     def get_local_params(self, graph_state):
         """Get a dictionary of all parameters local to this node.
@@ -317,7 +317,7 @@ class ParameterizedNode:
         """
         if graph_state is None:
             raise ValueError("No graph_state given.")
-        return graph_state[self.node_hash]
+        return graph_state[self.node_string]
 
     def set_parameter(self, name, value=None, **kwargs):
         """Set a single *existing* parameter to the ParameterizedNode.
@@ -520,7 +520,7 @@ class ParameterizedNode:
             if given_args is not None and setter.full_name in given_args:
                 if setter.fixed:
                     raise ValueError(f"Trying to override fixed parameter {setter.full_name}")
-                graph_state.set(self.node_hash, name, given_args[setter.full_name])
+                graph_state.set(self.node_string, name, given_args[setter.full_name])
             else:
                 # Check if we need to sample this parameter's dependency node.
                 if setter.dependency is not None and setter.dependency != self:
@@ -528,18 +528,18 @@ class ParameterizedNode:
 
                 # Set the result from the correct source.
                 if setter.source_type == ParameterSource.CONSTANT:
-                    graph_state.set(self.node_hash, name, setter.value)
+                    graph_state.set(self.node_string, name, setter.value)
                 elif setter.source_type == ParameterSource.MODEL_PARAMETER:
                     graph_state.set(
-                        self.node_hash,
+                        self.node_string,
                         name,
-                        graph_state[setter.dependency.node_hash][setter.value],
+                        graph_state[setter.dependency.node_string][setter.value],
                     )
                 elif setter.source_type == ParameterSource.FUNCTION_NODE:
                     graph_state.set(
-                        self.node_hash,
+                        self.node_string,
                         name,
-                        graph_state[setter.dependency.node_hash][setter.value],
+                        graph_state[setter.dependency.node_string][setter.value],
                     )
                 elif setter.source_type == ParameterSource.COMPUTE_OUTPUT:
                     # Computed parameters are set only after all the other (input) parameters.
@@ -664,7 +664,7 @@ class ParameterizedNode:
                 all_values.update(setter_info.dependency.build_pytree(graph_state, seen))
             elif setter_info.source_type == ParameterSource.CONSTANT and not setter_info.fixed:
                 # Only the non-fixed, constants go into the PyTree.
-                all_values[setter_info.full_name] = graph_state[self.node_hash][name]
+                all_values[setter_info.full_name] = graph_state[self.node_string][name]
         return all_values
 
 
@@ -796,7 +796,7 @@ class FunctionNode(ParameterizedNode):
             elif key in kwargs:
                 args[key] = kwargs[key]
             else:
-                args[key] = graph_state[self.node_hash][key]
+                args[key] = graph_state[self.node_string][key]
         return args
 
     def _save_results(self, results, graph_state):
@@ -811,7 +811,7 @@ class FunctionNode(ParameterizedNode):
             in place as it is sampled.
         """
         if len(self.outputs) == 1:
-            graph_state.set(self.node_hash, self.outputs[0], results)
+            graph_state.set(self.node_string, self.outputs[0], results)
         else:
             if len(results) != len(self.outputs):
                 raise ValueError(
@@ -819,7 +819,7 @@ class FunctionNode(ParameterizedNode):
                     f"Expected {len(self.outputs)}, but got {results}."
                 )
             for i in range(len(self.outputs)):
-                graph_state.set(self.node_hash, self.outputs[i], results[i])
+                graph_state.set(self.node_string, self.outputs[i], results[i])
 
     def compute(self, graph_state, given_args=None, rng_info=None, **kwargs):
         """Execute the wrapped function.

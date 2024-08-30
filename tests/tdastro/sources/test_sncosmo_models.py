@@ -9,7 +9,7 @@ def test_sncomso_models_hsiao() -> None:
     state = model.sample_parameters()
     assert model.get_param(state, "amplitude") == 2.0e10
     assert model.get_param(state, "t0") == 0.0
-    assert str(model) == "0:tdastro.sources.sncomso_models.SncosmoWrapperModel"
+    assert str(model) == "0:SncosmoWrapperModel"
 
     assert np.array_equal(model.param_names, ["amplitude"])
     assert np.array_equal(model.parameter_values, [2.0e10])
@@ -29,7 +29,6 @@ def test_sncomso_models_hsiao_t0() -> None:
     state = model.sample_parameters()
     assert model.get_param(state, "amplitude") == 2.0e10
     assert model.get_param(state, "t0") == 55000.0
-    assert str(model) == "0:tdastro.sources.sncomso_models.SncosmoWrapperModel"
 
     assert np.array_equal(model.param_names, ["amplitude"])
     assert np.array_equal(model.parameter_values, [2.0e10])

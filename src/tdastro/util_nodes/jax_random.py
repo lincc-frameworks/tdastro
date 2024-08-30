@@ -131,7 +131,7 @@ class JaxRandomFunc(FunctionNode):
         else:
             use_shape = [graph_state.num_samples]
             results = self.func(current_key, shape=use_shape, **args)
-        graph_state.set(self.node_hash, self.outputs[0], results)
+        graph_state.set(self.node_string, self.outputs[0], results)
         return results
 
     def generate(self, given_args=None, num_samples=1, rng_info=None, **kwargs):

@@ -104,7 +104,7 @@ def test_parameterized_node():
     """Test that we can sample and create a PairModel object."""
     # Simple addition
     model1 = PairModel(value1=0.5, value2=0.5)
-    assert str(model1) == "test_base_models.PairModel"
+    assert str(model1) == "PairModel"
 
     state = model1.sample_parameters()
     assert model1.get_param(state, "value1") == 0.5
@@ -238,7 +238,7 @@ def test_parameterized_node_build_pytree():
 def test_single_variable_node():
     """Test that we can create and query a SingleVariableNode."""
     node = SingleVariableNode("A", 10.0)
-    assert str(node) == "tdastro.base_models.SingleVariableNode"
+    assert str(node) == "SingleVariableNode"
 
     state = node.sample_parameters()
     assert node.get_param(state, "A") == 10
@@ -253,7 +253,7 @@ def test_function_node_basic():
     assert my_func.compute(state, value2=3.0) == 4.0
     assert my_func.compute(state, value2=3.0, unused_param=5.0) == 4.0
     assert my_func.compute(state, value2=3.0, value1=1.0) == 4.0
-    assert str(my_func) == "0:tdastro.base_models.FunctionNode:_test_func"
+    assert str(my_func) == "0:FunctionNode:_test_func"
 
 
 def test_function_node_chain():
