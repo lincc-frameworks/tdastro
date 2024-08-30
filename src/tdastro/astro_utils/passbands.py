@@ -134,11 +134,11 @@ class Passband:
             Which survey does this passband correspond to. Often "LSST"
         label : str
             Which label does this passband correspond to, Sometimes a filter name like "g"
-        table_path : Optional[str], optional
+        table_path : str, optional
             Path to the table defining the passband on the filesystem. Will take precedence over table_url
-        table_url : Optional[str], optional
+        table_url : str, optional
             URL to download the table from.
-        units : Optional[Literal[&#39;nm&#39;,&#39;A&#39;]], optional
+        units : Literal['nm','A'], optional
             Denotes whether the wavelength units of the table are nanometers ('nm') or Angstroms ('A').
             By default 'A'. Does not affect the output units of the class, only the interpretation of the
             provided passband table.
@@ -165,7 +165,7 @@ class Passband:
             The URL to download the transmission table file, if it does not exist locally. If None, the URL
             will be constructed based on the survey and label. This is only available for the LSST survey at
             the moment.
-        units : Optional[Literal[&#39;nm&#39;,&#39;A&#39;]], optional
+        units : Literal['nm','A'], optional
             Denotes whether the wavelength units of the table are nanometers ('nm') or Angstroms ('A').
             By default 'A'. Does not affect the output units of the class, only the interpretation of the
             provided passband table.
@@ -207,7 +207,7 @@ class Passband:
             np_table[:, 0] *= 10.0  # Multiply the first column (wavelength) by 10.0 to convert to Angstroms
 
         # Ensure the table is sorted by wavelength, which is the first column. Most data files do this
-        # anyway, but we depend on a descending order in fluxes_to_bandpass()
+        # anyway, but we depend on an ascending order in fluxes_to_bandpass()
         return np_table[np_table[:, 0].argsort()]
 
     def _download_transmission_table(self, table_path: Path, table_url: str) -> bool:
@@ -227,7 +227,7 @@ class Passband:
         """
         try:
             socket.setdefaulttimeout(10)
-            print(f"Retrieving {table_url}", flush=True)
+            logging.info(f"Retrieving {table_url}", flush=True)
             urllib.request.urlretrieve(table_url, table_path)
             if os.path.getsize(table_path) == 0:
                 logging.error(f"Transmission table downloaded for {self.full_name} is empty.")
@@ -310,7 +310,7 @@ class Passband:
 
         # Since the passband wavelength table should (for the moment) always cover a wider range than the
         # wavelengths we are sampling, we will always find some passband wavelengths that index past the
-        # end of of the wavelengths array. We truncate these past-the-end indiies and then pad the resulting
+        # end of of the wavelengths array. We truncate these past-the-end indices and then pad the resulting
         # flux array out to the size of our passband table
         trunc_condition = passband_wavelengths_indices < len(wavelengths_angstrom)
         passband_wavelengths_indices_trunc = np.extract(trunc_condition, passband_wavelengths_indices)
