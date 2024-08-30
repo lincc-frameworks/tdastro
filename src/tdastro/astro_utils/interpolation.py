@@ -109,9 +109,3 @@ def interpolate_matrix_along_wavelengths(
         )
     new_matrix = np.array([np.interp(new_wavelengths, wavelengths, row) for row in matrix])
     return new_matrix
-
-
-"""
-TODO
-- Different interpolation methods?
-"""
