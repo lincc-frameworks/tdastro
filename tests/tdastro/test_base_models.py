@@ -219,20 +219,19 @@ def test_parameterized_node_build_pytree():
     model1 = PairModel(value1=0.5, value2=1.5, node_label="A")
     model2 = PairModel(value1=model1.value1, value2=3.0, node_label="B")
     graph_state = model2.sample_parameters()
+    
     pytree = model2.build_pytree(graph_state)
-
-    assert len(pytree) == 3
-    assert pytree["1:A.value1"] == 0.5
-    assert pytree["1:A.value2"] == 1.5
-    assert pytree["0:B.value2"] == 3.0
+    assert pytree["1:A"]["value1"] == 0.5
+    assert pytree["1:A"]["value2"] == 1.5
+    assert pytree["0:B"]["value2"] == 3.0
 
     # Manually set value2 to fixed and check that it no longer appears in the pytree.
     model1.setters["value2"].fixed = True
 
     pytree = model2.build_pytree(graph_state)
-    assert len(pytree) == 2
-    assert pytree["1:A.value1"] == 0.5
-    assert pytree["0:B.value2"] == 3.0
+    assert pytree["1:A"]["value1"] == 0.5
+    assert pytree["0:B"]["value2"] == 3.0
+    assert "value2" not in pytree["1:A"]
 
 
 def test_single_variable_node():
@@ -347,14 +346,11 @@ def test_function_node_jax():
     graph_state = sum_node.sample_parameters()
 
     pytree = sum_node.build_pytree(graph_state)
-    assert len(pytree) == 3
     print(pytree)
-
     gr_func = jax.value_and_grad(sum_node.resample_and_compute)
     values, gradients = gr_func(pytree)
-    assert len(gradients) == 3
     print(gradients)
     assert values == 9.0
-    assert gradients["0:sum:_test_func.value1"] == 1.0
-    assert gradients["1:div:_test_func2.value1"] == 2.0
-    assert gradients["1:div:_test_func2.value2"] == -16.0
+    assert gradients["0:sum:_test_func"]["value1"] == 1.0
+    assert gradients["1:div:_test_func2"]["value1"] == 2.0
+    assert gradients["1:div:_test_func2"]["value2"] == -16.0

@@ -627,7 +627,7 @@ class ParameterizedNode:
             result.extend(dep.get_all_node_info(field, seen_nodes))
         return result
 
-    def build_pytree(self, graph_state, seen=None):
+    def build_pytree(self, graph_state, partial=None):
         """Build a JAX PyTree representation of the variables in this graph.
 
         Parameters
@@ -635,14 +635,17 @@ class ParameterizedNode:
         graph_state : `dict`
             A dictionary of dictionaries mapping node->hash, variable_name to value.
             This data structure is modified in place to represent the current state.
-        seen : `set`
-            A set of objects that have already been processed.
+        partial : `dict`
+            The partial results so far. This is modified in place by the function.
+            A dictionary mapping node name to a dictionary mapping each variable's name
+            to its value.
             Default : ``None``
+
         Returns
         -------
         values : `dict`
-            The dictionary mapping the combination of the object identifier and
-            model parameter name to its value.
+            A dictionary mapping node name to a dictionary mapping each variable's name
+            to its value.
         """
         # Check if the node might have incomplete information.
         if self.node_pos is None:
@@ -652,20 +655,20 @@ class ParameterizedNode:
             )
 
         # Skip nodes that we have already seen.
-        if seen is None:
-            seen = set()
-        if self in seen:
-            return {}
-        seen.add(self)
+        if partial is None:
+            partial = {}
+        if self.node_string in partial:
+            return partial
 
-        all_values = {}
+        # Add new values to the pytree, recursively exploring dependencies.
+        partial[self.node_string] = {}
         for name, setter_info in self.setters.items():
             if setter_info.dependency is not None:
-                all_values.update(setter_info.dependency.build_pytree(graph_state, seen))
+                partial = setter_info.dependency.build_pytree(graph_state, partial)
             elif setter_info.source_type == ParameterSource.CONSTANT and not setter_info.fixed:
                 # Only the non-fixed, constants go into the PyTree.
-                all_values[setter_info.full_name] = graph_state[self.node_string][name]
-        return all_values
+                partial[self.node_string][name] = graph_state[self.node_string][name]
+        return partial
 
 
 class SingleVariableNode(ParameterizedNode):
