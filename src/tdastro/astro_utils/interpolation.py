@@ -19,26 +19,23 @@ def get_grid_step(grid: np.ndarray) -> float:
     return None
 
 
-def grids_have_same_step(grid1: np.ndarray, grid2: np.ndarray) -> bool:
-    """Check if two grids have the same step size.
+def has_uniform_step(grid: np.ndarray) -> bool:
+    """Check if a grid has a uniform step size.
 
     Parameters
     ----------
-    grid1 : np.ndarray
-        The first grid.
-    grid2 : np.ndarray
-        The second grid.
+    grid : np.ndarray
+        The grid.
 
     Returns
     -------
     bool
-        True if the grids have the same step size, False otherwise.
+        True if the grid has a uniform step size, False otherwise. If the grid has fewer than 2 elements, we
+        consider it to have a uniform step size.
     """
-    # If both grids have the same length, we can account for non-uniform grids
-    if len(grid1) == len(grid2):
-        return np.allclose(np.diff(grid1), np.diff(grid2))
-    # If the grids have different lengths, they must be uniform to have the same step size
-    return get_grid_step(grid1) is not None and get_grid_step(grid1) == get_grid_step(grid2)
+    if len(grid) < 2:
+        return True
+    return np.allclose(np.diff(grid), np.diff(grid)[0])
 
 
 def interpolate_wavelengths(wavelengths: np.ndarray, new_grid_step: float) -> np.ndarray:

@@ -228,10 +228,10 @@ class Passband:
         """
         if target_grid_step is None:
             # If grids already match, we can just return the intial arrays
-            if interpolation.grids_have_same_step(intial_wavelengths, initial_norm_trans_table[:, 0]):
+            if np.allclose(intial_wavelengths, initial_norm_trans_table[:, 0]):
                 return (initial_fluxes, intial_wavelengths, initial_norm_trans_table)
-            # Otherwise, if the given wavelength grid is uniform, interpolate transmisison table to match
-            elif interpolation.get_grid_step(intial_wavelengths) is not None:
+            # Otherwise, if the given wavelength grid is uniform, set grid step to the step size
+            elif interpolation.has_uniform_step(intial_wavelengths):
                 target_grid_step = interpolation.get_grid_step(intial_wavelengths)
             # Otherwise, ask for target grid step
             else:
