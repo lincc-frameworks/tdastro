@@ -63,6 +63,8 @@ class ParameterSource:
     ----------
     parameter_name : `str`
         The name of the parameter within the node (short name).
+    node_name : `str`
+        The name of the parent node.
     source_type : `int`
         The type of source as defined by the class variables.
         Default = 0
@@ -77,8 +79,6 @@ class ParameterSource:
     required : `bool`
         The attribute must exist and be non-None.
         Default = ``False``
-    full_name : `str`
-        The full name of the parameter including the node information.
     """
 
     # Class variables for the source enum.
@@ -89,31 +89,13 @@ class ParameterSource:
     COMPUTE_OUTPUT = 4
 
     def __init__(self, parameter_name, source_type=0, fixed=False, required=False, node_name=""):
+        self.parameter_name = parameter_name
+        self.node_name = node_name
         self.source_type = source_type
         self.fixed = fixed
         self.required = required
         self.value = None
         self.dependency = None
-        self.set_name(parameter_name, node_name)
-
-    def set_name(self, parameter_name="", node_name=""):
-        """Set the name of the parameter field.
-
-        Parameter
-        ---------
-        parameter_name : `str`
-            The name of the parameter within the node (short name).
-        node_name : `str`
-            The node string for the node containing this parameter.
-        """
-        if len(parameter_name) == 0:
-            raise ValueError(f"Invalid parameter name: {parameter_name}")
-
-        self.parameter_name = parameter_name
-        if len(node_name) > 0:
-            self.full_name = f"{node_name}.{parameter_name}"
-        else:
-            self.full_name = f"{parameter_name}"
 
     def set_as_constant(self, value):
         """Set the parameter as a constant value.
@@ -184,7 +166,7 @@ class ParameterizedNode:
         The full string used to identify a node. This is a combination of the nodes position
         in the graph (if known), node_label (if provided), and class information.
     node_hash : `int`
-        A hashed version of ``node_string`` used for fast lookups.
+        A precomputed hashed version of ``node_string``.
     setters : `dict`
         A dictionary mapping the parameters' names to information about the setters
         (ParameterSource). The model parameters are stored in the order in which they
@@ -225,7 +207,7 @@ class ParameterizedNode:
         if self.node_label is not None:
             self.node_string = f"{pos_string}{self.node_label}"
         else:
-            self.node_string = f"{pos_string}{self.__class__.__module__}.{self.__class__.__qualname__}"
+            self.node_string = f"{pos_string}{self.__class__.__qualname__}"
 
         # Allow for the appending of an extra tag.
         if extra_tag is not None:
@@ -235,9 +217,9 @@ class ParameterizedNode:
         hashed_object_name = md5(self.node_string.encode()).hexdigest()
         self.node_hash = int(hashed_object_name, base=16)
 
-        # Update the full_name of all node's parameter setters.
-        for name, setter_info in self.setters.items():
-            setter_info.set_name(name, self.node_string)
+        # Update the node_name of all node's parameter setters.
+        for _, setter_info in self.setters.items():
+            setter_info.node_name = self.node_string
 
     def set_graph_positions(self, seen_nodes=None):
         """Force an update of the graph structure (numbering of each node).
@@ -289,8 +271,8 @@ class ParameterizedNode:
         ``ValueError`` if graph_state is None.
         """
         if graph_state is None:
-            raise ValueError(f"Unable to look ip parameter={name}. No graph_state given.")
-        return graph_state[self.node_hash][name]
+            raise ValueError(f"Unable to look up parameter={name}. No graph_state given.")
+        return graph_state[self.node_string][name]
 
     def get_local_params(self, graph_state):
         """Get a dictionary of all parameters local to this node.
@@ -317,7 +299,7 @@ class ParameterizedNode:
         """
         if graph_state is None:
             raise ValueError("No graph_state given.")
-        return graph_state[self.node_hash]
+        return graph_state[self.node_string]
 
     def set_parameter(self, name, value=None, **kwargs):
         """Set a single *existing* parameter to the ParameterizedNode.
@@ -463,7 +445,7 @@ class ParameterizedNode:
         getter.__name__ = name
         setattr(self, name, getter)
 
-    def compute(self, graph_state, given_args=None, rng_info=None, **kwargs):
+    def compute(self, graph_state, rng_info=None, **kwargs):
         """Placeholder for a general compute function.
 
         Parameters
@@ -471,9 +453,6 @@ class ParameterizedNode:
         graph_state : `GraphState`
             An object mapping graph parameters to their values. This object is modified
             in place as it is sampled.
-        given_args : `dict`, optional
-            A dictionary representing the given arguments for this sample run.
-            This can be used as the JAX PyTree for differentiation.
         rng_info : `dict`, optional
             A dictionary of random number generator information for each node, such as
             the JAX keys or the numpy rngs.
@@ -482,7 +461,7 @@ class ParameterizedNode:
         """
         return None
 
-    def _sample_helper(self, graph_state, seen_nodes, given_args=None, rng_info=None):
+    def _sample_helper(self, graph_state, seen_nodes, rng_info=None):
         """Internal recursive function to sample the model's underlying parameters
         if they are provided by a function or ParameterizedNode. All sampled
         parameters for all nodes are stored in the graph_state dictionary, which is
@@ -496,9 +475,6 @@ class ParameterizedNode:
         seen_nodes : `dict`
             A dictionary mapping nodes seen during this sampling run to their ID.
             Used to avoid sampling nodes multiple times and to validity check the graph.
-        given_args : `dict`, optional
-            A dictionary representing the given arguments for this sample run.
-            This can be used as the JAX PyTree for differentiation.
         rng_info : `dict`, optional
             A dictionary of random number generator information for each node, such as
             the JAX keys or the numpy rngs.
@@ -516,41 +492,35 @@ class ParameterizedNode:
         # so this will iterate through model parameters in the order they were inserted.
         any_compute = False
         for name, setter in self.setters.items():
-            # If we are given the argument use that and do not worry about the dependencies.
-            if given_args is not None and setter.full_name in given_args:
-                if setter.fixed:
-                    raise ValueError(f"Trying to override fixed parameter {setter.full_name}")
-                graph_state.set(self.node_hash, name, given_args[setter.full_name])
-            else:
-                # Check if we need to sample this parameter's dependency node.
-                if setter.dependency is not None and setter.dependency != self:
-                    setter.dependency._sample_helper(graph_state, seen_nodes, given_args, rng_info)
+            # Check if we need to sample this parameter's dependency node.
+            if setter.dependency is not None and setter.dependency != self:
+                setter.dependency._sample_helper(graph_state, seen_nodes, rng_info)
 
-                # Set the result from the correct source.
-                if setter.source_type == ParameterSource.CONSTANT:
-                    graph_state.set(self.node_hash, name, setter.value)
-                elif setter.source_type == ParameterSource.MODEL_PARAMETER:
-                    graph_state.set(
-                        self.node_hash,
-                        name,
-                        graph_state[setter.dependency.node_hash][setter.value],
-                    )
-                elif setter.source_type == ParameterSource.FUNCTION_NODE:
-                    graph_state.set(
-                        self.node_hash,
-                        name,
-                        graph_state[setter.dependency.node_hash][setter.value],
-                    )
-                elif setter.source_type == ParameterSource.COMPUTE_OUTPUT:
-                    # Computed parameters are set only after all the other (input) parameters.
-                    any_compute = True
-                else:
-                    raise ValueError(f"Invalid ParameterSource type {setter.source_type}")
+            # Set the result from the correct source.
+            if setter.source_type == ParameterSource.CONSTANT:
+                graph_state.set(self.node_string, name, setter.value)
+            elif setter.source_type == ParameterSource.MODEL_PARAMETER:
+                graph_state.set(
+                    self.node_string,
+                    name,
+                    graph_state[setter.dependency.node_string][setter.value],
+                )
+            elif setter.source_type == ParameterSource.FUNCTION_NODE:
+                graph_state.set(
+                    self.node_string,
+                    name,
+                    graph_state[setter.dependency.node_string][setter.value],
+                )
+            elif setter.source_type == ParameterSource.COMPUTE_OUTPUT:
+                # Computed parameters are set only after all the other (input) parameters.
+                any_compute = True
+            else:
+                raise ValueError(f"Invalid ParameterSource type {setter.source_type}")
 
         # If this is a function node and the parameters depend on the result of its own computation
         # call the compute function to fill them in.
         if any_compute:
-            self.compute(graph_state, given_args, rng_info)
+            self.compute(graph_state, rng_info)
 
     def sample_parameters(self, given_args=None, num_samples=1, rng_info=None):
         """Sample the model's underlying parameters if they are provided by a function
@@ -584,10 +554,14 @@ class ParameterizedNode:
             nodes = set()
             self.set_graph_positions(seen_nodes=nodes)
 
+        # Create space for the results and set all the given_args as fixed parameters.
+        results = GraphState(num_samples)
+        if given_args is not None:
+            results.update(given_args, all_fixed=True)
+
         # Resample the nodes. All information is stored in the returned results dictionary.
         seen_nodes = {}
-        results = GraphState(num_samples)
-        self._sample_helper(results, seen_nodes, given_args, rng_info)
+        self._sample_helper(results, seen_nodes, rng_info)
         return results
 
     def get_all_node_info(self, field, seen_nodes=None):
@@ -627,7 +601,7 @@ class ParameterizedNode:
             result.extend(dep.get_all_node_info(field, seen_nodes))
         return result
 
-    def build_pytree(self, graph_state, seen=None):
+    def build_pytree(self, graph_state, partial=None):
         """Build a JAX PyTree representation of the variables in this graph.
 
         Parameters
@@ -635,14 +609,17 @@ class ParameterizedNode:
         graph_state : `dict`
             A dictionary of dictionaries mapping node->hash, variable_name to value.
             This data structure is modified in place to represent the current state.
-        seen : `set`
-            A set of objects that have already been processed.
+        partial : `dict`
+            The partial results so far. This is modified in place by the function.
+            A dictionary mapping node name to a dictionary mapping each variable's name
+            to its value.
             Default : ``None``
+
         Returns
         -------
         values : `dict`
-            The dictionary mapping the combination of the object identifier and
-            model parameter name to its value.
+            A dictionary mapping node name to a dictionary mapping each variable's name
+            to its value.
         """
         # Check if the node might have incomplete information.
         if self.node_pos is None:
@@ -652,20 +629,20 @@ class ParameterizedNode:
             )
 
         # Skip nodes that we have already seen.
-        if seen is None:
-            seen = set()
-        if self in seen:
-            return {}
-        seen.add(self)
+        if partial is None:
+            partial = {}
+        if self.node_string in partial:
+            return partial
 
-        all_values = {}
+        # Add new values to the pytree, recursively exploring dependencies.
+        partial[self.node_string] = {}
         for name, setter_info in self.setters.items():
             if setter_info.dependency is not None:
-                all_values.update(setter_info.dependency.build_pytree(graph_state, seen))
+                partial = setter_info.dependency.build_pytree(graph_state, partial)
             elif setter_info.source_type == ParameterSource.CONSTANT and not setter_info.fixed:
                 # Only the non-fixed, constants go into the PyTree.
-                all_values[setter_info.full_name] = graph_state[self.node_hash][name]
-        return all_values
+                partial[self.node_string][name] = graph_state[self.node_string][name]
+        return partial
 
 
 class SingleVariableNode(ParameterizedNode):
@@ -769,7 +746,7 @@ class FunctionNode(ParameterizedNode):
         else:
             super()._update_node_string()
 
-    def _build_inputs(self, graph_state, given_args=None, **kwargs):
+    def _build_inputs(self, graph_state, **kwargs):
         """Build the input arguments for the function.
 
         Parameters
@@ -777,9 +754,6 @@ class FunctionNode(ParameterizedNode):
         graph_state : `GraphState`
             An object mapping graph parameters to their values. This object is modified
             in place as it is sampled.
-        given_args : `dict`, optional
-            A dictionary representing the given arguments for this sample run.
-            This can be used as the JAX PyTree for differentiation.
         **kwargs : `dict`, optional
             Additional function arguments.
 
@@ -790,13 +764,10 @@ class FunctionNode(ParameterizedNode):
         """
         args = {}
         for key in self.arg_names:
-            # Override with the given arg or kwarg in that order.
-            if given_args is not None and self.setters[key].full_name in given_args:
-                args[key] = given_args[self.setters[key].full_name]
-            elif key in kwargs:
+            if key in kwargs:
                 args[key] = kwargs[key]
             else:
-                args[key] = graph_state[self.node_hash][key]
+                args[key] = graph_state[self.node_string][key]
         return args
 
     def _save_results(self, results, graph_state):
@@ -811,7 +782,7 @@ class FunctionNode(ParameterizedNode):
             in place as it is sampled.
         """
         if len(self.outputs) == 1:
-            graph_state.set(self.node_hash, self.outputs[0], results)
+            graph_state.set(self.node_string, self.outputs[0], results)
         else:
             if len(results) != len(self.outputs):
                 raise ValueError(
@@ -819,9 +790,9 @@ class FunctionNode(ParameterizedNode):
                     f"Expected {len(self.outputs)}, but got {results}."
                 )
             for i in range(len(self.outputs)):
-                graph_state.set(self.node_hash, self.outputs[i], results[i])
+                graph_state.set(self.node_string, self.outputs[i], results[i])
 
-    def compute(self, graph_state, given_args=None, rng_info=None, **kwargs):
+    def compute(self, graph_state, rng_info=None, **kwargs):
         """Execute the wrapped function.
 
         The input arguments are taken from the current graph_state and the outputs
@@ -832,9 +803,6 @@ class FunctionNode(ParameterizedNode):
         graph_state : `GraphState`
             An object mapping graph parameters to their values. This object is modified
             in place as it is sampled.
-        given_args : `dict`, optional
-            A dictionary representing the given arguments for this sample run.
-            This can be used as the JAX PyTree for differentiation.
         rng_info : `dict`, optional
             A dictionary of random number generator information for each node, such as
             the JAX keys or the numpy rngs.
@@ -859,7 +827,7 @@ class FunctionNode(ParameterizedNode):
 
         # Build a dictionary of arguments for the function, call the function, and save
         # the results in the graph state.
-        args = self._build_inputs(graph_state, given_args, **kwargs)
+        args = self._build_inputs(graph_state, **kwargs)
         results = self.func(**args)
         self._save_results(results, graph_state)
         return results
@@ -877,4 +845,4 @@ class FunctionNode(ParameterizedNode):
             the JAX keys or the numpy rngs.
         """
         graph_state = self.sample_parameters(given_args, 1, rng_info)
-        return self.compute(graph_state, given_args, rng_info)
+        return self.compute(graph_state, rng_info)

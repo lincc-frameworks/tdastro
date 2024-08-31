@@ -126,7 +126,7 @@ class NumpyRandomFunc(FunctionNode):
         self._rng = np.random.default_rng(seed=new_seed)
         self.func = getattr(self._rng, self.func_name)
 
-    def compute(self, graph_state, given_args=None, rng_info=None, **kwargs):
+    def compute(self, graph_state, rng_info=None, **kwargs):
         """Execute the wrapped function.
 
         The input arguments are taken from the current graph_state and the outputs
@@ -137,9 +137,6 @@ class NumpyRandomFunc(FunctionNode):
         graph_state : `GraphState`
             An object mapping graph parameters to their values. This object is modified
             in place as it is sampled.
-        given_args : `dict`, optional
-            A dictionary representing the given arguments for this sample run.
-            This can be used as the JAX PyTree for differentiation.
         rng_info : `dict`, optional
             A dictionary of random number generator information for each node, such as
             the JAX keys or the numpy rngs.
@@ -156,7 +153,7 @@ class NumpyRandomFunc(FunctionNode):
         ------
         ``ValueError`` is ``func`` attribute is ``None``.
         """
-        args = self._build_inputs(graph_state, given_args, **kwargs)
+        args = self._build_inputs(graph_state, **kwargs)
         num_samples = None if graph_state.num_samples == 1 else graph_state.num_samples
 
         # If a random number generator is given use that. Otherwise use the default one.
@@ -186,4 +183,4 @@ class NumpyRandomFunc(FunctionNode):
             Additional function arguments.
         """
         state = self.sample_parameters(given_args, num_samples, rng_info)
-        return self.compute(state, given_args, rng_info, **kwargs)
+        return self.compute(state, rng_info, **kwargs)

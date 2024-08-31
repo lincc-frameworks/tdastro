@@ -97,7 +97,7 @@ class NumericalInversePolynomialFunc(FunctionNode):
         sample = NumericalInversePolynomial(dist).rvs(1, rng)[0]
         return sample
 
-    def compute(self, graph_state, given_args=None, rng_info=None, **kwargs):
+    def compute(self, graph_state, rng_info=None, **kwargs):
         """Execute the wrapped function.
 
         The input arguments are taken from the current graph_state and the outputs
@@ -108,9 +108,6 @@ class NumericalInversePolynomialFunc(FunctionNode):
         graph_state : `GraphState`
             An object mapping graph parameters to their values. This object is modified
             in place as it is sampled.
-        given_args : `dict`, optional
-            A dictionary representing the given arguments for this sample run.
-            This can be used as the JAX PyTree for differentiation.
         rng_info : `dict`, optional
             A dictionary of random number generator information for each node, such as
             the JAX keys or the numpy rngs.
@@ -132,7 +129,7 @@ class NumericalInversePolynomialFunc(FunctionNode):
         else:
             # This is a class so we will need to create a new distribution object
             # for each sample (with a single instance of the input parameters).
-            args = self._build_inputs(graph_state, given_args, **kwargs)
+            args = self._build_inputs(graph_state, **kwargs)
 
             if graph_state.num_samples == 1:
                 dist = self._dist(**args)
@@ -164,4 +161,4 @@ class NumericalInversePolynomialFunc(FunctionNode):
             Additional function arguments.
         """
         state = self.sample_parameters(given_args, num_samples, rng_info)
-        return self.compute(state, given_args, rng_info, **kwargs)
+        return self.compute(state, rng_info, **kwargs)

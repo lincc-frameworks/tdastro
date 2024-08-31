@@ -56,6 +56,14 @@ class GraphState:
     def __len__(self):
         return self.num_parameters
 
+    def __str__(self):
+        str_lines = []
+        for node_name, node_vars in self.states.items():
+            str_lines.append(f"{node_name}:")
+            for var_name, value in node_vars.items():
+                str_lines.append(f"    {var_name}: {value}")
+        return "\n".join(str_lines)
+
     def __getitem__(self, key):
         """Access the dictionary of parameter values for a node name."""
         return self.states[key]
@@ -139,7 +147,7 @@ class GraphState:
         if fixed:
             self.fixed_vars[node_name].add(var_name)
 
-    def update(self, inputs, force_copy=False):
+    def update(self, inputs, force_copy=False, all_fixed=False):
         """Set multiple parameters' value in the GraphState from a GraphState or a
         dictionary of the same form.
 
@@ -155,6 +163,9 @@ class GraphState:
         force_copy : `bool`
             Make a copy of data in an array. If set to ``False`` this will link
             to the array, saving memory and computation time.
+            Default: ``False``
+        all_fixed : `bool`
+            Treat all the parameters in inputs as fixed.
             Default: ``False``
 
         Raises
@@ -173,7 +184,7 @@ class GraphState:
         # number of samples.
         for node_name, node_vars in new_states.items():
             for var_name, value in node_vars.items():
-                self.set(node_name, var_name, value, force_copy=force_copy)
+                self.set(node_name, var_name, value, force_copy=force_copy, fixed=all_fixed)
 
     def extract_single_sample(self, sample_num):
         """Create a new GraphState with a single sample state.
