@@ -271,7 +271,7 @@ class ParameterizedNode:
         ``ValueError`` if graph_state is None.
         """
         if graph_state is None:
-            raise ValueError(f"Unable to look ip parameter={name}. No graph_state given.")
+            raise ValueError(f"Unable to look up parameter={name}. No graph_state given.")
         return graph_state[self.node_string][name]
 
     def get_local_params(self, graph_state):
