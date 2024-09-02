@@ -1,10 +1,10 @@
 import numpy as np
 import pytest
 from tdastro.astro_utils.interpolation import (
+    create_grid,
     has_uniform_step,
     interpolate_matrix_along_wavelengths,
     interpolate_transmission_table,
-    interpolate_wavelengths,
 )
 from tdastro.astro_utils.passbands import Passband
 
@@ -24,24 +24,36 @@ def test_has_uniform_step():
     assert has_uniform_step(a4)
 
 
-def test_interpolate_wavelengths():
-    """Test interpolate_wavelengths function."""
+def test_create_grid():
+    """Test create_grid function."""
     wavelengths = np.array([1, 2, 3])
     new_grid_step = 0.5
-    interp_wavelengths = interpolate_wavelengths(wavelengths, new_grid_step)
+    interp_wavelengths = create_grid(wavelengths, new_grid_step)
     assert np.allclose(interp_wavelengths, np.array([1.0, 1.5, 2.0, 2.5, 3.0]))
 
-    # Test non-uniform grid # TODO would this be better as its own unit test? what's the standard for this?
+    # Test non-uniform grid
     wavelengths = np.array([1, 2, 4])
     new_grid_step = 0.5
-    interp_wavelengths = interpolate_wavelengths(wavelengths, new_grid_step)
+    interp_wavelengths = create_grid(wavelengths, new_grid_step)
     assert np.allclose(interp_wavelengths, np.array([1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0]))
 
     # Test not strictly increasing grid
     wavelengths = np.array([1, 2, 1])
     new_grid_step = 0.5
     with pytest.raises(ValueError):
-        interpolate_wavelengths(wavelengths, new_grid_step)
+        create_grid(wavelengths, new_grid_step)
+
+    # Test upper bound is included where the step size is a divisor of the upper bound
+    wavelengths = np.array([1, 4])
+    new_grid_step = 1
+    interp_wavelengths = create_grid(wavelengths, new_grid_step)
+    assert np.allclose(interp_wavelengths, np.array([1.0, 2.0, 3.0, 4.0]))
+
+    # Test upper bound not included where the step size is not a divisor of the upper bound
+    wavelengths = np.array([1, 4])
+    new_grid_step = 2
+    interp_wavelengths = create_grid(wavelengths, new_grid_step)
+    assert np.allclose(interp_wavelengths, np.array([1.0, 3.0]))
 
 
 def test_interpolate_matrix_along_wavelengths():
@@ -49,7 +61,7 @@ def test_interpolate_matrix_along_wavelengths():
     fluxes = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
     wavelengths = np.array([1, 2, 3])
     new_grid_step = 0.5
-    interp_wavelengths = interpolate_wavelengths(wavelengths, new_grid_step)
+    interp_wavelengths = create_grid(wavelengths, new_grid_step)
     interp_fluxes = interpolate_matrix_along_wavelengths(fluxes, wavelengths, interp_wavelengths)
     assert np.allclose(
         interp_fluxes,
@@ -125,3 +137,28 @@ def test_interpolate_passband(tmp_path):
     assert np.allclose(interpolated_matrix, expected_matrix)
 
     # TODO add a test with a weird grid upper bound
+
+
+# TODO add tests that check we don't modify the original data
+# TODO add tests that check we don't call things we don't need to if the grid is already matched
+
+
+"""
+
+        ##### TEMP LOGGING: Pre-interpolation information
+        print(
+            f"Interp {self.full_name}: {_flux_density_matrix.shape}, {_wavelengths_angstrom.shape}, "
+            f"{self.normalized_transmission_table.shape} -> ",
+            end="",
+        )
+
+
+        ##### Post-interpolation information
+        print(
+            f"{flux_density_matrix.shape}, {wavelengths_angstrom.shape}, "
+            f"{normalized_transmission_table.shape}"
+        )
+
+
+
+"""

@@ -38,10 +38,11 @@ def has_uniform_step(grid: np.ndarray) -> bool:
     return np.allclose(np.diff(grid), np.diff(grid)[0])
 
 
-def interpolate_wavelengths(wavelengths: np.ndarray, new_grid_step: float) -> np.ndarray:
+def create_grid(wavelengths: np.ndarray, new_grid_step: float) -> np.ndarray:
     """Interpolate a grid of wavelengths to a new grid with a given step size.
 
-    TODO add note about whether the upper bound is included in the new grid
+    If the interval between the original grid's upper and lower bounds is a multiple of the new grid step,
+    the upper bound will be included in the new grid.
 
     Parameters
     ----------
@@ -58,7 +59,12 @@ def interpolate_wavelengths(wavelengths: np.ndarray, new_grid_step: float) -> np
     # Check that wavelengths are strictly increasing
     if not np.all(np.diff(wavelengths) > 0):
         raise ValueError("Wavelengths must be strictly increasing.")
-    new_grid = np.arange(wavelengths[0], wavelengths[-1] + new_grid_step, new_grid_step)
+
+    # Generate new grid, including the original upper bound if step size is a divisor of target interval
+    if (wavelengths[-1] - wavelengths[0]) % new_grid_step == 0:
+        new_grid = np.arange(wavelengths[0], wavelengths[-1] + new_grid_step, new_grid_step)
+    else:
+        new_grid = np.arange(wavelengths[0], wavelengths[-1], new_grid_step)
     return new_grid
 
 
