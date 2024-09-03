@@ -94,14 +94,10 @@ def test_interpolate_transmission_table():
     # TODO test edge cases
 
 
-def test_interpolate_passband(tmp_path):
+def test_interpolate_passband_simple(tmp_path):
     """Test interpolate_passband function."""
-    # Initial values
     flux_density_matrix = np.array([[1.0, 1.0, 1.0], [1.0, 10.0, 1.0], [1.0, 0.0, 1.0]])
     wavelengths_angstrom = np.array([100.0, 105.0, 110.0])
-
-    # New values
-    new_grid_step = 1.0
 
     # Make passband
     survey = "TEST"
@@ -110,11 +106,11 @@ def test_interpolate_passband(tmp_path):
     transmission_table = "100 0.5\n" "110 1.0\n"
     with open(table_path, "w") as f:
         f.write(transmission_table)
-
     a_band = Passband(survey, band_label, table_path=table_path)
 
-    # Interpolate
-    interpolated_matrix, interpolated_vector, interpolated_t_table = a_band._interpolate(
+    # Interpolate to grid of 1.0
+    new_grid_step = 1.0
+    interpolated_fluxes, interpolated_wavelengths, interpolated_t_table = a_band._interpolate(
         flux_density_matrix,
         wavelengths_angstrom,
         a_band.normalized_transmission_table,
@@ -122,8 +118,8 @@ def test_interpolate_passband(tmp_path):
     )
 
     # Assert shape/size
-    assert interpolated_matrix.shape == (3, 11)
-    assert len(interpolated_vector) == 11
+    assert interpolated_fluxes.shape == (3, 11)
+    assert len(interpolated_wavelengths) == 11
     assert len(interpolated_t_table) == 11
 
     # Assert values
@@ -134,13 +130,44 @@ def test_interpolate_passband(tmp_path):
             [1.0, 0.8, 0.6, 0.4, 0.2, 0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
         ]
     )
-    assert np.allclose(interpolated_matrix, expected_matrix)
+    assert np.allclose(interpolated_fluxes, expected_matrix)
+    assert np.allclose(interpolated_wavelengths, np.arange(100, 111))
 
-    # TODO add a test with a weird grid upper bound
+    # Check the original data was not modified
+    assert flux_density_matrix.shape == (3, 3)
+    assert wavelengths_angstrom.shape == (3,)
 
 
-# TODO add tests that check we don't modify the original data
-# TODO add tests that check we don't call things we don't need to if the grid is already matched
+def test_interpolate_passband_none_needed(tmp_path):
+    """Test interpolate_passband function if no interpolation is needed for target grid."""
+    flux_density_matrix = np.array([[1.0, 1.0, 1.0], [1.0, 10.0, 1.0], [1.0, 0.0, 1.0]])
+    wavelengths_angstrom = np.array([100.0, 105.0, 110.0])
+
+    # Make passband
+    survey = "TEST"
+    band_label = "a"
+    table_path = tmp_path / f"{survey}_{band_label}.dat"
+    transmission_table = "100 0.5\n" "110 1.0\n"
+    with open(table_path, "w") as f:
+        f.write(transmission_table)
+    a_band = Passband(survey, band_label, table_path=table_path)
+
+    # Interpolate to grid of 10.0 (no interpolation)
+    new_grid_step = 10.0
+    interpolated_fluxes, interpolated_wavelengths, interpolated_t_table = a_band._interpolate(
+        flux_density_matrix,
+        wavelengths_angstrom,
+        a_band.normalized_transmission_table,
+        target_grid_step=new_grid_step,
+    )
+
+    # Assert shape/size
+    assert interpolated_fluxes.shape == (3, 3)
+    assert len(interpolated_wavelengths) == 3
+    assert len(interpolated_t_table) == 3
+
+    # Assert scipy.interpolate.CubicSpline was not called
+    # TODO
 
 
 """
