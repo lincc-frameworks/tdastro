@@ -1,6 +1,7 @@
 import numpy as np
 from astropy.cosmology import FlatLambdaCDM
 from scipy.stats import norm
+from scipy.stats.sampling import NumericalInversePolynomial
 
 from tdastro.base_models import FunctionNode
 from tdastro.util_nodes.scipy_random import NumericalInversePolynomialFunc
@@ -132,14 +133,59 @@ class HostmassX1Func(NumericalInversePolynomialFunc):
     """
 
     def __init__(self, hostmass, **kwargs):
-        # Call the super class's constructor with the needed information.
-        # We use the HostmassX1Distr class so a new instance will be created
-        # each sample.
+        # Since HostmassX1Distr can only take on two values (one for hostmass < 10.0 and one
+        # for hostmass >= 10.0), we just create two distributions.
+        self._dist_ge_10 = HostmassX1Distr(11.0)
+        self._dist_lt_10 = HostmassX1Distr(9.0)
         super().__init__(
             dist=HostmassX1Distr,
             hostmass=hostmass,
             **kwargs,
         )
+
+        # We override the inverse functions.
+        self._inv_poly_ge_10 = NumericalInversePolynomial(self._dist_ge_10)
+        self._inv_poly_lt_10 = NumericalInversePolynomial(self._dist_lt_10)
+        self._vect_sample = None
+
+    def compute(self, graph_state, rng_info=None, **kwargs):
+        """Sample from one of the two distributions depending on hostmass.
+
+        Parameters
+        ----------
+        graph_state : `GraphState`
+            An object mapping graph parameters to their values. This object is modified
+            in place as it is sampled.
+        rng_info : `dict`, optional
+            A dictionary of random number generator information for each node, such as
+            the JAX keys or the numpy rngs.
+        **kwargs : `dict`, optional
+            Additional function arguments.
+
+        Returns
+        -------
+        results : any
+            The result of the computation. This return value is provided so that testing
+            functions can easily access the results.
+        """
+        rng = rng_info if rng_info is not None else self._rng
+        hostmass = self.get_param(graph_state, "hostmass")
+
+        if graph_state.num_samples == 1:
+            results = self._inv_poly_ge_10.rvs(1, rng) if hostmass >= 10 else self._inv_poly_lt_10.rvs(1, rng)
+        else:
+            results = np.zeros(graph_state.num_samples)
+
+            # Batch generate samples for all points with hostmass >= 10.0
+            ge_10_idx = hostmass >= 10.0
+            results[ge_10_idx] = self._inv_poly_ge_10.rvs(np.count_nonzero(ge_10_idx), rng)
+
+            # Batch generate samples for all points with hostmass < 10.0
+            lt_10_idx = hostmass < 10.0
+            results[lt_10_idx] = self._inv_poly_lt_10.rvs(np.count_nonzero(lt_10_idx), rng)
+
+        self._save_results(results, graph_state)
+        return results
 
 
 class X0FromDistMod(FunctionNode):
