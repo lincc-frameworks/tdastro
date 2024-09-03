@@ -19,25 +19,6 @@ def get_grid_step(grid: np.ndarray) -> float:
     return None
 
 
-def has_uniform_step(grid: np.ndarray) -> bool:
-    """Check if a grid has a uniform step size.
-
-    Parameters
-    ----------
-    grid : np.ndarray
-        The grid.
-
-    Returns
-    -------
-    bool
-        True if the grid has a uniform step size, False otherwise. If the grid has fewer than 2 elements, we
-        consider it to have a uniform step size.
-    """
-    if len(grid) < 2:
-        return True
-    return np.allclose(np.diff(grid), np.diff(grid)[0])
-
-
 def create_grid(wavelengths: np.ndarray, new_grid_step: float) -> np.ndarray:
     """Interpolate a grid of wavelengths to a new grid with a given step size.
 

@@ -2,26 +2,10 @@ import numpy as np
 import pytest
 from tdastro.astro_utils.interpolation import (
     create_grid,
-    has_uniform_step,
     interpolate_matrix_along_wavelengths,
     interpolate_transmission_table,
 )
 from tdastro.astro_utils.passbands import Passband
-
-
-def test_has_uniform_step():
-    """Test has_uniform_step function."""
-    a1 = np.array([1, 2, 3])
-    assert has_uniform_step(a1)
-
-    a2 = np.array([1, 2, 3, 40])
-    assert not has_uniform_step(a2)
-
-    a3 = np.array([])
-    assert has_uniform_step(a3)
-
-    a4 = np.array([1])
-    assert has_uniform_step(a4)
 
 
 def test_create_grid():
