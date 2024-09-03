@@ -1,8 +1,11 @@
 """Benchmarks for core TDAstro functionality.
 
+To manually run the benchmarks use: asv run
+
 For more information on writing benchmarks:
 https://asv.readthedocs.io/en/stable/writing_benchmarks.html."""
 
+from tdastro.astro_utils.snia_utils import HostmassX1Func
 from tdastro.base_models import FunctionNode
 from tdastro.util_nodes.np_random import NumpyRandomFunc
 
@@ -22,3 +25,9 @@ def time_chained_evaluate():
 
     # Generate 100,000 samples.
     _ = val_node.sample_parameters(num_samples=100_000)
+
+
+def time_x1_from_hostmass():
+    """Time the generation of random numbers from the X1 function."""
+    x1_func = HostmassX1Func(11.0)
+    _ = x1_func.sample_parameters(num_samples=10)
