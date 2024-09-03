@@ -103,11 +103,15 @@ class Passband:
     Attributes
     ----------
     label : str
-        The label of the passband.
+        The label of the passband. This is the filter name: eg, "u".
     survey : str
-        The survey to which the passband belongs.
+        The survey to which the passband belongs: eg, "LSST".
     full_name : str
-        The full name of the passband.
+        The full name of the passband. This is the survey and label concatenated: eg, "LSST_u".
+    wave_grid : np.ndarray | float | None
+        The grid of wavelengths (Angstrom) to which the flux density matrix and transmission table should be
+        interpolated. If None, the grid will be interpolated to the grid of the flux density matrix. Default
+        is 5.0.
     table_path : str
         The path to the transmission table file.
     table_url : str
@@ -118,36 +122,37 @@ class Passband:
         A 2D array of wavelengths and normalized transmissions.
     """
 
-    def __init__(self, survey, label, table_path=None, table_url=""):
+    def __init__(self, survey, label, wave_grid=5.0, table_path=None, table_url=""):
         self.label = label
         self.survey = survey
         self.full_name = f"{survey}_{label}"
+        self.wave_grid = wave_grid
         self.table_path = table_path
         self.table_url = table_url
-        self.transmission_table = self._load_transmission_table()
-        self.normalized_transmission_table = self._normalize_transmission_table()
+        self.normalized_transmission_table = self._get_normalized_transmission_table()
 
     def __str__(self) -> str:
         """Return a string representation of the Passband."""
         return f"Passband: {self.full_name}"
 
-    def _load_transmission_table(self) -> np.ndarray:
-        """Load a transmission table from a file or URL.
-
-        Returns
-        -------
-        np.ndarray
-            A 2D array where the first column is wavelengths (Angstrom) and the second column is transmission
-            values.
-        """
+    def _get_normalized_transmission_table(self) -> np.ndarray:
+        # Check if the table file exists locally, and download it if it doesn't
         if self.table_path is None:
             self.table_path = os.path.join(
                 os.path.dirname(__file__), f"passbands/{self.survey}/{self.label}.dat"
             )
             os.makedirs(os.path.dirname(self.table_path), exist_ok=True)
+
         if not os.path.exists(self.table_path):
             self._download_transmission_table()
-        return np.loadtxt(self.table_path)
+
+        # Load the table, downsizing/interpolating as needed, and normalize it
+        loaded_table = self._load_transmission_table()
+        interpolated_transmissions = self._downsample_or_interpolate_transmission_table(loaded_table)
+        normalized_transmissions = self._normalize_transmission_table(interpolated_transmissions)
+
+        # Return the table
+        return normalized_transmissions
 
     def _download_transmission_table(self) -> bool:
         """Download a transmission table from a URL.
@@ -185,18 +190,56 @@ class Passband:
             logging.error(f"URL error occurred when downloading table for {self.full_name}: {e}")
             return False
 
-    def _normalize_transmission_table(self) -> np.ndarray:
+    def _load_transmission_table(self) -> np.ndarray:
+        """Load a transmission table from a file.
+
+        Returns
+        -------
+        np.ndarray
+            A 2D array of wavelengths and transmissions.
+        """
+        # Load the table file
+        loaded_table = np.loadtxt(self.table_path)
+
+        # Check that the table has the correct shape
+        if loaded_table.shape[1] != 2:
+            raise ValueError("Transmission table must have exactly 2 columns.")
+
+        # Check that wavelengths are strictly increasing
+        if not np.all(np.diff(loaded_table[:, 0]) > 0):
+            raise ValueError("Wavelengths in transmission table must be strictly increasing.")
+
+        return loaded_table
+
+    def _downsample_or_interpolate_transmission_table(self, loaded_table) -> np.ndarray:
+        """Downsample or interpolate a transmission table to a desired grid.
+
+        Returns
+        -------
+        np.ndarray
+            A 2D array of wavelengths and transmissions.
+        """
+        if self.wave_grid is not None:
+            if type(self.wave_grid) == float:
+                self.wave_grid = interpolation.create_grid(loaded_table[:, 0], self.wave_grid)
+            interpolated_transmissions = interpolation.interpolate_transmission_table(
+                loaded_table, self.wave_grid
+            )
+        return interpolated_transmissions
+
+    def _normalize_transmission_table(self, transmission_table) -> np.ndarray:
         """Calculate the value of phi_b for all wavelengths in a transmission table.
 
         This is eq. 8 from "On the Choice of LSST Flux Units" (Ivezić et al.):
 
         φ_b(λ) = S_b(λ)λ⁻¹ / ∫ S_b(λ)λ⁻¹ dλ
 
-        where S_b(λ) is the system response of the passband.
+        where S_b(λ) is the system response of the passband. Note we use transmission table as our S_b(λ).
 
-        Notes
-        -----
-        - We use transmission table here to represent S_b(λ).
+        Parameters
+        ----------
+        transmission_table : np.ndarray
+            A 2D array of wavelengths and transmissions.
 
         Returns
         -------
@@ -234,11 +277,6 @@ class Passband:
         # Make sure all given wavelengths are strictly increasing
         if not np.all(np.diff(_wavelengths_angstrom) > 0):
             raise ValueError("Wavelengths corresponding to flux density matrix must be strictly increasing.")
-        if not np.all(np.diff(self.normalized_transmission_table[:, 0]) > 0):
-            raise ValueError("Wavelengths in transmission table must be strictly increasing.")
-
-        # Check we have enough data to interpolate
-        # TODO
 
         # Create target grid
         if target_grid_step is None:
@@ -249,21 +287,21 @@ class Passband:
         target_grid = interpolation.create_grid(self.normalized_transmission_table[:, 0], target_grid_step)
 
         # Interpolate the flux density matrix
-        if np.array_equal(_wavelengths_angstrom, target_grid):
-            flux_density_matrix = []
+        if not np.array_equal(_wavelengths_angstrom, target_grid):
+            interpolated_flux_density_matrix = []
             for row in _flux_density_matrix:
                 flux_density_spline = CubicSpline(
                     _wavelengths_angstrom, row, bc_type="not-a-knot", extrapolate=True
                 )
-                flux_density_matrix.append(flux_density_spline(target_grid))
-            flux_density_matrix = np.array(flux_density_matrix)
+                interpolated_flux_density_matrix.append(flux_density_spline(target_grid))
+            flux_density_matrix = np.array(interpolated_flux_density_matrix)
             wavelengths_angstrom = target_grid
         else:
             flux_density_matrix = _flux_density_matrix
             wavelengths_angstrom = _wavelengths_angstrom
 
         # Interpolate the normalized transmission table
-        if np.array_equal(self.normalized_transmission_table[:, 0], target_grid):
+        if not np.array_equal(self.normalized_transmission_table[:, 0], target_grid):
             normalized_transmission_spline = CubicSpline(
                 self.normalized_transmission_table[:, 0],
                 self.normalized_transmission_table[:, 1],
