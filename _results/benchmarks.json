@@ -14,5 +14,20 @@
         "version": "b4af9f0021b65861c69db8702dd0a230a74916ac2d379702d0c9d1f047d711f2",
         "warmup_time": -1
     },
+    "benchmarks.time_x1_from_hostmass": {
+        "code": "def time_x1_from_hostmass():\n    \"\"\"Time the generation of random numbers from the X1 function.\"\"\"\n    x1_func = HostmassX1Func(11.0)\n    _ = x1_func.sample_parameters(num_samples=10)",
+        "min_run_count": 2,
+        "name": "benchmarks.time_x1_from_hostmass",
+        "number": 0,
+        "param_names": [],
+        "params": [],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "type": "time",
+        "unit": "seconds",
+        "version": "884f0102518d908729fb55e5e29a036490aedd2a1590976b46d3492ed5cf99a1",
+        "warmup_time": -1
+    },
     "version": 2
 }
