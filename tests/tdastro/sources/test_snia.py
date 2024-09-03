@@ -127,14 +127,11 @@ def test_snia_end2end(
 
     source.add_effect(Redshift(redshift=source.redshift, t0=source.t0))
 
+    url_base = "https://raw.githubusercontent.com/lsst/throughputs/e70d1daf069e606caa3feb43eccc62ec21e0baf5/"
     passbands = PassbandGroup(
         passbands=[
-            Passband(
-                "LSST", "g", table_url="https://github.com/lsst/throughputs/blob/main/baseline/total_g.dat"
-            ),
-            Passband(
-                "LSST", "r", table_url="https://github.com/lsst/throughputs/blob/main/baseline/total_r.dat"
-            ),
+            Passband("LSST", "g", table_url=f"{url_base}baseline/total_g.dat", units="nm"),
+            Passband("LSST", "r", table_url=f"{url_base}baseline/total_r.dat", units="nm"),
         ]
     )
 
