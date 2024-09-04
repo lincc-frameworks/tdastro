@@ -31,6 +31,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "asv==0.6.3", # Used to compute performance benchmarks
+    "fsspec[http]",  # Read OpSim file from the web with utils/make_opsim_shorten.py
     "jupyter", # Clears output from Jupyter notebooks
     "pre-commit", # Used to run checks before finalizing a git commit
     "pytest",
