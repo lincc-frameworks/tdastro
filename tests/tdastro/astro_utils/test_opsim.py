@@ -174,3 +174,9 @@ def test_opsim_docstring():
     """Test if OpSim class has a docstring"""
     assert OpSim.__doc__ is not None
     assert len(OpSim.__doc__) > 100
+
+
+def test_read_opsim_shorten(opsim_shorten):
+    """Read in a shorten OpSim file from the testing data directory."""
+    ops_data = OpSim.from_db(opsim_shorten)
+    assert len(ops_data) == 100

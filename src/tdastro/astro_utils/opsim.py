@@ -1,3 +1,5 @@
+from __future__ import annotations  # "type1 | type2" syntax in Python <3.10
+
 import sqlite3
 from pathlib import Path
 
@@ -116,12 +118,6 @@ class OpSim:  # noqa: D101
             if name not in self.colmap:
                 raise KeyError(f"The column name map is missing key={name}")
 
-        self._ext_coeff = _lsstcam_extinction_coeff.copy() if ext_coeff is None else ext_coeff
-        self.ext_coeff_getter = np.vectorize(self._ext_coeff.get)
-
-        self._zp_per_sec = _lsstcam_zeropoint_per_sec_zenith.copy() if zp_per_sec is None else zp_per_sec
-        self.zp_per_sec_getter = np.vectorize(self._zp_per_sec.get)
-
         self.pixel_scale = LSSTCAM_PIXEL_SCALE if pixel_scale is None else pixel_scale
         self.read_noise = _lsstcam_readout_noise if read_noise is None else read_noise
         self.dark_current = _lsstcam_dark_current if dark_current is None else dark_current
@@ -131,7 +127,7 @@ class OpSim:  # noqa: D101
         self._build_kd_tree()
 
         if self.colmap["zp"] not in self.table.columns:
-            self._assign_zero_points(col_name=self.colmap["zp"])
+            self._assign_zero_points(col_name=self.colmap["zp"], ext_coeff=ext_coeff, zp_per_sec=zp_per_sec)
 
     def __len__(self):
         return len(self.table)
@@ -153,12 +149,16 @@ class OpSim:  # noqa: D101
         # Construct the kd-tree.
         self._kd_tree = KDTree(cart_coords)
 
-    def _assign_zero_points(self, col_name):
+    def _assign_zero_points(
+        self, col_name: str, *, ext_coeff: dict[str, float] | None, zp_per_sec: dict[str, float] | None
+    ):
         """Assign instrumental zero points in nJy to the OpSim tables"""
         self.table[col_name] = flux_electron_zeropoint(
-            self.table[self.colmap["filter"]],
-            self.table[self.colmap["airmass"]],
-            self.table[self.colmap["visitExposureTime"]],
+            ext_coeff=ext_coeff,
+            instr_zp_mag=zp_per_sec,
+            band=self.table[self.colmap.get("filter", "filter")],
+            airmass=self.table[self.colmap.get("airmass", "airmass")],
+            exptime=self.table[self.colmap.get("exptime", "visitExposureTime")],
         )
 
     @classmethod
