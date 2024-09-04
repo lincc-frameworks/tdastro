@@ -69,9 +69,18 @@ class PassbandGroup:
         else:
             raise ValueError(f"Unknown passband preset: {preset}")
 
-    def fluxes_to_bandfluxes(
-        self, flux_density_matrix, flux_wavelengths, target_grid_step=None
-    ) -> np.ndarray:
+    def set_wave_grids(self, wave_grids: dict) -> None:
+        """Set the wave grid attribute for all passbands in the group.
+
+        Parameters
+        ----------
+        wave_grids : dict
+            A dictionary of passband labels and wave grids.
+        """
+        for label, wave_grid in wave_grids.items():
+            self.passbands[label].set_wave_grid(wave_grid)
+
+    def fluxes_to_bandfluxes(self, flux_density_matrix, flux_wavelengths) -> np.ndarray:
         """Calculate bandfluxes for all passbands in the group.
 
         Parameters
@@ -91,9 +100,7 @@ class PassbandGroup:
         """
         bandfluxes = {}
         for label, passband in self.passbands.items():
-            bandfluxes[label] = passband.fluxes_to_bandflux(
-                flux_density_matrix, flux_wavelengths, target_grid_step=target_grid_step
-            )
+            bandfluxes[label] = passband.fluxes_to_bandflux(flux_density_matrix, flux_wavelengths)
         return bandfluxes
 
 
@@ -128,16 +135,52 @@ class Passband:
         self.label = label
         self.survey = survey
         self.full_name = f"{survey}_{label}"
-        self.wave_grid = wave_grid
+
         self.table_path = table_path
         self.table_url = table_url
-
         loaded_table = self._get_transmission_table()
+
+        self.set_wave_grid(wave_grid, bounds=(loaded_table[0, 0], loaded_table[-1, 0]))
+
         self.processed_transmission_table = self._process_transmission_table(loaded_table)
 
     def __str__(self) -> str:
         """Return a string representation of the Passband."""
         return f"Passband: {self.full_name}"
+
+    def set_wave_grid(self, wave_grid: np.ndarray | float | None, bounds=None) -> None:
+        """Set the wave grid attribute, which is used for interpolation.
+
+        Parameters
+        ----------
+        wave_grid : np.ndarray | float | None
+            The grid of wavelengths (Angstrom) to which the flux density matrix and transmission table should
+            be interpolated. A float will be converted to a numpy array with a grid step matching the
+            boundaries of the transmission table. If None, the transmission table will later be interpolated
+            to a grid maintaining the same boundaries, but matching the step of the flux density matrix.
+        bounds : tuple, optional
+            The lower and upper bounds of the grid. If None, the bounds will be set to the minimum and
+            maximum wavelengths in the transmission table.
+        """
+        self.wave_grid = wave_grid
+        print(f"SET WAVE GRID: {self.wave_grid}")
+
+        if bounds is None and self.processed_transmission_table is None:
+            raise ValueError("Wave grid bounds must be provided if transmission table is not loaded.")
+        elif bounds is None:
+            bounds = (self.processed_transmission_table[0, 0], self.processed_transmission_table[-1, 0])
+
+        print(f"BOUNDS: {bounds}")
+
+        # TODO should this check:
+        # 1. the bounds are within the transmission table
+        # 2. if the wave_grid was given as an array, but bounds were also given, that they match
+
+        if isinstance(self.wave_grid, (float, int)):
+            self.wave_grid = interpolation.create_grid(bounds, self.wave_grid)
+            print(f"     TO ARRAY: {self.wave_grid}")
+
+        print(f"     WAVEGRID: {self.wave_grid} (type: {type(self.wave_grid)})")
 
     def _get_transmission_table(self) -> np.ndarray:
         # Check if the table file exists locally, and download it if it doesn't
@@ -199,6 +242,9 @@ class Passband:
         # Load the table file
         loaded_table = np.loadtxt(self.table_path)
 
+        with np.printoptions(precision=3, suppress=True):
+            print(f"LOADED TABLE:\n{loaded_table}")
+
         # Check that the table has the correct shape
         if loaded_table.shape[1] != 2:
             raise ValueError("Transmission table must have exactly 2 columns.")
@@ -222,12 +268,15 @@ class Passband:
         np.ndarray
             A 2D array of wavelengths and normalized transmissions.
         """
-        interpolated_transmissions = self._downsample_or_interpolate_transmission_table(loaded_table)
+        interpolated_transmissions = self._interpolate_or_downsample_transmission_table(loaded_table)
         normalized_transmissions = self._normalize_transmission_table(interpolated_transmissions)
+        # with np.printoptions(precision=3, suppress=True):
+        #     print(f"INTERPOLATED TRANSMISSIONS: {interpolated_transmissions}")
+        #     print(f"NORMALIZED TRANSMISSIONS: {normalized_transmissions}")
         return normalized_transmissions
 
-    def _downsample_or_interpolate_transmission_table(self, loaded_table) -> np.ndarray:
-        """Downsample or interpolate a transmission table to a desired grid.
+    def _interpolate_or_downsample_transmission_table(self, loaded_table) -> np.ndarray:
+        """Interpolate or downsample a transmission table to a desired grid.
 
         Returns
         -------
@@ -294,7 +343,7 @@ class Passband:
         loaded_table = self._load_transmission_table()
         self.processed_transmission_table = self._process_transmission_table(loaded_table)
 
-    def _interpolate(self, _flux_density_matrix, _flux_wavelengths) -> tuple:
+    def _interpolate_flux_densities(self, _flux_density_matrix, _flux_wavelengths) -> tuple:
         """Interpolate the flux density matrix to match the transmission table, which matches self.wave_grid.
 
         Parameters
@@ -367,7 +416,9 @@ class Passband:
             An array of bandfluxes.
         """
         # Interpolate flux density matrix to match the transmission table, which matches self.wave_grid
-        flux_density_matrix, flux_wavelengths = self._interpolate(_flux_density_matrix, _flux_wavelengths)
+        flux_density_matrix, flux_wavelengths = self._interpolate_flux_densities(
+            _flux_density_matrix, _flux_wavelengths
+        )
 
         # Calculate the bandflux as ∫ f(λ)φ_b(λ) dλ,
         # where f(λ) is the in-band flux density and φ_b(λ) is the normalized system response

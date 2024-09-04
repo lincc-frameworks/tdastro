@@ -106,7 +106,7 @@ def test_passband_load_transmission_table(tmp_path):
     table_path = tmp_path / f"{survey}_{band_label}.dat"
 
     # Create a transmission table file
-    transmission_table = "1000 0.5\n1001 0.6\n1002 0.7\n"
+    transmission_table = "1000 0.5\n1005 0.6\n1010 0.7\n"
     with open(table_path, "w") as f:
         f.write(transmission_table)
 
@@ -114,13 +114,10 @@ def test_passband_load_transmission_table(tmp_path):
     a_band = Passband(survey, band_label, table_path=table_path)
 
     # Check that the transmission table was loaded correctly
-    assert a_band.transmission_table.shape == (3, 2)
-    assert a_band.transmission_table[0, 0] == 1000
-    assert a_band.transmission_table[0, 1] == 0.5
-    assert a_band.transmission_table[1, 0] == 1001
-    assert a_band.transmission_table[1, 1] == 0.6
-    assert a_band.transmission_table[2, 0] == 1002
-    assert a_band.transmission_table[2, 1] == 0.7
+    assert a_band.processed_transmission_table.shape == (3, 2)
+    assert np.allclose(a_band.processed_transmission_table[:, 0], np.array([1000, 1005, 1010]))
+    assert a_band.processed_transmission_table[0, 1] < a_band.processed_transmission_table[1, 1]
+    assert a_band.processed_transmission_table[1, 1] < a_band.processed_transmission_table[2, 1]
 
 
 def test_passband_download_transmission_table(tmp_path):
@@ -130,7 +127,7 @@ def test_passband_download_transmission_table(tmp_path):
     band_label = "a"
     table_path = tmp_path / f"{survey}_{band_label}.dat"
     table_url = f"http://example.com/{survey}/{band_label}.dat"
-    transmission_table = "1000 0.5\n1001 0.6\n1002 0.7\n"
+    transmission_table = "1000 0.5\n1005 0.6\n1010 0.7\n"
 
     def mock_urlretrieve(url, filename, *args, **kwargs):  # Urlretrieve saves contents directly to filename
         with open(filename, "w") as f:
@@ -145,13 +142,15 @@ def test_passband_download_transmission_table(tmp_path):
         mocked_urlretrieve.assert_called_once_with(table_url, table_path)
 
         # Check that the transmission table was loaded correctly
-        assert a_band.transmission_table.shape == (3, 2)
-        assert a_band.transmission_table[0, 0] == 1000
-        assert a_band.transmission_table[0, 1] == 0.5
-        assert a_band.transmission_table[1, 0] == 1001
-        assert a_band.transmission_table[1, 1] == 0.6
-        assert a_band.transmission_table[2, 0] == 1002
-        assert a_band.transmission_table[2, 1] == 0.7
+        assert a_band.processed_transmission_table.shape == (3, 2)
+        assert a_band.processed_transmission_table[0, 0] == 1000
+        assert a_band.processed_transmission_table[1, 0] == 1005
+        assert a_band.processed_transmission_table[2, 0] == 1010
+
+
+def test_passband_interpolate_or_downsample_transmission_table(tmp_path):
+    """TODO"""
+    pass
 
 
 def test_passband_normalize_transmission_table(tmp_path):
@@ -165,11 +164,21 @@ def test_passband_normalize_transmission_table(tmp_path):
     with open(table_path, "w") as f:
         f.write(transmission_table)
 
-    a_band = Passband(survey, band_label, table_path=table_path)
+    a_band = Passband(survey, band_label, table_path=table_path, wave_grid=100)
 
     # Compare results
     expected_result = np.array([[100.0, 0.0075], [200.0, 0.005625], [300.0, 0.00125]])
-    assert np.allclose(a_band.normalized_transmission_table, expected_result)
+    assert np.allclose(a_band.processed_transmission_table, expected_result)
+
+
+def test_set_transmission_table_to_new_grid(tmp_path):
+    """TODO"""
+    pass
+
+
+def test_passband_flux_interpolate_flux_densities(tmp_path):
+    """TODO"""
+    pass
 
 
 def test_passband_fluxes_to_bandflux(tmp_path):
@@ -183,7 +192,7 @@ def test_passband_fluxes_to_bandflux(tmp_path):
     with open(table_path, "w") as f:
         f.write(transmission_table)
 
-    a_band = Passband(survey, band_label, table_path=table_path)
+    a_band = Passband(survey, band_label, table_path=table_path, wave_grid=100.0)
 
     # Define some mock flux values and calculate our expected bandflux
     flux = np.array(
@@ -196,11 +205,11 @@ def test_passband_fluxes_to_bandflux(tmp_path):
         ]
     )
     expected_in_band_flux = np.trapz(
-        flux * a_band.normalized_transmission_table[:, 1], x=a_band.normalized_transmission_table[:, 0]
+        flux * a_band.processed_transmission_table[:, 1], x=a_band.processed_transmission_table[:, 0]
     )
 
     # Compare results
-    in_band_flux = a_band.fluxes_to_bandflux(flux, a_band.normalized_transmission_table[:, 0])
+    in_band_flux = a_band.fluxes_to_bandflux(flux, a_band.processed_transmission_table[:, 0])
     np.allclose(in_band_flux, expected_in_band_flux)
 
 
@@ -225,7 +234,9 @@ def test_passband_group_fluxes_to_bandfluxes(tmp_path):
     # Load the PassbandGroup object
     passbands = []
     for band_label in band_labels:
-        passbands.append(Passband(survey, band_label, table_path=table_dir / f"{band_label}.dat"))
+        passbands.append(
+            Passband(survey, band_label, table_path=table_dir / f"{band_label}.dat", wave_grid=100.0)
+        )
     test_passband_group = PassbandGroup(passbands=passbands)
 
     # Define some mock flux values and calculate our expected bandfluxes
@@ -238,18 +249,23 @@ def test_passband_group_fluxes_to_bandfluxes(tmp_path):
             [1.0, 1.0, 1.0],
         ]
     )
-    wavelengths = np.array([100, 200, 300])
+    flux_wavelengths = np.array([100, 200, 300])
 
     # Compare results
-    bandfluxes = test_passband_group.fluxes_to_bandfluxes(flux, wavelengths)
+    bandfluxes = test_passband_group.fluxes_to_bandfluxes(flux, flux_wavelengths)
     for label in test_passband_group.passbands:
         assert label in bandfluxes
         assert bandfluxes[label].shape == (5,)
         assert np.allclose(
             bandfluxes[label],
             np.trapz(
-                flux * test_passband_group.passbands[label].normalized_transmission_table[:, 1],
-                x=wavelengths,
+                flux * test_passband_group.passbands[label].processed_transmission_table[:, 1],
+                x=flux_wavelengths,
                 axis=1,
             ),
         )
+
+
+def test_passbandgroup_set_wave_grids(tmp_path):
+    """TODO"""
+    pass
