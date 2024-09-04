@@ -5,6 +5,8 @@ import numpy as np
 import pandas as pd
 from scipy.spatial import KDTree
 
+from tdastro.astro_utils.mag_flux import mag2flux
+from tdastro.astro_utils.noise_model import GAUSS_EFF_AREA2FWHM_SQ, poisson_flux_std
 from tdastro.astro_utils.zeropoint import (
     _lsstcam_extinction_coeff,
     _lsstcam_zeropoint_per_sec_zenith,
@@ -23,7 +25,7 @@ LSSTCAM_PIXEL_SCALE = 0.2
 """The pixel scale for the LSST camera in arcseconds per pixel."""
 
 _lsstcam_readout_noise = 8.8
-"""The readout noise for the LSST camera in electrons per pixel.
+"""The standard deviation of the count of readout electrons per pixel for the LSST camera.
 
 The value is from
 https://smtn-002.lsst.io/v/OPSIM-1171/index.html
@@ -291,3 +293,39 @@ class OpSim:  # noqa: D101
                 raise KeyError(f"Unrecognized column name {table_col}")
             results[col] = self.table[table_col][neighbors].to_numpy()
         return results
+
+    def flux_err_point_source(self, flux, index):
+        """Simulate photon noise for a point source observation
+
+        Parameters
+        ----------
+        flux : array_like of float
+            Flux of the point source in nJy.
+        index : array_like of int
+            The index of the observation in the OpSim table.
+
+        Returns
+        -------
+        flux_err : array_like of float
+            Simulated flux noise in nJy.
+        """
+        observations = self.table[index]
+
+        # By the effective FWHM definition, see
+        # https://smtn-002.lsst.io/v/OPSIM-1171/index.html
+        footprint = GAUSS_EFF_AREA2FWHM_SQ * observations["seeingFwhmEff"] ** 2
+
+        # table value is in mag/arcsec^2
+        sky_njy = mag2flux(observations["skyBrightness"])
+
+        return poisson_flux_std(
+            flux,
+            pixel_scale=self.pixel_scale,
+            total_exposure_time=observations["visitExposureTime"],
+            exposure_count=observations["numExposures"],
+            footprint=footprint,
+            sky=sky_njy,
+            zp=observations["zp_nJy"],
+            readout_noise=self.read_noise,
+            dark_current=self.dark_current,
+        )
