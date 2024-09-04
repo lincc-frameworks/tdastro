@@ -87,7 +87,7 @@ class OpSim:  # noqa: D101
         The dark current for the LSST camera in electrons per second per pixel.
     """
 
-    _required_names = ["ra", "dec", "time", "zp"]
+    _required_names = ["ra", "dec", "time"]
 
     # Class constants for the column names.
     def __init__(
@@ -128,9 +128,6 @@ class OpSim:  # noqa: D101
         self._kd_tree = None
         self._build_kd_tree()
 
-        if self.colmap["zp"] not in self.table.columns:
-            self._assign_zero_points(col_name=self.colmap["zp"])
-
     def __len__(self):
         return len(self.table)
 
@@ -151,12 +148,26 @@ class OpSim:  # noqa: D101
         # Construct the kd-tree.
         self._kd_tree = KDTree(cart_coords)
 
-    def _assign_zero_points(self, col_name):
-        """Assign instrumental zero points in nJy to the OpSim tables"""
+    def add_zero_points(self, col_name="zp_nJy"):
+        """Assign instrumental zero points in nJy to the OpSim tables to a given column.
+
+        Note
+        ----
+        Requires the columns 'filter', 'airmass', and 'visitExposureTime' to exist.
+
+        Parameters
+        ----------
+        col_name : `str`
+            The name of the column to hold the zero points data.
+
+        Raises
+        ------
+        KeyError if any of the required columns are missing.
+        """
         self.table[col_name] = flux_electron_zeropoint(
-            self.table[self.colmap["filter"]],
-            self.table[self.colmap["airmass"]],
-            self.table[self.colmap["visitExposureTime"]],
+            self.table[self.colmap.get("filter", "filter")],
+            self.table[self.colmap.get("airmass", "airmass")],
+            self.table[self.colmap.get("visitExposureTime", "visitExposureTime")],
         )
 
     @classmethod

@@ -3,6 +3,19 @@ import argparse
 import numpy as np
 from tdastro.astro_utils.opsim import OpSim
 
+_all_columns = [
+    "observationId",
+    "observationStartMJD",
+    "visitTime",
+    "filter",
+    "seeingFwhmGeom",
+    "seeingFwhmEff",
+    "fiveSigmaDepth",
+    "fieldRA",
+    "fieldDec",
+    "rotSkyPos",
+]
+
 
 def make_sampled_opsim(ra_vals, dec_vals, time_step, num_visits):
     """Create a fake OpSim data that scans a grid of (ra, dec) multiple times.
@@ -38,17 +51,23 @@ def make_sampled_opsim(ra_vals, dec_vals, time_step, num_visits):
                 opsim_data["fieldDec"].append(dec)
                 t += time_step
 
-    # Add other fields
+    # Add other fields, including everything in the standard Rubin table.
     num_obs = len(opsim_data["observationStartMJD"])
-    opsim_data["zp_nJy"] = np.ones(num_obs)
     opsim_data["filter"] = np.full((num_obs), "r")
     opsim_data["filter"][0::2] = "g"
+    for col in _all_columns:
+        if col not in opsim_data:
+            opsim_data[col] = np.zeros(num_obs)
 
     return OpSim(opsim_data)
 
 
 def main():
-    """Generate the fake OpSim data and save it to a file."""
+    """Generate the fake OpSim data and save it to a file.
+
+    To generate an updated small_db file use:
+        python tests/tdastro/utils/make_fake_opsim.py tests/tdastro/data/opsim_small.db
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("output", type=str, help="Output filename")
     parser.add_argument(
