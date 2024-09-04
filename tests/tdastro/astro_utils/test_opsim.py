@@ -5,6 +5,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
+from tdastro.astro_utils.mag_flux import mag2flux
 from tdastro.astro_utils.opsim import (
     OpSim,
 )
@@ -180,3 +181,16 @@ def test_read_opsim_shorten(opsim_shorten):
     """Read in a shorten OpSim file from the testing data directory."""
     ops_data = OpSim.from_db(opsim_shorten)
     assert len(ops_data) == 100
+
+
+def test_opsim_flux_err_point_source(opsim_shorten):
+    """Check if OpSim.flux_err_point_source is consistent with fiveSigmaDepth."""
+    ops_data = OpSim.from_db(opsim_shorten)
+    # fiveSigmaDepth is the 5-sigma limiting magnitude.
+    flux = mag2flux(ops_data.table["fiveSigmaDepth"])
+    expected_flux_err = flux / 5.0
+
+    flux_err = ops_data.flux_err_point_source(flux, index=np.arange(len(ops_data)))
+
+    # Tolerance is very high, we should investigate why the values are so different.
+    np.testing.assert_allclose(flux_err, expected_flux_err, rtol=0.2)

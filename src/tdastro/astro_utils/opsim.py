@@ -309,7 +309,7 @@ class OpSim:  # noqa: D101
         flux_err : array_like of float
             Simulated flux noise in nJy.
         """
-        observations = self.table[index]
+        observations = self.table.iloc[index]
 
         # By the effective FWHM definition, see
         # https://smtn-002.lsst.io/v/OPSIM-1171/index.html
