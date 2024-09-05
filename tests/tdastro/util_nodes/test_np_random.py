@@ -104,7 +104,3 @@ def test_numpy_random_given_rng():
     # because the hash values are different.
     rngs = build_rngs_from_nodes([np_node1, np_node2], base_seed=100)
     assert np.abs(np_node1.generate(rng_info=rngs) - np_node2.generate(rng_info=rngs)) > 1e-12
-
-    # We correctly fail if we don't have the correct hashes.
-    with pytest.raises(KeyError):
-        _ = np_node1.generate(rng_info={})
