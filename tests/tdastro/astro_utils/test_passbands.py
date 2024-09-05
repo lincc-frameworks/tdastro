@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 import numpy as np
+import pytest
 from tdastro.astro_utils.passbands import Passband, PassbandGroup
 
 
@@ -176,9 +177,111 @@ def test_set_transmission_table_to_new_grid(tmp_path):
     pass
 
 
-def test_passband_flux_interpolate_flux_densities(tmp_path):
-    """TODO"""
-    pass
+def test_passband_interpolate_flux_densities_basic(tmp_path):  # TODO break this into multiple functions
+    """Test the _interpolate_flux_densities method of the Passband class. Make sure values are interpolated as
+    expected."""
+    # Initialize a Passband object
+    survey = "TEST"
+    band_label = "a"
+    table_path = tmp_path / f"{survey}_{band_label}.dat"
+
+    transmission_table = "100 0.5\n200 0.75\n300 0.25\n400 0.5\n500 0.25\n600 0.5"
+    with open(table_path, "w") as f:
+        f.write(transmission_table)
+
+    # Test interpolation is skipped when not needed
+    a_band = Passband(survey, band_label, table_path=table_path, wave_grid=100.0)
+    fluxes = np.array([[0.25, 0.5, 1.0, 1.0, 0.5, 0.25]])
+    flux_wavelengths = np.array([100.0, 200.0, 300.0, 400.0, 500.0, 600.0])
+    (result_fluxes, result_wavelengths) = a_band._interpolate_flux_densities(fluxes, flux_wavelengths)
+    np.testing.assert_allclose(result_fluxes, fluxes)
+    np.testing.assert_allclose(result_wavelengths, flux_wavelengths)
+
+    # Test interpolation when fluxes span entire band
+    b_band = Passband(survey, band_label, table_path=table_path, wave_grid=50.0)
+    fluxes = np.array([[0.25, 0.5, 1.0, 1.0, 0.5, 0.25], [0.25, 0.5, 1.0, 1.0, 0.5, 0.25]])
+    flux_wavelengths = np.array([100.0, 200.0, 300.0, 400.0, 500.0, 600.0])
+    (result_fluxes, result_wavelengths) = b_band._interpolate_flux_densities(fluxes, flux_wavelengths)
+
+    # Check wavelengths
+    expected_waves = np.arange(100, 601, 50)
+    np.testing.assert_allclose(result_wavelengths, expected_waves)
+
+    # Check the interpolated fluxes, while being somewhat agnostic to the specific method of interpolation
+    assert result_fluxes.shape == (2, 11)
+    # Ends should be 0.25
+    assert result_fluxes[0, 0] == 0.25
+    assert result_fluxes[0, 10] == 0.25
+    # First half of array should be increasing
+    assert np.all(np.diff(result_fluxes[0, :6]) > 0)
+    # Second half of array should be decreasing
+    assert np.all(np.diff(result_fluxes[0, 5:]) < 0)
+
+
+def test_passband_interpolate_flux_densities_mismatched_bounds(
+    tmp_path,
+):  # TODO break this into multiple functions
+    """Test the _interpolate_flux_densities method of the Passband class. Make sure values are interpolated as
+    expected, out-of-bounds values are handled correctly, and padding is creating when needed."""
+    # Initialize a Passband object
+    survey = "TEST"
+    band_label = "a"
+    table_path = tmp_path / f"{survey}_{band_label}.dat"
+
+    transmission_table = "100 0.5\n200 0.75\n300 0.25\n400 0.5\n500 0.25\n600 0.5"
+    with open(table_path, "w") as f:
+        f.write(transmission_table)
+
+    # Test interpolation when fluxes are out of bounds
+    a_band = Passband(survey, band_label, table_path=table_path, wave_grid=100.0)
+    fluxes = np.array([[0.25, 0.5, 1.0, 1.0, 0.5, 0.25]])
+    flux_wavelengths = np.array([50.0, 100.0, 200.0, 300.0, 400.0, 500.0, 600.0, 650.0])
+    with pytest.raises(ValueError):
+        a_band._interpolate_flux_densities(fluxes, flux_wavelengths, "raise")
+
+    # Test padding (with no interpolation) when fluxes do not span the entire band (extrapolation="zeros")
+    b_band = Passband(survey, band_label, table_path=table_path, wave_grid=100.0)
+    fluxes = np.array([[0.5, 1.0, 0.5, 0.25], [0.5, 1.0, 0.5, 0.25]])
+    flux_wavelengths = np.array([200.0, 300.0, 400.0, 500.0])
+    (result_fluxes, result_wavelengths) = b_band._interpolate_flux_densities(
+        fluxes, flux_wavelengths, "zeros"
+    )
+    expected_fluxes = np.array([[0.0, 0.5, 1.0, 0.5, 0.25, 0.0], [0.0, 0.5, 1.0, 0.5, 0.25, 0.0]])
+    expected_waves = np.array([100, 200, 300, 400, 500, 600])
+    np.testing.assert_allclose(result_fluxes, expected_fluxes)
+    np.testing.assert_allclose(result_wavelengths, expected_waves)
+
+    # Test interpolation and padding when fluxes do not span the entire band
+    d_band = Passband(survey, band_label, table_path=table_path, wave_grid=50.0)
+    fluxes = np.array([[0.25, 0.75, 1.0, 0.25]])
+    flux_wavelengths = np.array([200.0, 300.0, 400.0, 500.0])
+    (result_fluxes, result_wavelengths) = d_band._interpolate_flux_densities(
+        fluxes, flux_wavelengths, "zeros"
+    )
+    expected_waves = np.arange(100, 601, 50)
+    np.testing.assert_allclose(result_wavelengths, expected_waves)
+    assert result_fluxes.shape == (1, 11)
+    # Check zero-padding
+    assert np.isclose(result_fluxes[0, 0], 0.0)
+    assert np.isclose(result_fluxes[0, 1], 0.0)
+    assert np.isclose(result_fluxes[0, 9], 0.0)
+    assert np.isclose(result_fluxes[0, 10], 0.0)
+    # Check the ends of the given fluxes are preserved
+    assert np.isclose(result_fluxes[0, 2], 0.25)
+    assert np.isclose(result_fluxes[0, 8], 0.25)
+    # Check the increasing section (originally indices [0, 2]) is still increasing (now indices [2, 6])
+    assert np.all(np.diff(result_fluxes[0, 2:6]) > 0)
+    # Check the decreasing section (originally indices [2, 3]) is still decreasing (now indices [6, 8])
+    assert np.all(np.diff(result_fluxes[0, 6:8]) < 0)
+
+    # Test interpolation when fluxes are out of bounds
+    e_band = Passband(survey, band_label, table_path=table_path, wave_grid=100.0)
+    fluxes = np.array([[0.25, 0.5, 1.0, 1.5, 1.5, 1.0, 0.5, 0.25]])
+    flux_wavelengths = np.array([50.0, 100.0, 200.0, 300.0, 400.0, 500.0, 600.0, 650.0])
+    (result_fluxes, result_wavelengths) = e_band._interpolate_flux_densities(fluxes, flux_wavelengths)
+    expected_waves = np.arange(100, 601, 100)
+    np.testing.assert_allclose(result_wavelengths, expected_waves)
+    np.testing.assert_allclose(result_fluxes, fluxes[:, 1:7])
 
 
 def test_passband_fluxes_to_bandflux(tmp_path):
@@ -253,13 +356,13 @@ def test_passband_group_fluxes_to_bandfluxes(tmp_path):
 
     # Compare results
     bandfluxes = test_passband_group.fluxes_to_bandfluxes(flux, flux_wavelengths)
-    for label in test_passband_group.passbands:
-        assert label in bandfluxes
-        assert bandfluxes[label].shape == (5,)
+    for band_name in test_passband_group.passbands:
+        assert band_name in bandfluxes
+        assert bandfluxes[band_name].shape == (5,)
         assert np.allclose(
-            bandfluxes[label],
+            bandfluxes[band_name],
             np.trapz(
-                flux * test_passband_group.passbands[label].processed_transmission_table[:, 1],
+                flux * test_passband_group.passbands[band_name].processed_transmission_table[:, 1],
                 x=flux_wavelengths,
                 axis=1,
             ),

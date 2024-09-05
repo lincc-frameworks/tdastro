@@ -6,7 +6,6 @@ from urllib.error import HTTPError, URLError
 
 import numpy as np
 import scipy.integrate
-from scipy.interpolate import CubicSpline
 
 from tdastro.astro_utils import interpolation
 
@@ -163,14 +162,11 @@ class Passband:
             maximum wavelengths in the transmission table.
         """
         self.wave_grid = wave_grid
-        print(f"SET WAVE GRID: {self.wave_grid}")
 
         if bounds is None and self.processed_transmission_table is None:
             raise ValueError("Wave grid bounds must be provided if transmission table is not loaded.")
         elif bounds is None:
             bounds = (self.processed_transmission_table[0, 0], self.processed_transmission_table[-1, 0])
-
-        print(f"BOUNDS: {bounds}")
 
         # TODO should this check:
         # 1. the bounds are within the transmission table
@@ -178,9 +174,6 @@ class Passband:
 
         if isinstance(self.wave_grid, (float, int)):
             self.wave_grid = interpolation.create_grid(bounds, self.wave_grid)
-            print(f"     TO ARRAY: {self.wave_grid}")
-
-        print(f"     WAVEGRID: {self.wave_grid} (type: {type(self.wave_grid)})")
 
     def _get_transmission_table(self) -> np.ndarray:
         # Check if the table file exists locally, and download it if it doesn't
@@ -241,9 +234,6 @@ class Passband:
         """
         # Load the table file
         loaded_table = np.loadtxt(self.table_path)
-
-        with np.printoptions(precision=3, suppress=True):
-            print(f"LOADED TABLE:\n{loaded_table}")
 
         # Check that the table has the correct shape
         if loaded_table.shape[1] != 2:
@@ -343,7 +333,9 @@ class Passband:
         loaded_table = self._load_transmission_table()
         self.processed_transmission_table = self._process_transmission_table(loaded_table)
 
-    def _interpolate_flux_densities(self, _flux_density_matrix, _flux_wavelengths) -> tuple:
+    def _interpolate_flux_densities(
+        self, _flux_density_matrix, _flux_wavelengths, extrapolate="raise"
+    ) -> tuple:
         """Interpolate the flux density matrix to match the transmission table, which matches self.wave_grid.
 
         Parameters
@@ -352,6 +344,11 @@ class Passband:
             A 2D array of flux densities where rows are times and columns are wavelengths.
         _flux_wavelengths : np.ndarray
             An array of wavelengths in Angstroms corresponding to the columns of _flux_density_matrix.
+        extrapolate : str, optional
+            The method of extrapolation to use, passed to scipy.interpolate.InterpolatedUnivariateSpline.
+            Default is "raise", which will raise a ValueError if the interpolation goes out of bounds. Other
+            options are "constant" (pads with boundary value), "zeros" (pads with 0), and "extrapolate" (uses
+            spline extrapolation; not recommended).
 
         Returns
         -------
@@ -372,20 +369,24 @@ class Passband:
             self.wave_grid = interpolation.create_grid(
                 self.processed_transmission_table[:, 0], np.diff(_flux_wavelengths)[0]
             )
-        elif type(self.wave_grid) == float:
+        elif isinstance(self.wave_grid, float):
             self.wave_grid = interpolation.create_grid(
                 self.processed_transmission_table[:, 0], self.wave_grid
             )
 
         # Interpolate the flux density matrix
         if not np.array_equal(_flux_wavelengths, self.wave_grid):
-            interpolated_flux_density_matrix = []
-            for row in _flux_density_matrix:
-                flux_density_spline = CubicSpline(
-                    _flux_wavelengths, row, bc_type="not-a-knot", extrapolate=True
+            # Initialize an array to store interpolated flux densities
+            interpolated_flux_density_matrix = np.empty((len(_flux_density_matrix), len(self.wave_grid)))
+
+            # Interpolate each row individually
+            for i, row in enumerate(_flux_density_matrix):
+                interpolator = scipy.interpolate.InterpolatedUnivariateSpline(
+                    _flux_wavelengths, row, ext=extrapolate
                 )
-                interpolated_flux_density_matrix.append(flux_density_spline(self.wave_grid))
-            flux_density_matrix = np.array(interpolated_flux_density_matrix)
+                interpolated_flux_density_matrix[i, :] = interpolator(self.wave_grid)
+
+            flux_density_matrix = interpolated_flux_density_matrix
             flux_wavelengths = self.wave_grid
         else:
             flux_density_matrix = _flux_density_matrix
@@ -393,7 +394,7 @@ class Passband:
 
         return (flux_density_matrix, flux_wavelengths)
 
-    def fluxes_to_bandflux(self, _flux_density_matrix, _flux_wavelengths) -> np.ndarray:
+    def fluxes_to_bandflux(self, _flux_density_matrix, _flux_wavelengths, extrapolate="raise") -> np.ndarray:
         """Calculate the bandflux for a given set of flux densities.
 
         This is eq. 7 from "On the Choice of LSST Flux Units" (Ivezić et al.):
@@ -409,7 +410,11 @@ class Passband:
             A 2D array of flux densities where rows are times and columns are wavelengths.
         flux_wavelengths : np.ndarray
             An array of wavelengths in Angstroms corresponding to the columns of flux_density_matrix.
-
+        extrapolate : str, optional
+            The method of extrapolation to use, passed to scipy.interpolate.InterpolatedUnivariateSpline.
+            Default is "raise", which will raise a ValueError if the interpolation goes out of bounds. Other
+            options are "constant" (pads with boundary value), "zeros" (pads with 0), and "extrapolate" (uses
+            spline extrapolation; not recommended).
         Returns
         -------
         np.ndarray
@@ -417,7 +422,7 @@ class Passband:
         """
         # Interpolate flux density matrix to match the transmission table, which matches self.wave_grid
         flux_density_matrix, flux_wavelengths = self._interpolate_flux_densities(
-            _flux_density_matrix, _flux_wavelengths
+            _flux_density_matrix, _flux_wavelengths, extrapolate
         )
 
         # Calculate the bandflux as ∫ f(λ)φ_b(λ) dλ,
