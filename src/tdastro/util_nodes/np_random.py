@@ -157,7 +157,9 @@ class NumpyRandomFunc(FunctionNode):
         num_samples = None if graph_state.num_samples == 1 else graph_state.num_samples
 
         # If a random number generator is given use that. Otherwise use the default one.
-        if rng_info is not None and self.node_hash in rng_info:
+        if rng_info is not None:
+            if self.node_hash not in rng_info:
+                raise KeyError("Node's hash not found in rng_info")
             func = getattr(rng_info[self.node_hash], self.func_name)
             results = func(**args, size=num_samples)
         else:
