@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 from tdastro.util_nodes.np_random import NumpyRandomFunc
 from tdastro.util_nodes.scipy_random import NumericalInversePolynomialFunc
 
@@ -87,6 +88,34 @@ def test_numerical_inverse_polynomial_func_object():
     assert len(samples) == 500
     assert len(np.unique(samples)) > 50
     assert np.abs(np.mean(samples) - 0.5) < 0.01
+
+
+def test_numerical_inverse_polynomial_func_object_seed():
+    """Test that we can generate numbers from a uniform distribution with a given seed."""
+    dist = FlatDist(min_val=0.25, max_val=0.75)
+    scipy_node = NumericalInversePolynomialFunc(dist)
+
+    # Sample without a given seed.
+    state1 = scipy_node.sample_parameters(num_samples=10)
+    values1 = scipy_node.get_param(state1, "function_node_result")
+
+    # Re-sample with a given seed=100.
+    rng_info = {scipy_node.node_hash: np.random.default_rng(seed=100)}
+    state2 = scipy_node.sample_parameters(num_samples=10, rng_info=rng_info)
+    values2 = scipy_node.get_param(state2, "function_node_result")
+
+    # Re-sample again with a given seed=100.
+    rng_info = {scipy_node.node_hash: np.random.default_rng(seed=100)}
+    state3 = scipy_node.sample_parameters(num_samples=10, rng_info=rng_info)
+    values3 = scipy_node.get_param(state3, "function_node_result")
+
+    assert np.allclose(values2, values3)
+    assert not np.allclose(values1, values2)
+    assert not np.allclose(values1, values3)
+
+    # We correctly fail if we don't have the correct hashes.
+    with pytest.raises(KeyError):
+        _ = scipy_node.sample_parameters(num_samples=10, rng_info={})
 
 
 def test_numerical_inverse_polynomial_func_class():
