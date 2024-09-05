@@ -296,7 +296,7 @@ class OpSim:  # noqa: D101
         return results
 
     def flux_err_point_source(self, flux, index):
-        """Simulate photon noise for a point source observation
+        """Compute observational flux error for a point source
 
         Parameters
         ----------
