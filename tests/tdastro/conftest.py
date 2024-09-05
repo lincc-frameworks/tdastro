@@ -28,3 +28,9 @@ def grid_data_bad_file(test_data_dir):
 def opsim_small(test_data_dir):
     """Return the file path for the bad grid input file."""
     return os.path.join(test_data_dir, "opsim_small.db")
+
+
+@pytest.fixture
+def opsim_shorten(test_data_dir):
+    """Return the file path for the bad grid input file."""
+    return os.path.join(test_data_dir, "opsim_shorten.db")

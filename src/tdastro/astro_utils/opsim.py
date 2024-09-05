@@ -1,3 +1,5 @@
+from __future__ import annotations  # "type1 | type2" syntax in Python <3.10
+
 import sqlite3
 from pathlib import Path
 
@@ -5,11 +7,14 @@ import numpy as np
 import pandas as pd
 from scipy.spatial import KDTree
 
+from tdastro.astro_utils.mag_flux import mag2flux
+from tdastro.astro_utils.noise_model import poisson_flux_std
 from tdastro.astro_utils.zeropoint import (
     _lsstcam_extinction_coeff,
     _lsstcam_zeropoint_per_sec_zenith,
     flux_electron_zeropoint,
 )
+from tdastro.consts import GAUSS_EFF_AREA2FWHM_SQ
 
 _rubin_opsim_colnames = {
     "time": "observationStartMJD",
@@ -23,7 +28,7 @@ LSSTCAM_PIXEL_SCALE = 0.2
 """The pixel scale for the LSST camera in arcseconds per pixel."""
 
 _lsstcam_readout_noise = 8.8
-"""The readout noise for the LSST camera in electrons per pixel.
+"""The standard deviation of the count of readout electrons per pixel for the LSST camera.
 
 The value is from
 https://smtn-002.lsst.io/v/OPSIM-1171/index.html
@@ -114,12 +119,6 @@ class OpSim:  # noqa: D101
             if name not in self.colmap:
                 raise KeyError(f"The column name map is missing key={name}")
 
-        self._ext_coeff = _lsstcam_extinction_coeff.copy() if ext_coeff is None else ext_coeff
-        self.ext_coeff_getter = np.vectorize(self._ext_coeff.get)
-
-        self._zp_per_sec = _lsstcam_zeropoint_per_sec_zenith.copy() if zp_per_sec is None else zp_per_sec
-        self.zp_per_sec_getter = np.vectorize(self._zp_per_sec.get)
-
         self.pixel_scale = LSSTCAM_PIXEL_SCALE if pixel_scale is None else pixel_scale
         self.read_noise = _lsstcam_readout_noise if read_noise is None else read_noise
         self.dark_current = _lsstcam_dark_current if dark_current is None else dark_current
@@ -129,7 +128,7 @@ class OpSim:  # noqa: D101
         self._build_kd_tree()
 
         if self.colmap["zp"] not in self.table.columns:
-            self._assign_zero_points(col_name=self.colmap["zp"])
+            self._assign_zero_points(col_name=self.colmap["zp"], ext_coeff=ext_coeff, zp_per_sec=zp_per_sec)
 
     def __len__(self):
         return len(self.table)
@@ -151,12 +150,16 @@ class OpSim:  # noqa: D101
         # Construct the kd-tree.
         self._kd_tree = KDTree(cart_coords)
 
-    def _assign_zero_points(self, col_name):
+    def _assign_zero_points(
+        self, col_name: str, *, ext_coeff: dict[str, float] | None, zp_per_sec: dict[str, float] | None
+    ):
         """Assign instrumental zero points in nJy to the OpSim tables"""
         self.table[col_name] = flux_electron_zeropoint(
-            self.table[self.colmap["filter"]],
-            self.table[self.colmap["airmass"]],
-            self.table[self.colmap["visitExposureTime"]],
+            ext_coeff=ext_coeff,
+            instr_zp_mag=zp_per_sec,
+            band=self.table[self.colmap.get("filter", "filter")],
+            airmass=self.table[self.colmap.get("airmass", "airmass")],
+            exptime=self.table[self.colmap.get("exptime", "visitExposureTime")],
         )
 
     @classmethod
@@ -291,3 +294,39 @@ class OpSim:  # noqa: D101
                 raise KeyError(f"Unrecognized column name {table_col}")
             results[col] = self.table[table_col][neighbors].to_numpy()
         return results
+
+    def flux_err_point_source(self, flux, index):
+        """Compute observational flux error for a point source
+
+        Parameters
+        ----------
+        flux : array_like of float
+            Flux of the point source in nJy.
+        index : array_like of int
+            The index of the observation in the OpSim table.
+
+        Returns
+        -------
+        flux_err : array_like of float
+            Simulated flux noise in nJy.
+        """
+        observations = self.table.iloc[index]
+
+        # By the effective FWHM definition, see
+        # https://smtn-002.lsst.io/v/OPSIM-1171/index.html
+        footprint = GAUSS_EFF_AREA2FWHM_SQ * observations["seeingFwhmEff"] ** 2
+
+        # table value is in mag/arcsec^2
+        sky_njy = mag2flux(observations["skyBrightness"])
+
+        return poisson_flux_std(
+            flux,
+            pixel_scale=self.pixel_scale,
+            total_exposure_time=observations["visitExposureTime"],
+            exposure_count=observations["numExposures"],
+            footprint=footprint,
+            sky=sky_njy,
+            zp=observations["zp_nJy"],
+            readout_noise=self.read_noise,
+            dark_current=self.dark_current,
+        )
