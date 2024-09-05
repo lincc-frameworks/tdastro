@@ -8,12 +8,13 @@ import pandas as pd
 from scipy.spatial import KDTree
 
 from tdastro.astro_utils.mag_flux import mag2flux
-from tdastro.astro_utils.noise_model import GAUSS_EFF_AREA2FWHM_SQ, poisson_flux_std
+from tdastro.astro_utils.noise_model import poisson_flux_std
 from tdastro.astro_utils.zeropoint import (
     _lsstcam_extinction_coeff,
     _lsstcam_zeropoint_per_sec_zenith,
     flux_electron_zeropoint,
 )
+from tdastro.consts import GAUSS_EFF_AREA2FWHM_SQ
 
 _rubin_opsim_colnames = {
     "time": "observationStartMJD",

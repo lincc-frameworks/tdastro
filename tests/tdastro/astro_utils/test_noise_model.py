@@ -1,6 +1,7 @@
 import numpy as np
 from numpy.testing import assert_allclose
-from tdastro.astro_utils.noise_model import GAUSS_EFF_AREA2FWHM_SQ, poisson_flux_std
+from tdastro.astro_utils.noise_model import poisson_flux_std
+from tdastro.consts import GAUSS_EFF_AREA2FWHM_SQ
 
 
 def test_poisson_flux_std_flux():
