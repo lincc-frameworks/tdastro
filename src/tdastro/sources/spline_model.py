@@ -7,7 +7,7 @@ https://github.com/sncosmo/sncosmo/blob/v2.10.1/sncosmo/models.py
 
 from scipy.interpolate import RectBivariateSpline
 
-from tdastro.base_models import PhysicalModel
+from tdastro.sources.physical_model import PhysicalModel
 
 
 class SplineModel(PhysicalModel):
@@ -25,8 +25,6 @@ class SplineModel(PhysicalModel):
         The spline object for predicting the flux from a given (time, wavelength).
     name : `str`
         The name of the model being used.
-    amplitude : `float`
-        A unitless scaling parameter for the flux density values.
 
     Parameters
     ----------
@@ -67,24 +65,21 @@ class SplineModel(PhysicalModel):
 
         # These parameters are directly set, because they cannot be changed once
         # the object is created.
-        self.name = name
         self._times = times
         self._wavelengths = wavelengths
         self._spline = RectBivariateSpline(times, wavelengths, flux, kx=time_degree, ky=wave_degree)
 
-    def __str__(self):
-        """Return the string representation of the model."""
-        return f"SplineModel({self.name})"
-
-    def _evaluate(self, times, wavelengths, **kwargs):
+    def _evaluate(self, times, wavelengths, graph_state, **kwargs):
         """Draw effect-free observations for this object.
 
         Parameters
         ----------
         times : `numpy.ndarray`
-            A length T array of timestamps.
+            A length T array of rest frame timestamps.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
+        graph_state : `GraphState`
+            An object mapping graph parameters to their values.
         **kwargs : `dict`, optional
            Any additional keyword arguments.
 
@@ -93,4 +88,5 @@ class SplineModel(PhysicalModel):
         flux_density : `numpy.ndarray`
             A length T x N matrix of SED values.
         """
-        return self.amplitude * self._spline(times, wavelengths, grid=True)
+        params = self.get_local_params(graph_state)
+        return params["amplitude"] * self._spline(times, wavelengths, grid=True)

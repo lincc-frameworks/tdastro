@@ -6,7 +6,7 @@ from tdastro.sources.static_source import StaticSource
 class StepSource(StaticSource):
     """A static source that is on for a fixed amount of time
 
-    Attributes
+    Parameters
     ----------
     brightness : `float`
         The inherent brightness
@@ -14,6 +14,8 @@ class StepSource(StaticSource):
         The time the step function starts
     t1 : `float`
         The time the step function ends
+    **kwargs : `dict`, optional
+        Any additional keyword arguments.
     """
 
     def __init__(self, brightness, t0, t1, **kwargs):
@@ -21,19 +23,17 @@ class StepSource(StaticSource):
         self.add_parameter("t0", t0, required=True, **kwargs)
         self.add_parameter("t1", t1, required=True, **kwargs)
 
-    def __str__(self):
-        """Return the string representation of the model."""
-        return f"StepSource({self.brightness})_{self.t0}_to_{self.t1}"
-
-    def _evaluate(self, times, wavelengths, **kwargs):
+    def _evaluate(self, times, wavelengths, graph_state, **kwargs):
         """Draw effect-free observations for this object.
 
         Parameters
         ----------
         times : `numpy.ndarray`
-            A length T array of timestamps.
+            A length T array of rest frame timestamps.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
+        graph_state : `GraphState`
+            An object mapping graph parameters to their values.
         **kwargs : `dict`, optional
            Any additional keyword arguments.
 
@@ -43,7 +43,8 @@ class StepSource(StaticSource):
             A length T x N matrix of SED values.
         """
         flux_density = np.zeros((len(times), len(wavelengths)))
+        params = self.get_local_params(graph_state)
 
-        time_mask = (times >= self.t0) & (times <= self.t1)
-        flux_density[time_mask] = self.brightness
+        time_mask = (times >= params["t0"]) & (times <= params["t1"])
+        flux_density[time_mask] = params["brightness"]
         return flux_density

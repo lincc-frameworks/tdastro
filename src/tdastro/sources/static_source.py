@@ -1,40 +1,41 @@
 import numpy as np
 
-from tdastro.base_models import PhysicalModel
+from tdastro.sources.physical_model import PhysicalModel
 
 
 class StaticSource(PhysicalModel):
     """A static source.
 
-    Attributes
+    Parameters
     ----------
     brightness : `float`
         The inherent brightness
+    **kwargs : `dict`, optional
+        Any additional keyword arguments.
     """
 
     def __init__(self, brightness, **kwargs):
         super().__init__(**kwargs)
         self.add_parameter("brightness", brightness, required=True, **kwargs)
 
-    def __str__(self):
-        """Return the string representation of the model."""
-        return f"StaticSource({self.brightness})"
-
-    def _evaluate(self, times, wavelengths, **kwargs):
+    def _evaluate(self, times, wavelengths, graph_state, **kwargs):
         """Draw effect-free observations for this object.
 
         Parameters
         ----------
         times : `numpy.ndarray`
-            A length T array of timestamps.
+            A length T array of rest frame timestamps.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
+        graph_state : `GraphState`
+            An object mapping graph parameters to their values.
         **kwargs : `dict`, optional
-           Any additional keyword arguments.
+            Any additional keyword arguments.
 
         Returns
         -------
         flux_density : `numpy.ndarray`
             A length T x N matrix of SED values.
         """
-        return np.full((len(times), len(wavelengths)), self.brightness)
+        params = self.get_local_params(graph_state)
+        return np.full((len(times), len(wavelengths)), params["brightness"])
