@@ -177,7 +177,7 @@ def test_set_transmission_table_to_new_grid(tmp_path):
     pass
 
 
-def test_passband_interpolate_flux_densities_basic(tmp_path):  # TODO break this into multiple functions
+def test_passband_interpolate_flux_densities_basic(tmp_path):
     """Test the _interpolate_flux_densities method of the Passband class. Make sure values are interpolated as
     expected."""
     # Initialize a Passband object
@@ -220,7 +220,7 @@ def test_passband_interpolate_flux_densities_basic(tmp_path):  # TODO break this
 
 def test_passband_interpolate_flux_densities_mismatched_bounds(
     tmp_path,
-):  # TODO break this into multiple functions
+):
     """Test the _interpolate_flux_densities method of the Passband class. Make sure values are interpolated as
     expected, out-of-bounds values are handled correctly, and padding is creating when needed."""
     # Initialize a Passband object
@@ -236,17 +236,30 @@ def test_passband_interpolate_flux_densities_mismatched_bounds(
     a_band = Passband(survey, band_label, table_path=table_path, wave_grid=100.0)
     fluxes = np.array([[0.25, 0.5, 1.0, 1.0, 0.5, 0.25]])
     flux_wavelengths = np.array([50.0, 100.0, 200.0, 300.0, 400.0, 500.0, 600.0, 650.0])
+
+    # Test padding (with no interpolation) when fluxes do not span the entire band
+    a_band = Passband(survey, band_label, table_path=table_path, wave_grid=100.0)
+    fluxes = np.array([[0.5, 1.0, 0.5, 0.25], [0.5, 1.0, 0.5, 0.25]])
+    flux_wavelengths = np.array([200.0, 300.0, 400.0, 500.0])
+
+    # Case 1: with extrapolation="raise"
     with pytest.raises(ValueError):
         a_band._interpolate_flux_densities(fluxes, flux_wavelengths, "raise")
 
-    # Test padding (with no interpolation) when fluxes do not span the entire band (extrapolation="zeros")
-    b_band = Passband(survey, band_label, table_path=table_path, wave_grid=100.0)
-    fluxes = np.array([[0.5, 1.0, 0.5, 0.25], [0.5, 1.0, 0.5, 0.25]])
-    flux_wavelengths = np.array([200.0, 300.0, 400.0, 500.0])
-    (result_fluxes, result_wavelengths) = b_band._interpolate_flux_densities(
+    # Case 2: with extrapolation="zeros"
+    (result_fluxes, result_wavelengths) = a_band._interpolate_flux_densities(
         fluxes, flux_wavelengths, "zeros"
     )
     expected_fluxes = np.array([[0.0, 0.5, 1.0, 0.5, 0.25, 0.0], [0.0, 0.5, 1.0, 0.5, 0.25, 0.0]])
+    expected_waves = np.array([100, 200, 300, 400, 500, 600])
+    np.testing.assert_allclose(result_fluxes, expected_fluxes)
+    np.testing.assert_allclose(result_wavelengths, expected_waves)
+
+    # Case 3: with extrapolation="constant"
+    (result_fluxes, result_wavelengths) = a_band._interpolate_flux_densities(
+        fluxes, flux_wavelengths, "const"
+    )
+    expected_fluxes = np.array([[0.5, 0.5, 1.0, 0.5, 0.25, 0.25], [0.5, 0.5, 1.0, 0.5, 0.25, 0.25]])
     expected_waves = np.array([100, 200, 300, 400, 500, 600])
     np.testing.assert_allclose(result_fluxes, expected_fluxes)
     np.testing.assert_allclose(result_wavelengths, expected_waves)
@@ -274,7 +287,7 @@ def test_passband_interpolate_flux_densities_mismatched_bounds(
     # Check the decreasing section (originally indices [2, 3]) is still decreasing (now indices [6, 8])
     assert np.all(np.diff(result_fluxes[0, 6:8]) < 0)
 
-    # Test interpolation when fluxes are out of bounds
+    # Test handling when fluxes are out of bounds
     e_band = Passband(survey, band_label, table_path=table_path, wave_grid=100.0)
     fluxes = np.array([[0.25, 0.5, 1.0, 1.5, 1.5, 1.0, 0.5, 0.25]])
     flux_wavelengths = np.array([50.0, 100.0, 200.0, 300.0, 400.0, 500.0, 600.0, 650.0])

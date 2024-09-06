@@ -335,7 +335,7 @@ class Passband:
 
     def _interpolate_flux_densities(
         self, _flux_density_matrix, _flux_wavelengths, extrapolate="raise"
-    ) -> tuple:
+    ) -> tuple:  # TODO maybe move this to interpolation.py?
         """Interpolate the flux density matrix to match the transmission table, which matches self.wave_grid.
 
         Parameters
@@ -347,7 +347,7 @@ class Passband:
         extrapolate : str, optional
             The method of extrapolation to use, passed to scipy.interpolate.InterpolatedUnivariateSpline.
             Default is "raise", which will raise a ValueError if the interpolation goes out of bounds. Other
-            options are "constant" (pads with boundary value), "zeros" (pads with 0), and "extrapolate" (uses
+            options are "const" (pads with boundary value), "zeros" (pads with 0), and "extrapolate" (uses
             spline extrapolation; not recommended).
 
         Returns
@@ -413,7 +413,7 @@ class Passband:
         extrapolate : str, optional
             The method of extrapolation to use, passed to scipy.interpolate.InterpolatedUnivariateSpline.
             Default is "raise", which will raise a ValueError if the interpolation goes out of bounds. Other
-            options are "constant" (pads with boundary value), "zeros" (pads with 0), and "extrapolate" (uses
+            options are "const" (pads with boundary value), "zeros" (pads with 0), and "extrapolate" (uses
             spline extrapolation; not recommended).
         Returns
         -------
