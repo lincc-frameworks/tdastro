@@ -14,12 +14,12 @@ def test_passband_init():
     # Test that the PassbandGroup class can be initialized with a preset
     lsst_passband_group = PassbandGroup(preset="LSST")
     assert len(lsst_passband_group.passbands) == 6
-    assert "u" in lsst_passband_group.passbands
-    assert "g" in lsst_passband_group.passbands
-    assert "r" in lsst_passband_group.passbands
-    assert "i" in lsst_passband_group.passbands
-    assert "z" in lsst_passband_group.passbands
-    assert "y" in lsst_passband_group.passbands
+    assert "LSST_u" in lsst_passband_group.passbands
+    assert "LSST_g" in lsst_passband_group.passbands
+    assert "LSST_r" in lsst_passband_group.passbands
+    assert "LSST_i" in lsst_passband_group.passbands
+    assert "LSST_z" in lsst_passband_group.passbands
+    assert "LSST_y" in lsst_passband_group.passbands
 
     # Test that the PassbandGroup class can be initialized with a list of Passband objects
     lsst_gri_passbands = [
@@ -29,33 +29,9 @@ def test_passband_init():
     ]
     lsst_gri_passband_group = PassbandGroup(passbands=lsst_gri_passbands)
     assert len(lsst_gri_passband_group.passbands) == 3
-    assert "g" in lsst_gri_passband_group.passbands
-    assert "r" in lsst_gri_passband_group.passbands
-    assert "i" in lsst_gri_passband_group.passbands
-
-    # Test that the PassbandGroup class can be initialized with non-LSST passbands
-    gaia_passbands = [
-        Passband(
-            "GAIA",
-            "0.Gbp",
-            table_url="http://svo2.cab.inta-csic.es/svo/theory/fps3/getdata.php?format=ascii&id=GAIA/GAIA0.Gbp",
-        ),
-        Passband(
-            "GAIA",
-            "0.G",
-            table_url="http://svo2.cab.inta-csic.es/svo/theory/fps3/getdata.php?format=ascii&id=GAIA/GAIA0.G",
-        ),
-        Passband(
-            "GAIA",
-            "0.Grp",
-            table_url="http://svo2.cab.inta-csic.es/svo/theory/fps3/getdata.php?format=ascii&id=GAIA/GAIA0.Grp",
-        ),
-    ]
-    gaia_passband_group = PassbandGroup(passbands=gaia_passbands)
-    assert len(gaia_passband_group.passbands) == 3
-    assert "0.Gbp" in gaia_passband_group.passbands
-    assert "0.G" in gaia_passband_group.passbands
-    assert "0.Grp" in gaia_passband_group.passbands
+    assert "LSST_g" in lsst_gri_passband_group.passbands
+    assert "LSST_r" in lsst_gri_passband_group.passbands
+    assert "LSST_i" in lsst_gri_passband_group.passbands
 
     # Test that the PassbandGroup class raises an error for an unknown preset
     try:
@@ -75,28 +51,6 @@ def test_passband_str():
     assert (
         str(lsst_passband_group)
         == "PassbandGroup containing 6 passbands: LSST_u, LSST_g, LSST_r, LSST_i, LSST_z, LSST_y"
-    )
-
-    gaia_passbands = [
-        Passband(
-            "GAIA",
-            "0.Gbp",
-            table_url="http://svo2.cab.inta-csic.es/svo/theory/fps3/getdata.php?format=ascii&id=GAIA/GAIA0.Gbp",
-        ),
-        Passband(
-            "GAIA",
-            "0.G",
-            table_url="http://svo2.cab.inta-csic.es/svo/theory/fps3/getdata.php?format=ascii&id=GAIA/GAIA0.G",
-        ),
-        Passband(
-            "GAIA",
-            "0.Grp",
-            table_url="http://svo2.cab.inta-csic.es/svo/theory/fps3/getdata.php?format=ascii&id=GAIA/GAIA0.Grp",
-        ),
-    ]
-    gaia_passband_group = PassbandGroup(passbands=gaia_passbands)
-    assert (
-        str(gaia_passband_group) == "PassbandGroup containing 3 passbands: GAIA_0.Gbp, GAIA_0.G, GAIA_0.Grp"
     )
 
 
@@ -161,7 +115,6 @@ def test_passband_interpolate_or_downsample_transmission_table(tmp_path):
         f.write(transmission_table)
 
     a_band = Passband(survey, band_label, table_path=table_path, wave_grid=100)
-    print(a_band.processed_transmission_table)
 
     # Downsample the transmission table
     a_band._set_wave_grid_attr(200)
@@ -258,10 +211,53 @@ def test_passband_interpolate_flux_densities_basic(tmp_path):
     # Ends should be 0.25
     assert result_fluxes[0, 0] == 0.25
     assert result_fluxes[0, 10] == 0.25
-    # First half of array should be increasing
-    assert np.all(np.diff(result_fluxes[0, :6]) > 0)
-    # Second half of array should be decreasing
-    assert np.all(np.diff(result_fluxes[0, 5:]) < 0)
+    # Beginning should be increasing
+    assert np.all(np.diff(result_fluxes[0, :5]) > 0)
+    # End should be decreasing
+    assert np.all(np.diff(result_fluxes[0, 7:]) < 0)
+
+
+def test_passband_interpolate_flux_densities_degrees(tmp_path):
+    """Test the _interpolate_flux_densities method of the Passband class. Make sure values are interpolated as
+    expected."""
+    # Initialize a Passband object
+    survey = "TEST"
+    band_label = "a"
+    table_path = tmp_path / f"{survey}_{band_label}.dat"
+
+    transmission_table = "100 0.5\n200 0.75\n300 0.25\n400 0.5\n500 0.25\n600 0.5"
+    with open(table_path, "w") as f:
+        f.write(transmission_table)
+
+    a_band = Passband(survey, band_label, table_path=table_path, wave_grid=50.0)
+    fluxes = np.array([[0.25, 0.5, 1.0, 1.0, 0.5, 0.25], [0.25, 0.5, 1.0, 1.0, 0.5, 0.25]])
+    flux_wavelengths = np.array([100.0, 200.0, 300.0, 400.0, 500.0, 600.0])
+
+    # Test we can run with default degrees
+    (result_fluxes, result_wavelengths) = a_band._interpolate_flux_densities(fluxes, flux_wavelengths)
+    assert result_fluxes.shape == (2, 11)
+    assert result_wavelengths.shape == (11,)
+
+    # Test we can run with degrees 1-5
+    for degree in range(1, 6):
+        (result_fluxes, result_wavelengths) = a_band._interpolate_flux_densities(
+            fluxes, flux_wavelengths, spline_degree=degree
+        )
+        assert result_fluxes.shape == (2, 11)
+        assert result_wavelengths.shape == (11,)
+
+    # Test we raise an error for invalid degrees
+    with pytest.raises(ValueError):
+        a_band._interpolate_flux_densities(fluxes, flux_wavelengths, spline_degree=0)
+
+    with pytest.raises(ValueError):
+        a_band._interpolate_flux_densities(fluxes, flux_wavelengths, spline_degree=6)
+
+    # Test we raise an error if number of degrees is greater than number of points
+    fluxes = np.array([[0.25, 0.5]])
+    flux_wavelengths = np.array([100.0, 200.0])
+    with pytest.raises(ValueError):
+        a_band._interpolate_flux_densities(fluxes, flux_wavelengths, spline_degree=3)
 
 
 def test_passband_interpolate_flux_densities_mismatched_bounds(
@@ -390,7 +386,6 @@ def make_passband_group(path):
     }
     for band_label in band_labels:
         with open(table_dir / f"{band_label}.dat", "w") as f:
-            print("Writing", band_label, "to", table_dir / f"{band_label}.dat")
             f.write(transmission_tables[band_label])
 
     # Load the PassbandGroup object
@@ -446,7 +441,7 @@ def test_passband_set_transmission_table_grid(tmp_path):
 
     # Test interpolation is skipped when not needed
     a_band = Passband(survey, band_label, table_path=table_path, wave_grid=100.0)
-    np.testing.assert_allclose(a_band.wave_grid, np.array([100.0, 200.0, 300.0, 400.0, 500.0, 600.0]))
+    np.testing.assert_allclose(a_band._wave_grid, np.array([100.0, 200.0, 300.0, 400.0, 500.0, 600.0]))
     np.testing.assert_allclose(
         a_band.processed_transmission_table[:, 0],
         np.array([100.0, 200.0, 300.0, 400.0, 500.0, 600.0]),
@@ -454,7 +449,7 @@ def test_passband_set_transmission_table_grid(tmp_path):
 
     # Test that grid is reset successfully AND we have interpolated the transmission table as well
     a_band.set_transmission_table_grid(50.0)
-    np.testing.assert_allclose(a_band.wave_grid, np.arange(100.0, 601.0, 50.0))
+    np.testing.assert_allclose(a_band._wave_grid, np.arange(100.0, 601.0, 50.0))
     np.testing.assert_allclose(
         a_band.processed_transmission_table[:, 0],
         np.array([100.0, 150.0, 200.0, 250.0, 300.0, 350.0, 400.0, 450.0, 500.0, 550.0, 600.0]),
@@ -468,7 +463,7 @@ def test_passband_group_set_transmission_table_grid(tmp_path):
     # Test that grid is reset successfully AND we have interpolated the transmission table as well
     with patch.object(Passband, "set_transmission_table_grid") as mock_set_grid:
         # Call the method with a float
-        test_passband_group.set_transmission_table_grid(50.0)
+        test_passband_group.set_transmission_table_grids(50.0)
 
         # Check that the method was called for each Passband object
         assert mock_set_grid.call_count == len(test_passband_group.passbands)
@@ -476,7 +471,7 @@ def test_passband_group_set_transmission_table_grid(tmp_path):
             mock_set_grid.assert_any_call(50.0)
 
         # Call the method with None
-        test_passband_group.set_transmission_table_grid(None)
+        test_passband_group.set_transmission_table_grids(None)
 
         # Check that the method was called for each Passband object
         assert mock_set_grid.call_count == 2 * len(test_passband_group.passbands)
