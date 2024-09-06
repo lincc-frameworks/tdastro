@@ -194,8 +194,6 @@ def test_passband_normalize_interpolated_transmission_table(tmp_path):
     expected_result = np.array([[100.0, 0.0075], [200.0, 0.005625], [300.0, 0.00125]])
     assert np.allclose(a_band.processed_transmission_table, expected_result)
 
-    # TODO add edge cases
-
 
 def test_passband_process_transmission_table(tmp_path):
     """Test the _process_transmission_table method of the Passband class: correct methods are called."""
@@ -223,8 +221,6 @@ def test_passband_process_transmission_table(tmp_path):
         # Check that each method is called once with the correct arguments
         mock_interp_table.assert_called_once_with(a_band._loaded_table)
         mock_norm_table.assert_called_once()
-
-    # TODO edge cases?
 
 
 def test_passband_interpolate_flux_densities_basic(tmp_path):

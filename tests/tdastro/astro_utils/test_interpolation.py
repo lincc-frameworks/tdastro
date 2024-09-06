@@ -57,8 +57,6 @@ def test_create_grid():
     interp_wavelengths = create_grid(wavelengths, new_grid_step)
     np.testing.assert_allclose(interp_wavelengths, np.array([1.0, 3.0]))
 
-    # TODO add tuple bounds test
-
 
 def test_interpolate_transmission_table():
     """Test interpolate_transmission_table function."""
@@ -83,6 +81,7 @@ def test_interpolate_transmission_table():
     )
 
     # TODO test edge cases
+    # TODO moved ths into passband's _interpolate_or_downsample_transmission_table
 
 
 def test_interpolate_matrix_along_wavelengths():

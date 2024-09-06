@@ -58,28 +58,6 @@ def create_grid(bounds: np.ndarray | tuple, grid_step: float, increasing=True) -
     return new_grid
 
 
-def interpolate_transmission_table(table: np.ndarray, new_wavelengths: np.ndarray) -> np.ndarray:
-    """Interpolate a 2 column table (such that the first column is x and the second column is y; eg,
-    a transmission table) to a new grid of x values.
-
-    Parameters
-    ----------
-    table : np.ndarray
-        The table to interpolate. Must be a 2D array with shape (n, 2).
-    new_wavelengths : np.ndarray
-        The new wavelengths grid to interpolate to. Must be a 1D array of length m.
-
-    Returns
-    -------
-    np.ndarray
-        The interpolated table, with shape (m, 2).
-    """
-    if table.shape[1] != 2:
-        raise ValueError("Table must have exactly 2 columns.")
-    interpolated_transmissions = np.interp(new_wavelengths, table[:, 0], table[:, 1])
-    return np.column_stack((new_wavelengths, interpolated_transmissions))
-
-
 def interpolate_matrix_along_wavelengths(
     matrix: np.ndarray, wavelengths: np.ndarray, new_wavelengths: np.ndarray
 ) -> np.ndarray:
