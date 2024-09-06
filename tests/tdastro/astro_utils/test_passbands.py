@@ -150,8 +150,28 @@ def test_passband_download_transmission_table(tmp_path):
 
 
 def test_passband_interpolate_or_downsample_transmission_table(tmp_path):
-    """TODO"""
-    pass
+    """Test down-sampling and interpolation of the transmission table."""
+    # Initialize a Passband object
+    survey = "TEST"
+    band_label = "a"
+    table_path = tmp_path / f"{survey}_{band_label}.dat"
+
+    transmission_table = "100 0.5\n200 0.75\n300 0.25\n"
+    with open(table_path, "w") as f:
+        f.write(transmission_table)
+
+    a_band = Passband(survey, band_label, table_path=table_path, wave_grid=100)
+    print(a_band.processed_transmission_table)
+
+    # Downsample the transmission table
+    a_band._set_wave_grid_attr(200)
+    table = a_band._interpolate_or_downsample_transmission_table(a_band._loaded_table)
+    np.testing.assert_allclose(table[:, 0], [100, 300])
+
+    # Interpolate the transmission table
+    a_band._set_wave_grid_attr(50)
+    table = a_band._interpolate_or_downsample_transmission_table(a_band._loaded_table)
+    np.testing.assert_allclose(table[:, 0], np.arange(100, 301, 50))
 
 
 def test_passband_normalize_interpolated_transmission_table(tmp_path):
@@ -167,14 +187,44 @@ def test_passband_normalize_interpolated_transmission_table(tmp_path):
 
     a_band = Passband(survey, band_label, table_path=table_path, wave_grid=100)
 
+    # Normalize the transmission table (skipping interpolation as grid already matches)
+    a_band._normalize_interpolated_transmission_table(a_band._loaded_table)
+
     # Compare results
     expected_result = np.array([[100.0, 0.0075], [200.0, 0.005625], [300.0, 0.00125]])
     assert np.allclose(a_band.processed_transmission_table, expected_result)
 
+    # TODO add edge cases
 
-def test_set_transmission_table_to_new_grid(tmp_path):
-    """TODO"""
-    pass
+
+def test_passband_process_transmission_table(tmp_path):
+    """Test the _process_transmission_table method of the Passband class: correct methods are called."""
+
+    # Initialize a Passband object
+    survey = "TEST"
+    band_label = "a"
+    table_path = tmp_path / f"{survey}_{band_label}.dat"
+
+    transmission_table = "100 0.5\n200 0.75\n300 0.25\n"
+    with open(table_path, "w") as f:
+        f.write(transmission_table)
+
+    a_band = Passband(survey, band_label, table_path=table_path, wave_grid=100)
+
+    # Mock the methods that _process_transmission_table wraps
+    with patch.object(
+        a_band, "_interpolate_or_downsample_transmission_table"
+    ) as mock_interp_table, patch.object(
+        a_band, "_normalize_interpolated_transmission_table"
+    ) as mock_norm_table:
+        # Call the _process_transmission_table method
+        a_band._process_transmission_table()
+
+        # Check that each method is called once with the correct arguments
+        mock_interp_table.assert_called_once_with(a_band._loaded_table)
+        mock_norm_table.assert_called_once()
+
+    # TODO edge cases?
 
 
 def test_passband_interpolate_flux_densities_basic(tmp_path):
@@ -329,12 +379,12 @@ def test_passband_fluxes_to_bandflux(tmp_path):
     np.allclose(in_band_flux, expected_in_band_flux)
 
 
-def test_passband_group_fluxes_to_bandfluxes(tmp_path):
-    """Test the fluxes_to_bandfluxes method of the PassbandGroup class."""
+def make_passband_group(path):
+    """Helper function to create a PassbandGroup object for testing."""
     # Initialize requirements for PassbandGroup object
     survey = "TEST"
     band_labels = ["a", "b", "c"]
-    table_dir = tmp_path / survey
+    table_dir = path / survey
     table_dir.mkdir()
 
     transmission_tables = {
@@ -353,7 +403,12 @@ def test_passband_group_fluxes_to_bandfluxes(tmp_path):
         passbands.append(
             Passband(survey, band_label, table_path=table_dir / f"{band_label}.dat", wave_grid=100.0)
         )
-    test_passband_group = PassbandGroup(passbands=passbands)
+    return PassbandGroup(passbands=passbands)
+
+
+def test_passband_group_fluxes_to_bandfluxes(tmp_path):
+    """Test the fluxes_to_bandfluxes method of the PassbandGroup class."""
+    test_passband_group = make_passband_group(tmp_path)
 
     # Define some mock flux values and calculate our expected bandfluxes
     flux = np.array(
@@ -382,45 +437,7 @@ def test_passband_group_fluxes_to_bandfluxes(tmp_path):
         )
 
 
-def test_passbandgroup_set_transmission_table_grids(tmp_path):
-    """Test the set_wave_grid_att method of the PassbandGroup class. Note this"""
-    # Initialize a Passband object
-    survey = "TEST"
-    band_label = "a"
-    table_path = tmp_path / f"{survey}_{band_label}.dat"
-
-    transmission_table = "100 0.5\n200 0.75\n300 0.25\n400 0.5\n500 0.25\n600 0.5"
-    with open(table_path, "w") as f:
-        f.write(transmission_table)
-
-    # TODO update to match set_transmission_table_grids
-
-    # # Test interpolation is skipped when not needed
-    # a_band = Passband(survey, band_label, table_path=table_path, wave_grid=100.0)
-    # np.testing.assert_allclose(a_band.wave_grid, np.array([100.0, 200.0, 300.0, 400.0, 500.0, 600.0]))
-    # np.testing.assert_allclose(
-    #     a_band.processed_transmission_table[:, 0],
-    #     np.array([100.0, 200.0, 300.0, 400.0, 500.0, 600.0]),
-    # )
-
-    # # Test that grid is reset successfully (but the transmission table is not yet interpolated)
-    # a_band._set_wave_grid_attr(50.0)
-    # np.testing.assert_allclose(a_band.wave_grid, np.arange(100.0, 601.0, 50.0))
-    # np.testing.assert_allclose(
-    #     a_band.processed_transmission_table[:, 0],
-    #     np.array([100.0, 200.0, 300.0, 400.0, 500.0, 600.0]),
-    # )
-
-    # # Test we can handle a list as input
-    # a_band._set_wave_grid_attr([100, 200, 300, 400, 500, 600])
-    # np.testing.assert_allclose(a_band.wave_grid, np.array([100.0, 200.0, 300.0, 400.0, 500.0, 600.0]))
-
-    # # Test we can handle an int as input
-    # a_band._set_wave_grid_attr(50)
-    # np.testing.assert_allclose(a_band.wave_grid, np.arange(100.0, 601.0, 50.0))
-
-
-def test_passbandgroup_sreset_transmission_table_grid(tmp_path):
+def test_passband_set_transmission_table_grid(tmp_path):
     """Test the set_transmission_table_to_new_grid method of the PassbandGroup class."""
     # Initialize a Passband object
     survey = "TEST"
@@ -446,3 +463,26 @@ def test_passbandgroup_sreset_transmission_table_grid(tmp_path):
         a_band.processed_transmission_table[:, 0],
         np.array([100.0, 150.0, 200.0, 250.0, 300.0, 350.0, 400.0, 450.0, 500.0, 550.0, 600.0]),
     )
+
+
+def test_passband_group_set_transmission_table_grid(tmp_path):
+    """Test the set_transmission_table_to_new_grid method of the PassbandGroup class."""
+    test_passband_group = make_passband_group(tmp_path)
+
+    # Test that grid is reset successfully AND we have interpolated the transmission table as well
+    with patch.object(Passband, "set_transmission_table_grid") as mock_set_grid:
+        # Call the method with a float
+        test_passband_group.set_transmission_table_grid(50.0)
+
+        # Check that the method was called for each Passband object
+        assert mock_set_grid.call_count == len(test_passband_group.passbands)
+        for _ in test_passband_group.passbands:
+            mock_set_grid.assert_any_call(50.0)
+
+        # Call the method with None
+        test_passband_group.set_transmission_table_grid(None)
+
+        # Check that the method was called for each Passband object
+        assert mock_set_grid.call_count == 2 * len(test_passband_group.passbands)
+        for _ in test_passband_group.passbands:
+            mock_set_grid.assert_any_call(None)

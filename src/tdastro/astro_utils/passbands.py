@@ -68,16 +68,20 @@ class PassbandGroup:
         else:
             raise ValueError(f"Unknown passband preset: {preset}")
 
-    def set_transmission_table_grids(self, wave_grids: dict) -> None:
+    def set_transmission_table_grids(self, wave_grid: float | int | None) -> None:
         """Set the wave grid attribute for all passbands in the group.
 
         Parameters
         ----------
-        wave_grids : dict
-            A dictionary of passband labels and wave grids.
+        wave_grid : float | int | None
+            The grid of wavelengths (Angstrom) to which the flux density matrix and transmission table should
+            be interpolated. If a float or int is given, wave_grid will be converted to a numpy array with a
+            wave_grid step matching the boundaries of the transmission table. If None, the transmission table
+            will later be interpolated to a grid with the same boundaries, but matching the step of the flux
+            density matrix.
         """
-        for label, wave_grid in wave_grids.items():
-            self.passbands[label].set_transmission_table_grid(wave_grid)
+        for _, passband in self.passbands.items():
+            passband.set_transmission_table_grid(wave_grid)
 
     def fluxes_to_bandfluxes(self, flux_density_matrix, flux_wavelengths) -> np.ndarray:
         """Calculate bandfluxes for all passbands in the group.
@@ -98,8 +102,8 @@ class PassbandGroup:
             A dictionary of bandfluxes with passband labels as keys.
         """
         bandfluxes = {}
-        for label, passband in self.passbands.items():
-            bandfluxes[label] = passband.fluxes_to_bandflux(flux_density_matrix, flux_wavelengths)
+        for name, passband in self.passbands.items():
+            bandfluxes[name] = passband.fluxes_to_bandflux(flux_density_matrix, flux_wavelengths)
         return bandfluxes
 
 
@@ -212,16 +216,16 @@ class Passband:
             logging.error(f"URL error occurred when downloading table for {self.full_name}: {e}")
             return False
 
-    def _set_wave_grid_attr(self, wave_grid: np.ndarray | float | None) -> None:
+    def _set_wave_grid_attr(self, wave_grid: np.ndarray | float | int | None) -> None:
         """Set the wave grid attribute. Note: only sets the attribute; does NOT process transmission table.
 
         Used to keep the type of wave_grid attribute as an array, even when set with a float.
 
         Parameters
         ----------
-        wave_grid : np.ndarray | float | None
+        wave_grid : np.ndarray | float | int | None
             The grid of wavelengths (Angstrom) to which the flux density matrix and transmission table should
-            be interpolated. A float will be converted to a numpy array with a grid step matching the
+            be interpolated. A float or int will be converted to a numpy array with a grid step matching the
             boundaries of the transmission table. If None, the transmission table will later be interpolated
             to a grid maintaining the same boundaries, but matching the step of the flux density matrix.
         """
@@ -234,14 +238,14 @@ class Passband:
                 )
             self.wave_grid = interpolation.create_grid(self._loaded_table[:, 0], self.wave_grid)
 
-    def set_transmission_table_grid(self, new_wave_grid) -> None:
+    def set_transmission_table_grid(self, new_wave_grid: np.ndarray | float | int | None) -> None:
         """Updates wave_grid attr and sets the transmission table to the new grid.
 
         Parameters
         ----------
-        new_wave_grid : np.ndarray | float | None
+        new_wave_grid : np.ndarray | float | int | None
             The grid of wavelengths (Angstrom) to which the flux density matrix and transmission table should
-            be interpolated. A float will be converted to a numpy array with a grid step matching the
+            be interpolated. A float or int will be converted to a numpy array with a grid step matching the
             boundaries of the transmission table. If None, the transmission table will later be interpolated
             to a grid maintaining the same boundaries, but matching the step of the flux density matrix.
         """
