@@ -154,8 +154,8 @@ def test_passband_interpolate_or_downsample_transmission_table(tmp_path):
     pass
 
 
-def test_passband_normalize_transmission_table(tmp_path):
-    """Test the _normalize_transmission_table method of the Passband class."""
+def test_passband_normalize_interpolated_transmission_table(tmp_path):
+    """Test the _normalize_interpolated_transmission_table method of the Passband class."""
     # Initialize a Passband object
     survey = "TEST"
     band_label = "a"
@@ -382,6 +382,67 @@ def test_passband_group_fluxes_to_bandfluxes(tmp_path):
         )
 
 
-def test_passbandgroup_set_wave_grids(tmp_path):
-    """TODO"""
-    pass
+def test_passbandgroup_set_transmission_table_grids(tmp_path):
+    """Test the set_wave_grid_att method of the PassbandGroup class. Note this"""
+    # Initialize a Passband object
+    survey = "TEST"
+    band_label = "a"
+    table_path = tmp_path / f"{survey}_{band_label}.dat"
+
+    transmission_table = "100 0.5\n200 0.75\n300 0.25\n400 0.5\n500 0.25\n600 0.5"
+    with open(table_path, "w") as f:
+        f.write(transmission_table)
+
+    # TODO update to match set_transmission_table_grids
+
+    # # Test interpolation is skipped when not needed
+    # a_band = Passband(survey, band_label, table_path=table_path, wave_grid=100.0)
+    # np.testing.assert_allclose(a_band.wave_grid, np.array([100.0, 200.0, 300.0, 400.0, 500.0, 600.0]))
+    # np.testing.assert_allclose(
+    #     a_band.processed_transmission_table[:, 0],
+    #     np.array([100.0, 200.0, 300.0, 400.0, 500.0, 600.0]),
+    # )
+
+    # # Test that grid is reset successfully (but the transmission table is not yet interpolated)
+    # a_band._set_wave_grid_attr(50.0)
+    # np.testing.assert_allclose(a_band.wave_grid, np.arange(100.0, 601.0, 50.0))
+    # np.testing.assert_allclose(
+    #     a_band.processed_transmission_table[:, 0],
+    #     np.array([100.0, 200.0, 300.0, 400.0, 500.0, 600.0]),
+    # )
+
+    # # Test we can handle a list as input
+    # a_band._set_wave_grid_attr([100, 200, 300, 400, 500, 600])
+    # np.testing.assert_allclose(a_band.wave_grid, np.array([100.0, 200.0, 300.0, 400.0, 500.0, 600.0]))
+
+    # # Test we can handle an int as input
+    # a_band._set_wave_grid_attr(50)
+    # np.testing.assert_allclose(a_band.wave_grid, np.arange(100.0, 601.0, 50.0))
+
+
+def test_passbandgroup_sreset_transmission_table_grid(tmp_path):
+    """Test the set_transmission_table_to_new_grid method of the PassbandGroup class."""
+    # Initialize a Passband object
+    survey = "TEST"
+    band_label = "a"
+    table_path = tmp_path / f"{survey}_{band_label}.dat"
+
+    transmission_table = "100 0.5\n200 0.75\n300 0.25\n400 0.5\n500 0.25\n600 0.5"
+    with open(table_path, "w") as f:
+        f.write(transmission_table)
+
+    # Test interpolation is skipped when not needed
+    a_band = Passband(survey, band_label, table_path=table_path, wave_grid=100.0)
+    np.testing.assert_allclose(a_band.wave_grid, np.array([100.0, 200.0, 300.0, 400.0, 500.0, 600.0]))
+    np.testing.assert_allclose(
+        a_band.processed_transmission_table[:, 0],
+        np.array([100.0, 200.0, 300.0, 400.0, 500.0, 600.0]),
+    )
+
+    # Test that grid is reset successfully AND we have interpolated the transmission table as well
+    a_band.set_transmission_table_grid(50.0)
+    np.testing.assert_allclose(a_band.wave_grid, np.arange(100.0, 601.0, 50.0))
+    np.testing.assert_allclose(
+        a_band.processed_transmission_table[:, 0],
+        np.array([100.0, 150.0, 200.0, 250.0, 300.0, 350.0, 400.0, 450.0, 500.0, 550.0, 600.0]),
+    )
