@@ -17,6 +17,8 @@ dynamic = ["version"]
 requires-python = ">=3.9"
 dependencies = [
     "astropy",
+    "dust_extinction",
+    "dustmaps",
     "jax",
     "numpy",
     "pandas",
