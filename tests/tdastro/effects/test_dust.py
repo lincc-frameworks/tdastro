@@ -6,7 +6,7 @@ from tdastro.effects.dust import DustExtinction
 from tdastro.sources.static_source import StaticSource
 
 
-def test_sfd_dust_extinction(tdastro_data_dir):
+def test_sfd_dust_extinction(test_data_dir):
     """Test that we can sample and create a DustExtinction object."""
     dust_map = SFDQuery()
     times = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
@@ -14,7 +14,8 @@ def test_sfd_dust_extinction(tdastro_data_dir):
 
     # Create a model without any dust.
     model_clean = StaticSource(brightness=100.0, ra=0.0, dec=40.0)
-    fluxes_clean = model_clean.evaluate(times, wavelengths)
+    state = model_clean.sample_parameters()
+    fluxes_clean = model_clean.evaluate(state, times, wavelengths)
     assert len(fluxes_clean) == 5
     assert np.all(fluxes_clean == 100.0)
 

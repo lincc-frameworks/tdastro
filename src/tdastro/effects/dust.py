@@ -10,7 +10,7 @@ import extinction
 
 from astropy.coordinates import SkyCoord
 
-from tdastro.base_models import EffectModel
+from tdastro.effects.effect_model import EffectModel
 
 
 class DustExtinction(EffectModel):
@@ -79,18 +79,17 @@ class DustExtinction(EffectModel):
         """
         return ["ra", "dec"]
 
-    def apply(self, flux_density, wavelengths, physical_model, **kwargs):
+    def apply(self, flux_density, wavelengths=None, graph_state=None, **kwargs):
         """Apply the effect to observations (flux_density values)
 
         Parameters
         ----------
         flux_density : `numpy.ndarray`
             An array of flux density values.
-        wavelengths : `numpy.ndarray`
+        wavelengths : `numpy.ndarray`, optional
             An array of wavelengths.
-        physical_model : `PhysicalModel`
-            A PhysicalModel from which the effect may query parameters
-            such as redshift, position, or distance.
+        graph_state : `GraphState`
+            An object mapping graph parameters to their values.
         **kwargs : `dict`, optional
            Any additional keyword arguments.
 
