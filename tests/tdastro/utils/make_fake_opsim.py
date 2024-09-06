@@ -3,6 +3,21 @@ import argparse
 import numpy as np
 from tdastro.astro_utils.opsim import OpSim
 
+_all_columns = [
+    "observationId",
+    "fieldRA",
+    "fieldDec",
+    "observationStartMJD",
+    "visitExposureTime",
+    "filter",
+    "rotSkyPos",
+    "numExposures",
+    "airmass",
+    "seeingFwhmEff",
+    "seeingFwhmGeom",
+    "skyBrightness",
+]
+
 
 def make_sampled_opsim(ra_vals, dec_vals, time_step, num_visits):
     """Create a fake OpSim data that scans a grid of (ra, dec) multiple times.
@@ -40,15 +55,28 @@ def make_sampled_opsim(ra_vals, dec_vals, time_step, num_visits):
 
     # Add other fields
     num_obs = len(opsim_data["observationStartMJD"])
-    opsim_data["zp_nJy"] = np.ones(num_obs)
-    opsim_data["filter"] = np.full((num_obs), "r")
-    opsim_data["filter"][0::2] = "g"
+    opsim_data["observationId"] = np.arange(num_obs)
+    opsim_data["filter"] = np.repeat(["g", "r"], num_obs // 2)
+    opsim_data["visitExposureTime"] = np.full((num_obs), 29.2)  # Most common value
+    opsim_data["numExposures"] = np.full((num_obs), 2)  # Most common value
+    opsim_data["airmass"] = np.full((num_obs), 1.3)  # Mean value
+    opsim_data["seeingFwhmEff"] = np.full((num_obs), 1.12)  # Mean value
+    opsim_data["seeingFwhmGeom"] = np.full((num_obs), 0.97)  # Mean value
+    opsim_data["skyBrightness"] = np.full((num_obs), 20.0)  # Mean value
+
+    for col in _all_columns:
+        if col not in opsim_data:
+            opsim_data[col] = np.zeros(num_obs)
 
     return OpSim(opsim_data)
 
 
 def main():
-    """Generate the fake OpSim data and save it to a file."""
+    """Generate the fake OpSim data and save it to a file.
+
+    To generate an updated small_db file use:
+        python tests/tdastro/utils/make_fake_opsim.py tests/tdastro/data/opsim_small.db
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("output", type=str, help="Output filename")
     parser.add_argument(

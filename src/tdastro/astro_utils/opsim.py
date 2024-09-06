@@ -92,7 +92,7 @@ class OpSim:  # noqa: D101
         The dark current for the LSST camera in electrons per second per pixel.
     """
 
-    _required_names = ["ra", "dec", "time", "zp"]
+    _required_names = ["ra", "dec", "time"]
 
     # Class constants for the column names.
     def __init__(
