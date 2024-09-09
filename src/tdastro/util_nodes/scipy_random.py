@@ -120,7 +120,12 @@ class NumericalInversePolynomialFunc(FunctionNode):
             The result of the computation. This return value is provided so that testing
             functions can easily access the results.
         """
-        rng = rng_info if rng_info is not None else self._rng
+        rng = self._rng
+        if rng_info is not None:
+            if self.node_hash in rng_info:
+                rng = rng_info[self.node_hash]
+            else:
+                raise KeyError("Node's hash not found in rng_info")
 
         if self._inv_poly is not None:
             # Batch sample all the results.
