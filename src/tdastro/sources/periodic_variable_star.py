@@ -64,7 +64,7 @@ class PeriodicVariableStar(PeriodicSource, ABC):
         phases : `numpy.ndarray`
             A length T array of phases, in the range [0, 1].
         wavelengths : `numpy.ndarray`, optional
-            A length N array of wavelengths (in angstroms).
+            A length N array of wavelengths.
         graph_state : `dict`, optional
             A given setting of all the parameters and their values.
         **kwargs : `dict`, optional

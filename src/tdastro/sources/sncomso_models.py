@@ -143,7 +143,7 @@ class SncosmoWrapperModel(PhysicalModel):
         Returns
         -------
         flux_density : `numpy.ndarray`
-            A length T x N matrix of SED values (in nJy).
+            A length T x N matrix of SED values (in ergs/s/cm^2/AA).
         """
         params = self.get_local_params(graph_state)
         self._update_sncosmo_model_parameters(graph_state)

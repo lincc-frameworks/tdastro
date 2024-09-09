@@ -15,7 +15,7 @@ def black_body_luminosity_density_per_solid(temperature, radius, wavelengths):
     radius : `float`
         The radius of the star, in solar radii.
     wavelengths : `numpy.ndarray`
-        A length N array of wavelengths in angstroms.
+        A length N array of wavelengths.
 
     Returns
     -------
