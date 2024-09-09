@@ -11,10 +11,11 @@ This module is a wrapper for the following libraries:
 
 """
 
+import astropy.units as u
 from astropy.coordinates import SkyCoord
 
 
-class DustExtinctionEffect():
+class DustExtinctionEffect:
     """A general dust extinction model.
 
     Attributes
@@ -35,9 +36,9 @@ class DustExtinctionEffect():
         Parameters
         ----------
         flux_density : `numpy.ndarray`
-            An array of flux density values.
+            An array of flux density values (in nJy).
         wavelengths : `numpy.ndarray`, optional
-            An array of wavelengths.
+            An array of wavelengths (in angstroms).
         ra : `float`
             The object's right ascension (in degrees).
         dec : `float`
@@ -49,9 +50,13 @@ class DustExtinctionEffect():
         Returns
         -------
         flux_density : `numpy.ndarray`
-            The results.
+            The results (in nJy).
         """
         # Get the extinction value at the object's location.
         coord = SkyCoord(ra, dec, dist, frame="icrs", unit="deg")
         ebv = self.dust_map.query(coord)
-        return flux_density * self.extinction_model.extinguish(wavelengths, Ebv=ebv)
+
+        # Do we need to convert ebv by a factor from this table:
+        # https://iopscience.iop.org/article/10.1088/0004-637X/737/2/103#apj398709t6
+
+        return flux_density * self.extinction_model.extinguish(wavelengths * u.angstrom, Ebv=ebv)
