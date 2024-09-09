@@ -15,9 +15,9 @@ class EffectModel(ParameterizedNode):
         Parameters
         ----------
         flux_density : `numpy.ndarray`
-            A length T X N matrix of flux density values.
+            A length T X N matrix of flux density values (in nJy).
         wavelengths : `numpy.ndarray`, optional
-            A length N array of wavelengths.
+            A length N array of wavelengths (in angstroms).
         graph_state : `GraphState`
             An object mapping graph parameters to their values.
         **kwargs : `dict`, optional
@@ -26,6 +26,6 @@ class EffectModel(ParameterizedNode):
         Returns
         -------
         flux_density : `numpy.ndarray`
-            A length T x N matrix of flux densities after the effect is applied.
+            A length T x N matrix of flux densities after the effect is applied (in nJy).
         """
         raise NotImplementedError()

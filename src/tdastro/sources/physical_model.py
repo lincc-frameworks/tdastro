@@ -124,14 +124,14 @@ class PhysicalModel(ParameterizedNode):
         times : `numpy.ndarray`
             A length T array of rest frame timestamps.
         wavelengths : `numpy.ndarray`, optional
-            A length N array of wavelengths.
+            A length N array of wavelengths (in angstroms).
         graph_state : `GraphState`
             An object mapping graph parameters to their values.
 
         Returns
         -------
         flux_density : `numpy.ndarray`
-            A length T x N matrix of SED values.
+            A length T x N matrix of SED values (in nJy).
         """
         raise NotImplementedError()
 
@@ -143,7 +143,7 @@ class PhysicalModel(ParameterizedNode):
         times : `numpy.ndarray`
             A length T array of observer frame timestamps.
         wavelengths : `numpy.ndarray`, optional
-            A length N array of wavelengths.
+            A length N array of wavelengths (in angstroms).
         graph_state : `GraphState`, optional
             An object mapping graph parameters to their values.
         given_args : `dict`, optional
@@ -158,7 +158,7 @@ class PhysicalModel(ParameterizedNode):
         Returns
         -------
         flux_density : `numpy.ndarray`
-            A length T x N matrix of SED values.
+            A length T x N matrix of SED values (in nJy).
         """
         # Make sure times and wavelengths are numpy arrays.
         times = np.array(times)

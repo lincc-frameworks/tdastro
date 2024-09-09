@@ -31,7 +31,7 @@ class PeriodicSource(PhysicalModel, ABC):
         phases : `numpy.ndarray`
             A length T array of phases, in the range [0, 1].
         wavelengths : `numpy.ndarray`, optional
-            A length N array of wavelengths.
+            A length N array of wavelengths (in angstroms).
         graph_state : `GraphState`
             An object mapping graph parameters to their values.
         **kwargs : `dict`, optional
@@ -52,7 +52,7 @@ class PeriodicSource(PhysicalModel, ABC):
         times : `numpy.ndarray`
             A length T array of rest frame timestamps.
         wavelengths : `numpy.ndarray`, optional
-            A length N array of wavelengths.
+            A length N array of wavelengths (in angstroms).
         graph_state : `GraphState`
             An object mapping graph parameters to their values.
         **kwargs : `dict`, optional
@@ -61,7 +61,7 @@ class PeriodicSource(PhysicalModel, ABC):
         Returns
         -------
         flux_density : `numpy.ndarray`
-            A length T x N matrix of SED values.
+            A length T x N matrix of SED values (in nJy).
         """
         params = self.get_local_params(graph_state)
         period = params["period"]
