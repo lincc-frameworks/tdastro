@@ -1,10 +1,89 @@
 import numpy as np
+import scipy.integrate as integrate
 from astropy.cosmology import FlatLambdaCDM
 from scipy.stats import norm
 from scipy.stats.sampling import NumericalInversePolynomial
 
 from tdastro.base_models import FunctionNode
 from tdastro.util_nodes.scipy_random import NumericalInversePolynomialFunc
+
+
+def snia_volumetric_rates(redshift):
+    """
+    SN Ia volumetric rate based on Frohmaier et al. (2019).
+    r_v(z) = r0 * (1+z)^alpha （SNe Ia yr^-1 Mpc^-3 h_70^3）
+    r0 = 2.27+/-0.19e-5
+    alpha = 1.7+/-0.21
+
+    Parameters
+    ----------
+    redshift: `float` or `numpy.ndarray`
+        The redshift of the supernova
+
+    Returns
+    -------
+    rate_vol: `float` or `numpy.ndarray`
+        The volumetric rate of the supernova given the redshift
+    """
+
+    r0 = 2.27e-5
+    alpha = 1.7
+    rate_vol = r0 * np.power(1.0 + redshift, alpha)
+
+    return rate_vol
+
+
+def num_snia_per_redshift_bin(zmin=0.001, zmax=10, znbins=20, solid_angle=None, H0=73.0, Omega_m=0.3):
+    """
+    Calculate the number of SNe Ia in each redshift bin based on rates.
+
+    r_v(z) = dN/dz
+    V = comoving volume
+    T = length of survey in years
+    N = int r_v(z)dz * dV * dT
+
+    Parameters
+    ----------
+    zmin: `float`
+        Min redshift value for calculation.
+    zmax: `float`
+        Max redshift value for calculation.
+    znbins: `int`
+        Number of redshift bins for calculating SNe Ia numbers.
+    solid_angle: `float`
+        Solid angle for calculating the number of SNe (in sr).
+    H0: `float`
+        The Hubble Constant.
+    Omega_m: `float`
+        The matter density.
+
+    Returns
+    -------
+    num_sn: `numpy.ndarray`
+        Number of SNe Ia in each zbin per year.
+    z_mean: `numpy.ndarray`
+        Mean value for each redshift bin.
+    """
+
+    if solid_angle is None:
+        solid_angle = 4 * np.pi
+
+    cosmo = FlatLambdaCDM(H0=H0, Om0=Omega_m)
+
+    zarr = np.linspace(zmin, zmax, znbins)
+
+    int_arr = np.linspace(zarr[:-1], zarr[1:], 50, axis=1)
+    z_mean = np.mean(int_arr, axis=1)
+
+    dV = (
+        solid_angle * cosmo.differential_comoving_volume(int_arr) * (H0 / 70.0) ** 3
+    )  # * 4pi because differential_comoving_volume is per solid angle
+    r_v = snia_volumetric_rates(int_arr)
+    dn_dz = r_v * dV.value
+
+    num_sn = integrate.trapezoid(dn_dz, int_arr, axis=1)
+
+    return num_sn, z_mean
 
 
 class HostmassX1Distr:
