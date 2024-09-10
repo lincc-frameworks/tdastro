@@ -7,8 +7,6 @@ from urllib.error import HTTPError, URLError
 import numpy as np
 import scipy.integrate
 
-from tdastro.astro_utils import interpolation
-
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 
@@ -83,7 +81,11 @@ class PassbandGroup:
             passband.set_transmission_table_grid(wave_grid)
 
     def fluxes_to_bandfluxes(
-        self, flux_density_matrix: np.ndarray, flux_wavelengths: np.ndarray
+        self,
+        flux_density_matrix: np.ndarray,
+        flux_wavelengths: np.ndarray,
+        extrapolate_mode: str = "raise",
+        spline_degree: int = 1,
     ) -> np.ndarray:
         """Calculate bandfluxes for all passbands in the group.
 
@@ -93,9 +95,13 @@ class PassbandGroup:
             A 2D array of flux densities where rows are times and columns are wavelengths.
         flux_wavelengths : np.ndarray
             An array of wavelengths in Angstroms corresponding to the columns of flux_density_matrix.
-        target_grid_step : float, optional
-            The unit of the grid (in Angstrom) to which the flux density matrix and normalized transmission
-            table should be interpolated.
+        extrapolate_mode : str, optional
+            The mode of extrapolation to use, passed to scipy.interpolate.InterpolatedUnivariateSpline.
+            Default is "raise", which will raise a ValueError if the interpolation goes out of bounds. Other
+            options are "const" (pads with boundary value) and "zeros" (pads with 0).
+        spline_degree : int, optional
+            The degree of the spline to use for interpolation; must be 1 <= spline_degree <= 5. Default is 1,
+            which is linear interpolation.
 
         Returns
         -------
@@ -104,7 +110,12 @@ class PassbandGroup:
         """
         bandfluxes = {}
         for full_name, passband in self.passbands.items():
-            bandfluxes[full_name] = passband.fluxes_to_bandflux(flux_density_matrix, flux_wavelengths)
+            bandfluxes[full_name] = passband.fluxes_to_bandflux(
+                flux_density_matrix,
+                flux_wavelengths,
+                extrapolate_mode=extrapolate_mode,
+                spline_degree=spline_degree,
+            )
         return bandfluxes
 
 
@@ -115,8 +126,8 @@ class Passband:
     ----------
     survey : str
         The survey to which the passband belongs: eg, "LSST".
-    filter : str
-        The filter of the passband. This is the filter name: eg, "u".
+    filter_name : str
+        The name of the passband's filter: eg, "u".
     full_name : str
         The full name of the passband. This is the survey and filter concatenated: eg, "LSST_u".
     _wave_grid : np.ndarray | float | None
@@ -137,7 +148,7 @@ class Passband:
     def __init__(
         self,
         survey: str,
-        filter: str,
+        filter_name: str,
         wave_grid: float = 5.0,
         table_path: str | None = None,
         table_url: str | None = None,
@@ -148,8 +159,8 @@ class Passband:
         ----------
         survey : str
             The survey to which the passband belongs: eg, "LSST".
-        filter : str
-            The filter of the passband. This is the filter name: eg, "u".
+        filter_name : str
+            The filter_name of the passband: eg, "u".
         wave_grid : np.ndarray | float | int | None, optional
             The grid of wavelengths (Angstrom) to which the flux density matrix and transmission table should
             be interpolated. A float or int will be converted to a numpy array with a grid step matching the
@@ -161,11 +172,11 @@ class Passband:
             if no file exists at this location, the file will be downloaded from table_url.
         table_url : str, optional
             The URL to download the transmission table file. If None, the table URL will be set to
-            a default URL based on the survey and filter. Default is None.
+            a default URL based on the survey and filter_name. Default is None.
         """
         self.survey = survey
-        self.filter = filter
-        self.full_name = f"{survey}_{filter}"
+        self.filter_name = filter_name
+        self.full_name = f"{survey}_{filter_name}"
 
         self.table_path = table_path
         self.table_url = table_url
@@ -190,7 +201,7 @@ class Passband:
         # Check if the table file exists locally, and download it if it does not
         if self.table_path is None:
             self.table_path = os.path.join(
-                os.path.dirname(__file__), f"passbands/{self.survey}/{self.filter}.dat"
+                os.path.dirname(__file__), f"passbands/{self.survey}/{self.filter_name}.dat"
             )
             os.makedirs(os.path.dirname(self.table_path), exist_ok=True)
         if not os.path.exists(self.table_path):
@@ -203,7 +214,7 @@ class Passband:
             raise OSError(f"Error reading transmission table from file: {e}") from e
 
         # Check that the table has the correct shape
-        if loaded_table.shape[1] != 2:
+        if loaded_table.size == 0 or loaded_table.shape[1] != 2:
             raise ValueError("Transmission table must have exactly 2 columns.")
 
         # Check that wavelengths are strictly increasing
@@ -227,11 +238,11 @@ class Passband:
         """
         if self.table_url is None:
             if self.survey == "LSST":
-                # TODO consider: https://github.com/lsst/throughputs/blob/main/baseline/filter_g.dat
+                # Consider: https://github.com/lsst/throughputs/blob/main/baseline/filter_g.dat
                 # Or check with Mi's link (unless that was above)
                 self.table_url = (
                     f"http://svo2.cab.inta-csic.es/svo/theory/fps3/getdata.php"
-                    f"?format=ascii&id=LSST/LSST.{self.filter}"
+                    f"?format=ascii&id=LSST/LSST.{self.filter_name}"
                 )
             else:
                 raise NotImplementedError(
@@ -254,9 +265,10 @@ class Passband:
             return False
 
     def _set_wave_grid_attr(self, wave_grid: np.ndarray | float | int | None) -> None:
-        """Set the wave grid attribute. Note: only sets the attribute; does NOT process transmission table.
+        """Set the wave grid attribute. Keeps _wave_grid as None or array-type, even when set with a float.
 
-        Used to keep the type of _wave_grid attribute as an array, even when set with a float. TODO reword
+        Note: this only sets the attribute; it does NOT process transmission table. Use
+        set_transmission_table_grid to set the attribute and process the transmission table in one step.
 
         Parameters
         ----------
@@ -266,14 +278,50 @@ class Passband:
             boundaries of the transmission table. If None, the transmission table will later be interpolated
             to a grid maintaining the same boundaries, but matching the step of the flux density matrix.
         """
-        if isinstance(wave_grid, (float, int)):
-            if self._loaded_table is None:
-                raise ValueError(
-                    "Transmission table must be loaded before setting wave grid with an integer or float."
-                )
-            self._wave_grid = interpolation.create_grid(self._loaded_table[:, 0], wave_grid)
-        else:
+        if wave_grid is None:
             self._wave_grid = wave_grid
+
+        elif isinstance(wave_grid, np.ndarray):
+            # Check that the wave grid is valid
+            if wave_grid.size <= 1:
+                raise ValueError("Wave grid must have at least two values.")
+            elif wave_grid.ndim != 1:
+                raise ValueError("Wave grid must be a 1D array.")
+            elif not np.all(np.diff(wave_grid) > 0):
+                raise ValueError("Wave grid must have strictly increasing values.")
+
+            # Truncate the wave grid to fit the transmission table boundaries
+            if self._loaded_table is None:
+                raise ValueError("Transmission table must be loaded before setting wave grid.")
+            lower_bound, upper_bound = self._loaded_table[0, 0], self._loaded_table[-1, 0]
+            lower_index = np.searchsorted(wave_grid, lower_bound, side="left")
+            upper_index = np.searchsorted(wave_grid, upper_bound, side="right")
+            wave_grid = wave_grid[lower_index:upper_index]
+            if wave_grid.size <= 1:
+                raise ValueError(
+                    "Wave grid has fewer than two values after truncation to fit within the transmission "
+                    "table's boundaries."
+                )
+            # TODO If I'm truncating here, should I also interpolate? at that point, why let them give
+            # an array at all? ask about this in the morning.
+
+            self._wave_grid = wave_grid
+
+        elif isinstance(wave_grid, (float, int)):
+            # Get the bounds of our new grid from the transmission table
+            if self._loaded_table is None:
+                raise ValueError("Transmission table must be loaded before setting wave grid.")
+            lower_bound, upper_bound = self._loaded_table[0, 0], self._loaded_table[-1, 0]
+
+            # Generate new grid; include the original upper bound if step size is divisor of target interval.
+            # We use linspace instead of arange, as numpy recommends this for non-integer step sizes; plus,
+            # arange generates values within a half-open interval, and we usually want the upper bound.
+            self._wave_grid = np.linspace(
+                lower_bound, upper_bound, int((upper_bound - lower_bound) / wave_grid) + 1
+            )
+
+        else:
+            raise ValueError("Wave grid must be a 1D numpy array, float, int, or None.")
 
     def set_transmission_table_grid(self, new_wave_grid: np.ndarray | float | int | None) -> None:
         """Updates _wave_grid attr and sets the transmission table to the new grid.
@@ -318,6 +366,7 @@ class Passband:
         """
         if self._wave_grid is None:
             return transmission_table
+
         if isinstance(self._wave_grid, (float, int)):
             self._set_wave_grid_attr(self._wave_grid)
 
@@ -354,9 +403,11 @@ class Passband:
             If the transmission table is the wrong size or the calculated denominator is zero.
         """
         if transmission_table.size == 0:
-            raise ValueError("Transmission table is empty, cannot normalize.")
-        elif transmission_table.shape[1] != 2:
-            raise ValueError("Transmission table must have exactly 2 columns.")
+            raise ValueError("Transmission table is empty; cannot normalize.")
+        elif transmission_table.shape[0] == 1:
+            raise ValueError(f"Cannot normalize transmission table with only one row: {transmission_table}.")
+        elif transmission_table.ndim != 2 or transmission_table.shape[1] != 2:
+            raise ValueError("Transmission table must be 2D array with exactly 2 columns.")
 
         wavelengths_angstrom = transmission_table[:, 0]
         transmissions = transmission_table[:, 1]
@@ -365,7 +416,12 @@ class Passband:
         denominator = scipy.integrate.trapezoid(numerators, x=wavelengths_angstrom)
 
         if denominator == 0:
-            raise ValueError("Denominator is zero, cannot normalize.")
+            raise ValueError(
+                "Denominator is zero; cannot normalize transmission table. "
+                f"Consider checking the transmission table for band {self.full_name}. "
+                f"With wave grid set to: {self._wave_grid}, transmission table wavelengths are: "
+                f"{transmission_table[:, 0]}."
+            )
 
         # Calculate phi_b for each wavelength
         normalized_transmissions = numerators / denominator
@@ -419,18 +475,19 @@ class Passband:
                 "density matrix or reduce the spline_degree parameter."
             )
 
-        # Make sure grid is an array if not None
+        # Make sure the wave grid we're interpolating to is an array (if not None)
         if isinstance(self._wave_grid, (float, int)):
             self._set_wave_grid_attr(self._wave_grid)
 
-        # If grid is None, we use the flux density matrix grid step to interpolate the transmission table
-        if self._wave_grid is None:
+        # If wave grid is None, use the flux density matrix's grid step to interpolate the transmission table
+        elif self._wave_grid is None:
             if not np.allclose(np.diff(_flux_wavelengths), np.diff(_flux_wavelengths)[0]):
                 raise ValueError(
                     "Flux density wavelengths must have a uniform step to interpolate transmission to match. "
                     "Alternatively, provide a target grid step with the set_transmission_table_grid method."
                 )
-            # Update transmission table step to match the flux density matrix step (preserving boundaries)
+            # Update transmission table step to match the flux density matrix step
+            # (but keep the same transmission table boundaries)
             flux_grid_step = np.diff(_flux_wavelengths)[0]
             self.set_transmission_table_grid(flux_grid_step)
 
