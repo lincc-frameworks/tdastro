@@ -15,18 +15,18 @@ class PassbandGroup:
 
     Attributes
     ----------
-    passbands : dict
-        A dictionary of Passband objects. Note the keys are the full names of the passbands (eg, "LSST_u").
+    passbands : dict of Passband
+        A dictionary of Passband objects, where the keys are the full_names of the passbands (eg, "LSST_u").
     """
 
-    def __init__(self, preset=None, passbands=None):
+    def __init__(self, preset: str = None, passbands_list: list = None):
         """Initialize a PassbandGroup object.
 
         Parameters
         ----------
         preset : str, optional
             A pre-defined set of passbands to load.
-        passbands : list, optional
+        passbands_list : list, optional
             A list of Passband objects assigned to the group.
         """
         self.passbands = {}
@@ -34,8 +34,8 @@ class PassbandGroup:
         if preset is not None:
             self._load_preset(preset)
 
-        if passbands is not None:
-            for passband in passbands:
+        if passbands_list is not None:
+            for passband in passbands_list:
                 self.passbands[passband.full_name] = passband
 
     def __str__(self) -> str:
@@ -105,8 +105,8 @@ class PassbandGroup:
 
         Returns
         -------
-        dict
-            A dictionary of bandfluxes with passband names as keys.
+        dict of np.ndarray
+            A dictionary of bandfluxes with passband names as keys and np.ndarrays of bandfluxes as values.
         """
         bandfluxes = {}
         for full_name, passband in self.passbands.items():
@@ -280,8 +280,12 @@ class Passband:
         """
         if wave_grid is None:
             self._wave_grid = wave_grid
+            return
 
-        elif isinstance(wave_grid, np.ndarray):
+        if self._loaded_table is None:
+            raise ValueError("Transmission table must be loaded before setting wave grid.")
+
+        if isinstance(wave_grid, np.ndarray):
             # Check that the wave grid is valid
             if wave_grid.size <= 1:
                 raise ValueError("Wave grid must have at least two values.")
@@ -291,8 +295,6 @@ class Passband:
                 raise ValueError("Wave grid must have strictly increasing values.")
 
             # Truncate the wave grid to fit the transmission table boundaries
-            if self._loaded_table is None:
-                raise ValueError("Transmission table must be loaded before setting wave grid.")
             lower_bound, upper_bound = self._loaded_table[0, 0], self._loaded_table[-1, 0]
             lower_index = np.searchsorted(wave_grid, lower_bound, side="left")
             upper_index = np.searchsorted(wave_grid, upper_bound, side="right")
@@ -309,8 +311,6 @@ class Passband:
 
         elif isinstance(wave_grid, (float, int)):
             # Get the bounds of our new grid from the transmission table
-            if self._loaded_table is None:
-                raise ValueError("Transmission table must be loaded before setting wave grid.")
             lower_bound, upper_bound = self._loaded_table[0, 0], self._loaded_table[-1, 0]
 
             # Generate new grid; include the original upper bound if step size is divisor of target interval.
@@ -512,7 +512,11 @@ class Passband:
         return (flux_density_matrix, flux_wavelengths)
 
     def fluxes_to_bandflux(
-        self, _flux_density_matrix, _flux_wavelengths, extrapolate_mode="raise", spline_degree=1
+        self,
+        _flux_density_matrix: np.ndarray,
+        _flux_wavelengths: np.ndarray,
+        extrapolate_mode="raise",
+        spline_degree=1,
     ) -> np.ndarray:
         """Calculate the bandflux for a given set of flux densities.
 
@@ -525,9 +529,9 @@ class Passband:
 
         Parameters
         ----------
-        flux_density_matrix : np.ndarray
+        _flux_density_matrix : np.ndarray
             A 2D array of flux densities where rows are times and columns are wavelengths.
-        flux_wavelengths : np.ndarray
+        _flux_wavelengths : np.ndarray
             An array of wavelengths in Angstroms corresponding to the columns of flux_density_matrix.
         extrapolate_mode : str, optional
             The mode of extrapolation to use, passed to scipy.interpolate.InterpolatedUnivariateSpline.
