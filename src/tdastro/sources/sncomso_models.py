@@ -134,7 +134,7 @@ class SncosmoWrapperModel(PhysicalModel):
         times : `numpy.ndarray`
             A length T array of rest frame timestamps.
         wavelengths : `numpy.ndarray`, optional
-            A length N array of wavelengths.
+            A length N array of wavelengths (in angstroms).
         graph_state : `GraphState`
             An object mapping graph parameters to their values.
         **kwargs : `dict`, optional
@@ -143,7 +143,7 @@ class SncosmoWrapperModel(PhysicalModel):
         Returns
         -------
         flux_density : `numpy.ndarray`
-            A length T x N matrix of SED values.
+            A length T x N matrix of SED values (in ergs/s/cm^2/AA).
         """
         params = self.get_local_params(graph_state)
         self._update_sncosmo_model_parameters(graph_state)

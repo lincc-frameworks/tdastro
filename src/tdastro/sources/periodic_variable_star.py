@@ -43,7 +43,7 @@ class PeriodicVariableStar(PeriodicSource, ABC):
         Returns
         -------
         flux_density : `numpy.ndarray`
-            A length T x N matrix of SED values.
+            A length T x N matrix of SED values (in nJy).
         """
         distance = self.get_param(graph_state, "distance") * PARSEC_TO_CM
         return self._dl_dnu_domega_phases(phases, wavelengths, graph_state, **kwargs) / np.square(distance)
