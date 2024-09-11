@@ -70,7 +70,7 @@ def num_snia_per_redshift_bin(zmin=0.001, zmax=10, znbins=20, solid_angle=None, 
 
     cosmo = FlatLambdaCDM(H0=H0, Om0=Omega_m)
 
-    zarr = np.linspace(zmin, zmax, znbins)
+    zarr = np.linspace(zmin, zmax, znbins + 1)
 
     int_arr = np.linspace(zarr[:-1], zarr[1:], 50, axis=1)
     z_mean = np.mean(int_arr, axis=1)

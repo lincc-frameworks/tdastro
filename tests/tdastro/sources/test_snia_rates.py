@@ -26,7 +26,7 @@ def test_num_snia_per_redshift_bin():
     # zmean = 0.073
     zmin = 0.07
     zmax = 0.08
-    znbins = 10
+    znbins = 1
     nsn, z = num_snia_per_redshift_bin(zmin, zmax, znbins, H0=H0, Omega_m=Omega_m)
 
     cosmo = FlatLambdaCDM(H0=H0, Om0=Omega_m)
@@ -37,6 +37,6 @@ def test_num_snia_per_redshift_bin():
 
     nsn_total = np.sum(nsn)
 
-    assert z.size == znbins - 1
-    assert nsn.size == znbins - 1
+    assert z.size == znbins
+    assert nsn.size == znbins
     assert np.allclose(nsn_total, expected_nsn, rtol=0.1)
