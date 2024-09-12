@@ -76,3 +76,26 @@ def poisson_flux_std(
     total_variance = source_variance + sky_variance + readout_variance + dark_variance
 
     return np.sqrt(total_variance) * zp
+
+
+def apply_noise(flux, flux_err, rng=None):
+    """Apply Gaussian noise to a flux measurement.
+
+    Parameters
+    ----------
+    flux : ndarray of float
+        The flux measurement.
+    flux_err : ndarray of float
+        The flux measurement error.
+    rng : np.random.Generator, optional
+        The random number generator.
+
+    Returns
+    -------
+    ndarray of float
+        The noisy flux measurement.
+    """
+    if rng is None:
+        rng = np.random.default_rng()
+
+    return rng.normal(loc=flux, scale=flux_err)
