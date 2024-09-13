@@ -1,5 +1,6 @@
 from __future__ import annotations  # "type1 | type2" syntax in Python <3.10
 
+import logging
 import sqlite3
 from pathlib import Path
 
@@ -17,11 +18,13 @@ from tdastro.astro_utils.zeropoint import (
 from tdastro.consts import GAUSS_EFF_AREA2FWHM_SQ
 
 _rubin_opsim_colnames = {
-    "time": "observationStartMJD",
-    "ra": "fieldRA",
+    "airmass": "airmass",
     "dec": "fieldDec",
-    "zp": "zp_nJy",  # We add this column to the table
+    "exptime": "visitExposureTime",
     "filter": "filter",
+    "ra": "fieldRA",
+    "time": "observationStartMJD",
+    "zp": "zp_nJy",  # We add this column to the table
 }
 """Default mapping of short column names to Rubin OpSim column names."""
 
@@ -128,8 +131,16 @@ class OpSim:  # noqa: D101
         self._kd_tree = None
         self._build_kd_tree()
 
-        if self.colmap["zp"] not in self.table.columns:
-            self._assign_zero_points(col_name=self.colmap["zp"], ext_coeff=ext_coeff, zp_per_sec=zp_per_sec)
+        # If we are not given zero point data, try to derive it from the other columns.
+        if not self.has_columns("zp"):
+            if self.has_columns(["filter", "airmass", "exptime"]):
+                self.add_zero_points(ext_coeff=ext_coeff, zp_per_sec=zp_per_sec)
+            else:
+                logging.getLogger(__name__).warning(
+                    "Missing both zero point data and columns needed to compute it. "
+                    "Setting a default of 1.0."
+                )
+                self.add_column(self.colmap["zp"], 1.0)
 
     def __len__(self):
         return len(self.table)
@@ -142,6 +153,25 @@ class OpSim:  # noqa: D101
     def columns(self):
         """Get the column names."""
         return self.table.columns
+
+    def has_columns(self, columns):
+        """Checks whether OpSim has a column or columns while accounting
+        for the colmap.
+
+        Parameters
+        ----------
+        columns : `str` or iterable
+            The column name or column names to check.
+
+        Returns
+        -------
+        `bool`
+            True if and only if all the columns are contained in the table.
+        """
+        if isinstance(columns, str):
+            return self.colmap.get(columns, columns) in self.table.columns
+
+        return all(self.colmap.get(col, col) in self.table.columns for col in columns)
 
     def _build_kd_tree(self):
         """Construct the KD-tree from the opsim table."""
@@ -156,17 +186,36 @@ class OpSim:  # noqa: D101
         # Construct the kd-tree.
         self._kd_tree = KDTree(cart_coords)
 
-    def _assign_zero_points(
-        self, col_name: str, *, ext_coeff: dict[str, float] | None, zp_per_sec: dict[str, float] | None
-    ):
-        """Assign instrumental zero points in nJy to the OpSim tables"""
-        self.table[col_name] = flux_electron_zeropoint(
+    def add_zero_points(self, *, ext_coeff: dict[str, float] | None, zp_per_sec: dict[str, float] | None):
+        """Assign instrumental zero points in nJy to the OpSim tables.
+
+        Parameters
+        ----------
+        ext_coeff : dict[str, float], optional
+            Atmospheric extinction coefficient for each bandpass.
+            Keys are the bandpass names, values are the coefficients.
+            If None, the LSST coefficients are used.
+        zp_per_sec : dict[str, float], optional
+             The instrumental zeropoint for each bandpass in AB magnitudes,
+             i.e. the magnitude that produces 1 electron in a 1-second exposure.
+             Keys are the bandpass names, values are the zeropoints.
+             If None, the LSST zeropoints are used.
+        """
+        req_cols = ["filter", "airmass", "exptime"]
+        if not self.has_columns(req_cols):
+            raise ValueError(
+                "Missing columns needed to compute zero point. "
+                f"OpSim must contain the following columns: {req_cols}"
+            )
+
+        zp_values = flux_electron_zeropoint(
             ext_coeff=ext_coeff,
             instr_zp_mag=zp_per_sec,
             band=self.table[self.colmap.get("filter", "filter")],
             airmass=self.table[self.colmap.get("airmass", "airmass")],
             exptime=self.table[self.colmap.get("exptime", "visitExposureTime")],
         )
+        self.add_column(self.colmap.get("zp", "zp"), zp_values, overwrite=True)
 
     @classmethod
     def from_db(cls, filename, sql_query="SELECT * FROM observations", colmap=_rubin_opsim_colnames):
@@ -221,6 +270,7 @@ class OpSim:  # noqa: D101
             Overwrite the column is it already exists.
             Default: False
         """
+        colname = self.colmap.get(colname, colname)
         if colname in self.table.columns and not overwrite:
             raise KeyError(f"Column {colname} already exists.")
 

@@ -1,3 +1,4 @@
+import logging
 import os
 import tempfile
 from pathlib import Path
@@ -25,6 +26,13 @@ def test_create_opsim():
     ops_data = OpSim(pdf)
     assert len(ops_data) == 5
     assert len(ops_data.columns) == 4
+
+    # We can query which columns the OpSim has.
+    assert ops_data.has_columns("fieldRA")
+    assert ops_data.has_columns("dec")
+    assert not ops_data.has_columns("is_good_obs")
+    assert ops_data.has_columns(["ra", "dec", "time"])
+    assert not ops_data.has_columns(["ra", "dec", "vacation_time"])
 
     # We can access columns directly as though it was a table.
     assert np.allclose(ops_data["fieldRA"], values["fieldRA"])
@@ -231,6 +239,37 @@ def test_read_opsim_shorten(opsim_shorten):
     """Read in a shorten OpSim file from the testing data directory."""
     ops_data = OpSim.from_db(opsim_shorten)
     assert len(ops_data) == 100
+
+
+def test_add_zero_points():
+    """Test that we can compute and add the zero points."""
+
+    # Create a fake opsim data frame with just time, RA, and dec.
+    values = {
+        "observationStartMJD": np.array([0.0, 1.0, 2.0]),
+        "fieldRA": np.array([15.0, 15.01, 15.0]),
+        "fieldDec": np.array([-10.0, 10.0, 0.0]),
+    }
+
+    # Turn off the warning that happens when we create an OpSim with no zero points.
+    org_level = logging.getLogger().getEffectiveLevel()
+    logging.disable(logging.CRITICAL)
+    ops_data = OpSim(values)
+    logging.disable(org_level)
+
+    # The default zp (if nothing is provided is all 1.0)
+    assert ops_data.has_columns("zp_nJy")
+    assert np.allclose(ops_data["zp_nJy"], [1.0, 1.0, 1.0])
+
+    # Add the columns we need and compute the zero points.
+    ops_data.add_column("filter", "r")
+    ops_data.add_column("airmass", 1.379607)
+    ops_data.add_column("exptime", 29.2)
+    ops_data.add_zero_points(ext_coeff=None, zp_per_sec=None)
+
+    # TODO: Add a test that actually checks the accuracy of the computed zero points.
+    assert ops_data.has_columns("zp_nJy")
+    assert np.all(ops_data["zp_nJy"] < 1.0)
 
 
 def test_opsim_flux_err_point_source(opsim_shorten):
