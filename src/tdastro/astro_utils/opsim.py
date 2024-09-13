@@ -1,6 +1,5 @@
 from __future__ import annotations  # "type1 | type2" syntax in Python <3.10
 
-import logging
 import sqlite3
 from pathlib import Path
 
@@ -134,13 +133,12 @@ class OpSim:  # noqa: D101
         # If we are not given zero point data, try to derive it from the other columns.
         if not self.has_columns("zp"):
             if self.has_columns(["filter", "airmass", "exptime"]):
-                self.add_zero_points(ext_coeff=ext_coeff, zp_per_sec=zp_per_sec)
+                self._assign_zero_points(ext_coeff=ext_coeff, zp_per_sec=zp_per_sec)
             else:
-                logging.getLogger(__name__).warning(
-                    "Missing both zero point data and columns needed to compute it. "
-                    "Setting a default of 1.0."
+                raise ValueError(
+                    "OpSim must include either a zero point column or the columns "
+                    "needed to derive it (filter, airmass, and exposure time)."
                 )
-                self.add_column(self.colmap["zp"], 1.0)
 
     def __len__(self):
         return len(self.table)
@@ -186,7 +184,7 @@ class OpSim:  # noqa: D101
         # Construct the kd-tree.
         self._kd_tree = KDTree(cart_coords)
 
-    def add_zero_points(self, *, ext_coeff: dict[str, float] | None, zp_per_sec: dict[str, float] | None):
+    def _assign_zero_points(self, *, ext_coeff: dict[str, float] | None, zp_per_sec: dict[str, float] | None):
         """Assign instrumental zero points in nJy to the OpSim tables.
 
         Parameters
@@ -201,13 +199,6 @@ class OpSim:  # noqa: D101
              Keys are the bandpass names, values are the zeropoints.
              If None, the LSST zeropoints are used.
         """
-        req_cols = ["filter", "airmass", "exptime"]
-        if not self.has_columns(req_cols):
-            raise ValueError(
-                "Missing columns needed to compute zero point. "
-                f"OpSim must contain the following columns: {req_cols}"
-            )
-
         zp_values = flux_electron_zeropoint(
             ext_coeff=ext_coeff,
             instr_zp_mag=zp_per_sec,
