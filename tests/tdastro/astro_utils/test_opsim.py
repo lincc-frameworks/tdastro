@@ -23,6 +23,7 @@ def test_create_opsim():
 
     ops_data = OpSim(pdf)
     assert len(ops_data) == 5
+    assert len(ops_data.columns) == 4
 
     # We can access columns directly as though it was a table.
     assert np.allclose(ops_data["fieldRA"], values["fieldRA"])
@@ -32,9 +33,33 @@ def test_create_opsim():
     # We can create an OpSim directly from the dictionary as well.
     ops_data2 = OpSim(pdf)
     assert len(ops_data2) == 5
+    assert len(ops_data.columns) == 4
     assert np.allclose(ops_data2["fieldRA"], values["fieldRA"])
     assert np.allclose(ops_data2["fieldDec"], values["fieldDec"])
     assert np.allclose(ops_data2["observationStartMJD"], values["observationStartMJD"])
+
+    # We can add a column as either a scalar or a vector.
+    assert "new_column1" not in ops_data2.columns
+    assert "new_column2" not in ops_data2.columns
+
+    ops_data2.add_column("new_column1", 10)
+    ops_data2.add_column("new_column2", [1, 2, 3, 4, 5])
+    assert "new_column1" in ops_data2.columns
+    assert np.allclose(ops_data2["new_column1"], [10, 10, 10, 10, 10])
+    assert "new_column2" in ops_data2.columns
+    assert np.allclose(ops_data2["new_column2"], [1, 2, 3, 4, 5])
+
+    # We fail if we add a column with the incorrect number of values.
+    with pytest.raises(ValueError):
+        ops_data2.add_column("new_column3", [1, 2, 3, 4, 5, 6])
+
+    # We fail if we try to overwrite a current column unless we
+    # set overwrite=True.
+    with pytest.raises(KeyError):
+        ops_data2.add_column("new_column1", 12)
+    ops_data2.add_column("new_column2", 12, overwrite=True)
+    assert np.allclose(ops_data2["new_column1"], [10, 10, 10, 10, 10])
+    assert np.allclose(ops_data2["new_column2"], [12, 12, 12, 12, 12])
 
 
 def test_create_opsim_custom_names():
@@ -100,7 +125,7 @@ def test_write_read_opsim():
         ops_data.write_opsim_table(filename, overwrite=True)
 
 
-def test_obsim_range_search():
+def test_opsim_range_search():
     """Test that we can extract the time, ra, and dec from an opsim data frame."""
     # Create a fake opsim data frame with just time, RA, and dec.
     values = {

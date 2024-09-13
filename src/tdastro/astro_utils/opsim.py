@@ -21,6 +21,7 @@ _rubin_opsim_colnames = {
     "ra": "fieldRA",
     "dec": "fieldDec",
     "zp": "zp_nJy",  # We add this column to the table
+    "filter": "filter",
 }
 """Default mapping of short column names to Rubin OpSim column names."""
 
@@ -77,7 +78,7 @@ class OpSim:  # noqa: D101
 
     Attributes
     ----------
-    table : `dict` or `pandas.core.frame.DataFrame`
+    table : `pandas.core.frame.DataFrame`
         The table with all the OpSim information.
     colmap : `dict`
         A mapping of short column names to their names in the underlying table.
@@ -136,6 +137,11 @@ class OpSim:  # noqa: D101
     def __getitem__(self, key):
         """Access the underlying opsim table."""
         return self.table[key]
+
+    @property
+    def columns(self):
+        """Get the column names."""
+        return self.table.columns
 
     def _build_kd_tree(self):
         """Construct the KD-tree from the opsim table."""
@@ -201,6 +207,27 @@ class OpSim:  # noqa: D101
         con.close()
 
         return OpSim(opsim, colmap=colmap)
+
+    def add_column(self, colname, values, overwrite=False):
+        """Add a column to the current opsim table.
+
+        Parameters
+        ----------
+        colname : `str`
+            The name of the new column.
+        values : `int`, `float`, `str`, `list`, or `numpy.ndarray`
+            The value(s) to add.
+        overwrite : `bool`
+            Overwrite the column is it already exists.
+            Default: False
+        """
+        if colname in self.table.columns and not overwrite:
+            raise KeyError(f"Column {colname} already exists.")
+
+        # If the input is a scalar, turn it into an array of the correct length
+        if np.isscalar(values):
+            values = np.full((len(self.table)), values)
+        self.table[colname] = values
 
     def write_opsim_table(self, filename, tablename="observations", overwrite=False):
         """Write out an opsim database to a given SQL table.
