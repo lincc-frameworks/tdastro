@@ -8,6 +8,7 @@ import pytest
 from tdastro.astro_utils.mag_flux import mag2flux
 from tdastro.astro_utils.opsim import (
     OpSim,
+    opsim_add_random_data,
 )
 
 
@@ -23,6 +24,14 @@ def test_create_opsim():
 
     ops_data = OpSim(pdf)
     assert len(ops_data) == 5
+    assert len(ops_data.columns) == 4
+
+    # We can query which columns the OpSim has.
+    assert ops_data.has_columns("fieldRA")
+    assert ops_data.has_columns("dec")
+    assert not ops_data.has_columns("is_good_obs")
+    assert ops_data.has_columns(["ra", "dec", "time"])
+    assert not ops_data.has_columns(["ra", "dec", "vacation_time"])
 
     # We can access columns directly as though it was a table.
     assert np.allclose(ops_data["fieldRA"], values["fieldRA"])
@@ -32,6 +41,7 @@ def test_create_opsim():
     # We can create an OpSim directly from the dictionary as well.
     ops_data2 = OpSim(pdf)
     assert len(ops_data2) == 5
+    assert len(ops_data.columns) == 4
     assert np.allclose(ops_data2["fieldRA"], values["fieldRA"])
     assert np.allclose(ops_data2["fieldDec"], values["fieldDec"])
     assert np.allclose(ops_data2["observationStartMJD"], values["observationStartMJD"])
@@ -54,6 +64,53 @@ def test_create_opsim_custom_names():
     colmap = {"ra": "custom_ra", "dec": "custom_dec", "time": "custom_time", "zp": "custom_zp"}
     ops_data = OpSim(values, colmap)
     assert len(ops_data) == 5
+
+
+def test_opsim_add_columns():
+    """Create a minimal OpSim object and perform basic queries."""
+    values = {
+        "observationStartMJD": np.array([0.0, 1.0, 2.0, 3.0, 4.0]),
+        "fieldRA": np.array([15.0, 30.0, 15.0, 0.0, 60.0]),
+        "fieldDec": np.array([-10.0, -5.0, 0.0, 5.0, 10.0]),
+        "zp_nJy": np.ones(5),
+    }
+    pdf = pd.DataFrame(values)
+
+    ops_data = OpSim(pdf)
+    assert len(ops_data) == 5
+    assert len(ops_data.columns) == 4
+
+    # We can add a column of constant values from a scalar.
+    assert "new_column1" not in ops_data.columns
+    ops_data.add_column("new_column1", 10)
+    assert "new_column1" in ops_data.columns
+    assert np.allclose(ops_data["new_column1"], [10, 10, 10, 10, 10])
+
+    # We can add a column of data from a list or array.
+    assert "new_column2" not in ops_data.columns
+    ops_data.add_column("new_column2", [1, 2, 3, 4, 5])
+    assert "new_column2" in ops_data.columns
+    assert np.allclose(ops_data["new_column2"], [1, 2, 3, 4, 5])
+
+    # We fail if we add a column with the incorrect number of values.
+    with pytest.raises(ValueError):
+        ops_data.add_column("new_column3", [1, 2, 3, 4, 5, 6])
+
+    # We fail if we try to overwrite a current column unless we
+    # set overwrite=True.
+    with pytest.raises(KeyError):
+        ops_data.add_column("new_column1", 12)
+    assert np.allclose(ops_data["new_column1"], [10, 10, 10, 10, 10])
+
+    ops_data.add_column("new_column2", 12, overwrite=True)
+    assert np.allclose(ops_data["new_column2"], [12, 12, 12, 12, 12])
+
+    # We can add random data.
+    opsim_add_random_data(ops_data, "new_column3", min_val=1.0, max_val=5.0)
+    values = ops_data["new_column3"]
+    assert len(np.unique(values)) == 5
+    assert np.all(values >= 1.0)
+    assert np.all(values <= 5.0)
 
 
 def test_read_small_opsim(opsim_small):
@@ -100,7 +157,7 @@ def test_write_read_opsim():
         ops_data.write_opsim_table(filename, overwrite=True)
 
 
-def test_obsim_range_search():
+def test_opsim_range_search():
     """Test that we can extract the time, ra, and dec from an opsim data frame."""
     # Create a fake opsim data frame with just time, RA, and dec.
     values = {
