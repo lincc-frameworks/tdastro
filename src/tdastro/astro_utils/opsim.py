@@ -357,3 +357,23 @@ class OpSim:  # noqa: D101
             readout_noise=self.read_noise,
             dark_current=self.dark_current,
         )
+
+
+def opsim_add_random_data(opsim_data, colname, min_val=0.0, max_val=1.0):
+    """Add a column composed of random uniform data. Used for testing.
+
+    Parameters
+    ----------
+    opsim_data : OpSim
+        The OpSim data structure to modify.
+    colname : `str`
+        The name of the new column to add.
+    min_val : `float`
+        The minimum value of the uniform range.
+        Default: 0.0
+    max_val : `float`
+        The maximum value of the uniform range.
+        Default: 1.0
+    """
+    values = np.random.uniform(low=min_val, high=max_val, size=len(opsim_data))
+    opsim_data.add_column(colname, values)
