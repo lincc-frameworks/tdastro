@@ -9,6 +9,7 @@ from tdastro.astro_utils.mag_flux import mag2flux
 from tdastro.astro_utils.opsim import (
     OpSim,
     opsim_add_random_data,
+    oversample_opsim,
 )
 
 
@@ -251,3 +252,21 @@ def test_opsim_flux_err_point_source(opsim_shorten):
 
     # Tolerance is very high, we should investigate why the values are so different.
     np.testing.assert_allclose(flux_err, expected_flux_err, rtol=0.2)
+
+
+def test_oversample_opsim(opsim_shorten):
+    """Test that we can oversample an OpSim file."""
+    opsim = OpSim.from_db(opsim_shorten)
+
+    for strategy in ["darkest_sky", "random"]:
+        oversampled = oversample_opsim(
+            opsim,
+            time_range=(60_000.0, 60_010.0),
+            strategy=strategy,
+        )
+        assert set(opsim.table.columns) == set(oversampled.table.columns), "columns are not the same"
+        assert oversampled.table.shape[0] == 1000, "oversampled table has the wrong number of rows"
+        assert (
+            oversampled["skyBrightness"].unique().size >= oversampled["filter"].unique().size
+        ), "there should be at least as many skyBrightness values as bands"
+        assert oversampled["skyBrightness"].isna().sum() == 0, "skyBrightness has NaN values"
