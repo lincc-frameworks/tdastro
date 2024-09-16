@@ -9,6 +9,7 @@ from tdastro.astro_utils.mag_flux import mag2flux
 from tdastro.astro_utils.opsim import (
     OpSim,
     opsim_add_random_data,
+    oversample_opsim,
 )
 
 
@@ -251,3 +252,36 @@ def test_opsim_flux_err_point_source(opsim_shorten):
 
     # Tolerance is very high, we should investigate why the values are so different.
     np.testing.assert_allclose(flux_err, expected_flux_err, rtol=0.2)
+
+
+def test_oversample_opsim(opsim_shorten):
+    """Test that we can oversample an OpSim file."""
+    opsim = OpSim.from_db(opsim_shorten)
+
+    bands = ["g", "r"]
+    ra, dec = 205.0, -57.0
+    time_range = 60_000.0, 60_010.0
+    delta_t = 0.01
+
+    for strategy in ["darkest_sky", "random"]:
+        oversampled = oversample_opsim(
+            opsim,
+            pointing=(ra, dec),
+            time_range=time_range,
+            delta_t=delta_t,
+            bands=bands,
+            strategy=strategy,
+        )
+        assert set(opsim.table.columns) == set(oversampled.table.columns), "columns are not the same"
+        np.testing.assert_allclose(
+            np.diff(oversampled["observationStartMJD"]), delta_t, err_msg="delta_t is not correct"
+        )
+        np.testing.assert_allclose(oversampled["fieldRA"], ra, err_msg="RA is not correct")
+        np.testing.assert_allclose(oversampled["fieldDec"], dec, err_msg="Dec is not correct")
+        assert np.all(oversampled["observationStartMJD"] >= time_range[0]), "time range is not correct"
+        assert np.all(oversampled["observationStartMJD"] <= time_range[1]), "time range is not correct"
+        assert set(oversampled["filter"]) == set(bands), "oversampled table has the wrong bands"
+        assert (
+            oversampled["skyBrightness"].unique().size >= oversampled["filter"].unique().size
+        ), "there should be at least as many skyBrightness values as bands"
+        assert oversampled["skyBrightness"].isna().sum() == 0, "skyBrightness has NaN values"
