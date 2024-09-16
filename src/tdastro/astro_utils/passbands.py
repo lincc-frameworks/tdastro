@@ -32,6 +32,14 @@ class PassbandGroup:
     ):
         """Initialize a PassbandGroup object.
 
+        Attributes
+        ----------
+        preset : str, optional
+            A pre-defined set of passbands to load.
+        passbands : dict
+            A dictionary of Passband objects assigned to the group. The keys are the passbands' full names:
+            eg, LSST_u, LSST_g, HSC_u, etc.
+
         Parameters
         ----------
         preset : str, optional
@@ -244,13 +252,6 @@ class Passband:
 
         self._load_transmission_table()
         self.process_transmission_table(delta_wave, trim_percentile)
-        # interpolated_table = self._interpolate_transmission_table(self._loaded_table, delta_wave)
-        # trimmed_table = self._trim_transmission_by_percentile(interpolated_table, trim_percentile)
-        # self._normalize_transmission_table(trimmed_table)
-
-        # previous implementation:
-        # self._set_wave_grid_attr(wave_grid)
-        # self._process_transmission_table()
 
     def __str__(self) -> str:
         """Return a string representation of the Passband."""
@@ -265,36 +266,14 @@ class Passband:
         np.ndarray
             A 2D array of wavelengths and transmissions.
         """
-        # Check if the table file exists locally, and download it if it does not
         if self.table_path is None:
             self.table_path = os.path.join(
-                os.path.dirname(__file__), f"passbands/{self.survey}/{self.filter_name}.dat"
+                os.path.dirname(__file__), f"passbands/{self.survey}/{self.label}.dat"
             )
             os.makedirs(os.path.dirname(self.table_path), exist_ok=True)
         if not os.path.exists(self.table_path):
             self._download_transmission_table()
-
-        # Load the table file
-        try:
-            loaded_table = np.loadtxt(self.table_path)
-        except OSError as e:
-            raise OSError(f"Error reading transmission table from file: {e}") from e
-
-        # Check that the table has the correct shape
-        if loaded_table.size == 0 or loaded_table.shape[1] != 2:
-            raise ValueError("Transmission table must have exactly 2 columns.")
-
-        # Check that wavelengths are strictly increasing
-        if not np.all(np.diff(loaded_table[:, 0]) > 0):
-            raise ValueError("Wavelengths in transmission table must be strictly increasing.")
-
-        # Correct for units
-        if self.units == "nm":
-            loaded_table[
-                :, 0
-            ] *= 10.0  # Multiply the first column (wavelength) by 10.0 to convert to Angstroms
-
-        self._loaded_table = loaded_table
+        return np.loadtxt(self.table_path)
 
     def _download_transmission_table(self) -> bool:
         """Download a transmission table from a URL.

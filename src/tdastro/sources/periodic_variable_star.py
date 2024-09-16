@@ -43,7 +43,7 @@ class PeriodicVariableStar(PeriodicSource, ABC):
         Returns
         -------
         flux_density : `numpy.ndarray`
-            A length T x N matrix of SED values.
+            A length T x N matrix of SED values (in nJy).
         """
         distance = self.get_param(graph_state, "distance") * PARSEC_TO_CM
         return self._dl_dnu_domega_phases(phases, wavelengths, graph_state, **kwargs) / np.square(distance)
@@ -121,8 +121,8 @@ class EclipsingBinaryStar(PeriodicVariableStar):
             A length T array of phases, in the range [0, 1].
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths.
-        graph_state : `dict`, optional
-            A given setting of all the parameters and their values.
+        graph_state : `GraphState`
+            An object mapping graph parameters to their values.
         **kwargs : `dict`, optional
               Any additional keyword arguments.
 

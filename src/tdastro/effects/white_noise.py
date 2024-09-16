@@ -33,18 +33,18 @@ class WhiteNoise(EffectModel):
         Parameters
         ----------
         flux_density : `numpy.ndarray`
-            An array of flux density values.
+            An array of flux density values (in nJy).
         wavelengths : `numpy.ndarray`, optional
-            An array of wavelengths.
-        graph_state : `dict`
-            A dictionary mapping graph parameters to their values.
+            An array of wavelengths (in angstroms).
+        graph_state : `GraphState`
+            An object mapping graph parameters to their values.
         **kwargs : `dict`, optional
            Any additional keyword arguments.
 
         Returns
         -------
         flux_density : `numpy.ndarray`
-            The results.
+            The results (in nJy).
         """
-        scale = self.get_param(graph_state, "scale")
-        return np.random.normal(loc=flux_density, scale=scale)
+        params = self.get_local_params(graph_state)
+        return np.random.normal(loc=flux_density, scale=params["scale"])

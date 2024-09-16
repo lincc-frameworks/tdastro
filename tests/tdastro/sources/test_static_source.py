@@ -52,10 +52,10 @@ def test_static_source_host() -> None:
     assert model.get_param(state, "ra") == 1.0
     assert model.get_param(state, "dec") == 2.0
     assert model.get_param(state, "distance") == 3.0
-    assert str(model) == "0:tdastro.sources.static_source.StaticSource"
+    assert str(model) == "0:StaticSource"
 
     # Test that we have given a different name to the host.
-    assert str(host) == "1:tdastro.sources.static_source.StaticSource"
+    assert str(host) == "1:StaticSource"
 
 
 def test_static_source_resample() -> None:

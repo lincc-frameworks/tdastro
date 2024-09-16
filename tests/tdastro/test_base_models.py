@@ -61,7 +61,7 @@ def test_parameter_source():
     """Test the ParameterSource creation and setter functions."""
     source = ParameterSource("test")
     assert source.parameter_name == "test"
-    assert source.full_name == "test"
+    assert source.node_name == ""
     assert source.source_type == ParameterSource.UNDEFINED
     assert source.dependency is None
     assert source.value is None
@@ -70,16 +70,11 @@ def test_parameter_source():
 
     source.set_as_constant(10.0)
     assert source.parameter_name == "test"
-    assert source.full_name == "test"
     assert source.source_type == ParameterSource.CONSTANT
     assert source.dependency is None
     assert source.value == 10.0
     assert not source.fixed
     assert not source.required
-
-    source.set_name("my_var", "my_node")
-    assert source.parameter_name == "my_var"
-    assert source.full_name == "my_node.my_var"
 
     with pytest.raises(ValueError):
         source.set_as_constant(_test_func)
@@ -104,7 +99,7 @@ def test_parameterized_node():
     """Test that we can sample and create a PairModel object."""
     # Simple addition
     model1 = PairModel(value1=0.5, value2=0.5)
-    assert str(model1) == "test_base_models.PairModel"
+    assert str(model1) == "PairModel"
 
     state = model1.sample_parameters()
     assert model1.get_param(state, "value1") == 0.5
@@ -121,7 +116,7 @@ def test_parameterized_node():
     assert model2.get_param(state, "value_sum") == 1.5
 
     # If we set an ID it shows up in the name.
-    model2._node_pos = 100
+    model2.node_pos = 100
     model2._update_node_string()
     assert str(model2) == "100:test"
 
@@ -159,17 +154,43 @@ def test_parameterized_node():
 
 def test_parameterized_node_get_dependencies():
     """Test that we can extract the parameters of a graph of ParameterizedNode."""
-    model1 = PairModel(value1=0.5, value2=1.5, node_identifier="1")
+    model1 = PairModel(value1=0.5, value2=1.5, node_label="1")
     assert len(model1.direct_dependencies) == 1
 
-    model2 = PairModel(value1=model1.value1, value2=3.0, node_identifier="2")
+    model2 = PairModel(value1=model1.value1, value2=3.0, node_label="2")
     assert len(model2.direct_dependencies) == 2
     assert model1 in model2.direct_dependencies
 
-    model3 = PairModel(value1=model1.value1, value2=model2.value_sum, node_identifier="3")
+    model3 = PairModel(value1=model1.value1, value2=model2.value_sum, node_label="3")
     assert len(model3.direct_dependencies) == 3
     assert model1 in model3.direct_dependencies
     assert model2 in model3.direct_dependencies
+
+
+def test_parameterized_node_get_info():
+    """Test that we can extract the parameters of a graph of ParameterizedNode."""
+    model1 = PairModel(value1=0.5, value2=1.5, node_label="node1")
+    model2 = PairModel(value1=model1.value1, value2=3.0, node_label="node2")
+    model3 = PairModel(value1=model1.value1, value2=model2.value_sum, node_label="node3")
+
+    # We need to finalize the model names to include the node's position in the string.
+    model3.set_graph_positions()
+
+    # Get the node strings.
+    node_strings = model3.get_all_node_info("node_string")
+    assert len(node_strings) == 6
+    assert "0:node3" in node_strings
+    assert "1:node1" in node_strings
+    assert "3:node2" in node_strings
+
+    # Get the node hash values and check they are all unique.
+    node_hashes = model3.get_all_node_info("node_hash")
+    assert len(node_hashes) == len(set(node_hashes))
+
+    # Get the node positions. These should be integers [0, 5]
+    node_pos = model3.get_all_node_info("node_pos")
+    for i in range(6):
+        assert i in node_pos
 
 
 def test_parameterized_node_modify():
@@ -188,103 +209,30 @@ def test_parameterized_node_modify():
         model.set_parameter("brightness", 5.0)
 
 
-def test_parameterized_node_seed():
-    """Test that we can set a random seed for the entire graph."""
-    # Left unspecified we use full random seeds.
-    model_a = PairModel(value1=0.5, value2=0.5)
-    model_b = PairModel(value1=0.5, value2=0.5)
-    assert model_a._object_seed != model_b._object_seed
-
-    # If we specify a seed, the results are the same objects with
-    # the same name (class + node_id + node_label) and different
-    # otherwise. Everything starts with a default node_id = None.
-    model_a = PairModel(value1=0.5, value2=0.5, node_label="A")
-    model_b = PairModel(value1=0.5, value2=0.5, node_label="B")
-    model_c = PairModel(value1=0.5, value2=0.5, node_label="A")
-    model_d = SingleVariableNode("value1", 0.5, node_label="A")
-    model_e = SingleVariableNode("value1", 0.5, node_label="C")
-
-    model_a.set_seed(graph_base_seed=10)
-    model_b.set_seed(graph_base_seed=10)
-    model_c.set_seed(graph_base_seed=10)
-    model_d.set_seed(graph_base_seed=10)
-    model_e.set_seed(graph_base_seed=10)
-
-    assert model_a._object_seed != model_b._object_seed
-    assert model_a._object_seed == model_c._object_seed
-    assert model_a._object_seed == model_d._object_seed
-    assert model_a._object_seed != model_e._object_seed
-
-    assert model_b._object_seed != model_a._object_seed
-    assert model_b._object_seed != model_c._object_seed
-    assert model_b._object_seed != model_d._object_seed
-    assert model_b._object_seed != model_e._object_seed
-
-    assert model_c._object_seed == model_a._object_seed
-    assert model_c._object_seed != model_b._object_seed
-    assert model_c._object_seed == model_d._object_seed
-    assert model_c._object_seed != model_e._object_seed
-
-    assert model_d._object_seed == model_a._object_seed
-    assert model_d._object_seed != model_b._object_seed
-    assert model_d._object_seed == model_c._object_seed
-    assert model_d._object_seed != model_e._object_seed
-
-
-def test_parameterized_node_base_seed_fail():
-    """Test that we can set a random seed for the entire graph."""
-    model_a = PairModel(value1=0.5, value2=0.5)
-    model_a.set_seed(graph_base_seed=10)
-    model_a.sample_parameters()
-
-    model_b = PairModel(value1=1.5, value2=0.5)
-    model_b.set_seed(graph_base_seed=10)
-    model_b.sample_parameters()
-
-    # The models have the same string and seed, but that's desired since they
-    # are not in the same graph.
-    assert str(model_a) == str(model_b)
-    assert model_a._object_seed == model_b._object_seed
-
-    # But if we change the graph to link them, we don't want them
-    # to have the same seed.
-    model_b.set_parameter("value1", model_a.value_sum)
-    with pytest.raises(KeyError):
-        model_b.sample_parameters()
-
-    # We need to reset the node IDs (their positions within the graph)
-    # so they have unique identifiers and seeds.
-    model_b.update_graph_information()
-    assert str(model_a) != str(model_b)
-    assert model_a._object_seed != model_b._object_seed
-    model_b.sample_parameters()
-
-
 def test_parameterized_node_build_pytree():
     """Test that we can extract the PyTree of a graph."""
     model1 = PairModel(value1=0.5, value2=1.5, node_label="A")
     model2 = PairModel(value1=model1.value1, value2=3.0, node_label="B")
     graph_state = model2.sample_parameters()
-    pytree = model2.build_pytree(graph_state)
 
-    assert len(pytree) == 3
-    assert pytree["1:A.value1"] == 0.5
-    assert pytree["1:A.value2"] == 1.5
-    assert pytree["0:B.value2"] == 3.0
+    pytree = model2.build_pytree(graph_state)
+    assert pytree["1:A"]["value1"] == 0.5
+    assert pytree["1:A"]["value2"] == 1.5
+    assert pytree["0:B"]["value2"] == 3.0
 
     # Manually set value2 to fixed and check that it no longer appears in the pytree.
     model1.setters["value2"].fixed = True
 
     pytree = model2.build_pytree(graph_state)
-    assert len(pytree) == 2
-    assert pytree["1:A.value1"] == 0.5
-    assert pytree["0:B.value2"] == 3.0
+    assert pytree["1:A"]["value1"] == 0.5
+    assert pytree["0:B"]["value2"] == 3.0
+    assert "value2" not in pytree["1:A"]
 
 
 def test_single_variable_node():
     """Test that we can create and query a SingleVariableNode."""
     node = SingleVariableNode("A", 10.0)
-    assert str(node) == "tdastro.base_models.SingleVariableNode"
+    assert str(node) == "SingleVariableNode"
 
     state = node.sample_parameters()
     assert node.get_param(state, "A") == 10
@@ -299,7 +247,7 @@ def test_function_node_basic():
     assert my_func.compute(state, value2=3.0) == 4.0
     assert my_func.compute(state, value2=3.0, unused_param=5.0) == 4.0
     assert my_func.compute(state, value2=3.0, value1=1.0) == 4.0
-    assert str(my_func) == "0:tdastro.base_models.FunctionNode:_test_func"
+    assert str(my_func) == "0:FunctionNode:_test_func"
 
 
 def test_function_node_chain():
@@ -393,14 +341,11 @@ def test_function_node_jax():
     graph_state = sum_node.sample_parameters()
 
     pytree = sum_node.build_pytree(graph_state)
-    assert len(pytree) == 3
     print(pytree)
-
     gr_func = jax.value_and_grad(sum_node.resample_and_compute)
     values, gradients = gr_func(pytree)
-    assert len(gradients) == 3
     print(gradients)
     assert values == 9.0
-    assert gradients["0:sum:_test_func.value1"] == 1.0
-    assert gradients["1:div:_test_func2.value1"] == 2.0
-    assert gradients["1:div:_test_func2.value2"] == -16.0
+    assert gradients["0:sum:_test_func"]["value1"] == 1.0
+    assert gradients["1:div:_test_func2"]["value1"] == 2.0
+    assert gradients["1:div:_test_func2"]["value2"] == -16.0

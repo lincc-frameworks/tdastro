@@ -5,22 +5,45 @@ from tdastro.util_nodes.np_random import NumpyRandomFunc
 
 def test_sncomso_models_hsiao() -> None:
     """Test that we can create and evalue a 'hsiao' model."""
-    model = SncosmoWrapperModel("hsiao", amplitude=1.0e-10)
+    model = SncosmoWrapperModel("hsiao", amplitude=2.0e10)
     state = model.sample_parameters()
-    assert model.get_param(state, "amplitude") == 1.0e-10
-    assert str(model) == "0:tdastro.sources.sncomso_models.SncosmoWrapperModel"
+    assert model.get_param(state, "amplitude") == 2.0e10
+    assert model.get_param(state, "t0") == 0.0
+    assert str(model) == "0:SncosmoWrapperModel"
 
     assert np.array_equal(model.param_names, ["amplitude"])
-    assert np.array_equal(model.parameter_values, [1.0e-10])
+    assert np.array_equal(model.parameter_values, [2.0e10])
 
-    # Test with the example from: https://sncosmo.readthedocs.io/en/stable/models.html
+    # Test against a manual query from sncosmo with no redshift and an
+    # unrealistically high amplitude.
+    #     model = sncosmo.Model(source='hsiao')
+    #     model.set(z=0.0, t0=0.0, amplitude=2.0e10)
+    #     model.flux(5., [4000., 4100., 4200.])
+    fluxes = model.evaluate([5.0], [4000.0, 4100.0, 4200.0])
+    assert np.allclose(fluxes, [133.98143039, 152.74613574, 134.40916824])
+
+
+def test_sncomso_models_hsiao_t0() -> None:
+    """Test that we can create and evalue a 'hsiao' model with a t0."""
+    model = SncosmoWrapperModel("hsiao", t0=55000.0, amplitude=2.0e10)
+    state = model.sample_parameters()
+    assert model.get_param(state, "amplitude") == 2.0e10
+    assert model.get_param(state, "t0") == 55000.0
+
+    assert np.array_equal(model.param_names, ["amplitude"])
+    assert np.array_equal(model.parameter_values, [2.0e10])
+
+    # Test against a manual query from sncosmo with no redshift and an unrealistically high amplitude.
+    #     model = sncosmo.Model(source='hsiao')
+    #     model.set(z=0.0, t0=55000., amplitude=2.0e10)
+    #     model.flux(54990., [4000., 4100., 4200.])
     fluxes = model.evaluate([54990.0], [4000.0, 4100.0, 4200.0])
-    assert np.allclose(fluxes, [4.31210900e-20, 7.46619962e-20, 1.42182787e-19])
+    assert np.allclose(fluxes, [67.83696271, 67.98471119, 47.20395186])
 
 
 def test_sncomso_models_set() -> None:
     """Test that we can create and evalue a 'hsiao' model and set parameter."""
-    model = SncosmoWrapperModel("hsiao")
+    model = SncosmoWrapperModel("hsiao", redshift=0.5)
 
     # sncosmo parameters exist at default values.
     assert np.array_equal(model.param_names, ["amplitude"])

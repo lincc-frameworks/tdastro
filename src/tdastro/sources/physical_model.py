@@ -1,7 +1,11 @@
 """The base PhysicalModel used for all sources."""
 
+import numpy as np
+
 from tdastro.astro_utils.cosmology import RedshiftDistFunc
 from tdastro.base_models import ParameterizedNode
+from tdastro.graph_state import GraphState
+from tdastro.util_nodes.np_random import build_rngs_from_hashes
 
 
 class PhysicalModel(ParameterizedNode):
@@ -90,47 +94,81 @@ class PhysicalModel(ParameterizedNode):
 
         self.effects.append(effect)
 
+        # Reset the node position to indicate the graph has changed.
+        self.node_pos = None
+
+    def set_graph_positions(self, seen_nodes=None):
+        """Force an update of the graph structure (numbering of each node).
+
+        Parameters
+        ----------
+        seen_nodes : `set`, optional
+            A set of nodes that have already been processed to prevent infinite loops.
+            Caller should not set.
+        """
+        if seen_nodes is None:
+            seen_nodes = set()
+
+        # Set the graph positions for each node, its background, and all of its effects.
+        super().set_graph_positions(seen_nodes=seen_nodes)
+        if self.background is not None:
+            self.background.set_graph_positions(seen_nodes=seen_nodes)
+        for effect in self.effects:
+            effect.set_graph_positions(seen_nodes=seen_nodes)
+
     def _evaluate(self, times, wavelengths, graph_state):
         """Draw effect-free observations for this object.
 
         Parameters
         ----------
         times : `numpy.ndarray`
-            A length T array of timestamps.
+            A length T array of rest frame timestamps.
         wavelengths : `numpy.ndarray`, optional
-            A length N array of wavelengths.
-        graph_state : `dict`
-            A dictionary mapping graph parameters to their values.
+            A length N array of wavelengths (in angstroms).
+        graph_state : `GraphState`
+            An object mapping graph parameters to their values.
 
         Returns
         -------
         flux_density : `numpy.ndarray`
-            A length T x N matrix of SED values.
+            A length T x N matrix of SED values (in nJy).
         """
         raise NotImplementedError()
 
-    def evaluate(self, times, wavelengths, graph_state=None, **kwargs):
+    def evaluate(self, times, wavelengths, graph_state=None, given_args=None, rng_info=None, **kwargs):
         """Draw observations for this object and apply the noise.
 
         Parameters
         ----------
         times : `numpy.ndarray`
-            A length T array of timestamps.
+            A length T array of observer frame timestamps.
         wavelengths : `numpy.ndarray`, optional
-            A length N array of wavelengths.
-        graph_state : `dict`, optional
-            A given setting of all the parameters and their values. If this is not
-            included then a random sampling is used.
+            A length N array of wavelengths (in angstroms).
+        graph_state : `GraphState`, optional
+            An object mapping graph parameters to their values.
+        given_args : `dict`, optional
+            A dictionary representing the given arguments for this sample run.
+            This can be used as the JAX PyTree for differentiation.
+        rng_info : `dict`, optional
+            A dictionary of random number generator information for each node, such as
+            the JAX keys or the numpy rngs.
         **kwargs : `dict`, optional
             All the other keyword arguments.
 
         Returns
         -------
         flux_density : `numpy.ndarray`
-            A length T x N matrix of SED values.
+            A length T x N matrix of SED values (in nJy).
         """
+        # Make sure times and wavelengths are numpy arrays.
+        times = np.array(times)
+        wavelengths = np.array(wavelengths)
+
+        # Check if we need to sample the graph.
         if graph_state is None:
-            graph_state = self.sample_parameters()
+            graph_state = self.sample_parameters(
+                given_args=given_args, num_samples=1, rng_info=rng_info, **kwargs
+            )
         params = self.get_local_params(graph_state)
 
         # Pre-effects are adjustments done to times and/or wavelengths, before flux density computation.
@@ -155,7 +193,7 @@ class PhysicalModel(ParameterizedNode):
             flux_density = effect.apply(flux_density, wavelengths, graph_state, **kwargs)
         return flux_density
 
-    def sample_parameters(self, given_args=None, **kwargs):
+    def sample_parameters(self, given_args=None, num_samples=1, rng_info=None, **kwargs):
         """Sample the model's underlying parameters if they are provided by a function
         or ParameterizedModel.
 
@@ -164,40 +202,90 @@ class PhysicalModel(ParameterizedNode):
         given_args : `dict`, optional
             A dictionary representing the given arguments for this sample run.
             This can be used as the JAX PyTree for differentiation.
+        num_samples : `int`
+            A count of the number of samples to compute.
+            Default: 1
+        rng_info : `dict`, optional
+            A dictionary of random number generator information for each node, such as
+            the JAX keys or the numpy rngs.
         **kwargs : `dict`, optional
             All the keyword arguments, including the values needed to sample
             parameters.
 
         Returns
         -------
-        graph_state : `dict`
-            A dictionary mapping graph parameters to their values.
+        graph_state : `GraphState`
+            An object mapping graph parameters to their values.
         """
         # If the graph has not been sampled ever, update the node positions for
         # every node (model, background, effects).
-        if self._node_pos is None:
-            nodes = set()
-            self.update_graph_information(seen_nodes=nodes)
-            if self.background is not None:
-                self.background.update_graph_information(seen_nodes=nodes)
-            for effect in self.effects:
-                effect.update_graph_information(seen_nodes=nodes)
-
-        args_to_use = {}
-        if given_args is not None:
-            args_to_use.update(given_args)
-        if kwargs is not None:
-            args_to_use.update(kwargs)
+        if self.node_pos is None:
+            self.set_graph_positions()
 
         # We use the same seen_nodes for all sampling calls so each node
         # is sampled at most one time regardless of link structure.
-        graph_state = {}
+        graph_state = GraphState(num_samples)
+        if given_args is not None:
+            graph_state.update(given_args, all_fixed=True)
+
         seen_nodes = {}
         if self.background is not None:
-            self.background._sample_helper(graph_state, seen_nodes, args_to_use, **kwargs)
-        self._sample_helper(graph_state, seen_nodes, args_to_use, **kwargs)
+            self.background._sample_helper(graph_state, seen_nodes, rng_info, **kwargs)
+        self._sample_helper(graph_state, seen_nodes, rng_info, **kwargs)
 
         for effect in self.effects:
-            effect._sample_helper(graph_state, seen_nodes, args_to_use, **kwargs)
+            effect._sample_helper(graph_state, seen_nodes, rng_info, **kwargs)
 
         return graph_state
+
+    def get_all_node_info(self, field, seen_nodes=None):
+        """Return a list of requested information for each node.
+
+        Parameters
+        ----------
+        field : `str`
+            The name of the attribute to extract from the node.
+            Common examples are: "node_hash" and "node_string"
+        seen_nodes : `set`
+            A set of objects that have already been processed.
+            Modified in place if provided.
+
+        Returns
+        -------
+        result : `list`
+            A list of values for each unique node in the graph.
+        """
+        # Check if we have already processed this node.
+        if seen_nodes is None:
+            seen_nodes = set()
+
+        # Get the information for this node, the background, all effects,
+        # and each of their dependencies.
+        result = super().get_all_node_info(field, seen_nodes)
+        if self.background is not None:
+            result.extend(self.background.get_all_node_info(field, seen_nodes))
+        for effect in self.effects:
+            result.extend(effect.get_all_node_info(field, seen_nodes))
+        return result
+
+    def build_np_rngs(self, base_seed=None):
+        """Construct a dictionary of random generators for this model.
+
+        Parameters
+        ----------
+        base_seed : `int`
+            The key on which to base the keys for the individual nodes.
+
+        Returns
+        -------
+        np_rngs : `dict`
+            A dictionary mapping each node's hash value to a numpy random number generator.
+        """
+        # If the graph has not been sampled ever, update the node positions for
+        # every node (model, background, effects).
+        if self.node_pos is None:
+            self.set_graph_positions()
+
+        node_hashes = self.get_all_node_info("node_hash")
+        np_rngs = build_rngs_from_hashes(node_hashes, base_seed)
+        return np_rngs

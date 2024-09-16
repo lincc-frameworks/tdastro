@@ -29,11 +29,11 @@ class GaussianGalaxy(PhysicalModel):
         Parameters
         ----------
         times : `numpy.ndarray`
-            A length T array of timestamps.
+            A length T array of rest frame timestamps.
         wavelengths : `numpy.ndarray`, optional
-            A length N array of wavelengths.
-        graph_state : `dict`, optional
-            A given setting of all the parameters and their values.
+            A length N array of wavelengths (in angstroms).
+        graph_state : `GraphState`
+            An object mapping graph parameters to their values.
         ra : `float`, optional
             The right ascension of the observations in degrees.
         dec : `float`, optional
@@ -44,7 +44,7 @@ class GaussianGalaxy(PhysicalModel):
         Returns
         -------
         flux_density : `numpy.ndarray`
-            A length T x N matrix of SED values.
+            A length T x N matrix of SED values (in nJy).
         """
         params = self.get_local_params(graph_state)
 
