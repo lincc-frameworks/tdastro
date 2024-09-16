@@ -20,7 +20,7 @@ def test_passband_init():
     # Mock a transmission table file that we'll "find" at passbands/TEST/a.dat
     transmission_table_array = np.array([[100, 0.5], [200, 0.75], [300, 0.25]])
 
-    def mock_load_transmission_table(self):
+    def mock_load_transmission_table(self, **kwargs):
         self._loaded_table = transmission_table_array
 
     with patch.object(Passband, "_load_transmission_table", new=mock_load_transmission_table):

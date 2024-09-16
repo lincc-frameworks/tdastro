@@ -27,8 +27,7 @@ class PassbandGroup:
         self,
         preset: str = None,
         passband_parameters: list = None,
-        delta_wave: Optional[float] = 5.0,
-        trim_percentile: Optional[float] = 0.1,
+        **kwargs,
     ):
         """Construct a PassbandGroup object.
 
@@ -49,23 +48,20 @@ class PassbandGroup:
             - units : str (either 'nm' or 'A')
             If survey is not LSST (or other survey with defined defaults), either a table_path or table_url
             must be provided.
-        delta_wave : float or None, optional
-            The grid step of the wave grid. Default is 5.0.
-        trim_percentile : float or None, optional
-            The percentile to trim the transmission table by. For example, if trim_percentile is 0.1, the
-            transmission table will be trimmed to include only the central 80% of rows.
+        **kwargs
+            Additional keyword arguments to pass to the Passband constructor.
         """
         self.passbands = {}
 
         if preset is not None:
-            self._load_preset(preset, delta_wave, trim_percentile)
+            self._load_preset(preset, **kwargs)
 
         if passband_parameters is not None:
             for parameters in passband_parameters:
-                if "delta_wave" not in parameters:
-                    parameters["delta_wave"] = delta_wave
-                if "trim_percentile" not in parameters:
-                    parameters["trim_percentile"] = trim_percentile
+                # Add any missing parameters from kwargs
+                for key, value in kwargs.items():
+                    if key not in parameters:
+                        parameters[key] = value
                 passband = Passband(**parameters)
                 self.passbands[passband.full_name] = passband
 
@@ -78,28 +74,24 @@ class PassbandGroup:
             f"{', '.join(self.passbands.keys())}"
         )
 
-    def _load_preset(
-        self, preset: str, delta_wave: Optional[float], trim_percentile: Optional[float]
-    ) -> None:
+    def _load_preset(self, preset: str, **kwargs) -> None:
         """Load a pre-defined set of passbands.
 
         Parameters
         ----------
         preset : str
             The name of the pre-defined set of passbands to load.
-        delta_wave : float or None
-            The grid step of the wave grid.
-        trim_percentile : float or None
-            The percentile to trim the transmission table by.
+        **kwargs
+            Additional keyword arguments to pass to the Passband constructor.
         """
         if preset == "LSST":
             self.passbands = {
-                "LSST_u": Passband("LSST", "u", delta_wave=delta_wave, trim_percentile=trim_percentile),
-                "LSST_g": Passband("LSST", "g", delta_wave=delta_wave, trim_percentile=trim_percentile),
-                "LSST_r": Passband("LSST", "r", delta_wave=delta_wave, trim_percentile=trim_percentile),
-                "LSST_i": Passband("LSST", "i", delta_wave=delta_wave, trim_percentile=trim_percentile),
-                "LSST_z": Passband("LSST", "z", delta_wave=delta_wave, trim_percentile=trim_percentile),
-                "LSST_y": Passband("LSST", "y", delta_wave=delta_wave, trim_percentile=trim_percentile),
+                "LSST_u": Passband("LSST", "u", **kwargs),
+                "LSST_g": Passband("LSST", "g", **kwargs),
+                "LSST_r": Passband("LSST", "r", **kwargs),
+                "LSST_i": Passband("LSST", "i", **kwargs),
+                "LSST_z": Passband("LSST", "z", **kwargs),
+                "LSST_y": Passband("LSST", "y", **kwargs),
             }
         else:
             raise ValueError(f"Unknown passband preset: {preset}")
@@ -205,8 +197,9 @@ class Passband:
         table_path: Optional[str] = None,
         table_url: Optional[str] = None,
         units: Optional[Literal["nm", "A"]] = "A",
+        force_download: bool = False,
     ):
-        """Initialize a Passband object.
+        """Construct a Passband object.
 
         Parameters
         ----------
@@ -233,6 +226,9 @@ class Passband:
             Denotes whether the wavelength units of the table are nanometers ('nm') or Angstroms ('A').
             By default 'A'. Does not affect the output units of the class, only the interpretation of the
             provided passband table.
+        force_download : bool, optional
+            If True, the transmission table will be downloaded even if it already exists locally. Default is
+            False.
         """
         self.survey = survey
         self.filter_name = filter_name
@@ -242,14 +238,14 @@ class Passband:
         self.table_url = table_url
         self.units = units
 
-        self._load_transmission_table()
+        self._load_transmission_table(force_download=force_download)
         self.process_transmission_table(delta_wave, trim_percentile)
 
     def __str__(self) -> str:
         """Return a string representation of the Passband."""
         return f"Passband: {self.full_name}"
 
-    def _load_transmission_table(self) -> None:
+    def _load_transmission_table(self, force_download: bool = False) -> None:
         """Load a transmission table from a file (or download it if it doesn't exist). Table must have 2
         columns: wavelengths and transmissions; wavelengths must be strictly increasing.
 
@@ -264,7 +260,7 @@ class Passband:
                 os.path.dirname(__file__), f"passbands/{self.survey}/{self.filter_name}.dat"
             )
             os.makedirs(os.path.dirname(self.table_path), exist_ok=True)
-        if not os.path.exists(self.table_path):
+        if force_download or not os.path.exists(self.table_path):
             self._download_transmission_table()
         # Load the table file
         try:
