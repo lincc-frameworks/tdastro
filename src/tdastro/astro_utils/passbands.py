@@ -70,9 +70,9 @@ class PassbandGroup:
 
         if passband_parameters is not None:
             for parameters in passband_parameters:
-                # TODO maybe check mismatched keys in parameters and group (specifically delta_wave,
-                # trim_percentile, units.)
-                passband = Passband(**parameters, delta_wave=delta_wave, trim_percentile=trim_percentile)
+                parameters["delta_wave"] = delta_wave
+                parameters["trim_percentile"] = trim_percentile
+                passband = Passband(**parameters)
                 self.passbands[passband.full_name] = passband
 
         self._update_waves()
@@ -147,8 +147,9 @@ class PassbandGroup:
             A dictionary of bandfluxes with passband names as keys and np.ndarrays of bandfluxes as values.
         """
         if flux_density_matrix.size == 0 or len(self.waves) != len(flux_density_matrix[0]):
+            flux_density_matrix_num_cols = 0 if flux_density_matrix.size == 0 else len(flux_density_matrix[0])
             raise ValueError(
-                f"PassbandGroup mismatched grids: Flux density matrix has {len(flux_density_matrix[0])} "
+                f"PassbandGroup mismatched grids: Flux density matrix has {flux_density_matrix_num_cols} "
                 f"columns, which does not match transmission table's {len(self.waves)} rows. Check that the "
                 f"flux density matrix was calculated on the same grid as the transmission tables, which can "
                 f"be accessed via the Passband's or PassbandGroup's waves attribute."
@@ -266,14 +267,33 @@ class Passband:
         np.ndarray
             A 2D array of wavelengths and transmissions.
         """
+        # Check if the table file exists locally, and download it if it does not
         if self.table_path is None:
             self.table_path = os.path.join(
-                os.path.dirname(__file__), f"passbands/{self.survey}/{self.label}.dat"
+                os.path.dirname(__file__), f"passbands/{self.survey}/{self.filter_name}.dat"
             )
             os.makedirs(os.path.dirname(self.table_path), exist_ok=True)
         if not os.path.exists(self.table_path):
             self._download_transmission_table()
-        return np.loadtxt(self.table_path)
+        # Load the table file
+        try:
+            loaded_table = np.loadtxt(self.table_path)
+        except OSError as e:
+            raise OSError(f"Error reading transmission table from file: {e}") from e
+        # Check that the table has the correct shape
+        if loaded_table.size == 0 or loaded_table.shape[1] != 2:
+            raise ValueError("Transmission table must have exactly 2 columns.")
+        # Check that wavelengths are strictly increasing
+        if not np.all(np.diff(loaded_table[:, 0]) > 0):
+            raise ValueError("Wavelengths in transmission table must be strictly increasing.")
+
+        # Correct for units
+        if self.units == "nm":
+            loaded_table[
+                :, 0
+            ] *= 10.0  # Multiply the first column (wavelength) by 10.0 to convert to Angstroms
+
+        self._loaded_table = loaded_table
 
     def _download_transmission_table(self) -> bool:
         """Download a transmission table from a URL.
@@ -485,8 +505,9 @@ class Passband:
             at the corresponding time.
         """
         if flux_density_matrix.size == 0 or len(self.waves) != len(flux_density_matrix[0]):
+            flux_density_matrix_num_cols = 0 if flux_density_matrix.size == 0 else len(flux_density_matrix[0])
             raise ValueError(
-                f"Passband mismatched grids: Flux density matrix has {len(flux_density_matrix[0])} "
+                f"Passband mismatched grids: Flux density matrix has {flux_density_matrix_num_cols} "
                 f"columns, which does not match the {len(self.waves)} rows in band {self.full_name}'s "
                 f"transmission table. Check that the flux density matrix was calculated on the same grid as "
                 f"the transmission tables, which can be accessed via the Passband's or PassbandGroup's waves "
