@@ -95,7 +95,7 @@ def test_snia_end2end(
         ra=NumpyRandomFunc("uniform", low=ra_min, high=ra_max),
         dec=NumpyRandomFunc("uniform", low=dec_min, high=dec_max),
         hostmass=NumpyRandomFunc("uniform", low=7, high=12),
-        redshift=0,
+        redshift=NumpyRandomFunc("uniform", low=0.01, high=0.02),
     )
 
     distmod_func = DistModFromRedshift(host.redshift, H0=73.0, Omega_m=0.3)
