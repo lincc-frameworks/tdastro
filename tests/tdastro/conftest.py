@@ -37,6 +37,23 @@ def opsim_shorten(test_data_dir):
 
 
 @pytest.fixture
+def oversampled_observations(opsim_shorten):
+    """Return an OpSim object with 0.01 day cadence spanning 30 days."""
+    from tdastro.astro_utils.opsim import OpSim, oversample_opsim
+
+    base_opsim = OpSim.from_db(opsim_shorten)
+    return oversample_opsim(
+        base_opsim,
+        pointing=(0.0, 0.0),
+        search_radius=180.0,
+        delta_t=0.01,
+        time_range=(61000.0, 61030.0),
+        bands=None,
+        strategy="darkest_sky",
+    )
+
+
+@pytest.fixture
 def passbands_dir(test_data_dir):
     """Return the file path for passbands directory."""
     return os.path.join(test_data_dir, "passbands")
