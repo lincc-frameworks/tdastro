@@ -70,8 +70,10 @@ class PassbandGroup:
 
         if passband_parameters is not None:
             for parameters in passband_parameters:
-                parameters["delta_wave"] = delta_wave
-                parameters["trim_percentile"] = trim_percentile
+                if "delta_wave" not in parameters:
+                    parameters["delta_wave"] = delta_wave
+                if "trim_percentile" not in parameters:
+                    parameters["trim_percentile"] = trim_percentile
                 passband = Passband(**parameters)
                 self.passbands[passband.full_name] = passband
 
@@ -156,19 +158,15 @@ class PassbandGroup:
             )
 
         bandfluxes = {}
-        group_has_regular_grid_step = np.allclose(np.diff(self.waves), np.diff(self.waves)[0])
-        # TODO this will never work, because the wavelengths are not the same for all passbands--so there will
-        # always be a big jump between passbands
-        # TODO in general there's a better algorithm to find the indices of the wavelengths in the passband
-        # where we first figure out which passbands the wavelengths are in, and then find the indices in the
-        # target passbands. we shouldn't blindly search through the whole group's waves like this.
-
         for full_name, passband in self.passbands.items():
             # We only want the fluxes that are in the passband's wavelength range
-            if group_has_regular_grid_step:
-                lower, upper = passband.waves[0], passband.waves[-1]
-                lower_index, upper_index = np.searchsorted(self.waves, [lower, upper])
-                in_band_fluxes = flux_density_matrix[:, lower_index:upper_index]
+            # So, find the indices in the group's wave grid that are in the passband's wave grid
+            lower, upper = passband.waves[0], passband.waves[-1]
+            lower_index, upper_index = np.searchsorted(self.waves, [lower, upper])
+            # Check that this is the right grid after all (check will fail if the grid is not regular, or
+            # passbands are overlapping)
+            if np.array_equal(self.waves[lower_index : upper_index + 1], passband.waves):
+                in_band_fluxes = flux_density_matrix[:, lower_index : upper_index + 1]
             else:
                 indices = np.unique(np.searchsorted(passband.waves, self.waves))
                 if indices[-1] == len(passband.waves):
@@ -176,7 +174,6 @@ class PassbandGroup:
                 in_band_fluxes = flux_density_matrix[:, indices]
 
             bandfluxes[full_name] = passband.fluxes_to_bandflux(in_band_fluxes)
-        print()
         return bandfluxes
 
 
@@ -347,7 +344,6 @@ class Passband:
             The percentile to trim the transmission table by. For example, if trim_percentile is 0.1, the
             transmission table will be trimmed to include only the central 80% of rows.
         """
-        # TODO do we want to store delta_wave and trim_percentile as attributes?
         interpolated_table = self._interpolate_transmission_table(self._loaded_table, delta_wave)
         trimmed_table = self._trim_transmission_by_percentile(interpolated_table, trim_percentile)
         self.processed_transmission_table = self._normalize_transmission_table(trimmed_table)

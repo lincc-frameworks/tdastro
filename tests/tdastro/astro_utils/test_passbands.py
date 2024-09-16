@@ -230,7 +230,7 @@ def test_trim_transmission_table(tmp_path):
     assert np.isclose(trimmed_area, original_area * 0.9, rtol=0.01)
 
 
-def test_passband_normalize_transmission_table(tmp_path):  # TODO check this still works
+def test_passband_normalize_transmission_table(tmp_path):
     """Test the _normalize_transmission_table method of the Passband class."""
     transmission_table = "100 0.5\n200 0.75\n300 0.25\n"
     a_band = create_test_passband(tmp_path, transmission_table, delta_wave=100, trim_percentile=None)
@@ -253,7 +253,7 @@ def test_passband_normalize_transmission_table(tmp_path):  # TODO check this sti
         a_band._normalize_transmission_table(np.array([[100, 0.5, 105, 0.6]]))
 
 
-def test_passband_fluxes_to_bandflux(tmp_path):  # TODO check this still works
+def test_passband_fluxes_to_bandflux(tmp_path):
     """Test the fluxes_to_bandflux method of the Passband class."""
     transmission_table = "100 0.5\n200 0.75\n300 0.25\n"
     a_band = create_test_passband(tmp_path, transmission_table, delta_wave=100, trim_percentile=None)
