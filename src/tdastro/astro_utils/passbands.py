@@ -27,18 +27,10 @@ class PassbandGroup:
         self,
         preset: str = None,
         passband_parameters: list = None,
-        delta_wave: float | None = 5.0,
-        trim_percentile: float | None = 0.1,
+        delta_wave: Optional[float] = 5.0,
+        trim_percentile: Optional[float] = 0.1,
     ):
-        """Initialize a PassbandGroup object.
-
-        Attributes
-        ----------
-        preset : str, optional
-            A pre-defined set of passbands to load.
-        passbands : dict
-            A dictionary of Passband objects assigned to the group. The keys are the passbands' full names:
-            eg, LSST_u, LSST_g, HSC_u, etc.
+        """Construct a PassbandGroup object.
 
         Parameters
         ----------
@@ -57,9 +49,9 @@ class PassbandGroup:
             - units : str (either 'nm' or 'A')
             If survey is not LSST (or other survey with defined defaults), either a table_path or table_url
             must be provided.
-        delta_wave : float | None, optional
+        delta_wave : float or None, optional
             The grid step of the wave grid. Default is 5.0.
-        trim_percentile : float | None, optional
+        trim_percentile : float or None, optional
             The percentile to trim the transmission table by. For example, if trim_percentile is 0.1, the
             transmission table will be trimmed to include only the central 80% of rows.
         """
@@ -86,16 +78,18 @@ class PassbandGroup:
             f"{', '.join(self.passbands.keys())}"
         )
 
-    def _load_preset(self, preset: str, delta_wave: float | None, trim_percentile: float | None) -> None:
+    def _load_preset(
+        self, preset: str, delta_wave: Optional[float], trim_percentile: Optional[float]
+    ) -> None:
         """Load a pre-defined set of passbands.
 
         Parameters
         ----------
         preset : str
             The name of the pre-defined set of passbands to load.
-        delta_wave : float | None
+        delta_wave : float or None
             The grid step of the wave grid.
-        trim_percentile : float | None
+        trim_percentile : float or None
             The percentile to trim the transmission table by.
         """
         if preset == "LSST":
@@ -118,15 +112,15 @@ class PassbandGroup:
             self.waves = np.unique(np.concatenate([passband.waves for passband in self.passbands.values()]))
 
     def process_transmission_tables(
-        self, delta_wave: float | None = 5.0, trim_percentile: float | None = 0.1
+        self, delta_wave: Optional[float] = 5.0, trim_percentile: Optional[float] = 0.1
     ):
         """Process the transmission tables for all passbands in the group; recalculate group's wave attribute.
 
         Parameters
         ----------
-        delta_wave : float | None, optional
+        delta_wave : float or None, optional
             The grid step of the wave grid. Default is 5.0.
-        trim_percentile : float | None, optional
+        trim_percentile : float or None, optional
             The percentile to trim the transmission table by. For example, if trim_percentile is 0.1, the
             transmission table will be trimmed to include only the central 80% of rows.
         """
@@ -206,10 +200,10 @@ class Passband:
         self,
         survey: str,
         filter_name: str,
-        delta_wave: float | None = 5.0,
-        trim_percentile: float | None = 0.1,
-        table_path: str | None = None,
-        table_url: str | None = None,
+        delta_wave: Optional[float] = 5.0,
+        trim_percentile: Optional[float] = 0.1,
+        table_path: Optional[str] = None,
+        table_url: Optional[str] = None,
         units: Optional[Literal["nm", "A"]] = "A",
     ):
         """Initialize a Passband object.
@@ -220,9 +214,9 @@ class Passband:
             The survey to which the passband belongs: eg, "LSST".
         filter_name : str
             The filter_name of the passband: eg, "u".
-        delta_wave : float | None, optional
+        delta_wave : float or None, optional
             The grid step of the wave grid. Default is 5.0.
-        trim_percentile : float | None, optional
+        trim_percentile : float or None, optional
             The percentile to trim the transmission table by. For example, if trim_percentile is 0.1, the
             transmission table will be trimmed to include only the central 80% of the area under the
             transmission curve.
@@ -333,14 +327,16 @@ class Passband:
             logging.error(f"URL error occurred when downloading table for {self.full_name}: {e}")
             return False
 
-    def process_transmission_table(self, delta_wave: float | None = 5.0, trim_percentile: float | None = 0.1):
+    def process_transmission_table(
+        self, delta_wave: Optional[float] = 5.0, trim_percentile: Optional[float] = 0.1
+    ):
         """Process the transmission table.
 
         Parameters
         ----------
-        delta_wave : float | None, optional
+        delta_wave : Optional[float] = None
             The grid step of the wave grid. Default is 5.0 Angstroms.
-        trim_percentile : float | None, optional
+        trim_percentile : Optional[float] = None
             The percentile to trim the transmission table by. For example, if trim_percentile is 0.1, the
             transmission table will be trimmed to include only the central 80% of rows.
         """
@@ -350,15 +346,15 @@ class Passband:
 
         self.waves = self.processed_transmission_table[:, 0]
 
-    def _interpolate_transmission_table(self, table: np.ndarray, delta_wave: float | None) -> np.ndarray:
+    def _interpolate_transmission_table(self, table: np.ndarray, delta_wave: Optional[float]) -> np.ndarray:
         """Interpolate the transmission table to a new wave grid.
 
         Parameters
         ----------
         table : np.ndarray
             A 2D array of wavelengths and transmissions.
-        delta_wave : float | None
-            The grid step of the wave grid. Default is 5.0 Angstroms.
+        delta_wave : float or None
+            The grid step of the wave grid.
 
         Returns
         -------
@@ -384,7 +380,7 @@ class Passband:
         return np.column_stack((new_wavelengths, interpolated_transmissions))
 
     def _trim_transmission_by_percentile(
-        self, table: np.ndarray, trim_percentile: float | None
+        self, table: np.ndarray, trim_percentile: Optional[float]
     ) -> np.ndarray:
         """Trim the transmission table such that it only includes the central (1 - 2*trim_percentile) of rows.
 
