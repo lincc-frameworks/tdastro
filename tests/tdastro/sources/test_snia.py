@@ -151,6 +151,8 @@ def test_snia_end2end(
     if wavelengths_rest is None:
         wavelengths_rest = np.linspace(3000, 8000, 200)
 
+    any_valid_results = False
+
     for _n in range(0, nsample):
         res = draw_single_random_sn(
             source,
@@ -161,10 +163,15 @@ def test_snia_end2end(
             opsim_data=opsim_data,
         )
 
+        if res is None:
+            continue
+        any_valid_results = True
+
         state = res["state"]
+
         p = {}
         for parname in ["t0", "x0", "x1", "c", "redshift", "ra", "dec"]:
-            p[parname] = source.get_param(state, parname)
+            p[parname] = float(source.get_param(state, parname))
         for parname in ["hostmass"]:
             p[parname] = host.get_param(state, parname)
         for parname in ["distmod"]:
@@ -190,6 +197,8 @@ def test_snia_end2end(
             assert np.allclose(res["bandfluxes"][f], bandflux_sncosmo, rtol=0.1)
 
         res_list.append(res)
+
+    assert any_valid_results, f"No valid results found over all {nsample} samples."
 
     if return_result:
         return res_list
