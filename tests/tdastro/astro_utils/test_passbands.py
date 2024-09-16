@@ -31,8 +31,7 @@ def test_passband_init():
         # Cannot check table_path as we have mocked the method that sets it; see unit test for loading tables
         assert a_band.table_url is None
         np.testing.assert_allclose(a_band._loaded_table, transmission_table_array)
-        assert isinstance(a_band._wave_grid, np.ndarray)
-        assert a_band.processed_transmission_table is not None
+        assert a_band.waves is not None
 
 
 def create_test_passband(path, transmission_table, filter_name="a", **kwargs):
@@ -112,126 +111,132 @@ def test_passband_download_transmission_table(tmp_path):
         np.testing.assert_allclose(a_band._loaded_table, np.array([[1000, 0.5], [1005, 0.6], [1010, 0.7]]))
 
 
-def test_passband_set_wave_grid_attr(tmp_path):
-    """Test the _set_wave_grid_attr method of the Passband class."""
-    transmission_table = "100 0.5\n200 0.75\n300 0.25\n"
-    a_band = create_test_passband(tmp_path, transmission_table, wave_grid=100)
-
-    # Test that the wave grid is set correctly
-    a_band._set_wave_grid_attr(50.0)
-    np.testing.assert_allclose(a_band._wave_grid, np.arange(100.0, 301.0, 50.0))
-
-    # Test that the wave grid is reset correctly
-    a_band._set_wave_grid_attr(100.0)
-    np.testing.assert_allclose(a_band._wave_grid, np.array([100.0, 200.0, 300.0]))
-
-    # Test that we can set the wave grid with None
-    a_band._set_wave_grid_attr(None)
-    assert a_band._wave_grid is None
-
-    # Test we can be lazy and set the wave grid with just an integer
-    a_band._set_wave_grid_attr(100)
-    np.testing.assert_allclose(a_band._wave_grid, np.array([100.0, 200.0, 300.0]))
-
-    # Test that we can set the wave grid with a numpy array
-    # Note, we truncate given grid to fit transmission table bounds
-    a_band._set_wave_grid_attr(np.array([100.0, 150.0, 200.0, 250.0, 300.0, 350.0, 400.0]))
-    np.testing.assert_allclose(a_band._wave_grid, np.array([100.0, 150.0, 200.0, 250.0, 300.0]))
-
-    # Test that we raise an error if the wave grid is not sorted
-    with pytest.raises(ValueError):
-        a_band._set_wave_grid_attr(np.array([100.0, 300.0, 200.0]))
-
-    # Test that we raise an error if the wave grid is not 1D
-    with pytest.raises(ValueError):
-        a_band._set_wave_grid_attr(np.array([[100.0, 200.0], [300.0, 400.0]]))
-
-    # Test we raise an error if wave grid is only one value
-    with pytest.raises(ValueError):
-        a_band._set_wave_grid_attr(np.array([100.0]))
-
-    # Test we raise an error if wave grid is empty
-    with pytest.raises(ValueError):
-        a_band._set_wave_grid_attr(np.array([]))
-
-
-def test_passband_set_transmission_table_grid(tmp_path):
-    """Test the set_transmission_table_to_new_grid method of the PassbandGroup class."""
-    transmission_table = "100 0.5\n200 0.75\n300 0.25\n400 0.5\n500 0.25\n600 0.5"
-
-    # Test case where interpolation is not needed
-    a_band = create_test_passband(tmp_path, transmission_table, wave_grid=100)
-    np.testing.assert_allclose(a_band._wave_grid, np.array([100.0, 200.0, 300.0, 400.0, 500.0, 600.0]))
-    np.testing.assert_allclose(
-        a_band.processed_transmission_table[:, 0],
-        np.array([100.0, 200.0, 300.0, 400.0, 500.0, 600.0]),
-    )
-
-    # Test that grid is reset successfully AND we have interpolated the transmission table as well
-    a_band.set_transmission_table_grid(50.0)
-    np.testing.assert_allclose(a_band._wave_grid, np.arange(100.0, 601.0, 50.0))
-    np.testing.assert_allclose(
-        a_band.processed_transmission_table[:, 0],
-        np.array([100.0, 150.0, 200.0, 250.0, 300.0, 350.0, 400.0, 450.0, 500.0, 550.0, 600.0]),
-    )
-
-
-def test_passband_process_transmission_table(tmp_path):
-    """Test the _process_transmission_table method of the Passband class: correct methods are called."""
-    transmission_table = "100 0.5\n200 0.75\n300 0.25\n"
-    a_band = create_test_passband(tmp_path, transmission_table, wave_grid=100)
-
-    # Mock the methods that _process_transmission_table wraps
-    with (
-        patch.object(a_band, "_interpolate_or_downsample_transmission_table") as mock_interp_table,
-        patch.object(a_band, "_normalize_interpolated_transmission_table") as mock_norm_table,
-    ):
-        # Call the _process_transmission_table method
-        a_band._process_transmission_table()
-
-        # Check that each method is called once
-        mock_interp_table.assert_called_once_with(a_band._loaded_table)
-        mock_norm_table.assert_called_once()
-
-
-def test_passband_interpolate_or_downsample_transmission_table(tmp_path):
-    """Test down-sampling and interpolation of the transmission table."""
+def test_process_transmission_table(tmp_path):
+    """Test the process_transmission_table method of the Passband class; check correct methods are called."""
     transmission_table = "100 0.5\n200 0.75\n300 0.25\n"
     a_band = create_test_passband(tmp_path, transmission_table)
 
-    # Downsample the transmission table
-    a_band._set_wave_grid_attr(200)
-    table = a_band._interpolate_or_downsample_transmission_table(a_band._loaded_table)
-    np.testing.assert_allclose(table[:, 0], [100, 300])
+    # Mock the methods that _process_transmission_table wraps, to check each is called once
+    with (
+        patch.object(a_band, "_interpolate_transmission_table") as mock_interp_table,
+        patch.object(a_band, "_trim_transmission_by_percentile") as mock_trim_table,
+        patch.object(a_band, "_normalize_transmission_table") as mock_norm_table,
+    ):
+        # Call the _process_transmission_table method
+        delta_wave, trim_percentile = 1.0, 0.05
+        a_band.process_transmission_table(delta_wave, trim_percentile)
 
-    # Downsample the transmission table to a very large step size
-    a_band._set_wave_grid_attr(500)
-    table = a_band._interpolate_or_downsample_transmission_table(a_band._loaded_table)
-    np.testing.assert_allclose(table[:, 0], [100])
+        # Check that each method is called once
+        mock_interp_table.assert_called_once_with(a_band._loaded_table, delta_wave)
+        mock_trim_table.assert_called_once()
+        mock_norm_table.assert_called_once()
 
-    # Interpolate the transmission table (note for comparison below: np.arange is exclusive of stop value)
-    a_band._set_wave_grid_attr(50)
-    table = a_band._interpolate_or_downsample_transmission_table(a_band._loaded_table)
+    # Now call without mocking, to check waves set correctly (other values checked in method-specific tests)
+    delta_wave, trim_percentile = 5.0, None
+    a_band.process_transmission_table(delta_wave, trim_percentile)
+    np.testing.assert_allclose(a_band.waves, np.arange(100, 301, delta_wave))
+
+
+def test_interpolate_transmission_table(tmp_path):
+    """Test the _interpolate_transmission_table method of the Passband class."""
+    transmission_table = "100 0.5\n200 0.75\n300 0.25\n"
+    a_band = create_test_passband(tmp_path, transmission_table)
+
+    # Interpolate the transmission table to a large step size (50 Angstrom)
+    table = a_band._interpolate_transmission_table(a_band._loaded_table, delta_wave=50)
     np.testing.assert_allclose(table[:, 0], np.arange(100, 301, 50))
 
     # Interpolate the transmission table to a somewhat small step size (1 Angstrom)
-    a_band._set_wave_grid_attr(1)
-    table = a_band._interpolate_or_downsample_transmission_table(a_band._loaded_table)
+    table = a_band._interpolate_transmission_table(a_band._loaded_table, delta_wave=1)
     np.testing.assert_allclose(table[:, 0], np.arange(100, 301, 1))
 
     # Interpolate the transmission table to an even smaller step size (0.1 Angstrom)
-    a_band._set_wave_grid_attr(0.1)
-    table = a_band._interpolate_or_downsample_transmission_table(a_band._loaded_table)
+    table = a_band._interpolate_transmission_table(a_band._loaded_table, delta_wave=0.1)
     np.testing.assert_allclose(table[:, 0], np.arange(100, 300.01, 0.1))
 
 
-def test_passband_normalize_interpolated_transmission_table(tmp_path):
-    """Test the _normalize_interpolated_transmission_table method of the Passband class."""
+def test_trim_transmission_table(tmp_path):
+    """Test the _trim_transmission_by_percentile method of the Passband class."""
+
+    # Test: transmission table with only 3 points
     transmission_table = "100 0.5\n200 0.75\n300 0.25\n"
-    a_band = create_test_passband(tmp_path, transmission_table, wave_grid=100)
+    a_band = create_test_passband(tmp_path, transmission_table)
+
+    # Trim the transmission table by 5% (should remove the last point)
+    table = a_band._trim_transmission_by_percentile(a_band._loaded_table, trim_percentile=0.05)
+    np.testing.assert_allclose(table, np.array([[100, 0.5], [200, 0.75]]))
+
+    # Trim the transmission table by 40% (should still preserve the first point, as table is skewed)
+    table = a_band._trim_transmission_by_percentile(a_band._loaded_table, trim_percentile=0.4)
+    np.testing.assert_allclose(table, np.array([[100, 0.5], [200, 0.75]]))
+
+    # Check no trimming if percentile is 0
+    table = a_band._trim_transmission_by_percentile(a_band._loaded_table, trim_percentile=None)
+    np.testing.assert_allclose(table, np.array([[100, 0.5], [200, 0.75], [300, 0.25]]))
+
+    # Check we raise an error if the percentile is not between 0 and 0.5
+    with pytest.raises(ValueError):
+        a_band._trim_transmission_by_percentile(a_band._loaded_table, trim_percentile=0.6)
+    with pytest.raises(ValueError):
+        a_band._trim_transmission_by_percentile(a_band._loaded_table, trim_percentile=-0.1)
+
+    # Test 2: larger, more normal transmission table
+    transmission_table = "100 0.05\n200 0.1\n300 0.25\n400 0.5\n500 0.8\n600 0.6\n700 0.4\n800 0.2\n900 0.1\n"
+    b_band = create_test_passband(tmp_path, transmission_table, filter_name="b")
+
+    # Trim the transmission table by 5% (should remove the first and last points)
+    table = b_band._trim_transmission_by_percentile(b_band._loaded_table, trim_percentile=0.05)
+    np.testing.assert_allclose(
+        table, np.array([[200, 0.1], [300, 0.25], [400, 0.5], [500, 0.8], [600, 0.6], [700, 0.4], [800, 0.2]])
+    )
+
+    # Trim the transmission table by 40% (should remove most points)
+    table = b_band._trim_transmission_by_percentile(b_band._loaded_table, trim_percentile=0.4)
+    np.testing.assert_allclose(table, np.array([[400, 0.5], [500, 0.8]]))
+
+    # Check no trimming if percentile is 0
+    table = b_band._trim_transmission_by_percentile(b_band._loaded_table, trim_percentile=None)
+    np.testing.assert_allclose(
+        table,
+        np.array(
+            [
+                [100, 0.05],
+                [200, 0.1],
+                [300, 0.25],
+                [400, 0.5],
+                [500, 0.8],
+                [600, 0.6],
+                [700, 0.4],
+                [800, 0.2],
+                [900, 0.1],
+            ]
+        ),
+    )
+
+    # Test 3: much larger transmission table
+    transmissions = np.random.normal(0.5, 0.1, 1000)
+    wavelengths = np.arange(100, 1100, 1)
+    transmission_table = "\n".join(
+        [f"{wavelength} {transmission}" for wavelength, transmission in zip(wavelengths, transmissions)]
+    )
+    c_band = create_test_passband(tmp_path, transmission_table, filter_name="c")
+
+    # Trim the transmission table by 5% on each side
+    table = c_band._trim_transmission_by_percentile(c_band._loaded_table, trim_percentile=0.05)
+    assert len(table) < len(c_band._loaded_table)
+
+    original_area = np.trapz(c_band._loaded_table[:, 1], x=c_band._loaded_table[:, 0])
+    trimmed_area = np.trapz(table[:, 1], x=table[:, 0])
+    assert np.isclose(trimmed_area, original_area * 0.9, rtol=0.01)
+
+
+def test_passband_normalize_transmission_table(tmp_path):  # TODO check this still works
+    """Test the _normalize_transmission_table method of the Passband class."""
+    transmission_table = "100 0.5\n200 0.75\n300 0.25\n"
+    a_band = create_test_passband(tmp_path, transmission_table, delta_wave=100, trim_percentile=None)
 
     # Normalize the transmission table (we skip interpolation as grid already matches)
-    a_band._normalize_interpolated_transmission_table(a_band._loaded_table)
+    a_band._normalize_transmission_table(a_band._loaded_table)
 
     # Compare results
     expected_result = np.array([[100.0, 0.0075], [200.0, 0.005625], [300.0, 0.00125]])
@@ -239,169 +244,19 @@ def test_passband_normalize_interpolated_transmission_table(tmp_path):
 
     # Test that we raise an error if the transmission table is the wrong size or shape
     with pytest.raises(ValueError):
-        a_band._normalize_interpolated_transmission_table(np.array([[]]))
+        a_band._normalize_transmission_table(np.array([[]]))
     with pytest.raises(ValueError):
-        a_band._normalize_interpolated_transmission_table(np.array([[100, 0.5]]))
+        a_band._normalize_transmission_table(np.array([[100, 0.5]]))
     with pytest.raises(ValueError):
-        a_band._normalize_interpolated_transmission_table(np.array([100, 0.5]))
+        a_band._normalize_transmission_table(np.array([100, 0.5]))
     with pytest.raises(ValueError):
-        a_band._normalize_interpolated_transmission_table(np.array([[100, 0.5, 105, 0.6]]))
+        a_band._normalize_transmission_table(np.array([[100, 0.5, 105, 0.6]]))
 
 
-def test_passband_interpolate_flux_densities_basic(tmp_path):
-    """Test basic functionality of the _interpolate_flux_densities method of the Passband class."""
-    transmission_table = "100 0.5\n200 0.75\n300 0.25\n400 0.5\n500 0.25\n600 0.5"
-
-    # Test: no interpolation needed
-    a_band = create_test_passband(tmp_path, transmission_table, wave_grid=100)
-    fluxes = np.array([[0.25, 0.5, 1.0, 1.0, 0.5, 0.25]])
-    flux_wavelengths = np.array([100.0, 200.0, 300.0, 400.0, 500.0, 600.0])
-
-    with patch("scipy.interpolate.InterpolatedUnivariateSpline") as mock_spline:
-        (result_fluxes, result_wavelengths) = a_band._interpolate_flux_densities(fluxes, flux_wavelengths)
-        np.testing.assert_allclose(result_fluxes, fluxes)
-        np.testing.assert_allclose(result_wavelengths, flux_wavelengths)
-        mock_spline.assert_not_called()
-
-    # Test: interpolation when fluxes span entire band
-    b_band = create_test_passband(tmp_path, transmission_table, wave_grid=50, filter_name="b")
-    fluxes = np.array([[0.25, 0.5, 1.0, 1.0, 0.5, 0.25], [0.25, 0.5, 1.0, 1.0, 0.5, 0.25]])
-    flux_wavelengths = np.array([100.0, 200.0, 300.0, 400.0, 500.0, 600.0])
-    (result_fluxes, result_wavelengths) = b_band._interpolate_flux_densities(fluxes, flux_wavelengths)
-
-    # Check wavelengths
-    expected_waves = np.arange(100, 601, 50)
-    np.testing.assert_allclose(result_wavelengths, expected_waves)
-
-    # Check the interpolated fluxes, while being somewhat agnostic to the specific method of interpolation
-    assert result_fluxes.shape == (2, 11)
-    # Ends should be 0.25
-    assert result_fluxes[0, 0] == 0.25
-    assert result_fluxes[0, 10] == 0.25
-    # Beginning should be increasing. We don't go all the way to the middle, as the spline may wiggle a bit
-    # approximating the flat top between 300 and 400 Angstroms.
-    assert np.all(np.diff(result_fluxes[0, :5]) > 0)
-    # End should be decreasing. Similarly, not starting exactly at the middle.
-    assert np.all(np.diff(result_fluxes[0, 7:]) < 0)
-
-
-def test_passband_interpolate_flux_densities_spline_degrees(tmp_path):
-    """Test spline degree settings in the _interpolate_flux_densities method of the Passband class."""
-    transmission_table = "100 0.5\n200 0.75\n300 0.25\n400 0.5\n500 0.25\n600 0.5"
-    a_band = create_test_passband(tmp_path, transmission_table, wave_grid=50)
-    fluxes = np.array([[0.25, 0.5, 1.0, 1.0, 0.5, 0.25], [0.25, 0.5, 1.0, 1.0, 0.5, 0.25]])
-    flux_wavelengths = np.array([100.0, 200.0, 300.0, 400.0, 500.0, 600.0])
-
-    # Test we can run interpolation with spline_degree at default (3)
-    (result_fluxes, result_wavelengths) = a_band._interpolate_flux_densities(fluxes, flux_wavelengths)
-    assert result_fluxes.shape == (2, 11)
-    assert result_wavelengths.shape == (11,)
-
-    # Test we can run with spline_degree at values 1-5
-    for degree in range(1, 6):
-        (result_fluxes, result_wavelengths) = a_band._interpolate_flux_densities(
-            fluxes, flux_wavelengths, spline_degree=degree
-        )
-        assert result_fluxes.shape == (2, 11)
-        assert result_wavelengths.shape == (11,)
-
-    # Test we raise an error for invalid degrees
-    with pytest.raises(ValueError):
-        a_band._interpolate_flux_densities(fluxes, flux_wavelengths, spline_degree=0)
-
-    with pytest.raises(ValueError):
-        a_band._interpolate_flux_densities(fluxes, flux_wavelengths, spline_degree=6)
-
-    # Test we raise an error if number of degrees is greater than number of points
-    fluxes = np.array([[0.25, 0.5]])
-    flux_wavelengths = np.array([100.0, 200.0])
-    with pytest.raises(ValueError):
-        a_band._interpolate_flux_densities(fluxes, flux_wavelengths, spline_degree=3)
-
-
-def test_passband_interpolate_flux_densities_truncation_needed(tmp_path):
-    """Test truncation in the _interpolate_flux_densities method of the Passband class."""
-    transmission_table = "100 0.5\n200 0.75\n300 0.25\n400 0.5\n500 0.25\n600 0.5"
-
-    # Test truncation when fluxes are out of bounds
-    a_band = create_test_passband(tmp_path, transmission_table, wave_grid=100)
-    fluxes = np.array([[0.25, 0.5, 1.0, 1.0, 0.5, 0.25, 0.0, 0.5]])
-    flux_wavelengths = np.array([50.0, 100.0, 200.0, 300.0, 400.0, 500.0, 600.0, 650.0])
-    (result_fluxes, result_wavelengths) = a_band._interpolate_flux_densities(fluxes, flux_wavelengths)
-    assert result_fluxes.shape == (1, 6)
-    assert result_wavelengths.shape == (6,)
-    np.testing.assert_allclose(result_wavelengths, np.array([100.0, 200.0, 300.0, 400.0, 500.0, 600.0]))
-    np.testing.assert_allclose(result_fluxes, fluxes[:, 1:7])
-
-    # Test truncation and interpolation when fluxes are out of bounds
-    a_band.set_transmission_table_grid(50)
-    (result_fluxes, result_wavelengths) = a_band._interpolate_flux_densities(fluxes, flux_wavelengths)
-    assert result_fluxes.shape == (1, 11)
-    assert result_wavelengths.shape == (11,)
-    np.testing.assert_allclose(result_wavelengths, np.arange(100, 601, 50))
-    np.testing.assert_allclose(result_fluxes[:, ::2], fluxes[:, 1:7])
-
-
-def test_passband_interpolate_flux_densities_padding_needed(tmp_path):
-    """Test padding in the _interpolate_flux_densities method of the Passband class."""
-    transmission_table = "100 0.5\n200 0.75\n300 0.25\n400 0.5\n500 0.25\n600 0.5"
-
-    # Test padding (with NO interpolation) when fluxes do not span the entire band
-    a_band = create_test_passband(tmp_path, transmission_table, wave_grid=100, filter_name="b")
-    fluxes = np.array([[0.5, 1.0, 0.5, 0.25], [0.5, 1.0, 0.5, 0.25]])
-    flux_wavelengths = np.array([200.0, 300.0, 400.0, 500.0])
-
-    # Case 1: padding needed with extrapolation="raise"
-    with pytest.raises(ValueError):
-        a_band._interpolate_flux_densities(fluxes, flux_wavelengths, "raise")
-
-    # Case 2: padding needed with extrapolation="zeros"
-    (result_fluxes, result_wavelengths) = a_band._interpolate_flux_densities(
-        fluxes, flux_wavelengths, "zeros"
-    )
-    expected_fluxes = np.array([[0.0, 0.5, 1.0, 0.5, 0.25, 0.0], [0.0, 0.5, 1.0, 0.5, 0.25, 0.0]])
-    expected_waves = np.array([100, 200, 300, 400, 500, 600])
-    np.testing.assert_allclose(result_fluxes, expected_fluxes)
-    np.testing.assert_allclose(result_wavelengths, expected_waves)
-
-    # Case 3: padding needed with extrapolation="constant"
-    (result_fluxes, result_wavelengths) = a_band._interpolate_flux_densities(
-        fluxes, flux_wavelengths, "const"
-    )
-    expected_fluxes = np.array([[0.5, 0.5, 1.0, 0.5, 0.25, 0.25], [0.5, 0.5, 1.0, 0.5, 0.25, 0.25]])
-    expected_waves = np.array([100, 200, 300, 400, 500, 600])
-    np.testing.assert_allclose(result_fluxes, expected_fluxes)
-    np.testing.assert_allclose(result_wavelengths, expected_waves)
-
-    # Test padding (this time WITH interpolation as well) when fluxes do not span the entire band
-    b_band = create_test_passband(tmp_path, transmission_table, wave_grid=50, filter_name="b")
-    fluxes = np.array([[0.25, 0.75, 1.0, 0.25]])
-    flux_wavelengths = np.array([200.0, 300.0, 400.0, 500.0])
-    (result_fluxes, result_wavelengths) = b_band._interpolate_flux_densities(
-        fluxes, flux_wavelengths, "zeros"
-    )
-    # Check waves generated as expected
-    expected_waves = np.arange(100, 601, 50)
-    np.testing.assert_allclose(result_wavelengths, expected_waves)
-    assert result_fluxes.shape == (1, 11)
-    # Check flux zero-padding on both ends
-    assert np.isclose(result_fluxes[0, 0], 0.0)
-    assert np.isclose(result_fluxes[0, 1], 0.0)
-    assert np.isclose(result_fluxes[0, 9], 0.0)
-    assert np.isclose(result_fluxes[0, 10], 0.0)
-    # Check the ends of the given fluxes are preserved
-    assert np.isclose(result_fluxes[0, 2], 0.25)
-    assert np.isclose(result_fluxes[0, 8], 0.25)
-    # Check the increasing section (originally indices [0, 2]) is still increasing (now indices [2, 6])
-    assert np.all(np.diff(result_fluxes[0, 2:6]) > 0)
-    # Check the decreasing section (originally indices [2, 3]) is still decreasing (now indices [6, 8])
-    assert np.all(np.diff(result_fluxes[0, 6:8]) < 0)
-
-
-def test_passband_fluxes_to_bandflux(tmp_path):
+def test_passband_fluxes_to_bandflux(tmp_path):  # TODO check this still works
     """Test the fluxes_to_bandflux method of the Passband class."""
     transmission_table = "100 0.5\n200 0.75\n300 0.25\n"
-    a_band = create_test_passband(tmp_path, transmission_table, wave_grid=100)
+    a_band = create_test_passband(tmp_path, transmission_table, delta_wave=100, trim_percentile=None)
 
     # Define some mock flux values and calculate our expected bandflux
     flux = np.array(
@@ -413,13 +268,12 @@ def test_passband_fluxes_to_bandflux(tmp_path):
             [1.0, 1.0, 1.0],
         ]
     )
-    expected_in_band_flux = np.trapz(
-        flux * a_band.processed_transmission_table[:, 1], x=a_band.processed_transmission_table[:, 0]
-    )
-    in_band_flux = a_band.fluxes_to_bandflux(flux, a_band.processed_transmission_table[:, 0])
+    expected_in_band_flux = np.trapz(flux * a_band.processed_transmission_table[:, 1], x=a_band.waves)
+    in_band_flux = a_band.fluxes_to_bandflux(flux)
     np.testing.assert_allclose(in_band_flux, expected_in_band_flux)
 
-    # Test with a different set of fluxes
+    # Test with a different set of fluxes, regridding the transmission table
+    a_band.process_transmission_table(delta_wave=50, trim_percentile=None)
     flux = np.array(
         [
             [100.0, 12.0, 1.0, 0.5, 0.25],
@@ -431,9 +285,7 @@ def test_passband_fluxes_to_bandflux(tmp_path):
             [100.0, 50.0, 25.0, 12.5, 6.25],
         ]
     )
-    flux_wave_grid = np.array([100.0, 150.0, 200.0, 250.0, 300.0])
-    a_band.set_transmission_table_grid(flux_wave_grid)
-    in_band_flux = a_band.fluxes_to_bandflux(flux, flux_wave_grid)
+    in_band_flux = a_band.fluxes_to_bandflux(flux)
     expected_in_band_flux = np.trapz(
         flux * a_band.processed_transmission_table[:, 1], x=a_band.processed_transmission_table[:, 0]
     )
@@ -441,10 +293,8 @@ def test_passband_fluxes_to_bandflux(tmp_path):
 
     # Test we raise an error if the fluxes are not the right shape
     with pytest.raises(ValueError):
-        a_band.fluxes_to_bandflux(
-            np.array([[1.0, 2.0], [3.0, 4.0]]), a_band.processed_transmission_table[:, 0]
-        )
+        a_band.fluxes_to_bandflux(np.array([[1.0, 2.0], [3.0, 4.0]]))
 
     # Test we raise an error if the fluxes are empty
     with pytest.raises(ValueError):
-        a_band.fluxes_to_bandflux(np.array([]), a_band.processed_transmission_table[:, 0])
+        a_band.fluxes_to_bandflux(np.array([]))
