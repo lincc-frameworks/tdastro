@@ -119,12 +119,12 @@ def test_process_transmission_table(tmp_path):
     # Mock the methods that _process_transmission_table wraps, to check each is called once
     with (
         patch.object(a_band, "_interpolate_transmission_table") as mock_interp_table,
-        patch.object(a_band, "_trim_transmission_by_percentile") as mock_trim_table,
+        patch.object(a_band, "_trim_transmission_by_quantile") as mock_trim_table,
         patch.object(a_band, "_normalize_transmission_table") as mock_norm_table,
     ):
         # Call the _process_transmission_table method
-        delta_wave, trim_percentile = 1.0, 0.05
-        a_band.process_transmission_table(delta_wave, trim_percentile)
+        delta_wave, trim_quantile = 1.0, 0.05
+        a_band.process_transmission_table(delta_wave, trim_quantile)
 
         # Check that each method is called once
         mock_interp_table.assert_called_once_with(a_band._loaded_table, delta_wave)
@@ -132,8 +132,8 @@ def test_process_transmission_table(tmp_path):
         mock_norm_table.assert_called_once()
 
     # Now call without mocking, to check waves set correctly (other values checked in method-specific tests)
-    delta_wave, trim_percentile = 5.0, None
-    a_band.process_transmission_table(delta_wave, trim_percentile)
+    delta_wave, trim_quantile = 5.0, None
+    a_band.process_transmission_table(delta_wave, trim_quantile)
     np.testing.assert_allclose(a_band.waves, np.arange(100, 301, delta_wave))
 
 
@@ -156,46 +156,49 @@ def test_interpolate_transmission_table(tmp_path):
 
 
 def test_trim_transmission_table(tmp_path):
-    """Test the _trim_transmission_by_percentile method of the Passband class."""
+    """Test the _trim_transmission_by_quantile method of the Passband class."""
 
     # Test: transmission table with only 3 points
     transmission_table = "100 0.5\n200 0.75\n300 0.25\n"
     a_band = create_test_passband(tmp_path, transmission_table)
 
     # Trim the transmission table by 5% (should remove the last point)
-    table = a_band._trim_transmission_by_percentile(a_band._loaded_table, trim_percentile=0.05)
+    table = a_band._trim_transmission_by_quantile(a_band._loaded_table, trim_quantile=0.05)
     np.testing.assert_allclose(table, np.array([[100, 0.5], [200, 0.75]]))
 
     # Trim the transmission table by 40% (should still preserve the first point, as table is skewed)
-    table = a_band._trim_transmission_by_percentile(a_band._loaded_table, trim_percentile=0.4)
+    table = a_band._trim_transmission_by_quantile(a_band._loaded_table, trim_quantile=0.4)
     np.testing.assert_allclose(table, np.array([[100, 0.5], [200, 0.75]]))
 
-    # Check no trimming if percentile is 0
-    table = a_band._trim_transmission_by_percentile(a_band._loaded_table, trim_percentile=None)
+    # Check no trimming if quantile is 0
+    table = a_band._trim_transmission_by_quantile(a_band._loaded_table, trim_quantile=None)
     np.testing.assert_allclose(table, np.array([[100, 0.5], [200, 0.75], [300, 0.25]]))
 
-    # Check we raise an error if the percentile is not between 0 and 0.5
+    # Check we raise an error if the quantile is not greater or equal to 0 and less than 0.5
     with pytest.raises(ValueError):
-        a_band._trim_transmission_by_percentile(a_band._loaded_table, trim_percentile=0.6)
+        a_band._trim_transmission_by_quantile(a_band._loaded_table, trim_quantile=0.5)
     with pytest.raises(ValueError):
-        a_band._trim_transmission_by_percentile(a_band._loaded_table, trim_percentile=-0.1)
+        a_band._trim_transmission_by_quantile(a_band._loaded_table, trim_quantile=-0.1)
 
     # Test 2: larger, more normal transmission table
     transmission_table = "100 0.05\n200 0.1\n300 0.25\n400 0.5\n500 0.8\n600 0.6\n700 0.4\n800 0.2\n900 0.1\n"
     b_band = create_test_passband(tmp_path, transmission_table, filter_name="b")
 
-    # Trim the transmission table by 5% (should remove the first and last points)
-    table = b_band._trim_transmission_by_percentile(b_band._loaded_table, trim_percentile=0.05)
+    # Trim the transmission table by 5% (should remove the last point)
+    table = b_band._trim_transmission_by_quantile(b_band._loaded_table, trim_quantile=0.05)
     np.testing.assert_allclose(
-        table, np.array([[200, 0.1], [300, 0.25], [400, 0.5], [500, 0.8], [600, 0.6], [700, 0.4], [800, 0.2]])
+        table,
+        np.array(
+            [[100, 0.05], [200, 0.1], [300, 0.25], [400, 0.5], [500, 0.8], [600, 0.6], [700, 0.4], [800, 0.2]]
+        ),
     )
 
     # Trim the transmission table by 40% (should remove most points)
-    table = b_band._trim_transmission_by_percentile(b_band._loaded_table, trim_percentile=0.4)
-    np.testing.assert_allclose(table, np.array([[400, 0.5], [500, 0.8]]))
+    table = b_band._trim_transmission_by_quantile(b_band._loaded_table, trim_quantile=0.4)
+    np.testing.assert_allclose(table, np.array([[300, 0.25], [400, 0.5], [500, 0.8]]))
 
-    # Check no trimming if percentile is 0
-    table = b_band._trim_transmission_by_percentile(b_band._loaded_table, trim_percentile=None)
+    # Check no trimming if quantile is 0
+    table = b_band._trim_transmission_by_quantile(b_band._loaded_table, trim_quantile=None)
     np.testing.assert_allclose(
         table,
         np.array(
@@ -222,18 +225,18 @@ def test_trim_transmission_table(tmp_path):
     c_band = create_test_passband(tmp_path, transmission_table, filter_name="c")
 
     # Trim the transmission table by 5% on each side
-    table = c_band._trim_transmission_by_percentile(c_band._loaded_table, trim_percentile=0.05)
+    table = c_band._trim_transmission_by_quantile(c_band._loaded_table, trim_quantile=0.05)
     assert len(table) < len(c_band._loaded_table)
 
     original_area = np.trapz(c_band._loaded_table[:, 1], x=c_band._loaded_table[:, 0])
     trimmed_area = np.trapz(table[:, 1], x=table[:, 0])
-    assert np.isclose(trimmed_area, original_area * 0.9, rtol=0.01)
+    assert trimmed_area >= (original_area * 0.9)
 
 
 def test_passband_normalize_transmission_table(tmp_path):
     """Test the _normalize_transmission_table method of the Passband class."""
     transmission_table = "100 0.5\n200 0.75\n300 0.25\n"
-    a_band = create_test_passband(tmp_path, transmission_table, delta_wave=100, trim_percentile=None)
+    a_band = create_test_passband(tmp_path, transmission_table, delta_wave=100, trim_quantile=None)
 
     # Normalize the transmission table (we skip interpolation as grid already matches)
     a_band._normalize_transmission_table(a_band._loaded_table)
@@ -256,7 +259,7 @@ def test_passband_normalize_transmission_table(tmp_path):
 def test_passband_fluxes_to_bandflux(tmp_path):
     """Test the fluxes_to_bandflux method of the Passband class."""
     transmission_table = "100 0.5\n200 0.75\n300 0.25\n"
-    a_band = create_test_passband(tmp_path, transmission_table, delta_wave=100, trim_percentile=None)
+    a_band = create_test_passband(tmp_path, transmission_table, delta_wave=100, trim_quantile=None)
 
     # Define some mock flux values and calculate our expected bandflux
     flux = np.array(
@@ -273,7 +276,7 @@ def test_passband_fluxes_to_bandflux(tmp_path):
     np.testing.assert_allclose(in_band_flux, expected_in_band_flux)
 
     # Test with a different set of fluxes, regridding the transmission table
-    a_band.process_transmission_table(delta_wave=50, trim_percentile=None)
+    a_band.process_transmission_table(delta_wave=50, trim_quantile=None)
     flux = np.array(
         [
             [100.0, 12.0, 1.0, 0.5, 0.25],

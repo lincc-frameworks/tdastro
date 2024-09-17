@@ -44,7 +44,7 @@ class PassbandGroup:
             - table_path : str
             - table_url : str
             - delta_wave : float
-            - trim_percentile : float
+            - trim_quantile : float
             - units : str (either 'nm' or 'A')
             If survey is not LSST (or other survey with defined defaults), either a table_path or table_url
             must be provided.
@@ -104,7 +104,7 @@ class PassbandGroup:
             self.waves = np.unique(np.concatenate([passband.waves for passband in self.passbands.values()]))
 
     def process_transmission_tables(
-        self, delta_wave: Optional[float] = 5.0, trim_percentile: Optional[float] = 0.1
+        self, delta_wave: Optional[float] = 5.0, trim_quantile: Optional[float] = 1e-3
     ):
         """Process the transmission tables for all passbands in the group; recalculate group's wave attribute.
 
@@ -112,12 +112,12 @@ class PassbandGroup:
         ----------
         delta_wave : float or None, optional
             The grid step of the wave grid. Default is 5.0.
-        trim_percentile : float or None, optional
-            The percentile to trim the transmission table by. For example, if trim_percentile is 0.1, the
-            transmission table will be trimmed to include only the central 80% of rows.
+        trim_quantile : float or None, optional
+            The quantile to trim the transmission table by. For example, if trim_quantile is 1e-3, the
+            transmission table will be trimmed to include only the central 99.8% of rows.
         """
         for passband in self.passbands.values():
-            passband.process_transmission_table(delta_wave, trim_percentile)
+            passband.process_transmission_table(delta_wave, trim_quantile)
 
         self._update_waves()
 
@@ -194,7 +194,7 @@ class Passband:
         survey: str,
         filter_name: str,
         delta_wave: Optional[float] = 5.0,
-        trim_percentile: Optional[float] = 0.1,
+        trim_quantile: Optional[float] = 1e-3,
         table_path: Optional[str] = None,
         table_url: Optional[str] = None,
         units: Optional[Literal["nm", "A"]] = "A",
@@ -212,9 +212,9 @@ class Passband:
             The grid step of the wave grid, in angstroms.
             It is typically used to downsample transmission using linear interpolation.
             Default is 5 angstroms. If `None` the original grid is used.
-        trim_percentile : float or None, optional
-            The percentile to trim the transmission table by. For example, if trim_percentile is 0.1, the
-            transmission table will be trimmed to include only the central 80% of the area under the
+        trim_quantile : float or None, optional
+            The quantile to trim the transmission table by. For example, if trim_quantile is 1e-3, the
+            transmission table will be trimmed to include only the central 99.8% of the area under the
             transmission curve.
         table_path : str, optional
             The path to the transmission table file. If None, the table path will be set to a default path;
@@ -239,7 +239,7 @@ class Passband:
         self.units = units
 
         self._load_transmission_table(force_download=force_download)
-        self.process_transmission_table(delta_wave, trim_percentile)
+        self.process_transmission_table(delta_wave, trim_quantile)
 
     def __str__(self) -> str:
         """Return a string representation of the Passband."""
@@ -324,7 +324,7 @@ class Passband:
             return False
 
     def process_transmission_table(
-        self, delta_wave: Optional[float] = 5.0, trim_percentile: Optional[float] = 0.1
+        self, delta_wave: Optional[float] = 5.0, trim_quantile: Optional[float] = 1e-3
     ):
         """Process the transmission table.
 
@@ -332,12 +332,12 @@ class Passband:
         ----------
         delta_wave : Optional[float] = None
             The grid step of the wave grid. Default is 5.0 Angstroms.
-        trim_percentile : Optional[float] = None
-            The percentile to trim the transmission table by. For example, if trim_percentile is 0.1, the
-            transmission table will be trimmed to include only the central 80% of rows.
+        trim_quantile : Optional[float] = None
+            The quantile to trim the transmission table by. For example, if trim_quantile is 1e-3, the
+            transmission table will be trimmed to include only the central 99.8% of rows.
         """
         interpolated_table = self._interpolate_transmission_table(self._loaded_table, delta_wave)
-        trimmed_table = self._trim_transmission_by_percentile(interpolated_table, trim_percentile)
+        trimmed_table = self._trim_transmission_by_quantile(interpolated_table, trim_quantile)
         self.processed_transmission_table = self._normalize_transmission_table(trimmed_table)
 
         self.waves = self.processed_transmission_table[:, 0]
@@ -375,31 +375,30 @@ class Passband:
         interpolated_transmissions = spline(new_wavelengths)
         return np.column_stack((new_wavelengths, interpolated_transmissions))
 
-    def _trim_transmission_by_percentile(
-        self, table: np.ndarray, trim_percentile: Optional[float]
-    ) -> np.ndarray:
-        """Trim the transmission table such that it only includes the central (1 - 2*trim_percentile) of rows.
+    def _trim_transmission_by_quantile(self, table: np.ndarray, trim_quantile: Optional[float]) -> np.ndarray:
+        """Trim the transmission table so that it only includes the central (100 - 2*trim_quartile)% of rows.
 
-        E.g., if trim_percentile is 0.1, the transmission table will be trimmed to include only the central
-        80% of rows.
+        E.g., if trim_quantile is 1e-3, the transmission table will be trimmed to include only the central
+        99.8% of rows.
 
         Parameters
         ----------
         table : np.ndarray
             A 2D array of wavelengths and transmissions.
-        trim_percentile : float
-            The percentile to trim the transmission table by. For example, if trim_percentile is 0.1, the
-            transmission table will be trimmed to include only the central 80% of rows.
+        trim_quantile : float
+            The quantile to trim the transmission table by. For example, if trim_quantile is 1e-3, the
+            transmission table will be trimmed to include only the central 99.8% of rows. Must be greater than
+            or equal to 0 and less than 0.5.
 
         Returns
         -------
         np.ndarray
             A 2D array of wavelengths and transmissions.
         """
-        if trim_percentile is None or trim_percentile == 0.0:
+        if trim_quantile is None or trim_quantile == 0.0:
             return table
-        if trim_percentile < 0 or trim_percentile > 0.5:
-            raise ValueError("Trim percentile must be between 0 and 0.5.")
+        if trim_quantile < 0 or trim_quantile >= 0.5:
+            raise ValueError(f"Trim quantile must be between 0 and 0.5; got {trim_quantile}.")
 
         # Separate wavelengths and transmissions
         wavelengths = table[:, 0]
@@ -411,9 +410,9 @@ class Passband:
         # Normalize cumulative area to range from 0 to 1
         cumulative_area /= cumulative_area[-1]
 
-        # Find indices where the cumulative area exceeds the trim percentiles
-        lower_bound = np.searchsorted(cumulative_area, trim_percentile)
-        upper_bound = np.searchsorted(cumulative_area, 1 - trim_percentile)
+        # Find indices where the cumulative area exceeds the trim quantiles
+        lower_bound = max(np.searchsorted(cumulative_area, trim_quantile, side="right") - 1, 0)
+        upper_bound = np.searchsorted(cumulative_area, 1 - trim_quantile)
 
         # Trim the table to the desired range
         trimmed_table = table[lower_bound : upper_bound + 1]

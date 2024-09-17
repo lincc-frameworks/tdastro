@@ -4,7 +4,7 @@ import numpy as np
 from tdastro.astro_utils.passbands import Passband, PassbandGroup
 
 
-def create_passband_group(path, delta_wave=5.0, trim_percentile=None):
+def create_passband_group(path, delta_wave=5.0, trim_quantile=None):
     """Helper function to create a PassbandGroup object for testing."""
     # Initialize requirements for PassbandGroup object
     survey = "TEST"
@@ -30,7 +30,7 @@ def create_passband_group(path, delta_wave=5.0, trim_percentile=None):
                 "filter_name": filter_name,
                 "table_path": table_dir / f"{filter_name}.dat",
                 "delta_wave": delta_wave,
-                "trim_percentile": trim_percentile,
+                "trim_quantile": trim_quantile,
             }
         )
     return PassbandGroup(passband_parameters=passbands)
@@ -112,7 +112,7 @@ def test_passband_group_str(tmp_path):
 def test_passband_group_fluxes_to_bandfluxes(tmp_path):
     """Test the fluxes_to_bandfluxes method of the PassbandGroup class."""
     # Test with simple passband group
-    test_passband_group = create_passband_group(tmp_path, delta_wave=20, trim_percentile=None)
+    test_passband_group = create_passband_group(tmp_path, delta_wave=20, trim_quantile=None)
 
     # Create some mock flux data with the same number of columns as wavelengths in our PassbandGroup
     flux = np.linspace(test_passband_group.waves * 10, 100, 5)
