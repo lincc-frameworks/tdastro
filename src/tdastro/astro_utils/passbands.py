@@ -398,7 +398,7 @@ class Passband:
         np.ndarray
             A 2D array of wavelengths and transmissions.
         """
-        if trim_percentile is None:
+        if trim_percentile is None or trim_percentile == 0.0:
             return table
         if trim_percentile < 0 or trim_percentile > 0.5:
             raise ValueError("Trim percentile must be between 0 and 0.5.")
