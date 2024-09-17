@@ -179,7 +179,8 @@ class Passband:
     table_url : str
         The URL to download the transmission table file.
     waves : np.ndarray
-        The wavelengths of the transmission table.
+        The wavelengths of the transmission table. To be used when evaluating models to generate fluxes
+        that will be passed to fluxes_to_bandflux.
     _loaded_table : np.ndarray
         A 2D array of wavelengths and transmissions. This is the table loaded from the file, and is neither
         interpolated nor normalized.
@@ -215,9 +216,6 @@ class Passband:
             The percentile to trim the transmission table by. For example, if trim_percentile is 0.1, the
             transmission table will be trimmed to include only the central 80% of the area under the
             transmission curve.
-        waves : np.ndarray
-            The wavelengths of the transmission table. To be used when evaluating models to generate fluxes
-            that will be passed to fluxes_to_bandflux.
         table_path : str, optional
             The path to the transmission table file. If None, the table path will be set to a default path;
             if no file exists at this location, the file will be downloaded from table_url.
