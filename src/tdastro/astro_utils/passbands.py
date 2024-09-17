@@ -208,7 +208,9 @@ class Passband:
         filter_name : str
             The filter_name of the passband: eg, "u".
         delta_wave : float or None, optional
-            The grid step of the wave grid. Default is 5.0.
+            The grid step of the wave grid, in angstroms.
+            It is typically used to downsample transmission using linear interpolation.
+            Default is 5 angstroms. If `None` the original grid is used.
         trim_percentile : float or None, optional
             The percentile to trim the transmission table by. For example, if trim_percentile is 0.1, the
             transmission table will be trimmed to include only the central 80% of the area under the
