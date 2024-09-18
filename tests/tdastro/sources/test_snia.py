@@ -24,13 +24,14 @@ def draw_single_random_sn(
     Draw a single random SN realiztion
     """
 
-    res = {"wavelengths_rest": wavelengths_rest, "phase_rest": phase_rest}
-
     state = source.sample_parameters()
 
     z = source.get_param(state, "redshift")
-    wave_obs = wavelengths_rest * (1.0 + z)
+    wave_obs = passbands.waves
+    wavelengths_rest = wave_obs / (1.0 + z)
     phase_obs = phase_rest * (1.0 + z)
+
+    res = {"wavelengths_rest": wavelengths_rest, "phase_rest": phase_rest}
 
     t0 = source.get_param(state, "t0")
     times = t0 + phase_obs
@@ -145,7 +146,6 @@ def test_snia_end2end(
         ],
         delta_wave=1,
     )
-    wavelengths_rest = passbands.waves
 
     res_list = []
 
@@ -178,7 +178,7 @@ def test_snia_end2end(
         model = sncosmo.Model(sncosmo_modelname)
         model.update(saltpars)
         z = p["redshift"]
-        wave = wavelengths_rest * (1 + z)
+        wave = passbands.waves
         if opsim is None:
             time = phase_rest * (1 + z) + p["t0"]
             assert np.allclose(res["times"], time)
