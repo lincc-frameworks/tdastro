@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 import numpy as np
+import pytest
 from tdastro.astro_utils.passbands import Passband, PassbandGroup
 
 
@@ -38,9 +39,9 @@ def create_passband_group(path, delta_wave=5.0, trim_quantile=None):
 
 def test_passband_group_init(tmp_path):
     """Test the initialization of the Passband class, and implicitly, _load_preset."""
-    # Test that we can create an empty PassbandGroup object
-    empty_passband = PassbandGroup()
-    assert len(empty_passband.passbands) == 0
+    # Test that we cannot create an empty PassbandGroup object
+    with pytest.raises(ValueError):
+        _ = PassbandGroup()
 
     # Test that the PassbandGroup class can be initialized with a preset
     # Mock the transmission table files at passbands/LSST/<filter>.dat using patch
@@ -94,16 +95,6 @@ def test_passband_group_init(tmp_path):
 
 def test_passband_group_str(tmp_path):
     """Test the __str__ method of the PassbandGroup class."""
-    empty_passband_group = PassbandGroup()
-    assert str(empty_passband_group) == "PassbandGroup containing 0 passbands: "
-
-    # Test that the __str__ method returns the expected string with preset passbands
-    lsst_passband_group = PassbandGroup(preset="LSST")
-    assert (
-        str(lsst_passband_group)
-        == "PassbandGroup containing 6 passbands: LSST_u, LSST_g, LSST_r, LSST_i, LSST_z, LSST_y"
-    )
-
     # Test that the __str__ method returns the expected string with custom passbands
     test_passband_group = create_passband_group(tmp_path)
     assert str(test_passband_group) == "PassbandGroup containing 3 passbands: TEST_a, TEST_b, TEST_c"
