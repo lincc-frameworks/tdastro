@@ -53,6 +53,9 @@ class PassbandGroup:
         """
         self.passbands = {}
 
+        if preset is None and passband_parameters is None:
+            raise ValueError("PassbandGroup must be initialized with either a preset or passband_parameters.")
+
         if preset is not None:
             self._load_preset(preset, **kwargs)
 
@@ -330,9 +333,9 @@ class Passband:
 
         Parameters
         ----------
-        delta_wave : Optional[float] = None
+        delta_wave : Optional[float] = 5.0
             The grid step of the wave grid. Default is 5.0 Angstroms.
-        trim_quantile : Optional[float] = None
+        trim_quantile : Optional[float] = 1e-3
             The quantile to trim the transmission table by. For example, if trim_quantile is 1e-3, the
             transmission table will be trimmed to include only the central 99.8% of rows.
         """
@@ -437,6 +440,7 @@ class Passband:
         -------
         np.ndarray
             A 2D array of wavelengths and normalized transmissions.
+
         Raises
         ------
         ValueError
