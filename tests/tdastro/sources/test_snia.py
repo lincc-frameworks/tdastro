@@ -2,7 +2,7 @@ import numpy as np
 import sncosmo
 from astropy import units as u
 from tdastro.astro_utils.opsim import OpSim
-from tdastro.astro_utils.passbands import Passband, PassbandGroup
+from tdastro.astro_utils.passbands import PassbandGroup
 from tdastro.astro_utils.snia_utils import DistModFromRedshift, HostmassX1Func, X0FromDistMod
 from tdastro.astro_utils.unit_utils import flam_to_fnu
 from tdastro.effects.redshift import Redshift
@@ -62,7 +62,7 @@ def draw_single_random_sn(
 
     res["flux_fnu"] = flux_fnu
 
-    bandfluxes = passbands.fluxes_to_bandfluxes(flux_fnu, wave_obs)
+    bandfluxes = passbands.fluxes_to_bandfluxes(flux_fnu)
     res["bandfluxes"] = bandfluxes
 
     res["state"] = state
@@ -72,6 +72,7 @@ def draw_single_random_sn(
 
 def test_snia_end2end(
     opsim_small,
+    passbands_dir,
     opsim_db_file=None,
     opsim=True,
     nsample=1,
@@ -127,13 +128,24 @@ def test_snia_end2end(
 
     source.add_effect(Redshift(redshift=source.redshift, t0=source.t0))
 
-    url_base = "https://raw.githubusercontent.com/lsst/throughputs/e70d1daf069e606caa3feb43eccc62ec21e0baf5/"
     passbands = PassbandGroup(
-        passbands=[
-            Passband("LSST", "g", table_url=f"{url_base}baseline/total_g.dat", units="nm"),
-            Passband("LSST", "r", table_url=f"{url_base}baseline/total_r.dat", units="nm"),
-        ]
+        passband_parameters=[
+            {
+                "survey": "LSST",
+                "filter_name": "u",
+                "table_path": f"{passbands_dir}/LSST/u.dat",
+                "units": "nm",
+            },
+            {
+                "survey": "LSST",
+                "filter_name": "r",
+                "table_path": f"{passbands_dir}/LSST/r.dat",
+                "units": "nm",
+            },
+        ],
+        delta_wave=1,
     )
+    wavelengths_rest = passbands.waves
 
     res_list = []
 
