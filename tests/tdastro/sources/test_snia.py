@@ -72,6 +72,7 @@ def draw_single_random_sn(
 
 def test_snia_end2end(
     opsim_small,
+    passbands_dir,
     opsim_db_file=None,
     opsim=True,
     nsample=1,
@@ -127,22 +128,19 @@ def test_snia_end2end(
 
     source.add_effect(Redshift(redshift=source.redshift, t0=source.t0))
 
-    url_base = "https://raw.githubusercontent.com/lsst/throughputs/e70d1daf069e606caa3feb43eccc62ec21e0baf5/"
     passbands = PassbandGroup(
         passband_parameters=[
             {
                 "survey": "LSST",
                 "filter_name": "u",
-                "table_url": f"{url_base}baseline/total_u.dat",
+                "table_path": f"{passbands_dir}/LSST/u.dat",
                 "units": "nm",
-                "force_download": True,
             },
             {
                 "survey": "LSST",
                 "filter_name": "r",
-                "table_url": f"{url_base}baseline/total_r.dat",
+                "table_path": f"{passbands_dir}/LSST/r.dat",
                 "units": "nm",
-                "force_download": True,
             },
         ],
         delta_wave=1,
