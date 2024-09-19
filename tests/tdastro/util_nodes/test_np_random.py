@@ -50,7 +50,7 @@ def test_numpy_random_uniform():
     assert np.allclose(values, values2)
 
     # We can change the range.
-    np_node3 = NumpyRandomFunc("uniform", low=10.0, high=20.0)
+    np_node3 = NumpyRandomFunc("uniform", low=10.0, high=20.0, seed=100)
     values = np.array([np_node3.generate() for _ in range(10_000)])
     assert len(np.unique(values)) > 10
     assert np.all(values <= 20.0)
@@ -67,7 +67,7 @@ def test_numpy_random_uniform():
 
 def test_numpy_random_uniform_multi():
     """Test that we can many generate numbers at once from a uniform distribution."""
-    np_node = NumpyRandomFunc("uniform")
+    np_node = NumpyRandomFunc("uniform", seed=100)
     state = np_node.sample_parameters(num_samples=10_000)
     samples = np_node.get_param(state, "function_node_result")
     assert len(samples) == 10_000
