@@ -151,3 +151,4 @@ _html/
 
 # Default cached location for passband tables
 src/tdastro/astro_utils/passbands/*
+/data/sfd
