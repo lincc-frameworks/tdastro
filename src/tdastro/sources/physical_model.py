@@ -49,19 +49,19 @@ class PhysicalModel(ParameterizedNode):
         self.effects = []
 
         # Set RA, dec, and redshift from the parameters.
-        self.add_parameter("ra", ra)
-        self.add_parameter("dec", dec)
-        self.add_parameter("redshift", redshift)
+        self.add_parameter("ra", ra, allow_gradient=False)
+        self.add_parameter("dec", dec, allow_gradient=False)
+        self.add_parameter("redshift", redshift, allow_gradient=False)
 
         # If the luminosity distance is provided, use that. Otherwise try the
         # redshift value using the cosmology (if given). Finally, default to None.
         if distance is not None:
-            self.add_parameter("distance", distance)
+            self.add_parameter("distance", distance, allow_gradient=False)
         elif redshift is not None and kwargs.get("cosmology", None) is not None:
             self._redshift_func = RedshiftDistFunc(redshift=self.redshift, **kwargs)
-            self.add_parameter("distance", self._redshift_func)
+            self.add_parameter("distance", self._redshift_func, allow_gradient=False)
         else:
-            self.add_parameter("distance", None)
+            self.add_parameter("distance", None, allow_gradient=False)
 
         # Background is an object not a sampled parameter
         self.background = background

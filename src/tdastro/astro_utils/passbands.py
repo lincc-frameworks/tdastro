@@ -279,9 +279,8 @@ class Passband:
 
         # Correct for units
         if self.units == "nm":
-            loaded_table[
-                :, 0
-            ] *= 10.0  # Multiply the first column (wavelength) by 10.0 to convert to Angstroms
+            # Multiply the first column (wavelength) by 10.0 to convert to Angstroms
+            loaded_table[:, 0] *= 10.0
 
         self._loaded_table = loaded_table
 

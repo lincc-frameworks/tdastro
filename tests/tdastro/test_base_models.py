@@ -47,12 +47,11 @@ class PairModel(ParameterizedNode):
 
     def __init__(self, value1, value2, **kwargs):
         super().__init__(**kwargs)
-        self.add_parameter("value1", value1, required=True, **kwargs)
-        self.add_parameter("value2", value2, required=True, **kwargs)
+        self.add_parameter("value1", value1, **kwargs)
+        self.add_parameter("value2", value2, **kwargs)
         self.add_parameter(
             "value_sum",
             FunctionNode(_test_func, value1=self.value1, value2=self.value2),
-            required=True,
             **kwargs,
         )
 
@@ -65,16 +64,12 @@ def test_parameter_source():
     assert source.source_type == ParameterSource.UNDEFINED
     assert source.dependency is None
     assert source.value is None
-    assert not source.fixed
-    assert not source.required
 
     source.set_as_constant(10.0)
     assert source.parameter_name == "test"
     assert source.source_type == ParameterSource.CONSTANT
     assert source.dependency is None
     assert source.value == 10.0
-    assert not source.fixed
-    assert not source.required
 
     with pytest.raises(ValueError):
         source.set_as_constant(_test_func)
@@ -84,15 +79,11 @@ def test_parameter_source():
     assert source.source_type == ParameterSource.MODEL_PARAMETER
     assert source.dependency is node
     assert source.value == "A"
-    assert not source.fixed
-    assert not source.required
 
     func = FunctionNode(_test_func, value1=0.1, value2=0.4)
     source.set_as_function(func)
     assert source.source_type == ParameterSource.FUNCTION_NODE
     assert source.dependency is func
-    assert not source.fixed
-    assert not source.required
 
 
 def test_parameterized_node():
@@ -220,13 +211,25 @@ def test_parameterized_node_build_pytree():
     assert pytree["1:A"]["value2"] == 1.5
     assert pytree["0:B"]["value2"] == 3.0
 
-    # Manually set value2 to fixed and check that it no longer appears in the pytree.
-    model1.setters["value2"].fixed = True
+    # Manually set value2 to allow_gradient to False and check that it no
+    # longer appears in the pytree.
+    model1.setters["value2"].allow_gradient = False
 
     pytree = model2.build_pytree(graph_state)
     assert pytree["1:A"]["value1"] == 0.5
     assert pytree["0:B"]["value2"] == 3.0
     assert "value2" not in pytree["1:A"]
+
+    # If we set node B's value1 to allow the gradient, it will appear and
+    # neither of node A's value will appear (because the gradient stops at
+    # B.value1).
+    model1.setters["value2"].allow_gradient = True
+    model2.setters["value1"].allow_gradient = True
+
+    pytree = model2.build_pytree(graph_state)
+    assert "1:A" not in pytree
+    assert pytree["0:B"]["value1"] == 0.5
+    assert pytree["0:B"]["value2"] == 3.0
 
 
 def test_single_variable_node():
