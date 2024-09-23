@@ -116,6 +116,49 @@ class PhysicalModel(ParameterizedNode):
         for effect in self.effects:
             effect.set_graph_positions(seen_nodes=seen_nodes)
 
+    def _redshift_pre_effect(self, observer_frame_times, observer_frame_wavelengths, params):
+        """Calculate the rest-frame times and wavelengths needed to give us the observer-frame times
+        and wavelengths (given the redshift).
+
+        Parameters
+        ----------
+        observer_frame_times : numpy.ndarray
+            The times at which the observation is made.
+        observer_frame_wavelengths : numpy.ndarray
+            The wavelengths at which the observation is made (in angstroms).
+        params : `dict`
+            A dictionary of the model's parameters.
+
+        Returns
+        -------
+        tuple of (numpy.ndarray, numpy.ndarray)
+            The rest-frame times and wavelengths needed to generate the rest-frame flux densities,
+            which will later be redshifted  back to observer-frame flux densities at the observer-frame
+            times and wavelengths.
+        """
+        observed_times_rel_to_t0 = observer_frame_times - params["t0"]
+        rest_frame_times_rel_to_t0 = observed_times_rel_to_t0 / (1 + params["redshift"])
+        rest_frame_times = rest_frame_times_rel_to_t0 + params["t0"]
+        rest_frame_wavelengths = observer_frame_wavelengths / (1 + params["redshift"])
+        return (rest_frame_times, rest_frame_wavelengths)
+
+    def _redshift_post_effect(self, flux_density, params):
+        """Apply the redshift effect to observations (rest-frame flux_density values).
+
+        Parameters
+        ----------
+        flux_density : `numpy.ndarray`
+            A length T X N matrix of flux density values (in nJy).
+        params : `dict`
+            A dictionary of the model's parameters.
+
+        Returns
+        -------
+        flux_density : `numpy.ndarray`
+            The redshifted results (in nJy).
+        """
+        return flux_density / (1 + params["redshift"])
+
     def _evaluate(self, times, wavelengths, graph_state):
         """Draw effect-free observations for this object.
 
@@ -172,9 +215,8 @@ class PhysicalModel(ParameterizedNode):
         params = self.get_local_params(graph_state)
 
         # Pre-effects are adjustments done to times and/or wavelengths, before flux density computation.
-        for effect in self.effects:
-            if hasattr(effect, "pre_effect"):
-                times, wavelengths = effect.pre_effect(times, wavelengths, graph_state, **kwargs)
+        if self.redshift is not None and self.redshift != 0.0:
+            times, wavelengths = self._redshift_pre_effect(times, wavelengths, params)
 
         # Compute the flux density for both the current object and add in anything
         # behind it, such as a host galaxy.
@@ -191,6 +233,11 @@ class PhysicalModel(ParameterizedNode):
 
         for effect in self.effects:
             flux_density = effect.apply(flux_density, wavelengths, graph_state, **kwargs)
+
+        # Post-effects are adjustments done to the flux density after computation.
+        if self.redshift is not None and self.redshift != 0.0:
+            flux_density = self._redshift_post_effect(flux_density, params)
+
         return flux_density
 
     def sample_parameters(self, given_args=None, num_samples=1, rng_info=None, **kwargs):
