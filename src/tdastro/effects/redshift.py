@@ -30,8 +30,8 @@ class Redshift(EffectModel):
            Any additional keyword arguments.
         """
         super().__init__(**kwargs)
-        self.add_parameter("redshift", redshift, required=True, **kwargs)
-        self.add_parameter("t0", t0, required=True, **kwargs)
+        self.add_parameter("redshift", redshift, **kwargs)
+        self.add_parameter("t0", t0, **kwargs)
 
     def pre_effect(self, observer_frame_times, observer_frame_wavelengths, graph_state, **kwargs):
         """Calculate the rest-frame times and wavelengths needed to give us the observer-frame times

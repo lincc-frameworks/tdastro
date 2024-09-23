@@ -14,6 +14,10 @@ def test_physical_model():
     assert model1.get_param(state, "distance") == 3.0
     assert model1.get_param(state, "redshift") == 0.0
 
+    # None of the parameters are in the PyTree.
+    pytree = model1.build_pytree(state)
+    assert len(pytree["0:PhysicalModel"]) == 0
+
     # Derive the distance from the redshift.
     model2 = PhysicalModel(ra=1.0, dec=2.0, redshift=1100.0, cosmology=Planck18)
     state = model2.sample_parameters()
