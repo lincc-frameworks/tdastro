@@ -3,6 +3,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 from tdastro.astro_utils.passbands import Passband, PassbandGroup
+from tdastro.sources.spline_model import SplineModel
 
 
 def create_passband_group(path, delta_wave=5.0, trim_quantile=None):
@@ -115,3 +116,27 @@ def test_passband_group_fluxes_to_bandfluxes(tmp_path):
     for band_name in test_passband_group.passbands:
         assert band_name in bandfluxes
         assert bandfluxes[band_name].shape == (5,)
+
+
+def test_passband_group_wrapped_from_physical_source(tmp_path):
+    """Test the wrapped_from_physical_source method of the Passband class."""
+    times = np.array([1.0, 2.0, 3.0])
+    wavelengths = np.array([10.0, 20.0, 30.0])
+    fluxes = np.array([[1.0, 5.0, 1.0], [5.0, 10.0, 5.0], [1.0, 5.0, 3.0]])
+    model = SplineModel(times, wavelengths, fluxes, time_degree=1, wave_degree=1)
+    state = model.sample_parameters()
+
+    test_times = np.array([1.0, 1.5, 2.0, 2.5, 3.0, 3.5])
+
+    # Try with a passband group (see Passband tests for single-band tests)
+    test_passband_group = create_passband_group(tmp_path, delta_wave=20, trim_quantile=None)
+
+    result_from_source_model = model.get_band_fluxes(test_passband_group, test_times, state)
+
+    evaluated_fluxes = model.evaluate(test_times, test_passband_group.waves, state)
+    result_from_passband_group = test_passband_group.fluxes_to_bandfluxes(evaluated_fluxes)
+
+    # Check the two dicts are the same
+    assert result_from_source_model.keys() == result_from_passband_group.keys()
+    for key in result_from_source_model:
+        np.testing.assert_allclose(result_from_source_model[key], result_from_passband_group[key])
