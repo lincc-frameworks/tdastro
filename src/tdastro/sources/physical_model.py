@@ -299,7 +299,7 @@ class PhysicalModel(ParameterizedNode):
         Parameters
         ----------
         passband_or_group : `Passband` or `PassbandGroup`
-            The passband to use.
+            The passband (or passband group) to use.
         times : `numpy.ndarray`
             A length T array of observer frame timestamps.
         state : `GraphState`

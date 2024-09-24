@@ -305,7 +305,7 @@ def test_passband_fluxes_to_bandflux(tmp_path):
 
 
 def test_passband_wrapped_from_physical_source(tmp_path):
-    """Test the wrapped_from_physical_source method of the Passband class."""
+    """Test get_band_fluxes, PhysicalModel's wrapped version of Passband's fluxes_to_bandflux.."""
     times = np.array([1.0, 2.0, 3.0])
     wavelengths = np.array([10.0, 20.0, 30.0])
     fluxes = np.array([[1.0, 5.0, 1.0], [5.0, 10.0, 5.0], [1.0, 5.0, 3.0]])
