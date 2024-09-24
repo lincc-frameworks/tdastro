@@ -108,9 +108,11 @@ class PassbandGroup:
             self.waves = np.unique(np.concatenate([passband.waves for passband in self.passbands.values()]))
 
     def _calculate_in_band_wave_indices(self) -> None:
-        """Calculate the indices of the groupd's wave grid that are in the passband's wave grid.
+        """Calculate the indices of the group's wave grid that are in the passband's wave grid.
+        
+        Eg, if a group's waves are [11, 12, 13, 14, 15] and a single band's are [13, 14], we get [2, 3].
 
-        The indices are stored in the passband's in_band_wave_indices attribute as either a tuple of two ints
+        The indices are stored in the passband's _in_band_wave_indices attribute as either a tuple of two ints
         (lower, upper) or a 1D np.ndarray of ints.
         """
         for passband in self.passbands.values():
@@ -121,7 +123,7 @@ class PassbandGroup:
 
             # Check that this is the right grid after all (check will fail if passbands overlap and passbands
             # do not happen to be on the same phase of the grid; eg, even if the step is 10, if the first
-            # passband starts at 100 and the second at 105, the second passband will share the same grid)
+            # passband starts at 100 and the second at 105, the passbands won't share the same grid)
             if np.array_equal(self.waves[lower_index : upper_index + 1], passband.waves):
                 indices = (lower_index, upper_index + 1)
             else:
@@ -175,7 +177,7 @@ class PassbandGroup:
 
             if indices is None:
                 raise ValueError(
-                    f"Passband {full_name} does not have in_band_wave_indices set. "
+                    f"Passband {full_name} does not have _in_band_wave_indices set. "
                     "This should have been calculated in PassbandGroup._calculate_in_band_wave_indices."
                 )
 
