@@ -215,7 +215,7 @@ class PhysicalModel(ParameterizedNode):
         params = self.get_local_params(graph_state)
 
         # Pre-effects are adjustments done to times and/or wavelengths, before flux density computation.
-        if self.redshift is not None and self.redshift != 0.0:
+        if params["redshift"] is not None and params["redshift"] != 0.0:
             times, wavelengths = self._redshift_pre_effect(times, wavelengths, params)
 
         # Compute the flux density for both the current object and add in anything
@@ -235,7 +235,7 @@ class PhysicalModel(ParameterizedNode):
             flux_density = effect.apply(flux_density, wavelengths, graph_state, **kwargs)
 
         # Post-effects are adjustments done to the flux density after computation.
-        if self.redshift is not None and self.redshift != 0.0:
+        if params["redshift"] is not None and params["redshift"] != 0.0:
             flux_density = self._redshift_post_effect(flux_density, params)
 
         return flux_density
