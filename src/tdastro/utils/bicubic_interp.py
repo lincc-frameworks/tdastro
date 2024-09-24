@@ -5,7 +5,6 @@ https://github.com/sncosmo/sncosmo/blob/v2.10.1/sncosmo/salt2utils.pyx
 """
 
 import jax.numpy as jnp
-
 from jax import jit, vmap
 from jax.lax import cond
 
@@ -14,7 +13,7 @@ from jax.lax import cond
 def _kernel_value(input_vals):
     """A vectorized (JAX-ized) form of the kernval method from:
     https://github.com/sncosmo/sncosmo/blob/v2.10.1/sncosmo/salt2utils.pyx
-    
+
     Uses:
         A = -0.5
         B = A + 2.0 = 1.5
@@ -26,10 +25,10 @@ def _kernel_value(input_vals):
     result = -0.5 * (-4.0 + x * (8.0 + x * (-5.0 + x)))
 
     # Override cases where x < 1.0
-    result = jnp.where(input_vals < 1.0, x * x * (1.5 * x - 2.5) + 1.0, result)
+    result = jnp.where(x < 1.0, x * x * (1.5 * x - 2.5) + 1.0, result)
 
     # Override cases where x > 2.0
-    result = jnp.where(input_vals > 2.0, 0.0, result)
+    result = jnp.where(x > 2.0, 0.0, result)
     return result
 
 
@@ -38,7 +37,7 @@ def find_indices(x_vals, x_q):
     """Finds the first index *after* each of the query values with
     the n - 1 index in each dimension mapped to n - 2.
 
-    x_vals[ix[i]] <= x_q[i] < x_vals[ix[i] + 1] 
+    x_vals[ix[i]] <= x_q[i] < x_vals[ix[i] + 1]
     for all i where ix[i] > 0 and ix[i] < n - 2.
 
     Parameters
@@ -47,7 +46,7 @@ def find_indices(x_vals, x_q):
         The x coordinates of to search.
     x_q : `jaxlib.xla_extension.ArrayImpl`
         The x coordinates of the query points.
-        
+
     Returns
     -------
     ix : `jaxlib.xla_extension.ArrayImpl`
@@ -62,7 +61,7 @@ def find_indices(x_vals, x_q):
 
 class BicubicInterpolator:
     """An object that performs bicubic interpolation over a 2-d grid.
-    
+
     Attributes
     ----------
     x_vals : `jaxlib.xla_extension.ArrayImpl`
@@ -83,7 +82,7 @@ class BicubicInterpolator:
         if jnp.any(self.x_vals[:-1] >= self.x_vals[1:]):
             raise ValueError("x values must be in sorted order.")
         self.n_x = len(self.x_vals)
-        self.x_step_size = jnp.append(self.x_vals[1:]-self.x_vals[:-1], jnp.asarray([1.0, 1.0]))
+        self.x_step_size = jnp.append(self.x_vals[1:] - self.x_vals[:-1], jnp.asarray([1.0, 1.0]))
 
         # Load and validate the y values.
         self.y_vals = jnp.asarray(y_vals)
@@ -92,9 +91,9 @@ class BicubicInterpolator:
         if len(self.y_vals) == 0:
             raise ValueError("Empty y array given")
         if jnp.any(self.y_vals[:-1] >= self.y_vals[1:]):
-            raise ValueError("y values must be in sorted order.")      
+            raise ValueError("y values must be in sorted order.")
         self.n_y = len(self.y_vals)
-        self.y_step_size = jnp.append(self.y_vals[1:]-self.y_vals[:-1], jnp.asarray([1.0, 1.0]))
+        self.y_step_size = jnp.append(self.y_vals[1:] - self.y_vals[:-1], jnp.asarray([1.0, 1.0]))
 
         self.z_vals = jnp.asarray(z_vals)
         if len(self.z_vals.shape) != 2:
@@ -104,58 +103,62 @@ class BicubicInterpolator:
                 f"z values wrong shape. Expected shape=({len(self.x_vals)}, {len(self.y_vals)})."
                 f" Found shape={self.x_vals.shape}."
             )
-        
+
         self.linear = jit(self._eval_linear)
         self.cubic = jit(self._eval_cubic)
-        self.eval_row = vmap(jit(self.compute_row))
+        self.eval_row = vmap(jit(self._compute_row))
 
     def _eval_linear(self, x_q, y_q, ix, iy):
-        ax = ((x_q - self.x_vals[ix]) / (self.x_vals[ix+1] - self.x_vals[ix]))
-        ay = ((y_q - self.y_vals[iy]) / (self.y_vals[iy+1] - self.y_vals[iy]))
+        ax = (x_q - self.x_vals[ix]) / (self.x_vals[ix + 1] - self.x_vals[ix])
+        ay = (y_q - self.y_vals[iy]) / (self.y_vals[iy + 1] - self.y_vals[iy])
         ay2 = 1.0 - ay
 
-        return (
-            (1.0 - ax) * (ay2 * self.z_vals[ix][iy] + ay * self.z_vals[ix][iy+1]) +
-            ax * (ay2 * self.z_vals[ix+1][iy] + ay * self.z_vals[ix+1][iy+1])
+        return (1.0 - ax) * (ay2 * self.z_vals[ix][iy] + ay * self.z_vals[ix][iy + 1]) + ax * (
+            ay2 * self.z_vals[ix + 1][iy] + ay * self.z_vals[ix + 1][iy + 1]
         )
 
     def _eval_cubic(self, x_q, y_q, ix, iy):
-        dx = (self.x_vals[ix] - x_q) / (self.x_vals[ix+1] - self.x_vals[ix])
-        dy = (self.y_vals[iy] - y_q) / (self.y_vals[iy+1] - self.y_vals[iy])
-        wx = _kernel_value(jnp.asarray([dx-1.0, dx, dx+1.0, dx+2.0]))
-        wy = _kernel_value(jnp.asarray([dy-1.0, dy, dy+1.0, dy+2.0]))
+        dx = (self.x_vals[ix] - x_q) / (self.x_vals[ix + 1] - self.x_vals[ix])
+        dy = (self.y_vals[iy] - y_q) / (self.y_vals[iy + 1] - self.y_vals[iy])
+        wx = _kernel_value(jnp.asarray([dx - 1.0, dx, dx + 1.0, dx + 2.0]))
+        wy = _kernel_value(jnp.asarray([dy - 1.0, dy, dy + 1.0, dy + 2.0]))
+
         return (
-            wx[0] * (
-                wy[0] * self.z_vals[ix-1][iy-1] +
-                wy[1] * self.z_vals[ix-1][iy] +
-                wy[2] * self.z_vals[ix-1][iy+1] +
-                wy[3] * self.z_vals[ix-1][iy+2]
-            ) +
-            wx[1] * (
-                wy[0] * self.z_vals[ix][iy-1] +
-                wy[1] * self.z_vals[ix][iy] +
-                wy[2] * self.z_vals[ix][iy+1] +
-                wy[3] * self.z_vals[ix][iy+2]
-            ) +
-            wx[2] * (
-                wy[0] * self.z_vals[ix+1][iy-1] +
-                wy[1] * self.z_vals[ix+1][iy] +
-                wy[2] * self.z_vals[ix+1][iy+1] +
-                wy[3] * self.z_vals[ix+1][iy+2]
-            ) +
-            wx[3] * (
-                wy[0] * self.z_vals[ix+2][iy-1] +
-                wy[1] * self.z_vals[ix+2][iy] +
-                wy[2] * self.z_vals[ix+2][iy+1] +
-                wy[3] * self.z_vals[ix+2][iy+2]
+            wx[0]
+            * (
+                wy[0] * self.z_vals[ix - 1][iy - 1]
+                + wy[1] * self.z_vals[ix - 1][iy]
+                + wy[2] * self.z_vals[ix - 1][iy + 1]
+                + wy[3] * self.z_vals[ix - 1][iy + 2]
+            )
+            + wx[1]
+            * (
+                wy[0] * self.z_vals[ix][iy - 1]
+                + wy[1] * self.z_vals[ix][iy]
+                + wy[2] * self.z_vals[ix][iy + 1]
+                + wy[3] * self.z_vals[ix][iy + 2]
+            )
+            + wx[2]
+            * (
+                wy[0] * self.z_vals[ix + 1][iy - 1]
+                + wy[1] * self.z_vals[ix + 1][iy]
+                + wy[2] * self.z_vals[ix + 1][iy + 1]
+                + wy[3] * self.z_vals[ix + 1][iy + 2]
+            )
+            + wx[3]
+            * (
+                wy[0] * self.z_vals[ix + 2][iy - 1]
+                + wy[1] * self.z_vals[ix + 2][iy]
+                + wy[2] * self.z_vals[ix + 2][iy + 1]
+                + wy[3] * self.z_vals[ix + 2][iy + 2]
             )
         )
 
-    def compute_row(self, x_q, y_q, ix, iy, xflag, yflag):
+    def _compute_row(self, x_q, y_q, ix, iy, xflag, yflag):
         results = cond(
             (xflag == -1) | (yflag == -1),
-            lambda x_q, y_q, ix, iy, xflag, yflag : 0.0,
-            lambda x_q, y_q, ix, iy, xflag, yflag : cond(
+            lambda x_q, y_q, ix, iy, xflag, yflag: 0.0,
+            lambda x_q, y_q, ix, iy, xflag, yflag: cond(
                 (xflag == 1) & (yflag == 1),
                 self.cubic,
                 self.linear,
@@ -174,6 +177,20 @@ class BicubicInterpolator:
         return results
 
     def __call__(self, x_q, y_q):
+        """Evaluate the bicubic interpolation at a grid of points.
+
+        Parameters
+        ----------
+        x_q : array-like
+            The N-length array of x values.
+        y_q : array-like
+            The M-length array of y values.
+
+        Returns
+        -------
+        results : `jaxlib.xla_extension.ArrayImpl`
+            An N x M array of interpolated values for each (x, y) pair.
+        """
         x_q = jnp.asarray(x_q)
         y_q = jnp.asarray(y_q)
         n_xq = len(x_q)
@@ -194,10 +211,10 @@ class BicubicInterpolator:
         yflag = jnp.where((y_q >= self.y_vals[0]) & (y_q <= self.y_vals[-1]), yflag, -1)
 
         # Create flattened matrix versions of the key information.
-        xq_all = jnp.ravel(jnp.tile(jnp.asarray(x_q), (len(y_q), 1)).T)
-        yq_all = jnp.ravel(jnp.tile(jnp.asarray(y_q), (len(x_q), 1)))
-        ix_all = jnp.ravel(jnp.tile(ix, (len(y_q), 1)).T)
-        iy_all = jnp.ravel(jnp.tile(iy, (len(x_q), 1)))
+        xq_all = jnp.ravel(jnp.tile(x_q, (n_yq, 1)).T)
+        yq_all = jnp.ravel(jnp.tile(y_q, (n_xq, 1)))
+        ix_all = jnp.ravel(jnp.tile(ix, (n_yq, 1)).T)
+        iy_all = jnp.ravel(jnp.tile(iy, (n_xq, 1)))
         xflag_all = jnp.ravel(jnp.tile(xflag, (n_yq, 1)).T)
         yflag_all = jnp.ravel(jnp.tile(yflag, (n_xq, 1)))
 
