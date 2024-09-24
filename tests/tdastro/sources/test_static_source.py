@@ -41,6 +41,17 @@ def test_static_source() -> None:
     assert np.all(values == 5.0)
 
 
+def test_test_physical_model_pytree():
+    """Test tthat the PyTree only contains brightness."""
+    model = StaticSource(brightness=10.0, node_label="my_static_source")
+    state = model.sample_parameters()
+
+    pytree = model.build_pytree(state)
+    assert pytree["0:my_static_source"]["brightness"] == 10.0
+    assert len(pytree["0:my_static_source"]) == 1
+    assert len(pytree) == 1
+
+
 def test_static_source_host() -> None:
     """Test that we can sample and create a StaticSource object with properties
     derived from the host object."""

@@ -69,6 +69,7 @@ class PassbandGroup:
                 self.passbands[passband.full_name] = passband
 
         self._update_waves()
+        self._calculate_in_band_wave_indices()
 
     def __str__(self) -> str:
         """Return a string representation of the PassbandGroup."""
@@ -106,6 +107,29 @@ class PassbandGroup:
         else:
             self.waves = np.unique(np.concatenate([passband.waves for passband in self.passbands.values()]))
 
+    def _calculate_in_band_wave_indices(self) -> None:
+        """Calculate the indices of the group's wave grid that are in the passband's wave grid.
+
+        Eg, if a group's waves are [11, 12, 13, 14, 15] and a single band's are [13, 14], we get [2, 3].
+
+        The indices are stored in the passband's _in_band_wave_indices attribute as either a tuple of two ints
+        (lower, upper) or a 1D np.ndarray of ints.
+        """
+        for passband in self.passbands.values():
+            # We only want the fluxes that are in the passband's wavelength range
+            # So, find the indices in the group's wave grid that are in the passband's wave grid
+            lower, upper = passband.waves[0], passband.waves[-1]
+            lower_index, upper_index = np.searchsorted(self.waves, [lower, upper])
+
+            # Check that this is the right grid after all (check will fail if passbands overlap and passbands
+            # do not happen to be on the same phase of the grid; eg, even if the step is 10, if the first
+            # passband starts at 100 and the second at 105, the passbands won't share the same grid)
+            if np.array_equal(self.waves[lower_index : upper_index + 1], passband.waves):
+                indices = (lower_index, upper_index + 1)
+            else:
+                indices = np.searchsorted(self.waves, passband.waves)
+            passband._in_band_wave_indices = indices
+
     def process_transmission_tables(
         self, delta_wave: Optional[float] = 5.0, trim_quantile: Optional[float] = 1e-3
     ):
@@ -123,6 +147,7 @@ class PassbandGroup:
             passband.process_transmission_table(delta_wave, trim_quantile)
 
         self._update_waves()
+        self._calculate_in_band_wave_indices()
 
     def fluxes_to_bandfluxes(self, flux_density_matrix: np.ndarray) -> np.ndarray:
         """Calculate bandfluxes for all passbands in the group.
@@ -148,18 +173,17 @@ class PassbandGroup:
 
         bandfluxes = {}
         for full_name, passband in self.passbands.items():
-            # We only want the fluxes that are in the passband's wavelength range
-            # So, find the indices in the group's wave grid that are in the passband's wave grid
-            lower, upper = passband.waves[0], passband.waves[-1]
-            lower_index, upper_index = np.searchsorted(self.waves, [lower, upper])
-            # Check that this is the right grid after all (check will fail if the grid is not regular, or
-            # passbands are overlapping)
-            if np.array_equal(self.waves[lower_index : upper_index + 1], passband.waves):
-                in_band_fluxes = flux_density_matrix[:, lower_index : upper_index + 1]
+            indices = passband._in_band_wave_indices
+
+            if indices is None:
+                raise ValueError(
+                    f"Passband {full_name} does not have _in_band_wave_indices set. "
+                    "This should have been calculated in PassbandGroup._calculate_in_band_wave_indices."
+                )
+
+            if isinstance(passband._in_band_wave_indices, tuple):
+                in_band_fluxes = flux_density_matrix[:, indices[0] : indices[1]]
             else:
-                indices = np.unique(np.searchsorted(passband.waves, self.waves))
-                if indices[-1] == len(passband.waves):
-                    indices = indices[:-1]
                 in_band_fluxes = flux_density_matrix[:, indices]
 
             bandfluxes[full_name] = passband.fluxes_to_bandflux(in_band_fluxes)
@@ -190,6 +214,9 @@ class Passband:
     processed_transmission_table : np.ndarray
         A 2D array where the first col is wavelengths (Angstrom) and the second col is transmission values.
         This table is both interpolated to the _wave_grid and normalized to calculate phi_b(λ).
+    _in_band_wave_indices : np.ndarray, optional
+        The indices of the full wave grid used in PassbandGroup that correspond to this Passband's wave grid.
+        This is only set when the Passband is part of a PassbandGroup.
     """
 
     def __init__(
@@ -240,6 +267,7 @@ class Passband:
         self.table_path = table_path
         self.table_url = table_url
         self.units = units
+        self._in_band_wave_indices = None
 
         self._load_transmission_table(force_download=force_download)
         self.process_transmission_table(delta_wave, trim_quantile)
@@ -279,9 +307,8 @@ class Passband:
 
         # Correct for units
         if self.units == "nm":
-            loaded_table[
-                :, 0
-            ] *= 10.0  # Multiply the first column (wavelength) by 10.0 to convert to Angstroms
+            # Multiply the first column (wavelength) by 10.0 to convert to Angstroms
+            loaded_table[:, 0] *= 10.0
 
         self._loaded_table = loaded_table
 

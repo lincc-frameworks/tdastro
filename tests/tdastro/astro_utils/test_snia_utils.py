@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.stats import norm
 from tdastro.astro_utils.snia_utils import HostmassX1Distr, HostmassX1Func
-from tdastro.util_nodes.np_random import NumpyRandomFunc
+from tdastro.rand_nodes.np_random import NumpyRandomFunc
 
 
 def test_hostmass_x1_distr():

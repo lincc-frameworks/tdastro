@@ -19,8 +19,8 @@ class PeriodicSource(PhysicalModel, ABC):
 
     def __init__(self, period, t0, **kwargs):
         super().__init__(**kwargs)
-        self.add_parameter("period", period, required=True, **kwargs)
-        self.add_parameter("t0", t0, required=True, **kwargs)
+        self.add_parameter("period", period, **kwargs)
+        self.add_parameter("t0", t0, **kwargs)
 
     @abstractmethod
     def _evaluate_phases(self, phases, wavelengths, graph_state, **kwargs):

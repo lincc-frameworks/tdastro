@@ -1,11 +1,13 @@
 """The base PhysicalModel used for all sources."""
 
+from typing import Union
+
 import numpy as np
 
 from tdastro.astro_utils.redshift import RedshiftDistFunc, apply_redshift, obs_frame_to_rest_frame
 from tdastro.base_models import ParameterizedNode
 from tdastro.graph_state import GraphState
-from tdastro.util_nodes.np_random import build_rngs_from_hashes
+from tdastro.rand_nodes.np_random import build_rngs_from_hashes
 
 
 class PhysicalModel(ParameterizedNode):
@@ -49,19 +51,19 @@ class PhysicalModel(ParameterizedNode):
         self.effects = []
 
         # Set RA, dec, and redshift from the parameters.
-        self.add_parameter("ra", ra)
-        self.add_parameter("dec", dec)
-        self.add_parameter("redshift", redshift)
+        self.add_parameter("ra", ra, allow_gradient=False)
+        self.add_parameter("dec", dec, allow_gradient=False)
+        self.add_parameter("redshift", redshift, allow_gradient=False)
 
         # If the luminosity distance is provided, use that. Otherwise try the
         # redshift value using the cosmology (if given). Finally, default to None.
         if distance is not None:
-            self.add_parameter("distance", distance)
+            self.add_parameter("distance", distance, allow_gradient=False)
         elif redshift is not None and kwargs.get("cosmology", None) is not None:
             self._redshift_func = RedshiftDistFunc(redshift=self.redshift, **kwargs)
-            self.add_parameter("distance", self._redshift_func)
+            self.add_parameter("distance", self._redshift_func, allow_gradient=False)
         else:
-            self.add_parameter("distance", None)
+            self.add_parameter("distance", None, allow_gradient=False)
 
         # Background is an object not a sampled parameter
         self.background = background
@@ -295,3 +297,29 @@ class PhysicalModel(ParameterizedNode):
         node_hashes = self.get_all_node_info("node_hash")
         np_rngs = build_rngs_from_hashes(node_hashes, base_seed)
         return np_rngs
+
+    def get_band_fluxes(self, passband_or_group, times, state) -> Union[np.ndarray, dict]:
+        """Get the band fluxes for a given Passband or PassbandGroup.
+
+        Parameters
+        ----------
+        passband_or_group : `Passband` or `PassbandGroup`
+            The passband (or passband group) to use.
+        times : `numpy.ndarray`
+            A length T array of observer frame timestamps.
+        state : `GraphState`
+            An object mapping graph parameters to their values.
+
+        Returns
+        -------
+        band_fluxes : `numpy.ndarray` or `dict
+            A length T array of band fluxes, or a dictionary of band names mapped to fluxes (if a passband
+            group is used).
+        """
+        spectral_fluxes = self._evaluate(times, passband_or_group.waves, state)
+        if hasattr(passband_or_group, "fluxes_to_bandflux"):  # Passband
+            return passband_or_group.fluxes_to_bandflux(spectral_fluxes)
+        elif hasattr(passband_or_group, "fluxes_to_bandfluxes"):  # PassbandGroup
+            return passband_or_group.fluxes_to_bandfluxes(spectral_fluxes)
+        else:
+            raise ValueError(f"Unknown passband type: {type(passband_or_group)}")
