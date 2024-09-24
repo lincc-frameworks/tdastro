@@ -109,7 +109,7 @@ class PassbandGroup:
 
     def _calculate_in_band_wave_indices(self) -> None:
         """Calculate the indices of the group's wave grid that are in the passband's wave grid.
-        
+
         Eg, if a group's waves are [11, 12, 13, 14, 15] and a single band's are [13, 14], we get [2, 3].
 
         The indices are stored in the passband's _in_band_wave_indices attribute as either a tuple of two ints
@@ -127,7 +127,7 @@ class PassbandGroup:
             if np.array_equal(self.waves[lower_index : upper_index + 1], passband.waves):
                 indices = (lower_index, upper_index + 1)
             else:
-                indices = np.unique(np.searchsorted(self.waves, passband.waves))
+                indices = np.searchsorted(self.waves, passband.waves)
             passband._in_band_wave_indices = indices
 
     def process_transmission_tables(
