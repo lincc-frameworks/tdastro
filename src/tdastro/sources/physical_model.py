@@ -1,8 +1,11 @@
 """The base PhysicalModel used for all sources."""
 
+from typing import Union
+
 import numpy as np
 
 from tdastro.astro_utils.cosmology import RedshiftDistFunc
+from tdastro.astro_utils.passbands import Passband, PassbandGroup
 from tdastro.base_models import ParameterizedNode
 from tdastro.graph_state import GraphState
 from tdastro.rand_nodes.np_random import build_rngs_from_hashes
@@ -289,3 +292,29 @@ class PhysicalModel(ParameterizedNode):
         node_hashes = self.get_all_node_info("node_hash")
         np_rngs = build_rngs_from_hashes(node_hashes, base_seed)
         return np_rngs
+
+    def get_band_fluxes(self, passband_or_group, times, state) -> Union[np.ndarray, dict]:
+        """Get the band fluxes for a given Passband or PassbandGroup.
+
+        Parameters
+        ----------
+        passband_or_group : `Passband` or `PassbandGroup`
+            The passband (or passband group) to use.
+        times : `numpy.ndarray`
+            A length T array of observer frame timestamps.
+        state : `GraphState`
+            An object mapping graph parameters to their values.
+
+        Returns
+        -------
+        band_fluxes : `numpy.ndarray` or `dict
+            A length T array of band fluxes, or a dictionary of band names mapped to fluxes (if a passband
+            group is used).
+        """
+        spectral_fluxes = self._evaluate(times, passband_or_group.waves, state)
+        if isinstance(passband_or_group, Passband):
+            return passband_or_group.fluxes_to_bandflux(spectral_fluxes)
+        elif isinstance(passband_or_group, PassbandGroup):
+            return passband_or_group.fluxes_to_bandfluxes(spectral_fluxes)
+        else:
+            raise ValueError(f"Unknown passband type: {type(passband_or_group)}")

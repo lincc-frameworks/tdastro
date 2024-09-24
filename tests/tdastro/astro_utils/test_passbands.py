@@ -3,6 +3,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 from tdastro.astro_utils.passbands import Passband
+from tdastro.sources.spline_model import SplineModel
 
 
 def test_passband_init():
@@ -301,3 +302,24 @@ def test_passband_fluxes_to_bandflux(tmp_path):
     # Test we raise an error if the fluxes are empty
     with pytest.raises(ValueError):
         a_band.fluxes_to_bandflux(np.array([]))
+
+
+def test_passband_wrapped_from_physical_source(tmp_path):
+    """Test get_band_fluxes, PhysicalModel's wrapped version of Passband's fluxes_to_bandflux.."""
+    times = np.array([1.0, 2.0, 3.0])
+    wavelengths = np.array([10.0, 20.0, 30.0])
+    fluxes = np.array([[1.0, 5.0, 1.0], [5.0, 10.0, 5.0], [1.0, 5.0, 3.0]])
+    model = SplineModel(times, wavelengths, fluxes, time_degree=1, wave_degree=1)
+    state = model.sample_parameters()
+
+    test_times = np.array([1.0, 1.5, 2.0, 2.5, 3.0, 3.5])
+
+    # Try with a single passband (see PassbandGroup tests for group tests)
+    transmission_table = "100 0.5\n200 0.75\n300 0.25\n"
+    a_band = create_test_passband(tmp_path, transmission_table, delta_wave=100, trim_quantile=None)
+    result_from_source_model = model.get_band_fluxes(a_band, test_times, state)
+
+    evaluated_fluxes = model.evaluate(test_times, a_band.waves, state)
+    result_from_passband = a_band.fluxes_to_bandflux(evaluated_fluxes)
+
+    np.testing.assert_allclose(result_from_source_model, result_from_passband)
