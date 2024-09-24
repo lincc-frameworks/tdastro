@@ -117,7 +117,7 @@ class PhysicalModel(ParameterizedNode):
             effect.set_graph_positions(seen_nodes=seen_nodes)
 
     def _redshift_pre_effect(self, observer_frame_times, observer_frame_wavelengths, params):
-        """Calculate the rest-frame times and wavelengths needed to give us the observer-frame times
+        """Calculate the rest frame times and wavelengths needed to give user the observer frame times
         and wavelengths (given the redshift).
 
         Parameters
@@ -125,15 +125,15 @@ class PhysicalModel(ParameterizedNode):
         observer_frame_times : numpy.ndarray
             The times at which the observation is made.
         observer_frame_wavelengths : numpy.ndarray
-            The wavelengths at which the observation is made (in angstroms).
+            The wavelengths at which the observation is made (in Angstroms).
         params : `dict`
             A dictionary of the model's parameters.
 
         Returns
         -------
         tuple of (numpy.ndarray, numpy.ndarray)
-            The rest-frame times and wavelengths needed to generate the rest-frame flux densities,
-            which will later be redshifted  back to observer-frame flux densities at the observer-frame
+            The rest frame times and wavelengths needed to generate the rest frame flux densities,
+            which will later be redshifted  back to observer frame flux densities at the observer frame
             times and wavelengths.
         """
         observed_times_rel_to_t0 = observer_frame_times - params["t0"]
