@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from tdastro.io_utils import read_grid_data
+from tdastro.utils.io_utils import read_grid_data
 
 
 def test_read_grid_data_good(grid_data_good_file):

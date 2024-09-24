@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from tdastro.util_nodes.np_random import NumpyRandomFunc, build_rngs_from_hashes, build_rngs_from_nodes
+from tdastro.rand_nodes.np_random import NumpyRandomFunc, build_rngs_from_hashes, build_rngs_from_nodes
 
 
 def test_build_rngs_from_hashes():

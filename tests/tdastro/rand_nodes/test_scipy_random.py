@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
-from tdastro.util_nodes.np_random import NumpyRandomFunc
-from tdastro.util_nodes.scipy_random import NumericalInversePolynomialFunc
+from tdastro.rand_nodes.np_random import NumpyRandomFunc
+from tdastro.rand_nodes.scipy_random import NumericalInversePolynomialFunc
 
 
 class FlatDist:

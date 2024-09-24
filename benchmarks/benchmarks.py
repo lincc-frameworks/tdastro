@@ -7,7 +7,7 @@ https://asv.readthedocs.io/en/stable/writing_benchmarks.html."""
 
 from tdastro.astro_utils.snia_utils import HostmassX1Func
 from tdastro.base_models import FunctionNode
-from tdastro.util_nodes.np_random import NumpyRandomFunc
+from tdastro.rand_nodes.np_random import NumpyRandomFunc
 
 
 def time_chained_evaluate():

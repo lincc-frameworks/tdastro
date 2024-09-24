@@ -5,7 +5,7 @@ import numpy as np
 from tdastro.astro_utils.cosmology import RedshiftDistFunc
 from tdastro.base_models import ParameterizedNode
 from tdastro.graph_state import GraphState
-from tdastro.util_nodes.np_random import build_rngs_from_hashes
+from tdastro.rand_nodes.np_random import build_rngs_from_hashes
 
 
 class PhysicalModel(ParameterizedNode):

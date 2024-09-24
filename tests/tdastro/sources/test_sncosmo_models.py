@@ -1,6 +1,6 @@
 import numpy as np
+from tdastro.rand_nodes.np_random import NumpyRandomFunc
 from tdastro.sources.sncomso_models import SncosmoWrapperModel
-from tdastro.util_nodes.np_random import NumpyRandomFunc
 
 
 def test_sncomso_models_hsiao() -> None:
