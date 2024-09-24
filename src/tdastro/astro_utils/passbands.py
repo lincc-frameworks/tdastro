@@ -87,7 +87,16 @@ class PassbandGroup:
         **kwargs
             Additional keyword arguments to pass to the Passband constructor.
         """
-        if preset == "LSST":
+        if preset == "LSST" and "table_path" in kwargs:
+            self.passbands = {
+                "LSST_u": Passband("LSST", "u", **{**kwargs, "table_path": kwargs["table_path"] + "/u.dat"}),
+                "LSST_g": Passband("LSST", "g", **{**kwargs, "table_path": kwargs["table_path"] + "/g.dat"}),
+                "LSST_r": Passband("LSST", "r", **{**kwargs, "table_path": kwargs["table_path"] + "/r.dat"}),
+                "LSST_i": Passband("LSST", "i", **{**kwargs, "table_path": kwargs["table_path"] + "/i.dat"}),
+                "LSST_z": Passband("LSST", "z", **{**kwargs, "table_path": kwargs["table_path"] + "/z.dat"}),
+                "LSST_y": Passband("LSST", "y", **{**kwargs, "table_path": kwargs["table_path"] + "/y.dat"}),
+            }
+        elif preset == "LSST":
             self.passbands = {
                 "LSST_u": Passband("LSST", "u", **kwargs),
                 "LSST_g": Passband("LSST", "g", **kwargs),

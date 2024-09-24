@@ -1,8 +1,6 @@
-from unittest.mock import patch
-
 import numpy as np
 import pytest
-from tdastro.astro_utils.passbands import Passband, PassbandGroup
+from tdastro.astro_utils.passbands import PassbandGroup
 
 
 def create_passband_group(path, delta_wave=5.0, trim_quantile=None):
@@ -37,41 +35,41 @@ def create_passband_group(path, delta_wave=5.0, trim_quantile=None):
     return PassbandGroup(passband_parameters=passbands)
 
 
-def test_passband_group_init(tmp_path):
+def create_lsst_passband_group(passbands_dir, delta_wave=5.0, trim_quantile=None):
+    """Helper function to create a PassbandGroup object for LSST passbands, using transmission tables
+    included in the test data directory."""
+    return PassbandGroup(
+        preset="LSST", table_path=passbands_dir, delta_wave=delta_wave, trim_quantile=trim_quantile
+    )
+
+
+def test_passband_group_init(tmp_path, passbands_dir):
     """Test the initialization of the Passband class, and implicitly, _load_preset."""
     # Test that we cannot create an empty PassbandGroup object
     with pytest.raises(ValueError):
         _ = PassbandGroup()
 
     # Test that the PassbandGroup class can be initialized with a preset
-    # Mock the transmission table files at passbands/LSST/<filter>.dat using patch
-    transmission_table_array = np.array([[100, 0.5], [200, 0.75], [300, 0.25]])
+    lsst_passband_group = create_lsst_passband_group(f"{passbands_dir}/LSST")
+    assert len(lsst_passband_group.passbands) == 6
+    assert "LSST_u" in lsst_passband_group.passbands
+    assert "LSST_g" in lsst_passband_group.passbands
+    assert "LSST_r" in lsst_passband_group.passbands
+    assert "LSST_i" in lsst_passband_group.passbands
+    assert "LSST_z" in lsst_passband_group.passbands
+    assert "LSST_y" in lsst_passband_group.passbands
 
-    def mock_load_transmission_table(self, **kwargs):
-        self._loaded_table = transmission_table_array
-
-    with patch.object(Passband, "_load_transmission_table", new=mock_load_transmission_table):
-        lsst_passband_group = PassbandGroup(preset="LSST")
-        assert len(lsst_passband_group.passbands) == 6
-        assert "LSST_u" in lsst_passband_group.passbands
-        assert "LSST_g" in lsst_passband_group.passbands
-        assert "LSST_r" in lsst_passband_group.passbands
-        assert "LSST_i" in lsst_passband_group.passbands
-        assert "LSST_z" in lsst_passband_group.passbands
-        assert "LSST_y" in lsst_passband_group.passbands
-
-    # Test that the PassbandGroup class can be initialized with a list of Passband objects
-    with patch.object(Passband, "_load_transmission_table", new=mock_load_transmission_table):
-        lsst_gri_passbands = [
-            {"survey": "LSST", "filter_name": "g"},
-            {"survey": "LSST", "filter_name": "r"},
-            {"survey": "LSST", "filter_name": "i"},
-        ]
-        lsst_gri_passband_group = PassbandGroup(passband_parameters=lsst_gri_passbands)
-        assert len(lsst_gri_passband_group.passbands) == 3
-        assert "LSST_g" in lsst_gri_passband_group.passbands
-        assert "LSST_r" in lsst_gri_passband_group.passbands
-        assert "LSST_i" in lsst_gri_passband_group.passbands
+    # Test that the PassbandGroup class can be initialized with a dict of passband parameters
+    lsst_gri_passband_parameters = [
+        {"survey": "LSST", "filter_name": "g", "table_path": f"{passbands_dir}/LSST/g.dat"},
+        {"survey": "LSST", "filter_name": "r", "table_path": f"{passbands_dir}/LSST/r.dat"},
+        {"survey": "LSST", "filter_name": "i", "table_path": f"{passbands_dir}/LSST/i.dat"},
+    ]
+    lsst_gri_passband_group = PassbandGroup(passband_parameters=lsst_gri_passband_parameters)
+    assert len(lsst_gri_passband_group.passbands) == 3
+    assert "LSST_g" in lsst_gri_passband_group.passbands
+    assert "LSST_r" in lsst_gri_passband_group.passbands
+    assert "LSST_i" in lsst_gri_passband_group.passbands
 
     # Test that our helper function creates a PassbandGroup object with the expected passbands
     test_passband_group = create_passband_group(tmp_path)
@@ -93,17 +91,19 @@ def test_passband_group_init(tmp_path):
         raise AssertionError("PassbandGroup should raise an error for an unknown preset")
 
 
-def test_passband_group_str(tmp_path):
+def test_passband_group_str(passbands_dir):
     """Test the __str__ method of the PassbandGroup class."""
     # Test that the __str__ method returns the expected string with custom passbands
-    test_passband_group = create_passband_group(tmp_path)
-    assert str(test_passband_group) == "PassbandGroup containing 3 passbands: TEST_a, TEST_b, TEST_c"
+    test_passband_group = create_lsst_passband_group(passbands_dir)
+    assert str(test_passband_group) == (
+        "PassbandGroup containing 6 passbands: LSST_u, LSST_g, LSST_r, LSST_i, LSST_z, LSST_y"
+    )
 
 
-def test_passband_group_fluxes_to_bandfluxes(tmp_path):
+def test_passband_group_fluxes_to_bandfluxes(passbands_dir):
     """Test the fluxes_to_bandfluxes method of the PassbandGroup class."""
     # Test with simple passband group
-    test_passband_group = create_passband_group(tmp_path, delta_wave=20, trim_quantile=None)
+    test_passband_group = create_lsst_passband_group(passbands_dir, delta_wave=20, trim_quantile=None)
 
     # Create some mock flux data with the same number of columns as wavelengths in our PassbandGroup
     flux = np.linspace(test_passband_group.waves * 10, 100, 5)
@@ -111,7 +111,7 @@ def test_passband_group_fluxes_to_bandfluxes(tmp_path):
     bandfluxes = test_passband_group.fluxes_to_bandfluxes(flux)
 
     # Check structure of result is as expected
-    assert len(bandfluxes) == 3
+    assert len(bandfluxes) == 6
     for band_name in test_passband_group.passbands:
         assert band_name in bandfluxes
         assert bandfluxes[band_name].shape == (5,)
