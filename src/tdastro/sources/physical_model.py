@@ -1,5 +1,7 @@
 """The base PhysicalModel used for all sources."""
 
+from typing import Union
+
 import numpy as np
 
 from tdastro.astro_utils.cosmology import RedshiftDistFunc
@@ -291,7 +293,7 @@ class PhysicalModel(ParameterizedNode):
         np_rngs = build_rngs_from_hashes(node_hashes, base_seed)
         return np_rngs
 
-    def get_band_fluxes(self, passband_or_group, times, state) -> np.ndarray | dict:
+    def get_band_fluxes(self, passband_or_group, times, state) -> Union[np.ndarray, dict]:
         """Get the band fluxes for a given Passband or PassbandGroup.
 
         Parameters
