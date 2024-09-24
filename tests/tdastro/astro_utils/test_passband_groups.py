@@ -100,6 +100,30 @@ def test_passband_group_str(tmp_path):
     assert str(test_passband_group) == "PassbandGroup containing 3 passbands: TEST_a, TEST_b, TEST_c"
 
 
+def test_passband_group_calculate_in_band_wave_indices(tmp_path):
+    """Test the calculate_in_band_wave_indices method of the PassbandGroup class."""
+    # Test with simple passband group
+    test_passband_group = create_passband_group(tmp_path, delta_wave=20, trim_quantile=None)
+
+    passband_A = test_passband_group.passbands["TEST_a"]
+    passband_B = test_passband_group.passbands["TEST_b"]
+    passband_C = test_passband_group.passbands["TEST_c"]
+
+    # Note that passband_A and passband_B have overlapping wavelength ranges
+    # Where passband_A covers 100-300 and passband_B covers 250-350 (and passband_C covers 400-600)
+    assert np.allclose(passband_A._in_band_wave_indices, np.array([0, 1, 2, 3, 4, 5, 6, 7, 9, 11, 13]))
+    assert np.allclose(passband_A.waves, test_passband_group.waves[passband_A._in_band_wave_indices])
+
+    assert np.allclose(passband_B._in_band_wave_indices, np.array([8, 10, 12, 14, 15, 16]))
+    assert np.allclose(passband_B.waves, test_passband_group.waves[passband_B._in_band_wave_indices])
+
+    assert passband_C._in_band_wave_indices == (17, 28)
+    assert np.allclose(
+        passband_C.waves,
+        test_passband_group.waves[passband_C._in_band_wave_indices[0] : passband_C._in_band_wave_indices[1]],
+    )
+
+
 def test_passband_group_fluxes_to_bandfluxes(tmp_path):
     """Test the fluxes_to_bandfluxes method of the PassbandGroup class."""
     # Test with simple passband group
