@@ -47,28 +47,6 @@ class PopulationModel(ParameterizedNode):
         """
         raise NotImplementedError()
 
-    def add_effect(self, effect, allow_dups=False, **kwargs):
-        """Add a transformational effect to all PhysicalModels in this population.
-        Effects are applied in the order in which they are added.
-
-        Parameters
-        ----------
-        effect : `EffectModel`
-            The effect to apply.
-        allow_dups : `bool`
-            Allow multiple effects of the same type.
-            Default = ``True``
-        **kwargs : `dict`, optional
-           Any additional keyword arguments.
-
-        Raises
-        ------
-        Raises a ``AttributeError`` if the PhysicalModel does not have all of the
-        required model parameters.
-        """
-        for source in self.sources:
-            source.add_effect(effect, allow_dups=allow_dups, **kwargs)
-
     def evaluate(self, samples, times, wavelengths, **kwargs):
         """Draw observations from a single (randomly sampled) source.
 

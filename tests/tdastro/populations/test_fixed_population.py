@@ -3,13 +3,12 @@ import random
 import numpy as np
 import pytest
 from tdastro.base_models import FunctionNode
-from tdastro.effects.white_noise import WhiteNoise
 from tdastro.populations.fixed_population import FixedPopulation
 from tdastro.sources.static_source import StaticSource
 
 
 def test_fixed_population_basic_add():
-    """Test that we can add effects to a population of PhysicalModels."""
+    """Test that we can create a population of PhysicalModels."""
     population = FixedPopulation()
     population.add_source(StaticSource(brightness=10.0), 0.5)
     assert population.num_sources == 1
@@ -18,37 +17,6 @@ def test_fixed_population_basic_add():
     # Test that we fail with a bad rate.
     with pytest.raises(ValueError):
         population.add_source(StaticSource(brightness=10.0), -0.5)
-
-
-def test_fixed_population_add_effect():
-    """Test that we can add effects to a population of PhysicalModels."""
-    model1 = StaticSource(brightness=10.0)
-    model2 = StaticSource(brightness=20.0)
-
-    population = FixedPopulation()
-    population.add_source(model1, 0.5)
-    population.add_source(model2, 0.5)
-    assert population.num_sources == 2
-    assert len(model1.effects) == 0
-    assert len(model2.effects) == 0
-
-    # Add a white noise effect to all models.
-    population.add_effect(WhiteNoise(scale=0.01))
-    assert len(model1.effects) == 1
-    assert len(model2.effects) == 1
-
-
-def test_fixed_population_add_effect_fail():
-    """Test a case where we try to add an existing effect to models."""
-    model1 = StaticSource(brightness=10.0)
-    model1.add_effect(WhiteNoise(scale=0.01))
-
-    population = FixedPopulation()
-    population.add_source(model1, 0.5)
-
-    # Fail when we try to re-add the WhiteNoise effect
-    with pytest.raises(ValueError):
-        population.add_effect(WhiteNoise(scale=0.01))
 
 
 def test_fixed_population_sample_sources():

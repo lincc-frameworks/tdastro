@@ -1,5 +1,4 @@
 from astropy.cosmology import Planck18
-from tdastro.effects.white_noise import WhiteNoise
 from tdastro.sources.physical_model import PhysicalModel
 
 
@@ -56,13 +55,11 @@ def test_physical_model_get_all_node_info():
         background=bg_model,
         node_label="source",
     )
-    source_model.add_effect(WhiteNoise(10.0, node_label="noise"))
 
     node_labels = source_model.get_all_node_info("node_label")
-    assert len(node_labels) == 3
+    assert len(node_labels) == 2
     assert "bg" in node_labels
     assert "source" in node_labels
-    assert "noise" in node_labels
 
 
 def test_physical_model_build_np_rngs():
@@ -76,6 +73,5 @@ def test_physical_model_build_np_rngs():
         background=bg_model,
         node_label="source",
     )
-    source_model.add_effect(WhiteNoise(10.0, node_label="noise"))
     np_rngs = source_model.build_np_rngs(base_seed=10)
-    assert len(np_rngs) == 3
+    assert len(np_rngs) == 2

@@ -21,12 +21,12 @@ class PhysicalModel(ParameterizedNode):
     producing flux. We can chain these to have a supernova in front of a star in front
     of a static background.
 
+    Physical models also support adding and applying a variety of effects, such as redshift.
+
     Attributes
     ----------
     background : `PhysicalModel`
         A source of background flux such as a host galaxy.
-    effects : `list`
-        A list of effects to apply to an observations.
 
     Parameters
     ----------
@@ -48,7 +48,6 @@ class PhysicalModel(ParameterizedNode):
 
     def __init__(self, ra=None, dec=None, redshift=None, distance=None, background=None, **kwargs):
         super().__init__(**kwargs)
-        self.effects = []
 
         # Set RA, dec, and redshift from the parameters.
         self.add_parameter("ra", ra, allow_gradient=False)
@@ -68,37 +67,6 @@ class PhysicalModel(ParameterizedNode):
         # Background is an object not a sampled parameter
         self.background = background
 
-    def add_effect(self, effect, allow_dups=True, **kwargs):
-        """Add a transformational effect to the PhysicalModel.
-        Effects are applied in the order in which they are added.
-
-        Parameters
-        ----------
-        effect : `EffectModel`
-            The effect to apply.
-        allow_dups : `bool`
-            Allow multiple effects of the same type.
-            Default = ``True``
-        **kwargs : `dict`, optional
-           Any additional keyword arguments.
-
-        Raises
-        ------
-        Raises a ``AttributeError`` if the PhysicalModel does not have all of the
-        required model parameters.
-        """
-        # Check that we have not added this effect before.
-        if not allow_dups:
-            effect_type = type(effect)
-            for prev in self.effects:
-                if effect_type == type(prev):
-                    raise ValueError("Added the effect type to a model {effect_type} more than once.")
-
-        self.effects.append(effect)
-
-        # Reset the node position to indicate the graph has changed.
-        self.node_pos = None
-
     def set_graph_positions(self, seen_nodes=None):
         """Force an update of the graph structure (numbering of each node).
 
@@ -115,8 +83,6 @@ class PhysicalModel(ParameterizedNode):
         super().set_graph_positions(seen_nodes=seen_nodes)
         if self.background is not None:
             self.background.set_graph_positions(seen_nodes=seen_nodes)
-        for effect in self.effects:
-            effect.set_graph_positions(seen_nodes=seen_nodes)
 
     def _evaluate(self, times, wavelengths, graph_state):
         """Draw effect-free observations for this object.
@@ -192,9 +158,6 @@ class PhysicalModel(ParameterizedNode):
                 **kwargs,
             )
 
-        for effect in self.effects:
-            flux_density = effect.apply(flux_density, wavelengths, graph_state, **kwargs)
-
         # Post-effects are adjustments done to the flux density after computation.
         if params["redshift"] is not None and params["redshift"] != 0.0:
             flux_density = apply_redshift(flux_density, params["redshift"])
@@ -241,9 +204,6 @@ class PhysicalModel(ParameterizedNode):
             self.background._sample_helper(graph_state, seen_nodes, rng_info, **kwargs)
         self._sample_helper(graph_state, seen_nodes, rng_info, **kwargs)
 
-        for effect in self.effects:
-            effect._sample_helper(graph_state, seen_nodes, rng_info, **kwargs)
-
         return graph_state
 
     def get_all_node_info(self, field, seen_nodes=None):
@@ -272,8 +232,6 @@ class PhysicalModel(ParameterizedNode):
         result = super().get_all_node_info(field, seen_nodes)
         if self.background is not None:
             result.extend(self.background.get_all_node_info(field, seen_nodes))
-        for effect in self.effects:
-            result.extend(effect.get_all_node_info(field, seen_nodes))
         return result
 
     def build_np_rngs(self, base_seed=None):
