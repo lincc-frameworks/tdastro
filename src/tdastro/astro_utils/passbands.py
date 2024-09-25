@@ -271,9 +271,10 @@ class Passband:
             self.table_path = os.path.join(
                 os.path.dirname(__file__), f"passbands/{self.survey}/{self.filter_name}.dat"
             )
-            os.makedirs(os.path.dirname(self.table_path), exist_ok=True)
+        os.makedirs(os.path.dirname(self.table_path), exist_ok=True)
         if force_download or not os.path.exists(self.table_path):
             self._download_transmission_table()
+
         # Load the table file
         try:
             loaded_table = np.loadtxt(self.table_path)
