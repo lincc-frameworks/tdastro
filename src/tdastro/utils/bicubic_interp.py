@@ -8,6 +8,8 @@ import jax.numpy as jnp
 from jax import jit, vmap
 from jax.lax import cond
 
+from tdastro.utils.io_utils import read_grid_data
+
 
 @jit
 def _kernel_value(input_vals):
@@ -107,6 +109,18 @@ class BicubicInterpolator:
         self.linear = jit(self._eval_linear)
         self.cubic = jit(self._eval_cubic)
         self.eval_row = vmap(jit(self._compute_row))
+
+    @classmethod
+    def from_grid_file(cls, filename):
+        """Load the grid data from an ASCII file and create a BicubicInterpolator.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the grid file.
+        """
+        x_vals, y_vals, z_vals = read_grid_data(filename)
+        return BicubicInterpolator(x_vals, y_vals, z_vals)
 
     def _eval_linear(self, x_q, y_q, ix, iy):
         ax = (x_q - self.x_vals[ix]) / (self.x_vals[ix + 1] - self.x_vals[ix])
