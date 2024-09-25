@@ -4,8 +4,7 @@ from typing import Union
 
 import numpy as np
 
-from tdastro.astro_utils.cosmology import RedshiftDistFunc
-from tdastro.astro_utils.passbands import Passband, PassbandGroup
+from tdastro.astro_utils.redshift import RedshiftDistFunc, apply_redshift, obs_frame_to_rest_frame
 from tdastro.base_models import ParameterizedNode
 from tdastro.graph_state import GraphState
 from tdastro.rand_nodes.np_random import build_rngs_from_hashes
@@ -175,9 +174,10 @@ class PhysicalModel(ParameterizedNode):
         params = self.get_local_params(graph_state)
 
         # Pre-effects are adjustments done to times and/or wavelengths, before flux density computation.
-        for effect in self.effects:
-            if hasattr(effect, "pre_effect"):
-                times, wavelengths = effect.pre_effect(times, wavelengths, graph_state, **kwargs)
+        if params["redshift"] is not None and params["redshift"] != 0.0:
+            if params["t0"] is None:
+                raise ValueError("t0 is a required parameter for redshifted models.")
+            times, wavelengths = obs_frame_to_rest_frame(times, wavelengths, params["redshift"], params["t0"])
 
         # Compute the flux density for both the current object and add in anything
         # behind it, such as a host galaxy.
@@ -194,6 +194,11 @@ class PhysicalModel(ParameterizedNode):
 
         for effect in self.effects:
             flux_density = effect.apply(flux_density, wavelengths, graph_state, **kwargs)
+
+        # Post-effects are adjustments done to the flux density after computation.
+        if params["redshift"] is not None and params["redshift"] != 0.0:
+            flux_density = apply_redshift(flux_density, params["redshift"])
+
         return flux_density
 
     def sample_parameters(self, given_args=None, num_samples=1, rng_info=None, **kwargs):
@@ -312,9 +317,9 @@ class PhysicalModel(ParameterizedNode):
             group is used).
         """
         spectral_fluxes = self._evaluate(times, passband_or_group.waves, state)
-        if isinstance(passband_or_group, Passband):
+        if hasattr(passband_or_group, "fluxes_to_bandflux"):  # Passband
             return passband_or_group.fluxes_to_bandflux(spectral_fluxes)
-        elif isinstance(passband_or_group, PassbandGroup):
+        elif hasattr(passband_or_group, "fluxes_to_bandfluxes"):  # PassbandGroup
             return passband_or_group.fluxes_to_bandfluxes(spectral_fluxes)
         else:
             raise ValueError(f"Unknown passband type: {type(passband_or_group)}")
