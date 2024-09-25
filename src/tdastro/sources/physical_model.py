@@ -1,11 +1,13 @@
 """The base PhysicalModel used for all sources."""
 
+from typing import Union
+
 import numpy as np
 
-from tdastro.astro_utils.cosmology import RedshiftDistFunc
+from tdastro.astro_utils.redshift import RedshiftDistFunc, apply_redshift, obs_frame_to_rest_frame
 from tdastro.base_models import ParameterizedNode
 from tdastro.graph_state import GraphState
-from tdastro.util_nodes.np_random import build_rngs_from_hashes
+from tdastro.rand_nodes.np_random import build_rngs_from_hashes
 
 
 class PhysicalModel(ParameterizedNode):
@@ -172,9 +174,10 @@ class PhysicalModel(ParameterizedNode):
         params = self.get_local_params(graph_state)
 
         # Pre-effects are adjustments done to times and/or wavelengths, before flux density computation.
-        for effect in self.effects:
-            if hasattr(effect, "pre_effect"):
-                times, wavelengths = effect.pre_effect(times, wavelengths, graph_state, **kwargs)
+        if params["redshift"] is not None and params["redshift"] != 0.0:
+            if params["t0"] is None:
+                raise ValueError("t0 is a required parameter for redshifted models.")
+            times, wavelengths = obs_frame_to_rest_frame(times, wavelengths, params["redshift"], params["t0"])
 
         # Compute the flux density for both the current object and add in anything
         # behind it, such as a host galaxy.
@@ -191,6 +194,11 @@ class PhysicalModel(ParameterizedNode):
 
         for effect in self.effects:
             flux_density = effect.apply(flux_density, wavelengths, graph_state, **kwargs)
+
+        # Post-effects are adjustments done to the flux density after computation.
+        if params["redshift"] is not None and params["redshift"] != 0.0:
+            flux_density = apply_redshift(flux_density, params["redshift"])
+
         return flux_density
 
     def sample_parameters(self, given_args=None, num_samples=1, rng_info=None, **kwargs):
@@ -289,3 +297,29 @@ class PhysicalModel(ParameterizedNode):
         node_hashes = self.get_all_node_info("node_hash")
         np_rngs = build_rngs_from_hashes(node_hashes, base_seed)
         return np_rngs
+
+    def get_band_fluxes(self, passband_or_group, times, state) -> Union[np.ndarray, dict]:
+        """Get the band fluxes for a given Passband or PassbandGroup.
+
+        Parameters
+        ----------
+        passband_or_group : `Passband` or `PassbandGroup`
+            The passband (or passband group) to use.
+        times : `numpy.ndarray`
+            A length T array of observer frame timestamps.
+        state : `GraphState`
+            An object mapping graph parameters to their values.
+
+        Returns
+        -------
+        band_fluxes : `numpy.ndarray` or `dict
+            A length T array of band fluxes, or a dictionary of band names mapped to fluxes (if a passband
+            group is used).
+        """
+        spectral_fluxes = self._evaluate(times, passband_or_group.waves, state)
+        if hasattr(passband_or_group, "fluxes_to_bandflux"):  # Passband
+            return passband_or_group.fluxes_to_bandflux(spectral_fluxes)
+        elif hasattr(passband_or_group, "fluxes_to_bandfluxes"):  # PassbandGroup
+            return passband_or_group.fluxes_to_bandfluxes(spectral_fluxes)
+        else:
+            raise ValueError(f"Unknown passband type: {type(passband_or_group)}")

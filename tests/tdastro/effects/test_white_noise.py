@@ -1,7 +1,7 @@
 import numpy as np
 from tdastro.effects.white_noise import WhiteNoise
+from tdastro.rand_nodes.np_random import NumpyRandomFunc
 from tdastro.sources.static_source import StaticSource
-from tdastro.util_nodes.np_random import NumpyRandomFunc
 
 
 def test_white_noise() -> None:

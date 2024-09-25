@@ -5,10 +5,9 @@ from tdastro.astro_utils.opsim import OpSim
 from tdastro.astro_utils.passbands import PassbandGroup
 from tdastro.astro_utils.snia_utils import DistModFromRedshift, HostmassX1Func, X0FromDistMod
 from tdastro.astro_utils.unit_utils import flam_to_fnu
-from tdastro.effects.redshift import Redshift
+from tdastro.rand_nodes.np_random import NumpyRandomFunc
 from tdastro.sources.sncomso_models import SncosmoWrapperModel
 from tdastro.sources.snia_host import SNIaHost
-from tdastro.util_nodes.np_random import NumpyRandomFunc
 
 
 def draw_single_random_sn(
@@ -126,8 +125,6 @@ def test_snia_end2end(
         dec=NumpyRandomFunc("normal", loc=host.dec, scale=0.01),
         redshift=host.redshift,
     )
-
-    source.add_effect(Redshift(redshift=source.redshift, t0=source.t0))
 
     passbands = PassbandGroup(
         passband_parameters=[
