@@ -135,13 +135,11 @@ def test_snia_end2end(
                 "survey": "LSST",
                 "filter_name": "u",
                 "table_path": f"{passbands_dir}/LSST/u.dat",
-                "units": "nm",
             },
             {
                 "survey": "LSST",
                 "filter_name": "r",
                 "table_path": f"{passbands_dir}/LSST/r.dat",
-                "units": "nm",
             },
         ],
         delta_wave=1,
