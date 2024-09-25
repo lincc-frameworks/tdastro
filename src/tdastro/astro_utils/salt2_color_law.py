@@ -67,6 +67,38 @@ class SALT2ColorLaw:
         self.deriv_at_min = jnp.sum(dcoeffs * jnp.power(self.scaled_wave_min, dexponents)) + self.coeffs[0]
         self.deriv_at_max = jnp.sum(dcoeffs * jnp.power(self.scaled_wave_max, dexponents)) + self.coeffs[0]
 
+    @classmethod
+    def from_file(cls, filename):
+        """Create the SALT2ColorLaw object from data in a file.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the file to load.
+        """
+        with open(filename, mode="r") as f:
+            data = f.read().split()
+
+        # The first line holds the number of coefficients N and the next N lines
+        # each hold a single coefficient.
+        num_coeff = int(data[0])
+        coeffs = np.array(data[1 : (1 + num_coeff)], dtype=float)
+
+        # The rest of the lines (if any) are meta-data with a label and value on each line.
+        wave_min = 3000.0
+        wave_max = 7000.0
+        for i in range(1 + num_coeff, len(data), 2):
+            if "min_lambda" in data[i]:
+                wave_min = float(data[i + 1])
+            elif "max_lambda" in data[i]:
+                wave_max = float(data[i + 1])
+            elif "version" in data[i]:
+                version = int(data[i + 1])
+                if version != 1:
+                    raise RuntimeError(f"Unsupported version {version}.")
+
+        return SALT2ColorLaw(wave_min, wave_max, coeffs)
+
     def apply(self, wavelengths):
         """Apply the color law to the given wavelengths.
 

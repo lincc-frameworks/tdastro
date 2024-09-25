@@ -1,3 +1,5 @@
+import os
+
 import jax.numpy as jnp
 import numpy as np
 import pytest
@@ -125,3 +127,13 @@ def test_bad_bicubic_interpolator():
         _ = BicubicInterpolator([1.0, 2.0, 3.0, 4.0], [0.0, 2.5, 1.0, 1.5], z)
     with pytest.raises(ValueError):
         _ = BicubicInterpolator([1.0, 2.0, 3.0], [0.0, 2.5, 1.0], z)
+
+
+def test_load_bicubic_interp_from_file(test_data_dir):
+    """Test loading a bicubic interpolator object from a file."""
+    filename = os.path.join(test_data_dir, "truncated-salt2-h17/fake_salt2_template_0.dat")
+    test_obj = BicubicInterpolator.from_grid_file(filename)
+
+    assert len(test_obj.x_vals) == 31
+    assert len(test_obj.y_vals) == 701
+    assert test_obj.z_vals.shape == (31, 701)

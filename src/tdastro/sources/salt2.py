@@ -1,7 +1,6 @@
 import os.path
 
-import numpy as np
-
+from tdastro.astro_utils.salt2_color_law import SALT2ColorLaw
 from tdastro.sources.physical_model import PhysicalModel
 from tdastro.utils.bicubic_interp import BicubicInterpolator
 
@@ -17,8 +16,10 @@ class SALT2JaxModel(PhysicalModel):
     M1 is the first compoment to describe variability, and CL is the average color
     correction law.
 
-    Based on the SNCosmo implementation at:
+    Based on the sncosmo implementation at:
     https://github.com/sncosmo/sncosmo/blob/v2.10.1/sncosmo/models.py
+    The wrapped sncosmo version in sncosmo_models.py is faster and should be used
+    when auto-differentiation is not needed.
 
     Attributes
     ----------
@@ -26,6 +27,8 @@ class SALT2JaxModel(PhysicalModel):
         The interpolator for the m0 parameter.
     _m1_model : BicubicInterpolator
         The interpolator for the m1 parameter.
+    _color_law : SALT2ColorLaw
+        The data to apply the color law.
 
     Parameters
     ----------
@@ -44,6 +47,9 @@ class SALT2JaxModel(PhysicalModel):
     m1_filename : `str`
         The file name for the m1 model component.
         Default: "salt2_template_1.dat"
+    cl_filename : `str`
+        The file name of the color law correction coefficients.
+        Default: "salt2_color_correction.dat",
     **kwargs : `dict`, optional
         Any additional keyword arguments.
     """
@@ -56,24 +62,29 @@ class SALT2JaxModel(PhysicalModel):
         model_dir="",
         m0_filename="salt2_template_0.dat",
         m1_filename="salt2_template_1.dat",
+        cl_filename="salt2_color_correction.dat",
+        **kwargs,
     ):
         super().__init__(**kwargs)
 
         # Add the model specific parameters.
         self.add_parameter("x0", x0, **kwargs)
-        self.add_parameter("x1", x0, **kwargs)
-        self.add_parameter("c", x0, **kwargs)
+        self.add_parameter("x1", x1, **kwargs)
+        self.add_parameter("c", c, **kwargs)
 
         # Load the data files.
         self._m0_model = BicubicInterpolator.from_grid_file(os.path.join(model_dir, m0_filename))
         self._m1_model = BicubicInterpolator.from_grid_file(os.path.join(model_dir, m1_filename))
 
-    def _evaluate(self, times, wavelengths, graph_state, **kwargs):
+        # Use the default color correction values.
+        self._color_law = SALT2ColorLaw.from_file(os.path.join(model_dir, cl_filename))
+
+    def _evaluate(self, phase, wavelengths, graph_state, **kwargs):
         """Draw effect-free observations for this object.
 
         Parameters
         ----------
-        times : `numpy.ndarray`
+        phase : `numpy.ndarray`
             A length T array of rest frame timestamps.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths (in angstroms).
@@ -87,142 +98,13 @@ class SALT2JaxModel(PhysicalModel):
         flux_density : `numpy.ndarray`
             A length T x N matrix of SED values (in nJy).
         """
-        m0 = self._m0_model(phase, wave)
-        m1 = self._m1_model(phase, wave)
-        return (
-            self._parameters[0]
-            * (m0 + self._parameters[1] * m1)
-            * 10.0 ** (-0.4 * self._colorlaw(wave) * self._parameters[2])
-        )
-
-        flux_density = np.zeros((len(times), len(wavelengths)))
+        m0_vals = self._m0_model(phase, wavelengths)
+        m1_vals = self._m1_model(phase, wavelengths)
         params = self.get_local_params(graph_state)
 
-        time_mask = (times >= params["t0"]) & (times <= params["t1"])
-        flux_density[time_mask] = params["brightness"]
+        flux_density = (
+            params["x0"]
+            * (m0_vals + params["x1"] * m1_vals)
+            * 10.0 ** (-0.4 * self._colorlaw(wavelengths) * params["c"])
+        )
         return flux_density
-
-
-class SALT2Source(Source):
-    """The SALT2 Type Ia supernova spectral timeseries model.
-
-    The spectral flux density of this model is given by
-
-    .. math::
-
-       F(t, \\lambda) = x_0 (M_0(t, \\lambda) + x_1 M_1(t, \\lambda))
-                       \\times 10^{-0.4 CL(\\lambda) c}
-
-    where ``x0``, ``x1`` and ``c`` are the free parameters of the model,
-    ``M_0``, ``M_1`` are the zeroth and first components of the model, and
-    ``CL`` is the colorlaw, which gives the extinction in magnitudes for
-    ``c=1``.
-
-    Parameters
-    ----------
-    modeldir : str, optional
-        Directory path containing model component files. Default is `None`,
-        which means that no directory is prepended to filenames when
-        determining their path.
-    m0file, m1file, clfile : str or fileobj, optional
-        Filenames of various model components. Defaults are:
-
-        * m0file = 'salt2_template_0.dat' (2-d grid)
-        * m1file = 'salt2_template_1.dat' (2-d grid)
-        * clfile = 'salt2_color_correction.dat'
-
-    errscalefile, lcrv00file, lcrv11file, lcrv01file, cdfile : str or fileobj
-        (optional) Filenames of various model components for
-        model covariance in synthetic photometry. See
-        ``bandflux_rcov`` for details.  Defaults are:
-
-        * errscalefile = 'salt2_lc_dispersion_scaling.dat' (2-d grid)
-        * lcrv00file = 'salt2_lc_relative_variance_0.dat' (2-d grid)
-        * lcrv11file = 'salt2_lc_relative_variance_1.dat' (2-d grid)
-        * lcrv01file = 'salt2_lc_relative_covariance_01.dat' (2-d grid)
-        * cdfile = 'salt2_color_dispersion.dat' (1-d grid)
-
-    Notes
-    -----
-    The "2-d grid" files have the format ``<phase> <wavelength>
-    <value>`` on each line.
-
-    The phase and wavelength values of the various components don't
-    necessarily need to match. (In the most recent salt2 model data,
-    they do not all match.) The phase and wavelength values of the
-    first model component (in ``m0file``) are taken as the "native"
-    sampling of the model, even though these values might require
-    interpolation of the other model components.
-
-    """
-
-    # These files are distributed with SALT2 model data but not currently
-    # used:
-    # v00file = 'salt2_spec_variance_0.dat'              : 2dgrid
-    # v11file = 'salt2_spec_variance_1.dat'              : 2dgrid
-    # v01file = 'salt2_spec_covariance_01.dat'           : 2dgrid
-
-    _param_names = ["x0", "x1", "c"]
-    param_names_latex = ["x_0", "x_1", "c"]
-    _SCALE_FACTOR = 1e-12
-
-    def __init__(
-        self,
-        modeldir=None,
-        m0file="salt2_template_0.dat",
-        m1file="salt2_template_1.dat",
-        clfile="salt2_color_correction.dat",
-        cdfile="salt2_color_dispersion.dat",
-        errscalefile="salt2_lc_dispersion_scaling.dat",
-        lcrv00file="salt2_lc_relative_variance_0.dat",
-        lcrv11file="salt2_lc_relative_variance_1.dat",
-        lcrv01file="salt2_lc_relative_covariance_01.dat",
-        name=None,
-        version=None,
-    ):
-        self.name = name
-        self.version = version
-        self._model = {}
-        self._parameters = np.array([1.0, 0.0, 0.0])
-
-        names_or_objs = {
-            "M0": m0file,
-            "M1": m1file,
-            "LCRV00": lcrv00file,
-            "LCRV11": lcrv11file,
-            "LCRV01": lcrv01file,
-            "errscale": errscalefile,
-            "cdfile": cdfile,
-            "clfile": clfile,
-        }
-
-        # Make filenames into full paths.
-        if modeldir is not None:
-            for k in names_or_objs:
-                v = names_or_objs[k]
-                if v is not None and isinstance(v, str):
-                    names_or_objs[k] = os.path.join(modeldir, v)
-
-        # model components are interpolated to 2nd order
-        for key in ["M0", "M1"]:
-            phase, wave, values = read_griddata_ascii(names_or_objs[key])
-            values *= self._SCALE_FACTOR
-            self._model[key] = BicubicInterpolator(phase, wave, values)
-
-            # The "native" phases and wavelengths of the model are those
-            # of the first model component.
-            if key == "M0":
-                self._phase = phase
-                self._wave = wave
-
-        # model covariance is interpolated to 1st order
-        for key in ["LCRV00", "LCRV11", "LCRV01", "errscale"]:
-            phase, wave, values = read_griddata_ascii(names_or_objs[key])
-            self._model[key] = BicubicInterpolator(phase, wave, values)
-
-        # Set the colorlaw based on the "color correction" file.
-        self._set_colorlaw_from_file(names_or_objs["clfile"])
-
-        # Set the color dispersion from "color_dispersion" file
-        w, val = np.loadtxt(names_or_objs["cdfile"], unpack=True)
-        self._colordisp = Spline1d(w, val, k=1)  # linear interp.

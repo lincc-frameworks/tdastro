@@ -1,6 +1,13 @@
+import os
+
 import jax.numpy as jnp
 import pytest
-from tdastro.astro_utils.salt2_color_law import _SALT2CL_B, _SALT2CL_V, SALT2ColorLaw
+from tdastro.astro_utils.salt2_color_law import (
+    _SALT2CL_B,
+    _SALT2CL_V,
+    _WAVESCALE,
+    SALT2ColorLaw,
+)
 
 
 def test_salt2_color_law():
@@ -32,3 +39,14 @@ def test_salt2_color_law():
     assert results[2] == pytest.approx(-0.2375)
     assert results[3] == pytest.approx(-1.0)
     assert results[4] == pytest.approx(-1.0 - 2.3 * 0.5)
+
+
+def test_salt2_color_law_load(test_data_dir):
+    """Test loading a Salt2ColorLaw object from a file."""
+    filename = os.path.join(test_data_dir, "truncated-salt2-h17/salt2_color_correction.dat")
+    test_cl = SALT2ColorLaw.from_file(filename)
+
+    expected_coeffs = [1.83205876, -1.33154627, 0.61225710, -0.12117791, 0.00840832, 0.0, 0.0]
+    assert jnp.allclose(test_cl.coeffs, jnp.asarray(expected_coeffs))
+    assert test_cl.scaled_wave_min == pytest.approx((2800 - _SALT2CL_B) * _WAVESCALE)
+    assert test_cl.scaled_wave_max == pytest.approx((9500 - _SALT2CL_B) * _WAVESCALE)
