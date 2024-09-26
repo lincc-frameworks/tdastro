@@ -19,6 +19,8 @@ class PassbandGroup:
     ----------
     passbands : dict of Passband
         A dictionary of Passband objects, where the keys are the full_names of the passbands (eg, "LSST_u").
+    table_dir : str
+        The path to the directory containing the passband tables.
     waves : np.ndarray
         The union of all wavelengths in the passbands.
     """
@@ -26,7 +28,8 @@ class PassbandGroup:
     def __init__(
         self,
         preset: str = None,
-        passband_parameters: list = None,
+        passband_parameters: Optional[list] = None,
+        table_dir: Optional[str] = None,
         **kwargs,
     ):
         """Construct a PassbandGroup object.
@@ -35,6 +38,10 @@ class PassbandGroup:
         ----------
         preset : str, optional
             A pre-defined set of passbands to load.
+        table_dir : str, optional
+            The path to the directory containing the passband tables. Table paths will be set to
+            {table_dir}/{survey}/{filter_name}.dat. If None, the table path will be set to a default
+            path.
         passband_parameters : list of dict, optional
             A list of dictionaries of passband parameters used to create Passband objects.
             Each dictionary must contain the following:
@@ -57,7 +64,7 @@ class PassbandGroup:
             raise ValueError("PassbandGroup must be initialized with either a preset or passband_parameters.")
 
         if preset is not None:
-            self._load_preset(preset, **kwargs)
+            self._load_preset(preset, table_dir=table_dir, **kwargs)
 
         if passband_parameters is not None:
             for parameters in passband_parameters:
@@ -78,34 +85,29 @@ class PassbandGroup:
             f"{', '.join(self.passbands.keys())}"
         )
 
-    def _load_preset(self, preset: str, **kwargs) -> None:
+    def _load_preset(self, preset: str, table_dir: Optional[str], **kwargs) -> None:
         """Load a pre-defined set of passbands.
 
         Parameters
         ----------
         preset : str
             The name of the pre-defined set of passbands to load.
+        table_dir : str, optional
+            The path to the directory containing the passband tables. Table paths will be set to
+            table_dir/{survey}/{filter_name}.dat.
         **kwargs
             Additional keyword arguments to pass to the Passband constructor.
         """
-        if preset == "LSST" and "table_path" in kwargs:
-            self.passbands = {
-                "LSST_u": Passband("LSST", "u", **{**kwargs, "table_path": kwargs["table_path"] + "/u.dat"}),
-                "LSST_g": Passband("LSST", "g", **{**kwargs, "table_path": kwargs["table_path"] + "/g.dat"}),
-                "LSST_r": Passband("LSST", "r", **{**kwargs, "table_path": kwargs["table_path"] + "/r.dat"}),
-                "LSST_i": Passband("LSST", "i", **{**kwargs, "table_path": kwargs["table_path"] + "/i.dat"}),
-                "LSST_z": Passband("LSST", "z", **{**kwargs, "table_path": kwargs["table_path"] + "/z.dat"}),
-                "LSST_y": Passband("LSST", "y", **{**kwargs, "table_path": kwargs["table_path"] + "/y.dat"}),
-            }
-        elif preset == "LSST":
-            self.passbands = {
-                "LSST_u": Passband("LSST", "u", **kwargs),
-                "LSST_g": Passband("LSST", "g", **kwargs),
-                "LSST_r": Passband("LSST", "r", **kwargs),
-                "LSST_i": Passband("LSST", "i", **kwargs),
-                "LSST_z": Passband("LSST", "z", **kwargs),
-                "LSST_y": Passband("LSST", "y", **kwargs),
-            }
+        if preset == "LSST":
+            for filter_name in ["u", "g", "r", "i", "z", "y"]:
+                if table_dir is None:
+                    self.passbands[f"LSST_{filter_name}"] = Passband("LSST", filter_name, **kwargs)
+                else:
+                    self.passbands[f"LSST_{filter_name}"] = Passband(
+                        "LSST",
+                        filter_name,
+                        **{**kwargs, "table_path": f"{table_dir}/LSST/{filter_name}.dat"},
+                    )
         else:
             raise ValueError(f"Unknown passband preset: {preset}")
 
