@@ -6,17 +6,21 @@ from tdastro.sources.physical_model import PhysicalModel
 def test_physical_model():
     """Test that we can create a PhysicalModel."""
     # Everything is specified.
-    model1 = PhysicalModel(ra=1.0, dec=2.0, distance=3.0, redshift=0.0)
+    model1 = PhysicalModel(ra=1.0, dec=2.0, redshift=0.0)
     state = model1.sample_parameters()
 
     assert model1.get_param(state, "ra") == 1.0
     assert model1.get_param(state, "dec") == 2.0
-    assert model1.get_param(state, "distance") == 3.0
     assert model1.get_param(state, "redshift") == 0.0
+    assert model1.apply_redshift
 
     # None of the parameters are in the PyTree.
     pytree = model1.build_pytree(state)
     assert len(pytree["0:PhysicalModel"]) == 0
+
+    # We can turn off the redshift computation.
+    model1.set_apply_redshift(False)
+    assert not model1.apply_redshift
 
     # Derive the distance from the redshift.
     model2 = PhysicalModel(ra=1.0, dec=2.0, redshift=1100.0, cosmology=Planck18)
@@ -37,6 +41,7 @@ def test_physical_model():
     state = model3.sample_parameters()
     assert model3.get_param(state, "redshift") is None
     assert model3.get_param(state, "distance") is None
+    assert not model3.apply_redshift
 
     # Redshift is specified but cosmology is not.
     model4 = PhysicalModel(ra=1.0, dec=2.0, redshift=1100.0)
