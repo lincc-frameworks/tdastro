@@ -111,15 +111,19 @@ class BicubicInterpolator:
         self.eval_row = vmap(jit(self._compute_row))
 
     @classmethod
-    def from_grid_file(cls, filename):
+    def from_grid_file(cls, filename, scale_factor=1.0):
         """Load the grid data from an ASCII file and create a BicubicInterpolator.
 
         Parameters
         ----------
         filename : str
             The name of the grid file.
+        scale_factor : float
+            A multiplicative scale factor for the z values.
+            Default: 1.0
         """
         x_vals, y_vals, z_vals = read_grid_data(filename)
+        z_vals *= scale_factor
         return BicubicInterpolator(x_vals, y_vals, z_vals)
 
     def _eval_linear(self, x_q, y_q, ix, iy):

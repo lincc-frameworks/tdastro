@@ -16,7 +16,11 @@ class SALT2JaxModel(PhysicalModel):
     M1 is the first compoment to describe variability, and CL is the average color
     correction law.
 
-    Based on the sncosmo implementation at:
+    We use the formulation in sncosmo where CL is defined such that:
+
+    flux(time, wave) = x0 * [M0(time, wave) + x1 * M1(time, wave)] * 10 ** (-0.4 * c * CL(wave))
+
+    This class is based on the sncosmo implementation at:
     https://github.com/sncosmo/sncosmo/blob/v2.10.1/sncosmo/models.py
     The wrapped sncosmo version in sncosmo_models.py is faster and should be used
     when auto-differentiation is not needed.
@@ -27,7 +31,7 @@ class SALT2JaxModel(PhysicalModel):
         The interpolator for the m0 parameter.
     _m1_model : BicubicInterpolator
         The interpolator for the m1 parameter.
-    _color_law : SALT2ColorLaw
+    _colorlaw : SALT2ColorLaw
         The data to apply the color law.
 
     Parameters
@@ -73,11 +77,17 @@ class SALT2JaxModel(PhysicalModel):
         self.add_parameter("c", c, **kwargs)
 
         # Load the data files.
-        self._m0_model = BicubicInterpolator.from_grid_file(os.path.join(model_dir, m0_filename))
-        self._m1_model = BicubicInterpolator.from_grid_file(os.path.join(model_dir, m1_filename))
+        self._m0_model = BicubicInterpolator.from_grid_file(
+            os.path.join(model_dir, m0_filename),
+            scale_factor=1e-12,
+        )
+        self._m1_model = BicubicInterpolator.from_grid_file(
+            os.path.join(model_dir, m1_filename),
+            scale_factor=1e-12,
+        )
 
         # Use the default color correction values.
-        self._color_law = SALT2ColorLaw.from_file(os.path.join(model_dir, cl_filename))
+        self._colorlaw = SALT2ColorLaw.from_file(os.path.join(model_dir, cl_filename))
 
     def _evaluate(self, phase, wavelengths, graph_state, **kwargs):
         """Draw effect-free observations for this object.
@@ -105,6 +115,6 @@ class SALT2JaxModel(PhysicalModel):
         flux_density = (
             params["x0"]
             * (m0_vals + params["x1"] * m1_vals)
-            * 10.0 ** (-0.4 * self._colorlaw(wavelengths) * params["c"])
+            * 10.0 ** (-0.4 * self._colorlaw.apply(wavelengths) * params["c"])
         )
         return flux_density
