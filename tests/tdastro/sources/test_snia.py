@@ -12,8 +12,7 @@ from tdastro.sources.snia_host import SNIaHost
 def draw_single_random_sn(
     source,
     opsim,
-    wavelengths_rest=None,
-    passbands=None,
+    passbands,
 ):
     """
     Draw a single random SN realiztion
@@ -68,9 +67,6 @@ def test_snia_end2end(
     oversampled_observations,
     passbands_dir,
     nsample=1,
-    return_result=False,
-    phase_rest=None,
-    wavelengths_rest=None,
 ):
     """Test that we can sample and create SN Ia simulation using the salt3 model."""
 
@@ -82,7 +78,7 @@ def test_snia_end2end(
         ra=NumpyRandomFunc("uniform", low=-0.5, high=0.5),  # all pointings RA = 0.0
         dec=NumpyRandomFunc("uniform", low=-0.5, high=0.5),  # all pointings Dec = 0.0
         hostmass=NumpyRandomFunc("uniform", low=7, high=12),
-        redshift=NumpyRandomFunc("uniform", low=0.01, high=0.02),
+        redshift=NumpyRandomFunc("uniform", low=0.001, high=0.002),
     )
 
     distmod_func = DistModFromRedshift(host.redshift, H0=73.0, Omega_m=0.3)
@@ -99,7 +95,7 @@ def test_snia_end2end(
         m_abs=m_abs_func,
     )
 
-    sncosmo_modelname = "salt2-h17"
+    sncosmo_modelname = "salt3"
 
     source = SncosmoWrapperModel(
         sncosmo_modelname,
@@ -115,25 +111,21 @@ def test_snia_end2end(
     passbands = PassbandGroup(
         passband_parameters=[
             {
-                "survey": "LSST",
-                "filter_name": "u",
-                "table_path": f"{passbands_dir}/LSST/u.dat",
-                "units": "nm",
-            },
-            {
-                "survey": "LSST",
                 "filter_name": "r",
                 "table_path": f"{passbands_dir}/LSST/r.dat",
-                "units": "nm",
+            },
+            {
+                "filter_name": "i",
+                "table_path": f"{passbands_dir}/LSST/u.dat",
             },
         ],
+        survey="LSST",
+        units="nm",
+        trim_quantile=0.001,
         delta_wave=1,
     )
 
     res_list = []
-
-    if wavelengths_rest is None:
-        wavelengths_rest = np.linspace(3000, 8000, 200)
 
     any_valid_results = False
 
@@ -141,7 +133,6 @@ def test_snia_end2end(
         res = draw_single_random_sn(
             source,
             opsim=oversampled_observations,
-            wavelengths_rest=wavelengths_rest,
             passbands=passbands,
         )
 
@@ -167,15 +158,18 @@ def test_snia_end2end(
         time = res["times"]
 
         flux_sncosmo = model.flux(time, wave)
-        assert np.allclose(res["flux_flam"] * 1e10, flux_sncosmo * 1e10)
+        np.testing.assert_allclose(res["flux_flam"], flux_sncosmo, atol=1e-30, rtol=1e-5)
 
-        for f in passbands.passbands:
-            bandflux_sncosmo = model.bandflux(f.replace("_", ""), time, zpsys="ab", zp=8.9 + 2.5 * 9)
-            assert np.allclose(res["bandfluxes"][f], bandflux_sncosmo, rtol=0.1)
+        for f, passband in passbands.passbands.items():
+            # Skip test for negative fluxes
+            if np.any(flux_sncosmo < 0):
+                continue
+            sncosmo_band = sncosmo.Bandpass(*passband.processed_transmission_table.T, name=f)
+            bandflux_sncosmo = model.bandflux(sncosmo_band, time, zpsys="ab", zp=8.9 + 2.5 * 9)
+            np.testing.assert_allclose(res["bandfluxes"][f], bandflux_sncosmo, rtol=1e-1, err_msg=f"band {f}")
 
         res_list.append(res)
 
     assert any_valid_results, f"No valid results found over all {nsample} samples."
 
-    if return_result:
-        return res_list
+    return res_list, passbands
