@@ -54,14 +54,10 @@ jobs:
     - name: Create and start the virtual environment
       run: |
         python3 -m venv tmp_venv
-    - name: Start virtual enviroment
-      run: |
         source tmp_venv/bin/activate
-    - name: Update apt-get
-      run: |
-        sudo apt-get update
     - name: Install dependencies
       run: |
+        sudo apt-get update
         tmp_venv/bin/pip3 install asv==0.6.4 virtualenv tabulate lf-asv-formatter
     - name: Make artifacts directory
       run: mkdir -p ${{ env.ARTIFACTS_DIR }}
@@ -74,14 +70,14 @@ jobs:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         job_name: ${{ github.job }}
     - name: Create ASV machine config file
-      run: asv machine --machine gh-runner --yes
+      run: tmp_venv/bin/asv machine --machine gh-runner --yes
     - name: Save comparison of PR against main branch
       run: |
         git remote add upstream https://github.com/${{ github.repository }}.git
         git fetch upstream
-        asv continuous upstream/main HEAD --verbose || true
-        asv compare upstream/main HEAD --sort ratio --verbose | tee output
-        python -m lf_asv_formatter --asv_version "$(echo asv --version)"
+        tmp_venv/bin/asv continuous upstream/main HEAD --verbose || true
+        tmp_venv/bin/asv compare upstream/main HEAD --sort ratio --verbose | tee output
+        tmp_venv/bin/python3 -m lf_asv_formatter --asv_version "$(echo asv --version)"
         printf "\n\nClick [here]($STEP_URL) to view all benchmarks." >> output
         mv output ${{ env.ARTIFACTS_DIR }}
       env:
