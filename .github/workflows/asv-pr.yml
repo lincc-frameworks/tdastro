@@ -51,18 +51,15 @@ jobs:
       with:
         path: ~/.cache/pip
         key: python-${{ env.PYTHON_VERSION }}
-    - name: Create virtual environment
+    - name: Create and start the virtual environment
       run: |
-        python -m venv ~/envs/tmp_venv
+        python -m venv tmp_venv
     - name: Start virtual enviroment
       run: |
-        source ~/envs/tmp_venv/bin/activate
+        source tmp_venv/bin/activate
     - name: Update apt-get
       run: |
         sudo apt-get update
-    - name: Update pip
-      run: |
-        python -m pip install --upgrade pip
     - name: Install dependencies
       run: |
         pip install asv==0.6.4 virtualenv tabulate lf-asv-formatter
