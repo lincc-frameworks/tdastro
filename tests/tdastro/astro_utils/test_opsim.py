@@ -285,3 +285,16 @@ def test_oversample_opsim(opsim_shorten):
             oversampled["skyBrightness"].unique().size >= oversampled["filter"].unique().size
         ), "there should be at least as many skyBrightness values as bands"
         assert oversampled["skyBrightness"].isna().sum() == 0, "skyBrightness has NaN values"
+
+
+def test_fixture_oversampled_observations(oversampled_observations):
+    """Test the fixture oversampled_observations."""
+    assert len(oversampled_observations) == 36_500
+    assert set(oversampled_observations["filter"]) == {"g", "r"}
+    assert oversampled_observations["skyBrightness"].isna().sum() == 0
+    assert oversampled_observations["skyBrightness"].unique().size >= 2
+    assert np.all(oversampled_observations["observationStartMJD"] >= 61406.0)
+    assert np.all(oversampled_observations["observationStartMJD"] <= 61771.0)
+    np.testing.assert_allclose(oversampled_observations["fieldRA"], 0.0)
+    np.testing.assert_allclose(oversampled_observations["fieldDec"], 0.0)
+    np.testing.assert_allclose(np.diff(oversampled_observations["observationStartMJD"]), 0.01)
