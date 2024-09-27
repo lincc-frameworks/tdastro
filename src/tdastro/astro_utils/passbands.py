@@ -37,11 +37,7 @@ class PassbandGroup:
         Parameters
         ----------
         preset : str, optional
-            A pre-defined set of passbands to load.
-        table_dir : str, optional
-            The path to the directory containing the passband tables. If a table_path has not been specified
-            in the passband_parameters dictionary, table paths will be set to
-            {table_dir}/{survey}/{filter_name}.dat. If None, the table path will be set to a default path.
+            A pre-defined set of passbands to load. If using a preset, passband_parameters will be ignored.
         passband_parameters : list of dict, optional
             A list of dictionaries of passband parameters used to create Passband objects.
             Each dictionary must contain the following:
@@ -55,18 +51,19 @@ class PassbandGroup:
             - units : str (either 'nm' or 'A')
             If survey is not LSST (or other survey with defined defaults), either a table_path or table_url
             must be provided.
+        table_dir : str, optional
+            The path to the directory containing the passband tables. If a table_path has not been specified
+            in the passband_parameters dictionary, table paths will be set to
+            {table_dir}/{survey}/{filter_name}.dat. If None, the table path will be set to a default path.
         **kwargs
             Additional keyword arguments to pass to the Passband constructor.
         """
         self.passbands = {}
 
-        if preset is None and passband_parameters is None:
-            raise ValueError("PassbandGroup must be initialized with either a preset or passband_parameters.")
-
         if preset is not None:
             self._load_preset(preset, table_dir=table_dir, **kwargs)
 
-        if passband_parameters is not None:
+        elif passband_parameters is not None:
             for parameters in passband_parameters:
                 # Add any missing parameters from kwargs
                 for key, value in kwargs.items():
@@ -81,6 +78,9 @@ class PassbandGroup:
 
                 passband = Passband(**parameters)
                 self.passbands[passband.full_name] = passband
+
+        else:
+            raise ValueError("PassbandGroup requires either a preset or passband_parameters to be provided.")
 
         self._update_waves()
         self._calculate_in_band_wave_indices()
