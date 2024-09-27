@@ -56,11 +56,16 @@ jobs:
           path: ~/.cache/pip
           key: python-${{ env.PYTHON_VERSION }}
 
+      - name: Create virtual environment
+        run: |   
+          python3 -m venv tmp_venv
+          source tmp_venv/bin/activate
+
       - name: Install dependencies
         run: |
           sudo apt-get update
-          python -m pip install --upgrade pip
-          pip install asv==0.6.1 virtualenv tabulate
+          tmp_venv/bin/python -m pip install --upgrade pip
+          tmp_venv/bin/pip install asv==0.6.1 virtualenv tabulate
 
       - name: Configure git
         run: |
@@ -68,7 +73,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Create ASV machine config file
-        run: asv machine --machine gh-runner --yes
+        run: tmp_venv/bin/asv machine --machine gh-runner --yes
 
       - name: Fetch previous results from the "benchmarks" branch
         run: |
@@ -80,7 +85,7 @@ jobs:
           fi
 
       - name: Run ASV for the main branch
-        run: asv run ALL --skip-existing --verbose || true
+        run: tmp_venv/bin/asv run ALL --skip-existing --verbose || true
 
       - name: Submit new results to the "benchmarks" branch
         uses: JamesIves/github-pages-deploy-action@v4
