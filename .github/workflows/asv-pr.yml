@@ -58,7 +58,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        pip install asv tabulate lf-asv-formatter
+        tmp_venv/bin/pip install asv tabulate lf-asv-formatter
     - name: Make artifacts directory
       run: mkdir -p ${{ env.ARTIFACTS_DIR }}
     - name: Save pull request number
@@ -77,7 +77,7 @@ jobs:
         git fetch upstream
         tmp_venv/bin/asv continuous upstream/main HEAD --verbose || true
         tmp_venv/bin/asv compare upstream/main HEAD --sort ratio --verbose | tee output
-        python -m lf_asv_formatter --asv_version "$(echo asv --version)"
+        tmp_venv/bin/python3 -m lf_asv_formatter --asv_version "$(echo asv --version)"
         printf "\n\nClick [here]($STEP_URL) to view all benchmarks." >> output
         mv output ${{ env.ARTIFACTS_DIR }}
       env:
