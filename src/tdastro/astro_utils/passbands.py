@@ -39,9 +39,9 @@ class PassbandGroup:
         preset : str, optional
             A pre-defined set of passbands to load.
         table_dir : str, optional
-            The path to the directory containing the passband tables. Table paths will be set to
-            {table_dir}/{survey}/{filter_name}.dat. If None, the table path will be set to a default
-            path.
+            The path to the directory containing the passband tables. If a table_path has not been specified
+            in the passband_parameters dictionary, table paths will be set to
+            {table_dir}/{survey}/{filter_name}.dat. If None, the table path will be set to a default path.
         passband_parameters : list of dict, optional
             A list of dictionaries of passband parameters used to create Passband objects.
             Each dictionary must contain the following:
@@ -72,6 +72,13 @@ class PassbandGroup:
                 for key, value in kwargs.items():
                     if key not in parameters:
                         parameters[key] = value
+
+                # Set the table path if it is not already set and a table_dir is provided
+                if "table_path" not in parameters and table_dir is not None:
+                    parameters[
+                        "table_path"
+                    ] = f"{table_dir}/{parameters['survey']}/{parameters['filter_name']}.dat"
+
                 passband = Passband(**parameters)
                 self.passbands[passband.full_name] = passband
 
@@ -96,7 +103,8 @@ class PassbandGroup:
         preset : str
             The name of the pre-defined set of passbands to load.
         table_dir : str, optional
-            The path to the directory containing the passband tables. Table paths will be set to
+            The path to the directory containing the passband tables. If no table_path has been specified in
+            the PassbandGroup's passband_parameters and table_dir is not None, table paths will be set to
             table_dir/{survey}/{filter_name}.dat.
         **kwargs
             Additional keyword arguments to pass to the Passband constructor.
