@@ -58,7 +58,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        tmp_venv/bin/pip install asv tabulate lf-asv-formatter
+        tmp_venv/bin/pip install asv==0.6.1 tabulate lf-asv-formatter
     - name: Make artifacts directory
       run: mkdir -p ${{ env.ARTIFACTS_DIR }}
     - name: Save pull request number
