@@ -27,6 +27,8 @@ class PhysicalModel(ParameterizedNode):
     ----------
     background : `PhysicalModel`
         A source of background flux such as a host galaxy.
+    apply_redshift : `bool`
+        Indicates whether to apply the redshift.
 
     Parameters
     ----------
@@ -67,6 +69,9 @@ class PhysicalModel(ParameterizedNode):
         # Background is an object not a sampled parameter
         self.background = background
 
+        # Initialize the effect settings to their default values.
+        self.apply_redshift = redshift is not None
+
     def set_graph_positions(self, seen_nodes=None):
         """Force an update of the graph structure (numbering of each node).
 
@@ -83,6 +88,16 @@ class PhysicalModel(ParameterizedNode):
         super().set_graph_positions(seen_nodes=seen_nodes)
         if self.background is not None:
             self.background.set_graph_positions(seen_nodes=seen_nodes)
+
+    def set_apply_redshift(self, apply_redshift):
+        """Toggles the apply_redshift setting.
+
+        Parameters
+        ----------
+        apply_redshift : `bool`
+            The new value for apply_redshift.
+        """
+        self.apply_redshift = apply_redshift
 
     def _evaluate(self, times, wavelengths, graph_state):
         """Draw effect-free observations for this object.
@@ -139,10 +154,13 @@ class PhysicalModel(ParameterizedNode):
             )
         params = self.get_local_params(graph_state)
 
-        # Pre-effects are adjustments done to times and/or wavelengths, before flux density computation.
-        if params["redshift"] is not None and params["redshift"] != 0.0:
-            if params["t0"] is None:
-                raise ValueError("t0 is a required parameter for redshifted models.")
+        # Pre-effects are adjustments done to times and/or wavelengths, before flux density
+        # computation. We skip if redshift is 0.0 since there is nothing to do.
+        if self.apply_redshift and params["redshift"] != 0.0:
+            if params.get("redshift", None) is None:
+                raise ValueError("The 'redshift' parameter is required for redshifted models.")
+            if params.get("t0", None) is None:
+                raise ValueError("The 't0' parameter is required for redshifted models.")
             times, wavelengths = obs_frame_to_rest_frame(times, wavelengths, params["redshift"], params["t0"])
 
         # Compute the flux density for both the current object and add in anything
@@ -159,7 +177,8 @@ class PhysicalModel(ParameterizedNode):
             )
 
         # Post-effects are adjustments done to the flux density after computation.
-        if params["redshift"] is not None and params["redshift"] != 0.0:
+        if self.apply_redshift and params["redshift"] != 0.0:
+            # We have alread checked that redshift is not None.
             flux_density = apply_redshift(flux_density, params["redshift"])
 
         return flux_density
