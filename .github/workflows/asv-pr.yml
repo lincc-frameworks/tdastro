@@ -77,7 +77,7 @@ jobs:
         git fetch upstream
         tmp_venv/bin/asv continuous upstream/main HEAD --verbose || true
         tmp_venv/bin/asv compare upstream/main HEAD --sort ratio --verbose | tee output
-        tmp_venv/bin/python3 -m lf_asv_formatter --asv_version "$(echo asv --version)"
+        tmp_venv/bin/python3 -m lf_asv_formatter --asv_version "$(echo tmp_venv/bin/asv --version)"
         printf "\n\nClick [here]($STEP_URL) to view all benchmarks." >> output
         mv output ${{ env.ARTIFACTS_DIR }}
       env:
