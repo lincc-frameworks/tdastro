@@ -39,6 +39,10 @@ jobs:
       run:
         working-directory: ${{ env.WORKING_DIR }}
     steps:
+    - name: Create virtual environment
+      run: |
+        python3 -m venv tmp_venv
+        source tmp_venv/bin/activate
     - name: Checkout PR branch of the repository
       uses: actions/checkout@v4
       with:
@@ -66,13 +70,13 @@ jobs:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         job_name: ${{ github.job }}
     - name: Create ASV machine config file
-      run: asv machine --machine gh-runner --yes
+      run: tmp_venv/bin/asv machine --machine gh-runner --yes
     - name: Save comparison of PR against main branch
       run: |
         git remote add upstream https://github.com/${{ github.repository }}.git
         git fetch upstream
-        asv continuous upstream/main HEAD --verbose || true
-        asv compare upstream/main HEAD --sort ratio --verbose | tee output
+        tmp_venv/bin/asv continuous upstream/main HEAD --verbose || true
+        tmp_venv/bin/asv compare upstream/main HEAD --sort ratio --verbose | tee output
         python -m lf_asv_formatter --asv_version "$(echo asv --version)"
         printf "\n\nClick [here]($STEP_URL) to view all benchmarks." >> output
         mv output ${{ env.ARTIFACTS_DIR }}
