@@ -131,9 +131,9 @@ def test_bad_bicubic_interpolator():
 
 def test_load_bicubic_interp_from_file(test_data_dir):
     """Test loading a bicubic interpolator object from a file."""
-    filename = os.path.join(test_data_dir, "truncated-salt2-h17/fake_salt2_template_0.dat")
+    filename = os.path.join(test_data_dir, "truncated-salt2-h17/salt2_template_0.dat")
     test_obj = BicubicInterpolator.from_grid_file(filename)
 
-    assert len(test_obj.x_vals) == 31
-    assert len(test_obj.y_vals) == 701
-    assert test_obj.z_vals.shape == (31, 701)
+    assert len(test_obj.x_vals) == 26
+    assert len(test_obj.y_vals) == 401
+    assert test_obj.z_vals.shape == (26, 401)
