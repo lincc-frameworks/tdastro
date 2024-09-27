@@ -1,15 +1,13 @@
 import os.path
 
 import pytest
-
-DATA_DIR_NAME = "data"
-TEST_DIR = os.path.dirname(__file__)
+from tdastro import _TDASTRO_TEST_DATA_DIR
 
 
 @pytest.fixture
 def test_data_dir():
     """Return the base test data directory."""
-    return os.path.join(TEST_DIR, DATA_DIR_NAME)
+    return _TDASTRO_TEST_DATA_DIR
 
 
 @pytest.fixture
@@ -34,6 +32,23 @@ def opsim_small(test_data_dir):
 def opsim_shorten(test_data_dir):
     """Return the file path for the bad grid input file."""
     return os.path.join(test_data_dir, "opsim_shorten.db")
+
+
+@pytest.fixture
+def oversampled_observations(opsim_shorten):
+    """Return an OpSim object with 0.01 day cadence spanning year 2027."""
+    from tdastro.astro_utils.opsim import OpSim, oversample_opsim
+
+    base_opsim = OpSim.from_db(opsim_shorten)
+    return oversample_opsim(
+        base_opsim,
+        pointing=(0.0, 0.0),
+        search_radius=180.0,
+        delta_t=0.01,
+        time_range=(61406.0, 61771.0),
+        bands=None,
+        strategy="darkest_sky",
+    )
 
 
 @pytest.fixture
