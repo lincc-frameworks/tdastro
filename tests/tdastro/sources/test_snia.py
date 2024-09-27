@@ -133,6 +133,7 @@ def run_snia_end2end(oversampled_observations, passbands_dir, nsample=1):
             },
         ],
         survey="LSST",
+        units="nm",
         trim_quantile=0.001,
         delta_wave=1,
     )

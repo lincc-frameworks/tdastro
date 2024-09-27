@@ -45,7 +45,6 @@ def test_passband_init(passbands_dir, tmp_path):
     assert LSST_u.filter_name == "u"
     assert LSST_u.full_name == "LSST_u"
     assert LSST_u.table_path == f"{passbands_dir}/LSST/u.dat"
-    assert LSST_u.table_url is None
     assert LSST_u._loaded_table is not None
     assert LSST_u.waves is not None
 

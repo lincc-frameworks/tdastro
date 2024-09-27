@@ -350,11 +350,7 @@ class Passband:
         """
         if self.table_url is None:
             if self.survey == "LSST":
-                # TODO switch to files at: https://github.com/lsst/throughputs/blob/main/baseline/total_g.dat
-                self.table_url = (
-                    f"http://svo2.cab.inta-csic.es/svo/theory/fps3/getdata.php"
-                    f"?format=ascii&id=LSST/LSST.{self.filter_name}"
-                )
+                self.table_url = f"https://github.com/lsst/throughputs/blob/main/baseline/total_{self.filter_name}.dat?raw=true"
             else:
                 raise NotImplementedError(
                     f"Transmission table download is not yet implemented for survey: {self.survey}."
