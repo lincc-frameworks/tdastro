@@ -20,7 +20,7 @@ class WhiteNoise(EffectModel):
     def __init__(self, scale, **kwargs):
         self._rng = np.random.default_rng()
         super().__init__(**kwargs)
-        self.add_parameter("scale", scale, required=True, **kwargs)
+        self.add_parameter("scale", scale, **kwargs)
 
     def _update_object_seed(self):
         """Update the object seed to the new value."""

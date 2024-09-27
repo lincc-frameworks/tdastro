@@ -1,11 +1,13 @@
 """The base PhysicalModel used for all sources."""
 
+from typing import Union
+
 import numpy as np
 
-from tdastro.astro_utils.cosmology import RedshiftDistFunc
+from tdastro.astro_utils.redshift import RedshiftDistFunc, apply_redshift, obs_frame_to_rest_frame
 from tdastro.base_models import ParameterizedNode
 from tdastro.graph_state import GraphState
-from tdastro.util_nodes.np_random import build_rngs_from_hashes
+from tdastro.rand_nodes.np_random import build_rngs_from_hashes
 
 
 class PhysicalModel(ParameterizedNode):
@@ -25,6 +27,8 @@ class PhysicalModel(ParameterizedNode):
         A source of background flux such as a host galaxy.
     effects : `list`
         A list of effects to apply to an observations.
+    apply_redshift : `bool`
+        Indicates whether to apply the redshift.
 
     Parameters
     ----------
@@ -49,22 +53,25 @@ class PhysicalModel(ParameterizedNode):
         self.effects = []
 
         # Set RA, dec, and redshift from the parameters.
-        self.add_parameter("ra", ra)
-        self.add_parameter("dec", dec)
-        self.add_parameter("redshift", redshift)
+        self.add_parameter("ra", ra, allow_gradient=False)
+        self.add_parameter("dec", dec, allow_gradient=False)
+        self.add_parameter("redshift", redshift, allow_gradient=False)
 
         # If the luminosity distance is provided, use that. Otherwise try the
         # redshift value using the cosmology (if given). Finally, default to None.
         if distance is not None:
-            self.add_parameter("distance", distance)
+            self.add_parameter("distance", distance, allow_gradient=False)
         elif redshift is not None and kwargs.get("cosmology", None) is not None:
             self._redshift_func = RedshiftDistFunc(redshift=self.redshift, **kwargs)
-            self.add_parameter("distance", self._redshift_func)
+            self.add_parameter("distance", self._redshift_func, allow_gradient=False)
         else:
-            self.add_parameter("distance", None)
+            self.add_parameter("distance", None, allow_gradient=False)
 
         # Background is an object not a sampled parameter
         self.background = background
+
+        # Initialize the effect settings to their default values.
+        self.apply_redshift = redshift is not None
 
     def add_effect(self, effect, allow_dups=True, **kwargs):
         """Add a transformational effect to the PhysicalModel.
@@ -115,6 +122,16 @@ class PhysicalModel(ParameterizedNode):
             self.background.set_graph_positions(seen_nodes=seen_nodes)
         for effect in self.effects:
             effect.set_graph_positions(seen_nodes=seen_nodes)
+
+    def set_apply_redshift(self, apply_redshift):
+        """Toggles the apply_redshift setting.
+
+        Parameters
+        ----------
+        apply_redshift : `bool`
+            The new value for apply_redshift.
+        """
+        self.apply_redshift = apply_redshift
 
     def _evaluate(self, times, wavelengths, graph_state):
         """Draw effect-free observations for this object.
@@ -171,10 +188,14 @@ class PhysicalModel(ParameterizedNode):
             )
         params = self.get_local_params(graph_state)
 
-        # Pre-effects are adjustments done to times and/or wavelengths, before flux density computation.
-        for effect in self.effects:
-            if hasattr(effect, "pre_effect"):
-                times, wavelengths = effect.pre_effect(times, wavelengths, graph_state, **kwargs)
+        # Pre-effects are adjustments done to times and/or wavelengths, before flux density
+        # computation. We skip if redshift is 0.0 since there is nothing to do.
+        if self.apply_redshift and params["redshift"] != 0.0:
+            if params.get("redshift", None) is None:
+                raise ValueError("The 'redshift' parameter is required for redshifted models.")
+            if params.get("t0", None) is None:
+                raise ValueError("The 't0' parameter is required for redshifted models.")
+            times, wavelengths = obs_frame_to_rest_frame(times, wavelengths, params["redshift"], params["t0"])
 
         # Compute the flux density for both the current object and add in anything
         # behind it, such as a host galaxy.
@@ -191,6 +212,12 @@ class PhysicalModel(ParameterizedNode):
 
         for effect in self.effects:
             flux_density = effect.apply(flux_density, wavelengths, graph_state, **kwargs)
+
+        # Post-effects are adjustments done to the flux density after computation.
+        if self.apply_redshift and params["redshift"] != 0.0:
+            # We have alread checked that redshift is not None.
+            flux_density = apply_redshift(flux_density, params["redshift"])
+
         return flux_density
 
     def sample_parameters(self, given_args=None, num_samples=1, rng_info=None, **kwargs):
@@ -289,3 +316,29 @@ class PhysicalModel(ParameterizedNode):
         node_hashes = self.get_all_node_info("node_hash")
         np_rngs = build_rngs_from_hashes(node_hashes, base_seed)
         return np_rngs
+
+    def get_band_fluxes(self, passband_or_group, times, state) -> Union[np.ndarray, dict]:
+        """Get the band fluxes for a given Passband or PassbandGroup.
+
+        Parameters
+        ----------
+        passband_or_group : `Passband` or `PassbandGroup`
+            The passband (or passband group) to use.
+        times : `numpy.ndarray`
+            A length T array of observer frame timestamps.
+        state : `GraphState`
+            An object mapping graph parameters to their values.
+
+        Returns
+        -------
+        band_fluxes : `numpy.ndarray` or `dict
+            A length T array of band fluxes, or a dictionary of band names mapped to fluxes (if a passband
+            group is used).
+        """
+        spectral_fluxes = self._evaluate(times, passband_or_group.waves, state)
+        if hasattr(passband_or_group, "fluxes_to_bandflux"):  # Passband
+            return passband_or_group.fluxes_to_bandflux(spectral_fluxes)
+        elif hasattr(passband_or_group, "fluxes_to_bandfluxes"):  # PassbandGroup
+            return passband_or_group.fluxes_to_bandfluxes(spectral_fluxes)
+        else:
+            raise ValueError(f"Unknown passband type: {type(passband_or_group)}")

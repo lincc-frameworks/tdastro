@@ -73,11 +73,8 @@ class ParameterSource:
         or the attribute name of a dependency node.
     dependency : `ParameterizedNode` or None
         The node on which this parameter is dependent
-    fixed : `bool`
-        The attribute cannot be changed during resampling.
-        Default = ``False``
-    required : `bool`
-        The attribute must exist and be non-None.
+    allow_gradient : `bool`
+        Allow gradients to be computed at this variable.
         Default = ``False``
     """
 
@@ -88,27 +85,30 @@ class ParameterSource:
     FUNCTION_NODE = 3
     COMPUTE_OUTPUT = 4
 
-    def __init__(self, parameter_name, source_type=0, fixed=False, required=False, node_name=""):
+    def __init__(self, parameter_name, source_type=0, node_name=""):
         self.parameter_name = parameter_name
         self.node_name = node_name
         self.source_type = source_type
-        self.fixed = fixed
-        self.required = required
+        self.allow_gradient = False
         self.value = None
         self.dependency = None
 
-    def set_as_constant(self, value):
+    def set_as_constant(self, value, allow_gradient=True):
         """Set the parameter as a constant value.
 
         Parameters
         ----------
         value : any
             The constant value to use.
+        allow_gradient : bool
+            Allow a gradient to be computed at this variable.
+            Default = ``True``
         """
         if callable(value):
             raise ValueError(f"Using set_as_constant on callable {value}")
 
         self.source_type = ParameterSource.CONSTANT
+        self.allow_gradient = allow_gradient
         self.dependency = None
         self.value = value
 
@@ -123,6 +123,7 @@ class ParameterSource:
             The name of the parameter to access.
         """
         self.source_type = ParameterSource.MODEL_PARAMETER
+        self.allow_gradient = False
         self.dependency = dependency
         self.value = param_name
 
@@ -137,6 +138,7 @@ class ParameterSource:
             The name of where the result is stored in the FunctionNode.
         """
         self.source_type = ParameterSource.FUNCTION_NODE
+        self.allow_gradient = False
         self.dependency = dependency
         self.value = param_name
 
@@ -151,6 +153,7 @@ class ParameterSource:
             The name of where the result is stored in the FunctionNode.
         """
         self.source_type = ParameterSource.COMPUTE_OUTPUT
+        self.allow_gradient = False
         self.value = param_name
 
 
@@ -325,7 +328,6 @@ class ParameterizedNode:
         Raise a ``KeyError`` if there is a parameter collision or the parameter
         cannot be found.
         Raise a ``ValueError`` if the setter type is not supported.
-        Raise a ``ValueError`` if the parameter is required, but set to None.
         """
         # Set the node's position in the graph to None to indicate that the
         # structure might have changed. It needs to be updated with set_graph_positions().
@@ -371,8 +373,6 @@ class ParameterizedNode:
         else:
             # Case 4: The value is constant (including None).
             self.setters[name].set_as_constant(value)
-            if self.setters[name].required and value is None:
-                raise ValueError(f"Missing required parameter {name}")
 
         # Update the dependencies to account for any new nodes in the graph.
         self.direct_dependencies = {}
@@ -380,7 +380,19 @@ class ParameterizedNode:
             if setter_info.dependency is not None and setter_info.dependency is not self:
                 self.direct_dependencies[setter_info.dependency] = True
 
-    def add_parameter(self, name, value=None, required=False, fixed=False, **kwargs):
+    def set_allow_gradient(self, name, allow_gradient):
+        """Turn on or off the ability to compute a gradient for this variable.
+
+        Parameters
+        ----------
+        name : `str`
+            The parameter name to modify.
+        allow_gradient : `bool`
+            The new setting for allow_gradient.
+        """
+        self.setters[name].allow_gradient = allow_gradient
+
+    def add_parameter(self, name, value=None, allow_gradient=None, **kwargs):
         """Add a single *new* parameter to the ParameterizedNode.
 
         Notes
@@ -398,12 +410,10 @@ class ParameterizedNode:
         value : any, optional
             The information to use to set the parameter. Can be a constant,
             function, ParameterizedNode, or self.
-        required : `bool`
-            Fail if the parameter is set to ``None``.
-            Default = ``False``
-        fixed : `bool`
-            The attribute cannot be changed during resampling.
-            Default = ``False``
+        allow_gradient : `bool` or None
+            Allow gradients to be computed for this variable. If set to None uses the default
+            for the setter type (True for constant and False for everything else).
+            Default = None
         **kwargs : `dict`, optional
            All other keyword arguments, possibly including the parameter setters.
 
@@ -411,7 +421,6 @@ class ParameterizedNode:
         ------
         Raise a ``KeyError`` if there is a parameter collision or the parameter
         cannot be found.
-        Raise a ``ValueError`` if the parameter is required, but set to None.
         """
         # Check for parameter collision and add a place holder value.
         if hasattr(self, name) and name not in self.setters:
@@ -425,15 +434,13 @@ class ParameterizedNode:
         self.setters[name] = ParameterSource(
             parameter_name=name,
             source_type=ParameterSource.UNDEFINED,
-            fixed=fixed,
-            required=required,
             node_name=str(self),
         )
         self.set_parameter(name, value, **kwargs)
 
-        # Only constant sources can be fixed.
-        if fixed and self.setters[name].source_type != ParameterSource.CONSTANT:
-            raise ValueError(f"Tried to make {name} fixed but source_type={self.setters[name].source_type}.")
+        # Check if we should override allow_gradient.
+        if allow_gradient is not None:
+            self.setters[name].allow_gradient = allow_gradient
 
         # Create a callable getter function using. We override the __self__ and __name__
         # attributes so it looks like method of this object.
@@ -637,11 +644,12 @@ class ParameterizedNode:
         # Add new values to the pytree, recursively exploring dependencies.
         partial[self.node_string] = {}
         for name, setter_info in self.setters.items():
-            if setter_info.dependency is not None:
-                partial = setter_info.dependency.build_pytree(graph_state, partial)
-            elif setter_info.source_type == ParameterSource.CONSTANT and not setter_info.fixed:
-                # Only the non-fixed, constants go into the PyTree.
+            if setter_info.allow_gradient:
+                # Anything wth allow_gradient == True goes in the PyTree.
                 partial[self.node_string][name] = graph_state[self.node_string][name]
+            elif setter_info.dependency is not None:
+                # We only recursively check parameters above non-gradient nodes.
+                partial = setter_info.dependency.build_pytree(graph_state, partial)
         return partial
 
 
@@ -664,7 +672,7 @@ class SingleVariableNode(ParameterizedNode):
 
     def __init__(self, name, value, **kwargs):
         super().__init__(**kwargs)
-        self.add_parameter(name, value, required=True, **kwargs)
+        self.add_parameter(name, value, **kwargs)
 
 
 class FunctionNode(ParameterizedNode):

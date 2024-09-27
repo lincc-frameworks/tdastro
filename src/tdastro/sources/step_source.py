@@ -20,8 +20,8 @@ class StepSource(StaticSource):
 
     def __init__(self, brightness, t0, t1, **kwargs):
         super().__init__(brightness, **kwargs)
-        self.add_parameter("t0", t0, required=True, **kwargs)
-        self.add_parameter("t1", t1, required=True, **kwargs)
+        self.add_parameter("t0", t0, **kwargs)
+        self.add_parameter("t1", t1, **kwargs)
 
     def _evaluate(self, times, wavelengths, graph_state, **kwargs):
         """Draw effect-free observations for this object.

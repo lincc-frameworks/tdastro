@@ -1,7 +1,7 @@
 import jax.random
 import numpy as np
 import pytest
-from tdastro.util_nodes.jax_random import JaxRandomFunc, JaxRandomNormal, build_jax_keys_from_nodes
+from tdastro.rand_nodes.jax_random import JaxRandomFunc, JaxRandomNormal, build_jax_keys_from_nodes
 
 
 def test_jax_random_uniform():
