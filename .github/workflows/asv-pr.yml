@@ -75,8 +75,16 @@ jobs:
       run: |
         git remote add upstream https://github.com/${{ github.repository }}.git
         git fetch upstream
+    - name: Run asv continuous
+      run: |
         tmp_venv/bin/asv continuous upstream/main HEAD --verbose || true
+        ls -l
+    - name: Run asv compare
+      run: |
         tmp_venv/bin/asv compare upstream/main HEAD --sort ratio --verbose | tee output
+        ls -l
+    - name: Run format
+      run: |
         tmp_venv/bin/python3 -m lf_asv_formatter --asv_version "$(echo tmp_venv/bin/asv --version)"
         printf "\n\nClick [here]($STEP_URL) to view all benchmarks." >> output
         mv output ${{ env.ARTIFACTS_DIR }}
