@@ -72,9 +72,9 @@ class PassbandGroup:
 
                 # Set the table path if it is not already set and a table_dir is provided
                 if "table_path" not in parameters and table_dir is not None:
-                    parameters[
-                        "table_path"
-                    ] = f"{table_dir}/{parameters['survey']}/{parameters['filter_name']}.dat"
+                    parameters["table_path"] = os.path.join(
+                        table_dir, parameters["survey"], f"{parameters['filter_name']}.dat"
+                    )
 
                 passband = Passband(**parameters)
                 self.passbands[passband.full_name] = passband
@@ -114,10 +114,11 @@ class PassbandGroup:
                 if table_dir is None:
                     self.passbands[f"LSST_{filter_name}"] = Passband("LSST", filter_name, **kwargs)
                 else:
+                    table_path = os.path.join(table_dir, "LSST", f"{filter_name}.dat")
                     self.passbands[f"LSST_{filter_name}"] = Passband(
                         "LSST",
                         filter_name,
-                        **{**kwargs, "table_path": f"{table_dir}/LSST/{filter_name}.dat"},
+                        **{**kwargs, "table_path": table_path},
                     )
         else:
             raise ValueError(f"Unknown passband preset: {preset}")
