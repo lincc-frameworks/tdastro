@@ -63,13 +63,26 @@ def draw_single_random_sn(
     return res
 
 
-def test_snia_end2end(
-    oversampled_observations,
-    passbands_dir,
-    nsample=1,
-):
-    """Test that we can sample and create SN Ia simulation using the salt3 model."""
+def run_snia_end2end(oversampled_observations, passbands_dir, nsample=1):
+    """Test that we can sample and create SN Ia simulation using the salt3 model.
 
+    Parameters
+    ----------
+    oversampled_observations : OpSim
+        The opsim data to use.
+    passbands_dir : str
+        The name of the directory holding the passband information.
+    nsample : int
+        The number of samples to test.
+        Default:  1
+
+    Returns
+    -------
+    res_list : dict
+        A dictionary of lists of sampling and result information.
+    passbands : PassbandGroup
+        The passbands used.
+    """
     t_min = oversampled_observations["observationStartMJD"].min()
     t_max = oversampled_observations["observationStartMJD"].max()
 
@@ -126,9 +139,7 @@ def test_snia_end2end(
     )
 
     res_list = []
-
     any_valid_results = False
-
     for _n in range(0, nsample):
         res = draw_single_random_sn(
             source,
@@ -173,3 +184,11 @@ def test_snia_end2end(
     assert any_valid_results, f"No valid results found over all {nsample} samples."
 
     return res_list, passbands
+
+
+def test_snia_end2end(oversampled_observations, passbands_dir):
+    """Test that the end to end run works."""
+    num_samples = 1
+    res_list, passbands = run_snia_end2end(oversampled_observations, passbands_dir, nsample=num_samples)
+    assert len(res_list) == num_samples
+    assert len(passbands) == 2

@@ -78,6 +78,9 @@ class PassbandGroup:
             f"{', '.join(self.passbands.keys())}"
         )
 
+    def __len__(self) -> int:
+        return len(self.passbands)
+
     def _load_preset(self, preset: str, **kwargs) -> None:
         """Load a pre-defined set of passbands.
 
