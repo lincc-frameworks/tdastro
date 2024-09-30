@@ -251,7 +251,9 @@ class HostmassX1Func(NumericalInversePolynomialFunc):
         hostmass = self.get_param(graph_state, "hostmass")
 
         if graph_state.num_samples == 1:
-            results = self._inv_poly_ge_10.rvs(1, rng) if hostmass >= 10 else self._inv_poly_lt_10.rvs(1, rng)
+            results = (
+                self._inv_poly_ge_10.rvs(1, rng)[0] if hostmass >= 10 else self._inv_poly_lt_10.rvs(1, rng)[0]
+            )
         else:
             results = np.zeros(graph_state.num_samples)
 
