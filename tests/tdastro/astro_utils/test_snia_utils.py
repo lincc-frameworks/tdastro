@@ -63,6 +63,11 @@ def test_sample_hostmass_x1c():
     assert len(values1) == num_samples
     assert len(np.unique(values1)) == num_samples
 
+    # If we are only querying a single sample, we get a float.
+    states_single = hm_node1.sample_parameters(num_samples=1)
+    values_single = hm_node1.get_param(states_single, "function_node_result")
+    assert isinstance(values_single, float)
+
     # If we create a new node with the same hostmas and the same seeds, we get the
     # same results and the same hostmasses.
     hm_node2 = HostmassX1Func(
