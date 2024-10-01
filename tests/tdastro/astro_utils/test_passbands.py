@@ -1,3 +1,4 @@
+import os
 from unittest.mock import patch
 
 import numpy as np
@@ -6,10 +7,18 @@ from tdastro.astro_utils.passbands import Passband
 from tdastro.sources.spline_model import SplineModel
 
 
-def create_test_passband(path, transmission_table, filter_name="a", **kwargs):
-    """Helper function to create a Passband object for testing."""
-    survey = "TEST"
-    table_path = path / f"{survey}_{filter_name}.dat"
+def create_lsst_passband(path, filter_name, **kwargs):
+    """Helper function to create an LSST Passband object for testing."""
+    survey = "LSST"
+    table_path = f"{path}/{survey}/{filter_name}.dat"
+    return Passband(survey, filter_name, table_path=table_path, **kwargs)
+
+
+def create_toy_passband(path, transmission_table, filter_name="a", **kwargs):
+    """Helper function to create a toy Passband object for testing."""
+    survey = "TOY"
+    table_path = f"{path}/{survey}/{filter_name}.dat"
+    os.makedirs(os.path.dirname(table_path), exist_ok=True)
 
     # Create a transmission table file
     with open(table_path, "w") as f:
@@ -19,13 +28,16 @@ def create_test_passband(path, transmission_table, filter_name="a", **kwargs):
     return Passband(survey, filter_name, table_path=table_path, **kwargs)
 
 
-def test_passband_str(tmp_path):
+def test_passband_str(passbands_dir, tmp_path):
     """Test the __str__ method of the Passband class."""
-    transmission_table = "1000 0.5\n1005 0.6\n1010 0.7\n"
+    # Test an LSST passband:
+    LSST_u = create_lsst_passband(passbands_dir, "u")
+    assert str(LSST_u) == "Passband: LSST_u"
 
-    # Check that the __str__ method returns the expected string
-    a_band = create_test_passband(tmp_path, transmission_table)
-    assert str(a_band) == "Passband: TEST_a"
+    # Test a toy passband:
+    transmission_table = "1000 0.5\n1005 0.6\n1010 0.7\n"
+    a_band = create_toy_passband(tmp_path, transmission_table)
+    assert str(a_band) == "Passband: TOY_a"
 
 
 def test_passband_manual_create(tmp_path):
@@ -78,12 +90,18 @@ def test_passband_manual_create(tmp_path):
         )
 
 
-def test_passband_load_transmission_table(tmp_path):
+def test_passband_load_transmission_table(passbands_dir, tmp_path):
     """Test the _load_transmission_table method of the Passband class."""
+    # Test that we can load a standard LSST transmission table from the local test data
+    LSST_g = create_lsst_passband(passbands_dir, "g")
+    assert LSST_g._loaded_table is not None
+    assert LSST_g._loaded_table.shape[1] == 2  # Two columns: wavelengths and transmissions
+    assert LSST_g.waves is not None
+    assert len(LSST_g.waves.shape) == 1
 
     # Test a toy transmission table was loaded correctly
     transmission_table = "1000 0.5\n1005 0.6\n1010 0.7\n"
-    a_band = create_test_passband(tmp_path, transmission_table)
+    a_band = create_toy_passband(tmp_path, transmission_table)
     np.testing.assert_allclose(a_band._loaded_table, np.array([[1000, 0.5], [1005, 0.6], [1010, 0.7]]))
 
     # Test that we raise an error if the transmission table is blank
@@ -113,7 +131,7 @@ def test_passband_download_transmission_table(tmp_path):
     # Initialize a Passband object
     survey = "TEST"
     filter_name = "a"
-    table_path = tmp_path / f"{survey}_{filter_name}.dat"
+    table_path = tmp_path / f"{survey}/{filter_name}.dat"
     table_url = f"http://example.com/{survey}/{filter_name}.dat"
     transmission_table = "1000 0.5\n1005 0.6\n1010 0.7\n"
 
@@ -133,10 +151,10 @@ def test_passband_download_transmission_table(tmp_path):
         np.testing.assert_allclose(a_band._loaded_table, np.array([[1000, 0.5], [1005, 0.6], [1010, 0.7]]))
 
 
-def test_process_transmission_table(tmp_path):
+def test_process_transmission_table(passbands_dir, tmp_path):
     """Test the process_transmission_table method of the Passband class; check correct methods are called."""
     transmission_table = "100 0.5\n200 0.75\n300 0.25\n"
-    a_band = create_test_passband(tmp_path, transmission_table)
+    a_band = create_toy_passband(tmp_path, transmission_table)
 
     # Mock the methods that _process_transmission_table wraps, to check each is called once
     with (
@@ -158,11 +176,21 @@ def test_process_transmission_table(tmp_path):
     a_band.process_transmission_table(delta_wave, trim_quantile)
     np.testing.assert_allclose(a_band.waves, np.arange(100, 301, delta_wave))
 
+    # Check that we can call the method on a standard LSST transmission table
+    LSST_r = create_lsst_passband(passbands_dir, "r")
+    LSST_r.process_transmission_table(delta_wave, trim_quantile)
+    assert LSST_r.waves is not None
 
-def test_interpolate_transmission_table(tmp_path):
+    # Check that we raise an error if the transmission table is the wrong shape
+    a_band._loaded_table = np.array([[100, 0.5, 105, 0.6]])
+    with pytest.raises(ValueError):
+        a_band.process_transmission_table(delta_wave, trim_quantile)
+
+
+def test_interpolate_transmission_table(passbands_dir, tmp_path):
     """Test the _interpolate_transmission_table method of the Passband class."""
     transmission_table = "100 0.5\n200 0.75\n300 0.25\n"
-    a_band = create_test_passband(tmp_path, transmission_table)
+    a_band = create_toy_passband(tmp_path, transmission_table)
 
     # Interpolate the transmission table to a large step size (50 Angstrom)
     table = a_band._interpolate_transmission_table(a_band._loaded_table, delta_wave=50)
@@ -176,13 +204,27 @@ def test_interpolate_transmission_table(tmp_path):
     table = a_band._interpolate_transmission_table(a_band._loaded_table, delta_wave=0.1)
     np.testing.assert_allclose(table[:, 0], np.arange(100, 300.01, 0.1))
 
+    # Check that we raise an error if the transmission table is the wrong shape
+    with pytest.raises(ValueError):
+        a_band._interpolate_transmission_table(np.array([[100, 0.5], [200, 0.75], [300, 0.25], [400]]))
 
-def test_trim_transmission_table(tmp_path):
+    # Check that we raise an error if the delta_wave is not a positive number
+    with pytest.raises(ValueError):
+        a_band._interpolate_transmission_table(a_band._loaded_table, delta_wave=-1)
+
+    # Check that we can run method on a standard LSST transmission table
+    LSST_i = create_lsst_passband(passbands_dir, "i")
+    table = LSST_i._interpolate_transmission_table(LSST_i._loaded_table, delta_wave=50)
+    assert len(table) > 0
+    assert len(table) < len(LSST_i._loaded_table)
+
+
+def test_trim_transmission_table(passbands_dir, tmp_path):
     """Test the _trim_transmission_by_quantile method of the Passband class."""
 
     # Test: transmission table with only 3 points
     transmission_table = "100 0.5\n200 0.75\n300 0.25\n"
-    a_band = create_test_passband(tmp_path, transmission_table)
+    a_band = create_toy_passband(tmp_path, transmission_table)
 
     # Trim the transmission table by 5% (should remove the last point)
     table = a_band._trim_transmission_by_quantile(a_band._loaded_table, trim_quantile=0.05)
@@ -202,9 +244,13 @@ def test_trim_transmission_table(tmp_path):
     with pytest.raises(ValueError):
         a_band._trim_transmission_by_quantile(a_band._loaded_table, trim_quantile=-0.1)
 
-    # Test 2: larger, more normal transmission table
+    # Check we raise an error if the transmission table is the wrong shape
+    with pytest.raises(ValueError):
+        a_band._trim_transmission_by_quantile(np.array([[100, 0.5], [200, 0.75], [300, 0.25], [400]]))
+
+    # Test 2: larger, more gaussian transmission table
     transmission_table = "100 0.05\n200 0.1\n300 0.25\n400 0.5\n500 0.8\n600 0.6\n700 0.4\n800 0.2\n900 0.1\n"
-    b_band = create_test_passband(tmp_path, transmission_table, filter_name="b")
+    b_band = create_toy_passband(tmp_path, transmission_table, filter_name="b")
 
     # Trim the transmission table by 5% (should remove the last point)
     table = b_band._trim_transmission_by_quantile(b_band._loaded_table, trim_quantile=0.05)
@@ -244,7 +290,7 @@ def test_trim_transmission_table(tmp_path):
     transmission_table = "\n".join(
         [f"{wavelength} {transmission}" for wavelength, transmission in zip(wavelengths, transmissions)]
     )
-    c_band = create_test_passband(tmp_path, transmission_table, filter_name="c")
+    c_band = create_toy_passband(tmp_path, transmission_table, filter_name="c")
 
     # Trim the transmission table by 5% on each side
     table = c_band._trim_transmission_by_quantile(c_band._loaded_table, trim_quantile=0.05)
@@ -254,11 +300,21 @@ def test_trim_transmission_table(tmp_path):
     trimmed_area = np.trapz(table[:, 1], x=table[:, 0])
     assert trimmed_area >= (original_area * 0.9)
 
+    # Test 4: LSST transmission table
+    LSST_z = create_lsst_passband(passbands_dir, "z")
+    table = LSST_z._trim_transmission_by_quantile(LSST_z._loaded_table, trim_quantile=0.05)
+    assert len(table) < len(LSST_z._loaded_table)
 
-def test_passband_normalize_transmission_table(tmp_path):
+    original_area = np.trapz(LSST_z._loaded_table[:, 1], x=LSST_z._loaded_table[:, 0])
+    trimmed_area = np.trapz(table[:, 1], x=table[:, 0])
+    assert trimmed_area >= (original_area * 0.9)
+
+
+def test_passband_normalize_transmission_table(passbands_dir, tmp_path):
     """Test the _normalize_transmission_table method of the Passband class."""
+    # Test a toy transmission table
     transmission_table = "100 0.5\n200 0.75\n300 0.25\n"
-    a_band = create_test_passband(tmp_path, transmission_table, delta_wave=100, trim_quantile=None)
+    a_band = create_toy_passband(tmp_path, transmission_table, delta_wave=100, trim_quantile=None)
 
     # Normalize the transmission table (we skip interpolation as grid already matches)
     a_band._normalize_transmission_table(a_band._loaded_table)
@@ -277,11 +333,17 @@ def test_passband_normalize_transmission_table(tmp_path):
     with pytest.raises(ValueError):
         a_band._normalize_transmission_table(np.array([[100, 0.5, 105, 0.6]]))
 
+    # Test we can call method on a standard LSST transmission table
+    LSST_y = create_lsst_passband(passbands_dir, "y")
+    normalized_table = LSST_y._normalize_transmission_table(LSST_y._loaded_table)
+    assert len(normalized_table) == len(LSST_y._loaded_table)
+    assert not np.allclose(normalized_table, LSST_y._loaded_table)
 
-def test_passband_fluxes_to_bandflux(tmp_path):
+
+def test_passband_fluxes_to_bandflux(passbands_dir, tmp_path):
     """Test the fluxes_to_bandflux method of the Passband class."""
     transmission_table = "100 0.5\n200 0.75\n300 0.25\n"
-    a_band = create_test_passband(tmp_path, transmission_table, delta_wave=100, trim_quantile=None)
+    a_band = create_toy_passband(tmp_path, transmission_table, delta_wave=100, trim_quantile=None)
 
     # Define some mock flux values and calculate our expected bandflux
     flux = np.array(
@@ -324,9 +386,17 @@ def test_passband_fluxes_to_bandflux(tmp_path):
     with pytest.raises(ValueError):
         a_band.fluxes_to_bandflux(np.array([]))
 
+    # Test we can call method on a standard LSST transmission table
+    LSST_u = create_lsst_passband(passbands_dir, "u")
+    flux = np.random.rand(5, len(LSST_u.waves))
+    in_band_flux = LSST_u.fluxes_to_bandflux(flux)
+    assert in_band_flux is not None
+    assert len(in_band_flux) == 5
 
-def test_passband_wrapped_from_physical_source(tmp_path):
+
+def test_passband_wrapped_from_physical_source(passbands_dir, tmp_path):
     """Test get_band_fluxes, PhysicalModel's wrapped version of Passband's fluxes_to_bandflux.."""
+    # Set up physical model
     times = np.array([1.0, 2.0, 3.0])
     wavelengths = np.array([10.0, 20.0, 30.0])
     fluxes = np.array([[1.0, 5.0, 1.0], [5.0, 10.0, 5.0], [1.0, 5.0, 3.0]])
@@ -335,12 +405,19 @@ def test_passband_wrapped_from_physical_source(tmp_path):
 
     test_times = np.array([1.0, 1.5, 2.0, 2.5, 3.0, 3.5])
 
-    # Try with a single passband (see PassbandGroup tests for group tests)
+    # Test with a single toy passband (see PassbandGroup tests for group tests)
     transmission_table = "100 0.5\n200 0.75\n300 0.25\n"
-    a_band = create_test_passband(tmp_path, transmission_table, delta_wave=100, trim_quantile=None)
+    a_band = create_toy_passband(tmp_path, transmission_table, delta_wave=100, trim_quantile=None)
     result_from_source_model = model.get_band_fluxes(a_band, test_times, state)
 
     evaluated_fluxes = model.evaluate(test_times, a_band.waves, state)
     result_from_passband = a_band.fluxes_to_bandflux(evaluated_fluxes)
+    np.testing.assert_allclose(result_from_source_model, result_from_passband)
 
+    # Test with a standard LSST passband
+    LSST_g = create_lsst_passband(passbands_dir, "g")
+    result_from_source_model = model.get_band_fluxes(LSST_g, test_times, state)
+
+    evaluated_fluxes = model.evaluate(test_times, LSST_g.waves, state)
+    result_from_passband = LSST_g.fluxes_to_bandflux(evaluated_fluxes)
     np.testing.assert_allclose(result_from_source_model, result_from_passband)
