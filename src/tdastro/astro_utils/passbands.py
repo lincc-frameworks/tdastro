@@ -118,7 +118,8 @@ class PassbandGroup:
                     self.passbands[f"LSST_{filter_name}"] = Passband(
                         "LSST",
                         filter_name,
-                        **{**kwargs, "table_path": table_path},
+                        table_path=table_path,
+                        **kwargs,
                     )
         else:
             raise ValueError(f"Unknown passband preset: {preset}")
@@ -148,7 +149,7 @@ class PassbandGroup:
             # do not happen to be on the same phase of the grid; eg, even if the step is 10, if the first
             # passband starts at 100 and the second at 105, the passbands won't share the same grid)
             if np.array_equal(self.waves[lower_index : upper_index + 1], passband.waves):
-                indices = (lower_index, upper_index + 1)
+                indices = slice(lower_index, upper_index + 1)
             else:
                 indices = np.searchsorted(self.waves, passband.waves)
             passband._in_band_wave_indices = indices
@@ -204,10 +205,7 @@ class PassbandGroup:
                     "This should have been calculated in PassbandGroup._calculate_in_band_wave_indices."
                 )
 
-            if isinstance(passband._in_band_wave_indices, tuple):
-                in_band_fluxes = flux_density_matrix[:, indices[0] : indices[1]]
-            else:
-                in_band_fluxes = flux_density_matrix[:, indices]
+            in_band_fluxes = flux_density_matrix[:, indices]
 
             bandfluxes[full_name] = passband.fluxes_to_bandflux(in_band_fluxes)
         return bandfluxes

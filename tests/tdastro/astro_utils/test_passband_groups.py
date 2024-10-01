@@ -93,7 +93,7 @@ def test_passband_group_init(tmp_path, passbands_dir):
     assert "TOY_a" in toy_passband_group.passbands
     assert "TOY_b" in toy_passband_group.passbands
     assert "TOY_c" in toy_passband_group.passbands
-    assert np.allclose(
+    np.testing.assert_allclose(
         toy_passband_group.waves,
         np.unique(np.concatenate([np.arange(100, 301, 5), np.arange(250, 351, 5), np.arange(400, 601, 5)])),
     )
@@ -167,7 +167,7 @@ def test_passband_group_calculate_in_band_wave_indices(passbands_dir, tmp_path):
     lsst_passband_group = create_lsst_passband_group(passbands_dir, delta_wave=20, trim_quantile=None)
 
     # Make sure group.waves contains the union of all passband waves with no duplicates or other values
-    assert np.allclose(
+    np.testing.assert_allclose(
         lsst_passband_group.waves,
         np.unique(np.concatenate([passband.waves for passband in lsst_passband_group.passbands.values()])),
     )
@@ -181,14 +181,16 @@ def test_passband_group_calculate_in_band_wave_indices(passbands_dir, tmp_path):
 
     # Note that passband_A and passband_B have overlapping wavelength ranges
     # Where passband_A covers 100-300 and passband_B covers 250-350 (and passband_C covers 400-600)
-    assert np.allclose(passband_A._in_band_wave_indices, np.array([0, 1, 2, 3, 4, 5, 6, 7, 9, 11, 13]))
-    assert np.allclose(passband_A.waves, toy_passband_group.waves[passband_A._in_band_wave_indices])
+    np.testing.assert_allclose(
+        passband_A._in_band_wave_indices, np.array([0, 1, 2, 3, 4, 5, 6, 7, 9, 11, 13])
+    )
+    np.testing.assert_allclose(passband_A.waves, toy_passband_group.waves[passband_A._in_band_wave_indices])
 
-    assert np.allclose(passband_B._in_band_wave_indices, np.array([8, 10, 12, 14, 15, 16]))
-    assert np.allclose(passband_B.waves, toy_passband_group.waves[passband_B._in_band_wave_indices])
+    np.testing.assert_allclose(passband_B._in_band_wave_indices, np.array([8, 10, 12, 14, 15, 16]))
+    np.testing.assert_allclose(passband_B.waves, toy_passband_group.waves[passband_B._in_band_wave_indices])
 
-    assert passband_C._in_band_wave_indices == (17, 28)
-    assert np.allclose(
+    assert passband_C._in_band_wave_indices == slice(17, 28)
+    np.testing.assert_allclose(
         passband_C.waves,
-        toy_passband_group.waves[passband_C._in_band_wave_indices[0] : passband_C._in_band_wave_indices[1]],
+        toy_passband_group.waves[passband_C._in_band_wave_indices],
     )
