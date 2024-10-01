@@ -302,7 +302,7 @@ class PhysicalModel(ParameterizedNode):
             ):
                 raise ValueError(
                     "If passband_or_group is a Passband, "
-                    "filters must me be None or a list of the same filter repeated."
+                    "filters must be None or a list of the same filter repeated."
                 )
             spectral_fluxes = self._evaluate(times, passband_or_group.waves, state)
             return passband_or_group.fluxes_to_bandflux(spectral_fluxes)
