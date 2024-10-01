@@ -248,7 +248,7 @@ def test_opsim_flux_err_point_source(opsim_shorten):
     flux = mag2flux(ops_data.table["fiveSigmaDepth"])
     expected_flux_err = flux / 5.0
 
-    flux_err = ops_data.flux_err_point_source(flux, index=np.arange(len(ops_data)))
+    flux_err = ops_data.bandflux_error_point_source(flux, index=np.arange(len(ops_data)))
 
     # Tolerance is very high, we should investigate why the values are so different.
     np.testing.assert_allclose(flux_err, expected_flux_err, rtol=0.2)

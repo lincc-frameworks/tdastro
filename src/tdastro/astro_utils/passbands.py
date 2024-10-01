@@ -577,7 +577,7 @@ class Passband:
 
         F_b = ∫ f(λ)φ_b(λ) dλ
 
-        where f(λ) is the specific flux of an object at the top of the atmosphere, and φ_b(λ) is the
+        where f(λ) is the flux density of an object at the top of the atmosphere, and φ_b(λ) is the
         normalized system response for given band b."
 
         Parameters
@@ -602,7 +602,7 @@ class Passband:
             )
 
         # Calculate the bandflux as ∫ f(λ)φ_b(λ) dλ,
-        # where f(λ) is the in-band flux density and φ_b(λ) is the normalized system response
+        # where f(λ) is the flux density and φ_b(λ) is the normalized system response
         integrand = flux_density_matrix * self.processed_transmission_table[:, 1]
         bandfluxes = scipy.integrate.trapezoid(integrand, x=self.waves)
 

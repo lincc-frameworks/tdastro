@@ -8,7 +8,7 @@ import pandas as pd
 from scipy.spatial import KDTree
 
 from tdastro.astro_utils.mag_flux import mag2flux
-from tdastro.astro_utils.noise_model import poisson_flux_std
+from tdastro.astro_utils.noise_model import poisson_bandflux_std
 from tdastro.astro_utils.zeropoint import (
     _lsstcam_extinction_coeff,
     _lsstcam_zeropoint_per_sec_zenith,
@@ -363,20 +363,20 @@ class OpSim:  # noqa: D101
             results[col] = self.table[table_col][neighbors].to_numpy()
         return results
 
-    def flux_err_point_source(self, flux, index):
-        """Compute observational flux error for a point source
+    def bandflux_error_point_source(self, bandflux, index):
+        """Compute observational bandflux error for a point source
 
         Parameters
         ----------
-        flux : array_like of float
-            Flux of the point source in nJy.
+        bandflux : array_like of float
+            Band bandflux of the point source in nJy.
         index : array_like of int
             The index of the observation in the OpSim table.
 
         Returns
         -------
         flux_err : array_like of float
-            Simulated flux noise in nJy.
+            Simulated bandflux noise in nJy.
         """
         observations = self.table.iloc[index]
 
@@ -387,8 +387,8 @@ class OpSim:  # noqa: D101
         # table value is in mag/arcsec^2
         sky_njy = mag2flux(observations["skyBrightness"])
 
-        return poisson_flux_std(
-            flux,
+        return poisson_bandflux_std(
+            bandflux,
             pixel_scale=self.pixel_scale,
             total_exposure_time=observations["visitExposureTime"],
             exposure_count=observations["numExposures"],

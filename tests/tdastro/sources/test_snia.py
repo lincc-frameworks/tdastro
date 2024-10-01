@@ -1,6 +1,7 @@
 import numpy as np
 import sncosmo
 from astropy import units as u
+from tdastro.astro_utils.noise_model import apply_noise
 from tdastro.astro_utils.passbands import PassbandGroup
 from tdastro.astro_utils.snia_utils import DistModFromRedshift, HostmassX1Func, X0FromDistMod
 from tdastro.astro_utils.unit_utils import flam_to_fnu, fnu_to_flam
@@ -28,30 +29,27 @@ def draw_single_random_sn(
 
     t0 = source.get_param(state, "t0")
 
-    if opsim:
-        ra = source.get_param(state, "ra")
-        dec = source.get_param(state, "dec")
-        obs = opsim.get_observations(ra, dec, radius=1.75, cols=["time", "filter"])
+    ra = source.get_param(state, "ra")
+    dec = source.get_param(state, "dec")
+    obs_index = np.array(opsim.range_search(ra, dec, radius=1.75))
 
-        times = obs["time"]
-        phase_obs = times - t0
-        times = np.sort(times[(phase_obs > -20) & (phase_obs < 50)])
-        # Note that we don't have filter info yet.
+    # Update obs_index to only include observations within SN lifespan
+    phase_obs = opsim[opsim.colmap["time"]][obs_index] - t0
+    obs_index = obs_index[(phase_obs > -20) & (phase_obs < 50)]
 
-        if len(times) == 0:
-            print(f"No overlap time in opsim for (ra,dec)=({ra:.2f},{dec:.2f})")
-            return
+    times = opsim[opsim.colmap["time"]][obs_index].to_numpy()
+    filters = opsim[opsim.colmap["filter"]][obs_index].to_numpy(str)
+    # Change to match band names in passbands object
+    filters = np.char.add("LSST_", filters)
+
+    if len(times) == 0:
+        print(f"No overlap time in opsim for (ra,dec)=({ra:.2f},{dec:.2f})")
+        return
 
     res["times"] = times
+    res["filters"] = filters
 
     flux_nJy = source.evaluate(times, wave_obs, graph_state=state)
-    # res["flux_flam"] = flux_flam
-
-    # # convert ergs/s/cm^2/AA to nJy
-
-    # flux_fnu = flam_to_fnu(
-    #     flux_flam, wave_obs, wave_unit=u.AA, flam_unit=u.erg / u.second / u.cm**2 / u.AA, fnu_unit=u.nJy
-    # )
 
     res["flux_nJy"] = flux_nJy
     res["flux_flam"] = fnu_to_flam(
@@ -62,8 +60,14 @@ def draw_single_random_sn(
         fnu_unit=u.nJy,
     )
 
-    bandfluxes = passbands.fluxes_to_bandfluxes(flux_nJy)
-    res["bandfluxes"] = bandfluxes
+    res["flux_fnu"] = flux_nJy
+
+    bandfluxes_perfect = source.get_band_fluxes(passbands, times, filters, state)
+    res["bandfluxes_perfect"] = bandfluxes_perfect
+
+    bandfluxes_error = opsim.bandflux_error_point_source(bandfluxes_perfect, obs_index)
+    res["bandfluxes_error"] = bandfluxes_error
+    res["bandfluxes"] = apply_noise(bandfluxes_perfect, bandfluxes_error, rng=None)
 
     res["state"] = state
 
@@ -98,7 +102,7 @@ def run_snia_end2end(oversampled_observations, passbands_dir, nsample=1):
         ra=NumpyRandomFunc("uniform", low=-0.5, high=0.5),  # all pointings RA = 0.0
         dec=NumpyRandomFunc("uniform", low=-0.5, high=0.5),  # all pointings Dec = 0.0
         hostmass=NumpyRandomFunc("uniform", low=7, high=12),
-        redshift=NumpyRandomFunc("uniform", low=0.01, high=0.02),
+        redshift=NumpyRandomFunc("uniform", low=0.1, high=0.4),
     )
 
     distmod_func = DistModFromRedshift(host.redshift, H0=73.0, Omega_m=0.3)
@@ -131,12 +135,12 @@ def run_snia_end2end(oversampled_observations, passbands_dir, nsample=1):
     passbands = PassbandGroup(
         passband_parameters=[
             {
-                "filter_name": "r",
-                "table_path": f"{passbands_dir}/LSST/r.dat",
-            },
-            {
                 "filter_name": "g",
                 "table_path": f"{passbands_dir}/LSST/g.dat",
+            },
+            {
+                "filter_name": "r",
+                "table_path": f"{passbands_dir}/LSST/r.dat",
             },
         ],
         survey="LSST",
@@ -144,6 +148,11 @@ def run_snia_end2end(oversampled_observations, passbands_dir, nsample=1):
         trim_quantile=0.001,
         delta_wave=1,
     )
+
+    # Register sncosmo bandpasses
+    for f, passband in passbands.passbands.items():
+        sncosmo_bandpass = sncosmo.Bandpass(*passband.processed_transmission_table.T, name=f"tdastro_{f}")
+        sncosmo.register(sncosmo_bandpass)
 
     res_list = []
     any_valid_results = False
@@ -174,6 +183,7 @@ def run_snia_end2end(oversampled_observations, passbands_dir, nsample=1):
         model.update(saltpars)
         wave = passbands.waves
         time = res["times"]
+        filters = res["filters"]
 
         flux_sncosmo = model.flux(time, wave)
         fnu_sncosmo = flam_to_fnu(
@@ -183,16 +193,14 @@ def run_snia_end2end(oversampled_observations, passbands_dir, nsample=1):
             flam_unit=u.erg / u.second / u.cm**2 / u.AA,
             fnu_unit=u.nJy,
         )
-        np.testing.assert_allclose(res["flux_nJy"], fnu_sncosmo, atol=1e-6)
+        np.testing.assert_allclose(res["flux_nJy"], fnu_sncosmo, atol=1e-8, rtol=1e-8)
         np.testing.assert_allclose(res["flux_flam"], flux_sncosmo, atol=1e-30, rtol=1e-5)
 
-        for f, passband in passbands.passbands.items():
-            # Skip test for negative fluxes
-            if np.any(flux_sncosmo < 0):
-                continue
-            sncosmo_band = sncosmo.Bandpass(*passband.processed_transmission_table.T, name=f)
-            bandflux_sncosmo = model.bandflux(sncosmo_band, time, zpsys="ab", zp=8.9 + 2.5 * 9)
-            np.testing.assert_allclose(res["bandfluxes"][f], bandflux_sncosmo, rtol=1e-1, err_msg=f"band {f}")
+        # Skip test for negative fluxes
+        if np.all(flux_sncosmo > 0):
+            sncosmo_band_names = np.char.add("tdastro_", filters)
+            bandflux_sncosmo = model.bandflux(sncosmo_band_names, time, zpsys="ab", zp=8.9 + 2.5 * 9)
+            np.testing.assert_allclose(res["bandfluxes_perfect"], bandflux_sncosmo, rtol=1e-1)
 
         res_list.append(res)
 

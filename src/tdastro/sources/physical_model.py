@@ -18,7 +18,7 @@ class PhysicalModel(ParameterizedNode):
     or constants and are stored in the graph's (external) graph_state dictionary.
 
     Physical models can also have special background pointers that link to another PhysicalModel
-    producing flux. We can chain these to have a supernova in front of a star in front
+    producing flux density. We can chain these to have a supernova in front of a star in front
     of a static background.
 
     Physical models also support adding and applying a variety of effects, such as redshift.
