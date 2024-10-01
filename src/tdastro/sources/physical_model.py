@@ -1,9 +1,9 @@
 """The base PhysicalModel used for all sources."""
 
-from typing import Union
 
 import numpy as np
 
+from tdastro.astro_utils.passbands import Passband
 from tdastro.astro_utils.redshift import RedshiftDistFunc, apply_redshift, obs_frame_to_rest_frame
 from tdastro.base_models import ParameterizedNode
 from tdastro.graph_state import GraphState
@@ -275,7 +275,7 @@ class PhysicalModel(ParameterizedNode):
         np_rngs = build_rngs_from_hashes(node_hashes, base_seed)
         return np_rngs
 
-    def get_band_fluxes(self, passband_or_group, times, state) -> Union[np.ndarray, dict]:
+    def get_band_fluxes(self, passband_or_group, times, filters, state) -> np.ndarray:
         """Get the band fluxes for a given Passband or PassbandGroup.
 
         Parameters
@@ -284,6 +284,9 @@ class PhysicalModel(ParameterizedNode):
             The passband (or passband group) to use.
         times : `numpy.ndarray`
             A length T array of observer frame timestamps.
+        filters : `numpy.ndarray` or None
+            A length T array of filter names. It may be None if
+            passband_or_group is a Passband.
         state : `GraphState`
             An object mapping graph parameters to their values.
 
@@ -293,10 +296,24 @@ class PhysicalModel(ParameterizedNode):
             A length T array of band fluxes, or a dictionary of band names mapped to fluxes (if a passband
             group is used).
         """
-        spectral_fluxes = self._evaluate(times, passband_or_group.waves, state)
-        if hasattr(passband_or_group, "fluxes_to_bandflux"):  # Passband
+        if isinstance(passband_or_group, Passband):
+            if filters is not None and not np.array_equal(
+                filters, np.repeat(passband_or_group.filter_name, len(times))
+            ):
+                raise ValueError(
+                    "If passband_or_group is a Passband, "
+                    "filters must be None or a list of the same filter repeated."
+                )
+            spectral_fluxes = self._evaluate(times, passband_or_group.waves, state)
             return passband_or_group.fluxes_to_bandflux(spectral_fluxes)
-        elif hasattr(passband_or_group, "fluxes_to_bandfluxes"):  # PassbandGroup
-            return passband_or_group.fluxes_to_bandfluxes(spectral_fluxes)
-        else:
-            raise ValueError(f"Unknown passband type: {type(passband_or_group)}")
+
+        if filters is None:
+            raise ValueError("If passband_or_group is a PassbandGroup, filters must be provided.")
+
+        band_fluxes = np.empty_like(times)
+        for filter_name in np.unique(filters):
+            passband = passband_or_group.passbands[filter_name]
+            filter_mask = filters == filter_name
+            spectral_fluxes = self._evaluate(times[filter_mask], passband.waves, state)
+            band_fluxes[filter_mask] = passband.fluxes_to_bandflux(spectral_fluxes)
+        return band_fluxes

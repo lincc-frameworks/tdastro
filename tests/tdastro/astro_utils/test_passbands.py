@@ -408,7 +408,7 @@ def test_passband_wrapped_from_physical_source(passbands_dir, tmp_path):
     # Test with a single toy passband (see PassbandGroup tests for group tests)
     transmission_table = "100 0.5\n200 0.75\n300 0.25\n"
     a_band = create_toy_passband(tmp_path, transmission_table, delta_wave=100, trim_quantile=None)
-    result_from_source_model = model.get_band_fluxes(a_band, test_times, state)
+    result_from_source_model = model.get_band_fluxes(a_band, test_times, filters=None, state=state)
 
     evaluated_fluxes = model.evaluate(test_times, a_band.waves, state)
     result_from_passband = a_band.fluxes_to_bandflux(evaluated_fluxes)
@@ -416,7 +416,9 @@ def test_passband_wrapped_from_physical_source(passbands_dir, tmp_path):
 
     # Test with a standard LSST passband
     LSST_g = create_lsst_passband(passbands_dir, "g")
-    result_from_source_model = model.get_band_fluxes(LSST_g, test_times, state)
+    result_from_source_model = model.get_band_fluxes(
+        LSST_g, test_times, filters=np.repeat("g", len(test_times)), state=state
+    )
 
     evaluated_fluxes = model.evaluate(test_times, LSST_g.waves, state)
     result_from_passband = LSST_g.fluxes_to_bandflux(evaluated_fluxes)

@@ -1,5 +1,9 @@
+import numpy as np
+import pytest
 from astropy.cosmology import Planck18
+from tdastro.astro_utils.passbands import PassbandGroup
 from tdastro.sources.physical_model import PhysicalModel
+from tdastro.sources.static_source import StaticSource
 
 
 def test_physical_model():
@@ -80,3 +84,25 @@ def test_physical_model_build_np_rngs():
     )
     np_rngs = source_model.build_np_rngs(base_seed=10)
     assert len(np_rngs) == 2
+
+
+def test_physical_model_get_band_fluxes(passbands_dir):
+    """Test that band fluxes are computed correctly."""
+    # It should work fine for any positive Fnu.
+    f_nu = np.random.lognormal()
+    static_source = StaticSource(brightness=f_nu)
+    state = static_source.sample_parameters()
+    passbands = PassbandGroup(preset="LSST")
+
+    times = np.arange(len(passbands), dtype=float)
+    filters = np.array(sorted(passbands.passbands.keys()))
+
+    # It should fail if no filters are provided.
+    with pytest.raises(ValueError):
+        _band_fluxes = static_source.get_band_fluxes(passbands, times=times, filters=None, state=state)
+    # It should fail if single passband is provided, but with multiple filter names.
+    with pytest.raises(ValueError):
+        _band_fluxes = static_source.get_band_fluxes(passbands.passbands["LSST_r"], times, filters, state)
+
+    band_fluxes = static_source.get_band_fluxes(passbands, times, filters, state)
+    np.testing.assert_allclose(band_fluxes, f_nu, rtol=1e-10)
