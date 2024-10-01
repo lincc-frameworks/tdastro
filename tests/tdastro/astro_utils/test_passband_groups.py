@@ -225,7 +225,19 @@ def test_passband_group_wrapped_from_physical_source(passbands_dir, tmp_path):
     # Test wrapper with a PassbandGroup as input (see Passband tests for single-band tests)
     # Using LSST passband group:
     lsst_passband_group = create_lsst_passband_group(passbands_dir, delta_wave=20, trim_quantile=None)
-    result_from_source_model = model.get_band_fluxes(lsst_passband_group, test_times, state)
+    n_lsst_bands = len(lsst_passband_group.passbands)
+    n_times = len(test_times)
+
+    fluxes_source_model = model.get_band_fluxes(
+        lsst_passband_group,
+        times=np.repeat(test_times, n_lsst_bands),
+        filters=np.tile(list(lsst_passband_group.passbands.keys()), n_times),
+        state=state,
+    )
+    result_from_source_model = {
+        filter_name: fluxes_source_model[i::n_lsst_bands]
+        for i, filter_name in enumerate(lsst_passband_group.passbands)
+    }
     evaluated_fluxes = model.evaluate(test_times, lsst_passband_group.waves, state)
     result_from_passband_group = lsst_passband_group.fluxes_to_bandfluxes(evaluated_fluxes)
 
@@ -236,7 +248,17 @@ def test_passband_group_wrapped_from_physical_source(passbands_dir, tmp_path):
 
     # Using toy passband group:
     toy_passband_group = create_toy_passband_group(tmp_path, delta_wave=20, trim_quantile=None)
-    result_from_source_model = model.get_band_fluxes(toy_passband_group, test_times, state)
+    n_toy_bands = len(toy_passband_group.passbands)
+    fluxes_source_model = model.get_band_fluxes(
+        toy_passband_group,
+        times=np.repeat(test_times, n_toy_bands),
+        filters=np.tile(list(toy_passband_group.passbands.keys()), n_times),
+        state=state,
+    )
+    result_from_source_model = {
+        filter_name: fluxes_source_model[i::n_toy_bands]
+        for i, filter_name in enumerate(toy_passband_group.passbands)
+    }
     evaluated_fluxes = model.evaluate(test_times, toy_passband_group.waves, state)
     result_from_passband_group = toy_passband_group.fluxes_to_bandfluxes(evaluated_fluxes)
 
