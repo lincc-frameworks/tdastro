@@ -6,35 +6,6 @@ from tdastro.astro_utils.passbands import Passband
 from tdastro.sources.spline_model import SplineModel
 
 
-def test_passband_init():
-    """Test the initialization of the Passband class."""
-    # Test we get a TypeError if we don't provide a survey and filter_name
-    with pytest.raises(TypeError):
-        a_band = Passband()
-
-    # Test we get an NotImplementedError if we don't have a local transmission table or provided URL, and the
-    # survey has no default URL
-    with pytest.raises(NotImplementedError):
-        a_band = Passband("TEST", "a")
-
-    # Test that the Passband class can be initialized with a survey and filter_name
-    # Mock a transmission table file that we'll "find" at passbands/TEST/a.dat
-    transmission_table_array = np.array([[100, 0.5], [200, 0.75], [300, 0.25]])
-
-    def mock_load_transmission_table(self, **kwargs):
-        self._loaded_table = transmission_table_array
-
-    with patch.object(Passband, "_load_transmission_table", new=mock_load_transmission_table):
-        a_band = Passband("TEST", "a")
-        assert a_band.survey == "TEST"
-        assert a_band.filter_name == "a"
-        assert a_band.full_name == "TEST_a"
-        # Cannot check table_path as we have mocked the method that sets it; see unit test for loading tables
-        assert a_band.table_url is None
-        np.testing.assert_allclose(a_band._loaded_table, transmission_table_array)
-        assert a_band.waves is not None
-
-
 def create_test_passband(path, transmission_table, filter_name="a", **kwargs):
     """Helper function to create a Passband object for testing."""
     survey = "TEST"
@@ -55,6 +26,56 @@ def test_passband_str(tmp_path):
     # Check that the __str__ method returns the expected string
     a_band = create_test_passband(tmp_path, transmission_table)
     assert str(a_band) == "Passband: TEST_a"
+
+
+def test_passband_manual_create(tmp_path):
+    """Test that we can create a passband from the transmission table."""
+    # Test we get a TypeError if we don't provide a survey and filter_name
+    with pytest.raises(TypeError):
+        _ = Passband()
+
+    # Create a manual passband.
+    transmission_table = np.array([[1000, 0.5], [1005, 0.6], [1010, 0.7]])
+    test_pb = Passband(survey="test", filter_name="u", table_values=transmission_table)
+
+    assert test_pb.survey == "test"
+    assert test_pb.filter_name == "u"
+    assert test_pb.full_name == "test_u"
+    assert test_pb.units == "A"
+    assert test_pb.table_url is None
+    assert test_pb.table_path is None
+    np.testing.assert_allclose(test_pb._loaded_table, transmission_table)
+
+    # We can create an load a table in nm as well. It will auto-convert to Angstroms.
+    transmission2 = np.array([[100, 0.5], [100.5, 0.6], [101, 0.7]])
+    test_pb2 = Passband(survey="test", filter_name="g", table_values=transmission2, units="nm")
+    assert test_pb2.survey == "test"
+    assert test_pb2.filter_name == "g"
+    assert test_pb2.full_name == "test_g"
+    assert test_pb2.units == "A"
+    assert test_pb.table_url is None
+    assert test_pb.table_path is None
+    np.testing.assert_allclose(test_pb2._loaded_table, transmission_table)
+
+    # We raise an error if the data is not sorted.
+    with pytest.raises(ValueError):
+        _ = Passband(
+            survey="test",
+            filter_name="u",
+            table_values=np.array([[1000, 0.5], [900, 0.2], [1100, 0.7]]),
+        )
+
+    # We raise an error when no data is given or when we given a path AND table.
+    with pytest.raises(NotImplementedError):
+        _ = Passband(survey="test", filter_name="u")
+
+    with pytest.raises(ValueError):
+        _ = Passband(
+            survey="test",
+            filter_name="u",
+            table_path="./",
+            table_values=transmission_table,
+        )
 
 
 def test_passband_load_transmission_table(tmp_path):
