@@ -28,44 +28,6 @@ def create_toy_passband(path, transmission_table, filter_name="a", **kwargs):
     return Passband(survey, filter_name, table_path=table_path, **kwargs)
 
 
-def test_passband_init(passbands_dir, tmp_path):
-    """Test the initialization of the Passband class."""
-    # Test we get a TypeError if we don't provide a survey and filter_name
-    with pytest.raises(TypeError):
-        a_band = Passband()
-
-    # Test we get an NotImplementedError if we don't have a local transmission table or provided URL, and the
-    # survey has no default URL
-    with pytest.raises(NotImplementedError):
-        a_band = Passband("TEST", "a")
-
-    # Test that the Passband class can be initialized with an existing LSST tranmission table in test data
-    LSST_u = create_lsst_passband(passbands_dir, "u")  # noqa: F841
-    assert LSST_u.survey == "LSST"
-    assert LSST_u.filter_name == "u"
-    assert LSST_u.full_name == "LSST_u"
-    assert LSST_u.table_path == f"{passbands_dir}/LSST/u.dat"
-    assert LSST_u._loaded_table is not None
-    assert LSST_u.waves is not None
-
-    # Test that the Passband class can be initialized with a custom survey and filter_name
-    # Mock a transmission table file that we'll "find" at passbands/TEST/a.dat
-    transmission_table_array = np.array([[100, 0.5], [200, 0.75], [300, 0.25]])
-
-    def mock_load_transmission_table(self, **kwargs):
-        self._loaded_table = transmission_table_array
-
-    with patch.object(Passband, "_load_transmission_table", new=mock_load_transmission_table):
-        a_band = Passband("TEST", "a")
-        assert a_band.survey == "TEST"
-        assert a_band.filter_name == "a"
-        assert a_band.full_name == "TEST_a"
-        # Cannot check table_path as we have mocked the method that sets it
-        assert a_band.table_url is None
-        np.testing.assert_allclose(a_band._loaded_table, transmission_table_array)
-        assert a_band.waves is not None
-
-
 def test_passband_str(passbands_dir, tmp_path):
     """Test the __str__ method of the Passband class."""
     # Test an LSST passband:
@@ -76,6 +38,56 @@ def test_passband_str(passbands_dir, tmp_path):
     transmission_table = "1000 0.5\n1005 0.6\n1010 0.7\n"
     a_band = create_toy_passband(tmp_path, transmission_table)
     assert str(a_band) == "Passband: TOY_a"
+
+
+def test_passband_manual_create(tmp_path):
+    """Test that we can create a passband from the transmission table."""
+    # Test we get a TypeError if we don't provide a survey and filter_name
+    with pytest.raises(TypeError):
+        _ = Passband()
+
+    # Create a manual passband.
+    transmission_table = np.array([[1000, 0.5], [1005, 0.6], [1010, 0.7]])
+    test_pb = Passband(survey="test", filter_name="u", table_values=transmission_table)
+
+    assert test_pb.survey == "test"
+    assert test_pb.filter_name == "u"
+    assert test_pb.full_name == "test_u"
+    assert test_pb.units == "A"
+    assert test_pb.table_url is None
+    assert test_pb.table_path is None
+    np.testing.assert_allclose(test_pb._loaded_table, transmission_table)
+
+    # We can create an load a table in nm as well. It will auto-convert to Angstroms.
+    transmission2 = np.array([[100, 0.5], [100.5, 0.6], [101, 0.7]])
+    test_pb2 = Passband(survey="test", filter_name="g", table_values=transmission2, units="nm")
+    assert test_pb2.survey == "test"
+    assert test_pb2.filter_name == "g"
+    assert test_pb2.full_name == "test_g"
+    assert test_pb2.units == "A"
+    assert test_pb.table_url is None
+    assert test_pb.table_path is None
+    np.testing.assert_allclose(test_pb2._loaded_table, transmission_table)
+
+    # We raise an error if the data is not sorted.
+    with pytest.raises(ValueError):
+        _ = Passband(
+            survey="test",
+            filter_name="u",
+            table_values=np.array([[1000, 0.5], [900, 0.2], [1100, 0.7]]),
+        )
+
+    # We raise an error when no data is given or when we given a path AND table.
+    with pytest.raises(NotImplementedError):
+        _ = Passband(survey="test", filter_name="u")
+
+    with pytest.raises(ValueError):
+        _ = Passband(
+            survey="test",
+            filter_name="u",
+            table_path="./",
+            table_values=transmission_table,
+        )
 
 
 def test_passband_load_transmission_table(passbands_dir, tmp_path):

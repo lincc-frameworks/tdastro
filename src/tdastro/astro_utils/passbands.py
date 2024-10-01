@@ -30,6 +30,7 @@ class PassbandGroup:
         preset: str = None,
         passband_parameters: Optional[list] = None,
         table_dir: Optional[str] = None,
+        given_passbands: list = None,
         **kwargs,
     ):
         """Construct a PassbandGroup object.
@@ -55,10 +56,20 @@ class PassbandGroup:
             The path to the directory containing the passband tables. If a table_path has not been specified
             in the passband_parameters dictionary, table paths will be set to
             {table_dir}/{survey}/{filter_name}.dat. If None, the table path will be set to a default path.
+        given_passbands : list, optional
+            A list of Passband objects from which to create the PassbandGroup. These
+            overwrite any passbands with the same full name provided by either
+            preset or passband_parameters.
         **kwargs
             Additional keyword arguments to pass to the Passband constructor.
         """
         self.passbands = {}
+
+        if preset is None and passband_parameters is None and given_passbands is None:
+            raise ValueError(
+                "PassbandGroup must be initialized with one of a preset, a list"
+                "of Passband objects, or passband_parameters."
+            )
 
         if preset is not None:
             self._load_preset(preset, table_dir=table_dir, **kwargs)
@@ -79,9 +90,12 @@ class PassbandGroup:
                 passband = Passband(**parameters)
                 self.passbands[passband.full_name] = passband
 
-        else:
-            raise ValueError("PassbandGroup requires either a preset or passband_parameters to be provided.")
+        # Load any additional passbands from the given list.
+        if given_passbands is not None:
+            for pb_obj in given_passbands:
+                self.passbands[pb_obj.full_name] = pb_obj
 
+        # Compute the unique points and bounds for the group.
         self._update_waves()
         self._calculate_in_band_wave_indices()
 
@@ -124,12 +138,28 @@ class PassbandGroup:
         else:
             raise ValueError(f"Unknown passband preset: {preset}")
 
-    def _update_waves(self) -> None:
-        """Update the group's wave attribute to be the union of all wavelengths in the passbands."""
+    def _update_waves(self, threshold=1e-5) -> None:
+        """Update the group's wave attribute to be the union of all wavelengths in
+        the passbands.
+
+        Parameters
+        ----------
+        threshold : float
+            The threshold for merging two "close" wavelengths. This is used to
+            avoid problems with numerical precision.
+            Default: 1e-5
+        """
         if len(self.passbands) == 0:
             self.waves = np.array([])
         else:
-            self.waves = np.unique(np.concatenate([passband.waves for passband in self.passbands.values()]))
+            # Compute the unique wavelengths (accounting for floating point error) by
+            # sorting the union of all the waves, computing the gaps between each adjacent
+            # pair (using 1e8 for before the first), and saving the points with a gap
+            # larger than the threshold.
+            all_waves = np.concatenate([passband.waves for passband in self.passbands.values()])
+            sorted_waves = np.sort(all_waves)
+            gap_sizes = np.insert(sorted_waves[1:] - sorted_waves[:-1], 0, 1e8)
+            self.waves = sorted_waves[gap_sizes >= threshold]
 
     def _calculate_in_band_wave_indices(self) -> None:
         """Calculate the indices of the group's wave grid that are in the passband's wave grid.
@@ -248,6 +278,7 @@ class Passband:
         trim_quantile: Optional[float] = 1e-3,
         table_path: Optional[str] = None,
         table_url: Optional[str] = None,
+        table_values: Optional[np.array] = None,
         units: Optional[Literal["nm", "A"]] = "A",
         force_download: bool = False,
     ):
@@ -273,6 +304,8 @@ class Passband:
         table_url : str, optional
             The URL to download the transmission table file. If None, the table URL will be set to
             a default URL based on the survey and filter_name. Default is None.
+        table_values : np.ndarray, optional
+            A 2D array of wavelengths and transmissions. Used to provide a given table.
         units : Literal['nm','A'], optional
             Denotes whether the wavelength units of the table are nanometers ('nm') or Angstroms ('A').
             By default 'A'. Does not affect the output units of the class, only the interpretation of the
@@ -290,12 +323,35 @@ class Passband:
         self.units = units
         self._in_band_wave_indices = None
 
-        self._load_transmission_table(force_download=force_download)
+        if table_values is not None:
+            if table_values.shape[1] != 2:
+                raise ValueError("Passband requires an input table with exactly two columns.")
+            if table_path is not None or table_url is not None:
+                raise ValueError("Multiple inputs given for passband table.")
+            self._loaded_table = np.copy(table_values)
+        else:
+            self._load_transmission_table(force_download=force_download)
+
+        # Check that wavelengths are strictly increasing
+        if not np.all(np.diff(self._loaded_table[:, 0]) > 0):
+            raise ValueError("Wavelengths in transmission table must be strictly increasing.")
+
+        # Preprocess the passband.
+        self._standardize_units()
         self.process_transmission_table(delta_wave, trim_quantile)
 
     def __str__(self) -> str:
         """Return a string representation of the Passband."""
         return f"Passband: {self.full_name}"
+
+    def _standardize_units(self):
+        """Convert the units into Angstroms."""
+        if self.units == "nm":
+            # Multiply the first column (wavelength) by 10.0 to convert to Angstroms
+            self._loaded_table[:, 0] *= 10.0
+        elif self.units != "A":
+            raise ValueError(f"Unknown Passband units {self.units}")
+        self.units = "A"
 
     def _load_transmission_table(self, force_download: bool = False) -> None:
         """Load a transmission table from a file (or download it if it doesn't exist). Table must have 2
@@ -326,11 +382,6 @@ class Passband:
         # Check that wavelengths are strictly increasing
         if not np.all(np.diff(loaded_table[:, 0]) > 0):
             raise ValueError("Wavelengths in transmission table must be strictly increasing.")
-
-        # Correct for units
-        if self.units == "nm":
-            # Multiply the first column (wavelength) by 10.0 to convert to Angstroms
-            loaded_table[:, 0] *= 10.0
 
         self._loaded_table = loaded_table
 

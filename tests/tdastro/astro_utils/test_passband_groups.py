@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from tdastro.astro_utils.passbands import PassbandGroup
+from tdastro.astro_utils.passbands import Passband, PassbandGroup
 from tdastro.sources.spline_model import SplineModel
 
 
@@ -96,6 +96,92 @@ def test_passband_group_init(tmp_path, passbands_dir):
     np.testing.assert_allclose(
         toy_passband_group.waves,
         np.unique(np.concatenate([np.arange(100, 301, 5), np.arange(250, 351, 5), np.arange(400, 601, 5)])),
+    )
+
+    # Test that the PassbandGroup class raises an error for an unknown preset
+    try:
+        _ = PassbandGroup(preset="Unknown")
+    except ValueError as e:
+        assert str(e) == "Unknown passband preset: Unknown"
+    else:
+        raise AssertionError("PassbandGroup should raise an error for an unknown preset")
+
+
+def test_passband_group_from_list(tmp_path):
+    """Test that we can create a PassbandGroup from a pre-specified list."""
+    pb_list = [
+        Passband(
+            "my_survey",
+            "a",
+            table_values=np.array([[100, 0.5], [200, 0.75], [300, 0.25]]),
+            trim_quantile=None,
+        ),
+        Passband(
+            "my_survey",
+            "b",
+            table_values=np.array([[250, 0.25], [300, 0.5], [350, 0.75]]),
+            trim_quantile=None,
+        ),
+        Passband(
+            "my_survey",
+            "c",
+            table_values=np.array([[400, 0.75], [500, 0.25], [600, 0.5]]),
+            trim_quantile=None,
+        ),
+    ]
+    test_passband_group = PassbandGroup(given_passbands=pb_list)
+    assert len(test_passband_group.passbands) == 3
+    assert "my_survey_a" in test_passband_group.passbands
+    assert "my_survey_b" in test_passband_group.passbands
+    assert "my_survey_c" in test_passband_group.passbands
+
+    assert np.allclose(
+        test_passband_group.waves,
+        np.unique(np.concatenate([np.arange(100, 301, 5), np.arange(250, 351, 5), np.arange(400, 601, 5)])),
+    )
+
+
+def test_passband_unique_waves():
+    """Test that if we create two passbands with very similar wavelengths, they get merged."""
+    pb_list = [
+        Passband(
+            "my_survey",
+            "a",
+            table_values=np.array([[100, 0.5], [250, 0.25]]),
+            trim_quantile=None,
+        ),
+        Passband(
+            "my_survey",
+            "b",
+            table_values=np.array([[200.000001, 0.25], [300.000001, 0.5]]),
+            trim_quantile=None,
+        ),
+    ]
+    test_passband_group = PassbandGroup(given_passbands=pb_list)
+    assert np.allclose(
+        test_passband_group.waves,
+        np.concatenate([np.arange(100, 201, 5), np.arange(205.000001, 301, 5)]),
+    )
+
+    # Larger gaps won't register.
+    pb_list = [
+        Passband(
+            "my_survey",
+            "a",
+            table_values=np.array([[100, 0.5], [250, 0.25]]),
+            trim_quantile=None,
+        ),
+        Passband(
+            "my_survey",
+            "b",
+            table_values=np.array([[200.5, 0.25], [300.5, 0.5]]),
+            trim_quantile=None,
+        ),
+    ]
+    test_passband_group = PassbandGroup(given_passbands=pb_list)
+    assert np.allclose(
+        test_passband_group.waves,
+        np.unique(np.concatenate([np.arange(100, 251, 5), np.arange(200.5, 301, 5)])),
     )
 
 
