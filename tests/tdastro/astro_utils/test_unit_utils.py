@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 from astropy import units as u
-from tdastro.astro_utils.unit_utils import flam_to_fnu
+from tdastro.astro_utils.unit_utils import flam_to_fnu, fnu_to_flam
 
 
 def test_flam_to_fnu():
@@ -67,3 +67,26 @@ def test_flam_to_fnu_matrix():
             flam_unit=u.erg / u.second / u.cm**2 / u.AA,
             fnu_unit=u.erg / u.second / u.cm**2 / u.Hz,
         )
+
+
+def test_flam_to_fnu_to_flam():
+    """Test that flam_to_fnu(fnu_to_flam) is the identity."""
+    rng = np.random.default_rng(None)
+    n = 100
+    waves = rng.uniform(low=100.0, high=1.0e5, size=n)
+    flam0 = rng.lognormal(mean=0.0, sigma=1.0, size=n)
+    fnu = flam_to_fnu(
+        flam0,
+        waves,
+        wave_unit=u.AA,
+        flam_unit=u.erg / u.second / u.cm**2 / u.AA,
+        fnu_unit=u.nJy,
+    )
+    flam1 = fnu_to_flam(
+        fnu,
+        waves,
+        wave_unit=u.AA,
+        flam_unit=u.erg / u.second / u.cm**2 / u.AA,
+        fnu_unit=u.nJy,
+    )
+    np.testing.assert_allclose(flam0, flam1)
