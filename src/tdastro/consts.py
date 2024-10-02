@@ -20,3 +20,10 @@ This is derived from two facts for a symmetric 2D Gaussian:
    where
    g(x,y) = 1 / (2π sigma²) exp(-(x²+y²)/2/sigma²).
 """
+
+ANGSTROM_TO_CM = (1.0 * u.AA).to_value(u.cm)
+"""Conversion factor from Angstrom to cm, 1e-8"""
+
+
+CGS_FNU_UNIT_TO_NJY = (1.0 * u.erg / u.second / u.cm**2 / u.Hz).to_value(u.nJy)
+"""Conversion factor from erg/s/cm²/Hz to nJy, 1e23"""
