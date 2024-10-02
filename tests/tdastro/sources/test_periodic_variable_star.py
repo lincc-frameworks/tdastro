@@ -156,9 +156,9 @@ def test_eclipsing_binary_star():
     # Times in days
     times = np.linspace(0, 2.0 * period.to_value(u.day), 2 * points_per_period + 1)
     # Wavelengths in cm
-    wavelengths = np.array([4500, 6000]) * 1e-8
+    wavelengths_aa = np.array([4500, 6000])
 
-    fluxes = source.evaluate(times, wavelengths)
+    fluxes = source.evaluate(times, wavelengths_aa)
 
     # Check the fluxes are positive
     assert np.all(fluxes >= 0)

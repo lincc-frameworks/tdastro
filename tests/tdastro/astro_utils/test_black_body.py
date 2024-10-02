@@ -11,8 +11,8 @@ def test_bolometric_luminosity():
     radius = const.R_sun.cgs.value
     teff = (bolometric_luminosity / (4 * np.pi * radius**2 * const.sigma_sb.cgs.value)) ** 0.25
 
-    # From 10 to 100,000 Angstroms
-    wavelengths = np.logspace(5, 1, 1001) * 1e-8
+    # From 10 to 100,000 Angstroms, in cm
+    wavelengths = np.geomspace(100_000, 10, 1001) * 1e-8
     frequencies = speed_of_light / wavelengths
 
     # Multiply dL_nu / d nu / d Omega by 4pi and integrate over frequency
