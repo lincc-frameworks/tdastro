@@ -1,7 +1,6 @@
 import numpy as np
 from numpy.testing import assert_allclose
 from tdastro.astro_utils.noise_model import poisson_flux_std
-from tdastro.consts import GAUSS_EFF_AREA2FWHM_SQ
 
 
 def test_poisson_flux_std_flux():
@@ -109,12 +108,3 @@ def test_poisson_flux_std_dark():
     )
 
     assert_allclose(flux_err, expected_flux_err, rtol=1e-10)
-
-
-def test_gauss_eff_area2fwhm_sq():
-    """Test GAUSS_EFF_AREA2FWHM_SQ to be close to 2.266
-
-    Find 2.266 here:
-    https://smtn-002.lsst.io/v/OPSIM-1171/index.html
-    """
-    assert_allclose(GAUSS_EFF_AREA2FWHM_SQ, 2.266, atol=1e-3)
