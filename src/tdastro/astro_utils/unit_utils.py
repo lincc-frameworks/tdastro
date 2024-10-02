@@ -2,7 +2,7 @@ import numpy as np
 from astropy import constants as const
 
 
-def flam_to_fnu(flux_flam, wavelengths, wave_unit=None, flam_unit=None, fnu_unit=None):
+def flam_to_fnu(flux_flam, wavelengths, *, wave_unit, flam_unit, fnu_unit):
     """
     Covert flux from f_lambda unit to f_nu unit
 
@@ -30,17 +30,18 @@ def flam_to_fnu(flux_flam, wavelengths, wave_unit=None, flam_unit=None, fnu_unit
     flux_flam = np.array(flux_flam) * flam_unit
     wavelengths = np.array(wavelengths) * wave_unit
 
-    # Check if we need to repeat wavelengths to match the number
+    # Check if we need to reshape wavelengths to match the number
     # of rows in flux_flam.
-    if len(flux_flam.shape) > 1 and len(wavelengths.shape) == 1:
-        num_rows = flux_flam.shape[0]
-        wavelengths = np.tile(wavelengths, (num_rows, 1))
+    if flux_flam.ndim > 1 and wavelengths.ndim == 1:
+        wavelengths = wavelengths[None, :]
 
     # Check that the shapes match.
-    if flux_flam.shape != wavelengths.shape:
+    try:
+        _ = np.broadcast_shapes(flux_flam.shape, wavelengths.shape)
+    except ValueError as err:
         raise ValueError(
             f"Mismatched sizes for flux_flam={flux_flam.shape} " f"and wavelengths={wavelengths.shape}."
-        )
+        ) from err
 
     # convert flux in flam_unit (e.g. ergs/s/cm^2/A) to fnu_unit (e.g. nJy or ergs/s/cm^2/Hz)
     flux_fnu = (flux_flam * (wavelengths**2) / const.c).to_value(fnu_unit)

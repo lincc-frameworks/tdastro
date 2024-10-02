@@ -62,7 +62,7 @@ def test_flam_to_fnu_matrix():
     with pytest.raises(ValueError):
         _ = flam_to_fnu(
             [[c * 1.0e-4, 1.0e5], [1000.0, 2000.0], [c * 1.0e-4, c * 1.0e-4]],
-            [100.0],
+            [100.0, 200.0, 300.0],
             wave_unit=u.AA,
             flam_unit=u.erg / u.second / u.cm**2 / u.AA,
             fnu_unit=u.erg / u.second / u.cm**2 / u.Hz,
