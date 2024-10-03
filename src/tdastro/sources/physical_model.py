@@ -306,7 +306,7 @@ class PhysicalModel(ParameterizedNode):
                     "If passband_or_group is a Passband, "
                     "filters must be None or a list of the same filter repeated."
                 )
-            spectral_fluxes = self._evaluate(times, passband_or_group.waves, state)
+            spectral_fluxes = self.evaluate(times, passband_or_group.waves, state)
             return passband_or_group.fluxes_to_bandflux(spectral_fluxes)
 
         if filters is None:
@@ -316,6 +316,6 @@ class PhysicalModel(ParameterizedNode):
         for filter_name in np.unique(filters):
             passband = passband_or_group.passbands[filter_name]
             filter_mask = filters == filter_name
-            spectral_fluxes = self._evaluate(times[filter_mask], passband.waves, state)
+            spectral_fluxes = self.evaluate(times[filter_mask], passband.waves, state)
             band_fluxes[filter_mask] = passband.fluxes_to_bandflux(spectral_fluxes)
         return band_fluxes
