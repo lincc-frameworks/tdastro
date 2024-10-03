@@ -7,7 +7,7 @@ from tdastro.astro_utils.unit_utils import flam_to_fnu
 from tdastro.rand_nodes.np_random import NumpyRandomFunc
 from tdastro.sources.sncomso_models import SncosmoWrapperModel
 from tdastro.sources.snia_host import SNIaHost
-
+from tdastro.astro_utils.unit_utils import flam_to_fnu, fnu_to_flam
 
 def draw_single_random_sn(
     source,
@@ -44,18 +44,25 @@ def draw_single_random_sn(
 
     res["times"] = times
 
-    flux_flam = source.evaluate(times, wave_obs, graph_state=state)
-    res["flux_flam"] = flux_flam
+    flux_nJy = source.evaluate(times, wave_obs, graph_state=state)
+    # res["flux_flam"] = flux_flam
 
-    # convert ergs/s/cm^2/AA to nJy
+    # # convert ergs/s/cm^2/AA to nJy
 
-    flux_fnu = flam_to_fnu(
-        flux_flam, wave_obs, wave_unit=u.AA, flam_unit=u.erg / u.second / u.cm**2 / u.AA, fnu_unit=u.nJy
+    # flux_fnu = flam_to_fnu(
+    #     flux_flam, wave_obs, wave_unit=u.AA, flam_unit=u.erg / u.second / u.cm**2 / u.AA, fnu_unit=u.nJy
+    # )
+
+    res["flux_nJy"] = flux_nJy
+    res['flux_flam'] = fnu_to_flam(
+        flux_nJy,
+        wave_obs,
+        wave_unit=u.AA,
+        flam_unit=u.erg / u.second / u.cm**2 / u.AA,
+        fnu_unit=u.nJy,
     )
 
-    res["flux_fnu"] = flux_fnu
-
-    bandfluxes = passbands.fluxes_to_bandfluxes(flux_fnu)
+    bandfluxes = passbands.fluxes_to_bandfluxes(flux_nJy)
     res["bandfluxes"] = bandfluxes
 
     res["state"] = state
@@ -169,6 +176,10 @@ def run_snia_end2end(oversampled_observations, passbands_dir, nsample=1):
         time = res["times"]
 
         flux_sncosmo = model.flux(time, wave)
+        fnu_sncosmo = flam_to_fnu(flux_sncosmo, wave, wave_unit=u.AA,
+        flam_unit=u.erg / u.second / u.cm**2 / u.AA,
+        fnu_unit=u.nJy,)
+        np.testing.assert_allclose(res["flux_nJy"], fnu_sncosmo, atol=1e-8)
         np.testing.assert_allclose(res["flux_flam"], flux_sncosmo, atol=1e-30, rtol=1e-5)
 
         for f, passband in passbands.passbands.items():

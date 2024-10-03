@@ -4,7 +4,7 @@ from astropy import units as u
 from tdastro.base_models import FunctionNode
 
 
-def obs_frame_to_rest_frame(observer_frame_times, observer_frame_wavelengths, redshift, t0):
+def obs_to_rest_times_waves(observer_frame_times, observer_frame_wavelengths, redshift, t0):
     """Calculate the rest frame times and wavelengths needed to give user the observer frame times
     and wavelengths (given the redshift).
 
@@ -33,8 +33,11 @@ def obs_frame_to_rest_frame(observer_frame_times, observer_frame_wavelengths, re
     return (rest_frame_times, rest_frame_wavelengths)
 
 
-def apply_redshift(flux_density, redshift):
-    """Apply the redshift effect to rest frame flux density values.
+def rest_to_obs_flux(flux_density, redshift):
+    """Convert rest-frame flux to obs-frame flux.
+    The (1+redshift) factor is applied to preserve bolometric flux.
+    The rest-frame flux is defined as F_nu = L_nu / 4*pi*D_L**2,
+    where D_L is the luminosity distance.
 
     Parameters
     ----------
@@ -46,9 +49,9 @@ def apply_redshift(flux_density, redshift):
     Returns
     -------
     flux_density : `numpy.ndarray`
-        The redshifted results (in nJy).
+        The observer frame flux (in nJy).
     """
-    return flux_density / (1 + redshift)
+    return flux_density * (1 + redshift)
 
 
 def redshift_to_distance(redshift, cosmology):
