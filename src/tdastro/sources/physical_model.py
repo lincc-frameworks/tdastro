@@ -4,7 +4,7 @@
 import numpy as np
 
 from tdastro.astro_utils.passbands import Passband
-from tdastro.astro_utils.redshift import RedshiftDistFunc, rest_to_obs_flux, obs_to_rest_times_waves
+from tdastro.astro_utils.redshift import RedshiftDistFunc, obs_to_rest_times_waves, rest_to_obs_flux
 from tdastro.base_models import ParameterizedNode
 from tdastro.graph_state import GraphState
 from tdastro.rand_nodes.np_random import build_rngs_from_hashes

@@ -1,8 +1,9 @@
 import numpy as np
+from astropy import units as u
+from tdastro.astro_utils.unit_utils import fnu_to_flam
 from tdastro.rand_nodes.np_random import NumpyRandomFunc
 from tdastro.sources.sncomso_models import SncosmoWrapperModel
-from tdastro.astro_utils.unit_utils import fnu_to_flam
-from astropy import units as u
+
 
 def test_sncomso_models_hsiao() -> None:
     """Test that we can create and evalue a 'hsiao' model."""
@@ -46,7 +47,8 @@ def test_sncomso_models_hsiao_t0() -> None:
     #     model.set(z=0.0, t0=55000., amplitude=2.0e10)
     #     model.flux(54990., [4000., 4100., 4200.])
     fluxes_fnu = model.evaluate([54990.0], [4000.0, 4100.0, 4200.0])
-    fluxes_flam = fnu_to_flam(fluxes_fnu,
+    fluxes_flam = fnu_to_flam(
+        fluxes_fnu,
         [4000.0, 4100.0, 4200.0],
         wave_unit=u.AA,
         flam_unit=u.erg / u.second / u.cm**2 / u.AA,

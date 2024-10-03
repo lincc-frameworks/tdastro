@@ -4,11 +4,12 @@ https://github.com/sncosmo/sncosmo/blob/v2.10.1/sncosmo/models.py
 https://sncosmo.readthedocs.io/en/stable/models.html
 """
 
+from astropy import units as u
 from sncosmo.models import get_source
 
-from tdastro.sources.physical_model import PhysicalModel
 from tdastro.astro_utils.unit_utils import flam_to_fnu
-from astropy import units as u
+from tdastro.sources.physical_model import PhysicalModel
+
 
 class SncosmoWrapperModel(PhysicalModel):
     """A wrapper for sncosmo models.
@@ -151,11 +152,11 @@ class SncosmoWrapperModel(PhysicalModel):
 
         flux_flam = self.source.flux(times - params["t0"], wavelengths)
         flux_fnu = flam_to_fnu(
-        flux_flam,
-        wavelengths,
-        wave_unit=u.AA,
-        flam_unit=u.erg / u.second / u.cm**2 / u.AA,
-        fnu_unit=u.nJy,
-    )
+            flux_flam,
+            wavelengths,
+            wave_unit=u.AA,
+            flam_unit=u.erg / u.second / u.cm**2 / u.AA,
+            fnu_unit=u.nJy,
+        )
 
         return flux_fnu
