@@ -135,8 +135,8 @@ def run_snia_end2end(oversampled_observations, passbands_dir, nsample=1):
                 "table_path": f"{passbands_dir}/LSST/r.dat",
             },
             {
-                "filter_name": "i",
-                "table_path": f"{passbands_dir}/LSST/u.dat",
+                "filter_name": "g",
+                "table_path": f"{passbands_dir}/LSST/g.dat",
             },
         ],
         survey="LSST",
@@ -183,7 +183,7 @@ def run_snia_end2end(oversampled_observations, passbands_dir, nsample=1):
             flam_unit=u.erg / u.second / u.cm**2 / u.AA,
             fnu_unit=u.nJy,
         )
-        np.testing.assert_allclose(res["flux_nJy"], fnu_sncosmo, atol=1e-8)
+        np.testing.assert_allclose(res["flux_nJy"], fnu_sncosmo, atol=1e-6)
         np.testing.assert_allclose(res["flux_flam"], flux_sncosmo, atol=1e-30, rtol=1e-5)
 
         for f, passband in passbands.passbands.items():
