@@ -148,8 +148,8 @@ class HostmassX1Distr:
 
 def _x0_from_distmod(distmod, x1, c, alpha, beta, m_abs):
     """Calculate the SALT3 x0 parameter given distance modulus based on Tripp relation.
-    distmod = -2.5*log10(x0) + alpha * x1 - beta * c - m_abs
-    x0 = 10 ^ (-0.4* (distmod - alpha * x1 + beta * c + m_abs))
+    distmod = -2.5*log10(x0) + alpha * x1 - beta * c - m_abs + 10.635
+    x0 = 10 ^ (-0.4* (distmod - alpha * x1 + beta * c + m_abs - 10.635))
 
     Parameters
     ----------
@@ -171,7 +171,7 @@ def _x0_from_distmod(distmod, x1, c, alpha, beta, m_abs):
     x0 : `float`
         The x0 parameter
     """
-    x0 = np.power(10.0, -0.4 * (distmod - alpha * x1 + beta * c + m_abs))
+    x0 = np.power(10.0, -0.4 * (distmod - alpha * x1 + beta * c + m_abs - 10.635))
 
     return x0
 
