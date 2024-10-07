@@ -35,7 +35,7 @@ def draw_single_random_sn(
 
     # Update obs_index to only include observations within SN lifespan
     phase_obs = opsim[opsim.colmap["time"]][obs_index] - t0
-    obs_index = obs_index[(phase_obs > -20) & (phase_obs < 50)]
+    obs_index = obs_index[(phase_obs > -20 * (1.0 + z)) & (phase_obs < 50 * (1.0 + z))]
 
     times = opsim[opsim.colmap["time"]][obs_index].to_numpy()
     filters = opsim[opsim.colmap["filter"]][obs_index].to_numpy(str)
