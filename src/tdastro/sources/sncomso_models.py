@@ -4,8 +4,10 @@ https://github.com/sncosmo/sncosmo/blob/v2.10.1/sncosmo/models.py
 https://sncosmo.readthedocs.io/en/stable/models.html
 """
 
+from astropy import units as u
 from sncosmo.models import get_source
 
+from tdastro.astro_utils.unit_utils import flam_to_fnu
 from tdastro.sources.physical_model import PhysicalModel
 
 
@@ -143,8 +145,18 @@ class SncosmoWrapperModel(PhysicalModel):
         Returns
         -------
         flux_density : `numpy.ndarray`
-            A length T x N matrix of SED values (in ergs/s/cm^2/AA).
+            A length T x N matrix of SED values (in nJy).
         """
         params = self.get_local_params(graph_state)
         self._update_sncosmo_model_parameters(graph_state)
-        return self.source.flux(times - params["t0"], wavelengths)
+
+        flux_flam = self.source.flux(times - params["t0"], wavelengths)
+        flux_fnu = flam_to_fnu(
+            flux_flam,
+            wavelengths,
+            wave_unit=u.AA,
+            flam_unit=u.erg / u.second / u.cm**2 / u.AA,
+            fnu_unit=u.nJy,
+        )
+
+        return flux_fnu

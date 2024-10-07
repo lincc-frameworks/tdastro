@@ -18,7 +18,7 @@ def test_redshifted_flux_densities() -> None:
 
         for i, time in enumerate(times):
             if t0 <= time and time <= (t1 - t0) * (1 + redshift) + t0:
-                assert np.all(values_redshift[i] == brightness / (1 + redshift))
+                assert np.all(values_redshift[i] == brightness * (1 + redshift))
             else:
                 assert np.all(values_redshift[i] == 0.0)
 

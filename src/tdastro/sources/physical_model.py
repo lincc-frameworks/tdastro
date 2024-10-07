@@ -4,7 +4,7 @@
 import numpy as np
 
 from tdastro.astro_utils.passbands import Passband
-from tdastro.astro_utils.redshift import RedshiftDistFunc, apply_redshift, obs_frame_to_rest_frame
+from tdastro.astro_utils.redshift import RedshiftDistFunc, obs_to_rest_times_waves, rest_to_obs_flux
 from tdastro.base_models import ParameterizedNode
 from tdastro.graph_state import GraphState
 from tdastro.rand_nodes.np_random import build_rngs_from_hashes
@@ -100,21 +100,23 @@ class PhysicalModel(ParameterizedNode):
         self.apply_redshift = apply_redshift
 
     def _evaluate(self, times, wavelengths, graph_state):
-        """Draw effect-free observations for this object.
+        """Draw effect-free rest frame flux densities.
+        The rest-frame flux is defined as F_nu = L_nu / 4*pi*D_L**2,
+        where D_L is the luminosity distance.
 
         Parameters
         ----------
         times : `numpy.ndarray`
             A length T array of rest frame timestamps.
         wavelengths : `numpy.ndarray`, optional
-            A length N array of wavelengths (in angstroms).
+            A length N array of rest frame wavelengths (in angstroms).
         graph_state : `GraphState`
             An object mapping graph parameters to their values.
 
         Returns
         -------
         flux_density : `numpy.ndarray`
-            A length T x N matrix of SED values (in nJy).
+            A length T x N matrix of rest frame SED values (in nJy).
         """
         raise NotImplementedError()
 
@@ -161,7 +163,7 @@ class PhysicalModel(ParameterizedNode):
                 raise ValueError("The 'redshift' parameter is required for redshifted models.")
             if params.get("t0", None) is None:
                 raise ValueError("The 't0' parameter is required for redshifted models.")
-            times, wavelengths = obs_frame_to_rest_frame(times, wavelengths, params["redshift"], params["t0"])
+            times, wavelengths = obs_to_rest_times_waves(times, wavelengths, params["redshift"], params["t0"])
 
         # Compute the flux density for both the current object and add in anything
         # behind it, such as a host galaxy.
@@ -179,7 +181,7 @@ class PhysicalModel(ParameterizedNode):
         # Post-effects are adjustments done to the flux density after computation.
         if self.apply_redshift and params["redshift"] != 0.0:
             # We have alread checked that redshift is not None.
-            flux_density = apply_redshift(flux_density, params["redshift"])
+            flux_density = rest_to_obs_flux(flux_density, params["redshift"])
 
         return flux_density
 
