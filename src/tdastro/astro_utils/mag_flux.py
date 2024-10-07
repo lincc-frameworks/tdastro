@@ -8,32 +8,32 @@ MAG_AB_ZP_NJY = 8.9 + 2.5 * 9
 
 
 def mag2flux(mag: npt.ArrayLike) -> npt.ArrayLike:
-    """Convert AB magnitude to flux in nJy
+    """Convert AB magnitude to bandflux in nJy
 
     Parameters
     ----------
     mag : ndarray of `float`
-        The magnitude to convert to flux.
+        The magnitude to convert to bandflux.
 
     Returns
     -------
-    flux : ndarray of `float`
-        The flux corresponding to the input magnitude.
+    bandflux : ndarray of `float`
+        The bandflux corresponding to the input magnitude.
     """
     return np.power(10.0, -0.4 * (mag - MAG_AB_ZP_NJY))
 
 
 def flux2mag(flux_njy: npt.ArrayLike) -> npt.ArrayLike:
-    """Convert flux in nJy to AB magnitude
+    """Convert bandflux in nJy to AB magnitude
 
     Parameters
     ----------
     flux_njy : ndarray of `float`
-        The flux to convert to magnitude.
+        The bandflux to convert to magnitude.
 
     Returns
     -------
     mag : ndarray of `float`
-        The magnitude corresponding to the input flux.
+        The magnitude corresponding to the input bandflux.
     """
     return MAG_AB_ZP_NJY - 2.5 * np.log10(flux_njy)

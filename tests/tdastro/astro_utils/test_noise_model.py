@@ -1,6 +1,6 @@
 import numpy as np
 from numpy.testing import assert_allclose
-from tdastro.astro_utils.noise_model import poisson_flux_std
+from tdastro.astro_utils.noise_model import poisson_bandflux_std
 
 
 def test_poisson_flux_std_flux():
@@ -11,8 +11,8 @@ def test_poisson_flux_std_flux():
     flux = 10 ** rng.uniform(0.0, 5.0, 100)
     expected_flux_err = np.sqrt(flux)
 
-    flux_err = poisson_flux_std(
-        flux=flux,
+    flux_err = poisson_bandflux_std(
+        bandflux=flux,
         pixel_scale=rng.uniform(),
         total_exposure_time=rng.uniform(),
         exposure_count=rng.integers(1, 100),
@@ -37,8 +37,8 @@ def test_poisson_flux_std_sky():
     footprint = 10 ** rng.uniform(0.0, 2.0, n)
     expected_flux_err = np.sqrt(sky * footprint)
 
-    flux_err = poisson_flux_std(
-        flux=0.0,
+    flux_err = poisson_bandflux_std(
+        bandflux=0.0,
         pixel_scale=rng.uniform(),
         total_exposure_time=rng.uniform(),
         exposure_count=rng.integers(1, 100),
@@ -65,8 +65,8 @@ def test_poisson_flux_std_readout():
     exposure_count = rng.integers(1, 100, n)
     expected_flux_err = readout_noise * np.sqrt(footprint / pixel_scale**2) * np.sqrt(exposure_count)
 
-    flux_err = poisson_flux_std(
-        flux=0.0,
+    flux_err = poisson_bandflux_std(
+        bandflux=0.0,
         pixel_scale=pixel_scale,
         total_exposure_time=rng.uniform(),
         exposure_count=exposure_count,
@@ -95,8 +95,8 @@ def test_poisson_flux_std_dark():
     dark_current_total = dark_current * total_exposure_time * footprint / pixel_scale**2
     expected_flux_err = np.sqrt(dark_current_total)
 
-    flux_err = poisson_flux_std(
-        flux=0.0,
+    flux_err = poisson_bandflux_std(
+        bandflux=0.0,
         pixel_scale=pixel_scale,
         total_exposure_time=total_exposure_time,
         exposure_count=rng.integers(1, 100, n),

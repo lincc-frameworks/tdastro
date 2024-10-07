@@ -66,7 +66,7 @@ def test_magnitude_electron_zeropoint_docstring():
 
 
 def test_flux_electron_zeropoint():
-    """Test that flux zeropoints are correct"""
+    """Test that bandflux zeropoints are correct"""
     # Here we just check that magnitude-flux conversion is correct
     airmass = np.array([1, 1.5, 2]).reshape(-1, 1, 1)
     exptime = np.array([30, 38, 45]).reshape(1, -1, 1)
