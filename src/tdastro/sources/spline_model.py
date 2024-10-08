@@ -71,7 +71,7 @@ class SplineModel(PhysicalModel):
         self._wavelengths = wavelengths
         self._spline = RectBivariateSpline(times, wavelengths, flux, kx=time_degree, ky=wave_degree)
 
-    def _evaluate(self, times, wavelengths, graph_state, **kwargs):
+    def compute_flux(self, times, wavelengths, graph_state, **kwargs):
         """Draw effect-free observations for this object.
 
         Parameters

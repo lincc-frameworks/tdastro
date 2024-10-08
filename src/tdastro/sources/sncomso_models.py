@@ -128,7 +128,7 @@ class SncosmoWrapperModel(PhysicalModel):
         super()._sample_helper(graph_state, seen_nodes, rng_info)
         self._update_sncosmo_model_parameters(graph_state)
 
-    def _evaluate(self, times, wavelengths, graph_state=None, **kwargs):
+    def compute_flux(self, times, wavelengths, graph_state=None, **kwargs):
         """Draw effect-free observations for this object.
 
         Parameters

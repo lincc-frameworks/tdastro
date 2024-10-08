@@ -23,7 +23,7 @@ class GaussianGalaxy(PhysicalModel):
         self.add_parameter("galaxy_radius_std", radius, **kwargs)
         self.add_parameter("brightness", brightness, **kwargs)
 
-    def _evaluate(self, times, wavelengths, graph_state, ra=None, dec=None, **kwargs):
+    def compute_flux(self, times, wavelengths, graph_state, ra=None, dec=None, **kwargs):
         """Draw effect-free observations for this object.
 
         Parameters

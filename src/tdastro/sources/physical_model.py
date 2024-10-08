@@ -99,7 +99,7 @@ class PhysicalModel(ParameterizedNode):
         """
         self.apply_redshift = apply_redshift
 
-    def _evaluate(self, times, wavelengths, graph_state):
+    def compute_flux(self, times, wavelengths, graph_state):
         """Draw effect-free rest frame flux densities.
         The rest-frame flux is defined as F_nu = L_nu / 4*pi*D_L**2,
         where D_L is the luminosity distance.
@@ -167,9 +167,9 @@ class PhysicalModel(ParameterizedNode):
 
         # Compute the flux density for both the current object and add in anything
         # behind it, such as a host galaxy.
-        flux_density = self._evaluate(times, wavelengths, graph_state, **kwargs)
+        flux_density = self.compute_flux(times, wavelengths, graph_state, **kwargs)
         if self.background is not None:
-            flux_density += self.background._evaluate(
+            flux_density += self.background.compute_flux(
                 times,
                 wavelengths,
                 graph_state,
