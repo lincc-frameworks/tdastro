@@ -23,7 +23,7 @@ class StepSource(StaticSource):
         self.add_parameter("t0", t0, **kwargs)
         self.add_parameter("t1", t1, **kwargs)
 
-    def _evaluate(self, times, wavelengths, graph_state, **kwargs):
+    def compute_flux(self, times, wavelengths, graph_state, **kwargs):
         """Draw effect-free observations for this object.
 
         Parameters
