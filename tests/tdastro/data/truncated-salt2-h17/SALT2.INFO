@@ -1,0 +1,19 @@
+# SALT2 extended to the IR by Steve Rodney
+# Used in WFIRST Simulation paper: https://arxiv.org/abs/1702.01747
+
+RESTLAMBDA_RANGE:  2000. 23000.
+
+COLORLAW_VERSION: 1
+COLORCOR_PARAMS: 2800 9500 4 -1.33154627 0.61225710 -0.12117791 0.00840832
+COLOR_OFFSET:  0.0
+
+MAG_OFFSET: 0.27
+SEDFLUX_INTERP_OPT: 1  # 1=>linear,    2=>spline
+ERRMAP_INTERP_OPT:  1  # 0=snake off;  1=>linear  2=>spline
+ERRMAP_KCOR_OPT:    1  # 1/0 => on/off
+
+MAGERR_FLOOR:   0.005            # don;t allow smaller error than this
+MAGERR_LAMOBS:  0.1  2000  4000  # magerr minlam maxlam
+MAGERR_LAMREST: 0.1   100   200  # magerr minlam maxlam
+
+SIGMA_INT: 0.090
