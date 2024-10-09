@@ -97,6 +97,11 @@ def test_parameterized_node():
     assert model1.get_param(state, "value2") == 0.5
     assert model1.get_param(state, "value_sum") == 1.0
 
+    # We can also access the parameters using their names and the graph state.
+    assert model1.value1(state) == 0.5
+    assert model1.value2(state) == 0.5
+    assert model1.value_sum(state) == 1.0
+
     # Use value1=model.value and value2=1.0
     model2 = PairModel(value1=model1.value1, value2=1.0, node_label="test")
     assert str(model2) == "test"

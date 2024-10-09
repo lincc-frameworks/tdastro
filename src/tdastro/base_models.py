@@ -445,8 +445,8 @@ class ParameterizedNode:
         # Create a callable getter function using. We override the __self__ and __name__
         # attributes so it looks like method of this object.
         # This allows us to reference the parameter as object.parameter_name for chaining.
-        def getter():
-            return None
+        def getter(graph_state):
+            return graph_state[getter.__self__.node_string][getter.__name__]
 
         getter.__self__ = self
         getter.__name__ = name
