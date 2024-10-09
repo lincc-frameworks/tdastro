@@ -190,6 +190,32 @@ def test_graph_state_update():
         state.update(state4)
 
 
+def test_graph_state_extract_params():
+    """Test that we can extract named parameters from a GraphState."""
+    state = GraphState()
+    state.set("a", "v1", 1.0)
+    state.set("a", "v2", 2.0)
+    state.set("a", "v3", 3.0)
+    state.set("b", "v1", 4.0)
+    state.set("c", "v3", 3.0)
+    state.set("d", "v4", 6.0)
+    state.set("e", "v3", 3.0)
+    state.set("e", "v5", 7.0)
+
+    # We succeed for parameters with a single value. Although v3 appears in three
+    # nodes, it has one value (3.0).
+    results = state.extract_params(["v2", "v3", "v4"])
+    assert len(results) == 3
+    assert results["v2"] == 2.0
+    assert results["v3"] == 3.0
+    assert results["v4"] == 6.0
+
+    # We fail if we find different values for the same parameter name. This could
+    # happen with something like 'loc' in nodes generating Guassian distributions.
+    with pytest.raises(ValueError):
+        _ = state.extract_params(["v1"])
+
+
 def test_graph_state_update_multi():
     """Test that we can update a single sample GraphState."""
     state = GraphState(num_samples=3)

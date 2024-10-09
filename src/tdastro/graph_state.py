@@ -211,6 +211,52 @@ class GraphState:
                     new_state.states[node_name][var_name] = value[sample_num]
         return new_state
 
+    def extract_params(self, param_names):
+        """Extract individual parameters with unqiue names. This is often used for
+        recording the important parameters from an entire model (set of nodes).
+
+        Since parameters in different nodes can (and often will) share names, we check
+        that the values are consistent. This is important when one node is accessing the
+        value of another. For example if two different functions use "redshift" they will
+        each have a local copy. We want to return a single instance of this parameter.
+
+        Example
+        -------
+        import_params = state.extract_params(["redshift", "t0", "distance", "nickle_content"])
+
+        Parameters
+        ----------
+        param_names : list-like
+            The names of the parameters to extract.
+
+        Returns
+        -------
+        results : dict
+            A dictionary mapping all the given names to their values.
+
+        Raises
+        ------
+        ValueError if the parameter name exists in two different nodes and has
+        different values for those nodes.
+        """
+        # Store the param_names in a set so we can do fast look ups.
+        match_set = set([item for item in param_names])
+
+        results = {}
+        for node_params in self.states.values():
+            for var_name, value in node_params.items():
+                if var_name in match_set:
+                    # Check if the the parameter name already exists in the results and,
+                    # if so, that the data matches.
+                    if var_name in results:
+                        if not np.allclose(value, results[var_name]):
+                            raise ValueError(
+                                f"Parameter {var_name} found in multiple nodes " "with different values."
+                            )
+                    else:
+                        results[var_name] = value
+        return results
+
 
 def transpose_dict_of_list(input_dict, num_elem):
     """Transpose a dictionary of iterables to a list of dictionaries.
