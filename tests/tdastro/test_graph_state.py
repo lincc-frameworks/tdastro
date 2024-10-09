@@ -1,5 +1,10 @@
+import os
+import tempfile
+from pathlib import Path
+
 import numpy as np
 import pytest
+from astropy.table import Table
 from tdastro.graph_state import GraphState, transpose_dict_of_list
 
 
@@ -55,6 +60,12 @@ def test_create_single_sample_graph_state():
     state.set("a", "v1", 10.0)
     assert len(state) == 3
     assert state["a"]["v1"] == 10.0
+
+    # Test we cannot use a name containing the separator as a substring.
+    with pytest.raises(ValueError):
+        state.set("a|>b", "v1", 10.0)
+    with pytest.raises(ValueError):
+        state.set("b", "v1|>v3", 10.0)
 
 
 def test_create_multi_sample_graph_state():
@@ -121,6 +132,53 @@ def test_create_multi_sample_graph_state_reference():
     state2["a"]["v2"][2] = 5.0
     assert np.allclose(state2["a"]["v2"], [2.0, 2.5, 5.0, 3.5, 4.0])
     assert np.allclose(state2["b"]["v1"], [2.0, 2.5, 3.0, 3.5, 4.0])
+
+
+def test_graph_state_equal():
+    """Test that we use == on GraphStates."""
+    state1 = GraphState(num_samples=2)
+    state1.set("a", "v1", [1.0, 2.0])
+    state1.set("a", "v2", [2.0, 3.0])
+    state1.set("b", "v1", [3.0, 4.0])
+
+    state2 = GraphState(num_samples=2)
+    state2.set("a", "v1", [1.0, 2.0])
+    state2.set("a", "v2", [2.0, 3.0])
+    state2.set("b", "v1", [3.0, 4.0])
+
+    assert state1 == state2
+
+    state2.set("b", "v1", [3.0, 5.0])
+    assert state1 != state2
+
+    state2.set("b", "v1", [3.0, 4.0])
+    assert state1 == state2
+
+    state2.set("b", "v2", [3.0, 4.0])
+    assert state1 != state2
+
+    state3 = GraphState(num_samples=3)
+    state3.set("a", "v1", [1.0, 2.0, 3.0])
+    state3.set("a", "v2", [2.0, 3.0, 4.0])
+    state3.set("b", "v1", [3.0, 4.0, 5.0])
+    assert state3 != state1
+    assert state3 != state2
+
+    # Test that equality works with a single sample (not arrays).
+    state4 = GraphState(num_samples=1)
+    state4.set("a", "v1", 1.0)
+    state4.set("a", "v2", 2.0)
+    state4.set("b", "v1", 3.0)
+
+    state5 = GraphState(num_samples=1)
+    state5.set("a", "v1", 1.0)
+    state5.set("a", "v2", 2.0)
+    state5.set("b", "v1", 3.0)
+
+    assert state4 == state5
+
+    state5.set("a", "v2", 2.5)
+    assert state4 != state5
 
 
 def test_graph_state_fixed():
@@ -190,6 +248,47 @@ def test_graph_state_update():
         state.update(state4)
 
 
+def test_graph_state_from_table():
+    """Test that we can create a GraphState from an AstroPy Table."""
+    input = Table(
+        {
+            GraphState.extended_param_name("a", "v1"): [1.0, 2.0, 3.0],
+            GraphState.extended_param_name("a", "v2"): [4.0, 5.0, 6.0],
+            GraphState.extended_param_name("b", "v1"): [7.0, 8.0, 9.0],
+        }
+    )
+    state = GraphState.from_table(input)
+
+    assert len(state) == 3
+    assert state.num_samples == 3
+    np.testing.assert_allclose(state["a"]["v1"], [1.0, 2.0, 3.0])
+    np.testing.assert_allclose(state["a"]["v2"], [4.0, 5.0, 6.0])
+    np.testing.assert_allclose(state["b"]["v1"], [7.0, 8.0, 9.0])
+
+
+def test_graph_state_to_table():
+    """Test that we can create an AstroPy Table from a GraphState."""
+    state = GraphState(num_samples=3)
+    state.set("a", "v1", [1.0, 2.0, 3.0])
+    state.set("a", "v2", [3.0, 4.0, 5.0])
+    state.set("b", "v1", [6.0, 7.0, 8.0])
+
+    result = state.to_table()
+    assert len(result) == 3
+    np.testing.assert_allclose(
+        result[GraphState.extended_param_name("a", "v1")].data,
+        [1.0, 2.0, 3.0],
+    )
+    np.testing.assert_allclose(
+        result[GraphState.extended_param_name("a", "v2")].data,
+        [3.0, 4.0, 5.0],
+    )
+    np.testing.assert_allclose(
+        result[GraphState.extended_param_name("b", "v1")].data,
+        [6.0, 7.0, 8.0],
+    )
+
+
 def test_graph_state_update_multi():
     """Test that we can update a single sample GraphState."""
     state = GraphState(num_samples=3)
@@ -227,6 +326,29 @@ def test_graph_state_update_multi():
     state4.set("e", "v1", 1.0)
     with pytest.raises(ValueError):
         state.update(state4)
+
+
+def test_graph_to_from_file():
+    """Test that we can create an AstroPy Table from a GraphState."""
+    state = GraphState(num_samples=3)
+    state.set("a", "v1", [1.0, 2.0, 3.0])
+    state.set("a", "v2", [3.0, 4.0, 5.0])
+    state.set("b", "v1", [6.0, 7.0, 8.0])
+
+    with tempfile.TemporaryDirectory() as dir_name:
+        file_path = os.path.join(dir_name, "state.ecsv")
+        assert not Path(file_path).is_file()
+
+        state.save_to_file(file_path)
+        assert Path(file_path).is_file()
+
+        state2 = GraphState.from_file(file_path)
+        assert state == state2
+
+        # Cannot overwrite with it set to False, but works when set to True.
+        with pytest.raises(OSError):
+            state.save_to_file(file_path)
+        state.save_to_file(file_path, overwrite=True)
 
 
 def test_transpose_dict_of_list():
