@@ -210,6 +210,10 @@ def test_graph_state_extract_params():
     assert results["v3"] == 3.0
     assert results["v4"] == 6.0
 
+    # We can extract a single value at a time.
+    assert state.extract_params("v2") == 2.0
+    assert state.extract_params("v5") == 7.0
+
     # We fail if we find different values for the same parameter name. This could
     # happen with something like 'loc' in nodes generating Guassian distributions.
     with pytest.raises(ValueError):

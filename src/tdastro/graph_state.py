@@ -226,13 +226,15 @@ class GraphState:
 
         Parameters
         ----------
-        param_names : list-like
-            The names of the parameters to extract.
+        param_names : str or list-like
+            The name of s single parameter (str) or a list of names of the parameters
+            to extract.
 
         Returns
         -------
-        results : dict
-            A dictionary mapping all the given names to their values.
+        results
+            If extracting a single parameter, returns its values. Otherwise returns a
+            dictionary mapping the given names to their values.
 
         Raises
         ------
@@ -240,7 +242,10 @@ class GraphState:
         different values for those nodes.
         """
         # Store the param_names in a set so we can do fast look ups.
-        match_set = set([item for item in param_names])
+        if isinstance(param_names, str):
+            match_set = set([param_names])
+        elif not isinstance(param_names, set):
+            match_set = set([item for item in param_names])
 
         results = {}
         for node_params in self.states.values():
@@ -255,6 +260,15 @@ class GraphState:
                             )
                     else:
                         results[var_name] = value
+
+        # Check that we found everything.
+        for val in match_set:
+            if val not in results:
+                raise KeyError(f"Parameter {val} not found in the GraphState.")
+
+        # Check if we should be returning a dictionary or just the values.
+        if len(match_set) == 1:
+            results = list(results.values())[0]
         return results
 
 
