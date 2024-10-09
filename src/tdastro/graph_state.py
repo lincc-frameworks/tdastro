@@ -25,6 +25,8 @@ of a host galaxy.
 """
 
 import numpy as np
+from astropy.io import ascii
+from astropy.table import Table
 
 
 class GraphState:
@@ -45,6 +47,8 @@ class GraphState:
         are fixed in this GraphState instance.
     """
 
+    _NAME_SEPARATOR = "|>"
+
     def __init__(self, num_samples=1):
         if num_samples < 1:
             raise ValueError(f"Invalid number of samples {num_samples}")
@@ -64,9 +68,94 @@ class GraphState:
                 str_lines.append(f"    {var_name}: {value}")
         return "\n".join(str_lines)
 
+    def __eq__(self, other):
+        if self.num_samples != other.num_samples:
+            return False
+        if len(self.states) != len(other.states):
+            return False
+
+        for node_name, node_params in self.states.items():
+            # Check that this node exists in both GraphStates and has the same number
+            # of parameters.
+            if node_name not in other.states:
+                return False
+            other_params = other.states[node_name]
+            if len(node_params) != len(other_params):
+                return False
+
+            # Check that the values of each parameter matches.
+            for var_name, var_value in node_params.items():
+                if var_name not in other_params:
+                    return False
+                if not np.allclose(var_value, other_params[var_name]):
+                    return False
+
+        # Check that the 'fixed' dictionary is the same.
+        if self.fixed_vars != other.fixed_vars:
+            return False
+
+        return True
+
     def __getitem__(self, key):
         """Access the dictionary of parameter values for a node name."""
         return self.states[key]
+
+    @staticmethod
+    def extended_param_name(node_name, param_name):
+        """A helper function to create the full parameter name.
+
+        Parameters
+        ----------
+        node_name : str
+            The name of the node.
+        param_name : str
+            The name of the parameter.
+
+        Returns
+        -------
+        extended : str
+            A name of the form {node_name}{_NAME_SEPARATOR}{param_name}
+        """
+        return f"{node_name}{GraphState._NAME_SEPARATOR}{param_name}"
+
+    @classmethod
+    def from_table(cls, input_table):
+        """Create the GraphState from an AstroPy Table with columns for each parameter
+        and column names of the form '{node_name}{_NAME_SEPARATOR}{param_name}'.
+
+        Parameters
+        ----------
+        input_table : astropy.table.Table
+            The input table.
+        """
+        num_samples = len(input_table)
+        result = GraphState(num_samples=num_samples)
+        for col in input_table.colnames:
+            components = col.split(cls._NAME_SEPARATOR)
+            if len(components) != 2:
+                raise ValueError(
+                    f"Invalid name for entry {col}. Entries should be of the form "
+                    f"'node_name{cls._NAME_SEPARATOR}param_name'."
+                )
+
+            # If we only have a single value then store that value instead of the np array.
+            if num_samples == 1:
+                result.set(components[0], components[1], input_table[col].data[0])
+            else:
+                result.set(components[0], components[1], input_table[col].data)
+        return result
+
+    @classmethod
+    def from_file(cls, filename):
+        """Create the GraphState from a saved file.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the file.
+        """
+        data_table = ascii.read(filename, format="ecsv")
+        return GraphState.from_table(data_table)
 
     def get_node_state(self, node_name, sample_num=0):
         """Get a dictionary of all parameters local to the given node
@@ -116,6 +205,10 @@ class GraphState:
             Treat this parameter as fixed and do not change it during subsequent calls to set.
             Default: ``False``
         """
+        # Check that the names do not use the separator value.
+        if self._NAME_SEPARATOR in node_name or self._NAME_SEPARATOR in var_name:
+            raise ValueError(f"Names cannot contain the substring '{self._NAME_SEPARATOR}'.")
+
         # Update the meta data.
         if node_name not in self.states:
             self.states[node_name] = {}
@@ -210,6 +303,36 @@ class GraphState:
                 else:
                     new_state.states[node_name][var_name] = value[sample_num]
         return new_state
+
+    def to_table(self):
+        """Flatten the graph state to an AstroPy Table with columns for each parameter.
+
+        The column names are: {node_name}{separator}{param_name}
+
+        Returns
+        -------
+        values : astropy.table.Table
+            The resulting Table.
+        """
+        values = Table()
+        for node_name, node_params in self.states.items():
+            for param_name, param_value in node_params.items():
+                values[self.extended_param_name(node_name, param_name)] = np.array(param_value)
+        return values
+
+    def save_to_file(self, filename, overwrite=False):
+        """Save the GraphState to a file.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the file to save.
+        overwrite : bool
+            Whether to overwrite an existing file.
+            Default: False
+        """
+        data_table = self.to_table()
+        ascii.write(data_table, filename, format="ecsv", overwrite=overwrite)
 
 
 def transpose_dict_of_list(input_dict, num_elem):

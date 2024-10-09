@@ -1,6 +1,5 @@
 """The base PhysicalModel used for all sources."""
 
-
 import numpy as np
 
 from tdastro.astro_utils.passbands import Passband
