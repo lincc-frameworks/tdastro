@@ -27,8 +27,10 @@ def draw_single_random_sn(
 
     res = {"wavelengths_rest": wavelengths_rest}
 
-    t0 = source.get_param(state, "t0")
+    t0 = state.extract_params("t0")
 
+    # We cannot use extract_params on RA and dec since the host and source have
+    # different values.
     ra = source.get_param(state, "ra")
     dec = source.get_param(state, "dec")
     obs_index = np.array(opsim.range_search(ra, dec, radius=1.75))
@@ -167,15 +169,12 @@ def run_snia_end2end(oversampled_observations, passbands_dir, nsample=1):
             continue
         any_valid_results = True
 
+        # Extract important parameters that we want to use. The pair ra and dec must be extracted
+        # from a specific node because the host and source have different values.
         state = res["state"]
-
-        p = {}
-        for parname in ["t0", "x0", "x1", "c", "redshift", "ra", "dec"]:
+        p = state.extract_params(["t0", "x0", "x1", "c", "redshift", "hostmass", "distmod"])
+        for parname in ["ra", "dec"]:
             p[parname] = float(source.get_param(state, parname))
-        for parname in ["hostmass"]:
-            p[parname] = host.get_param(state, parname)
-        for parname in ["distmod"]:
-            p[parname] = x0_func.get_param(state, parname)
         res["parameter_values"] = p
 
         saltpars = {"x0": p["x0"], "x1": p["x1"], "c": p["c"], "z": p["redshift"], "t0": p["t0"]}

@@ -211,6 +211,66 @@ class GraphState:
                     new_state.states[node_name][var_name] = value[sample_num]
         return new_state
 
+    def extract_params(self, param_names):
+        """Extract individual parameters with unqiue names. This is often used for
+        recording the important parameters from an entire model (set of nodes).
+
+        Since parameters in different nodes can (and often will) share names, we check
+        that the values are consistent. This is important when one node is accessing the
+        value of another. For example if two different functions use "redshift" they will
+        each have a local copy. We want to return a single instance of this parameter.
+
+        Example
+        -------
+        import_params = state.extract_params(["redshift", "t0", "distance", "nickle_content"])
+
+        Parameters
+        ----------
+        param_names : str or list-like
+            The name of s single parameter (str) or a list of names of the parameters
+            to extract.
+
+        Returns
+        -------
+        results
+            If extracting a single parameter, returns its values. Otherwise returns a
+            dictionary mapping the given names to their values.
+
+        Raises
+        ------
+        ValueError if the parameter name exists in two different nodes and has
+        different values for those nodes.
+        """
+        # Store the param_names in a set so we can do fast look ups.
+        if isinstance(param_names, str):
+            match_set = set([param_names])
+        elif not isinstance(param_names, set):
+            match_set = set([item for item in param_names])
+
+        results = {}
+        for node_params in self.states.values():
+            for var_name, value in node_params.items():
+                if var_name in match_set:
+                    # Check if the the parameter name already exists in the results and,
+                    # if so, that the data matches.
+                    if var_name in results:
+                        if not np.allclose(value, results[var_name]):
+                            raise ValueError(
+                                f"Parameter {var_name} found in multiple nodes " "with different values."
+                            )
+                    else:
+                        results[var_name] = value
+
+        # Check that we found everything.
+        for val in match_set:
+            if val not in results:
+                raise KeyError(f"Parameter {val} not found in the GraphState.")
+
+        # Check if we should be returning a dictionary or just the values.
+        if len(match_set) == 1:
+            results = list(results.values())[0]
+        return results
+
 
 def transpose_dict_of_list(input_dict, num_elem):
     """Transpose a dictionary of iterables to a list of dictionaries.
