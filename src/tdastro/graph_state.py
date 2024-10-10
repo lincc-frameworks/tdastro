@@ -24,6 +24,8 @@ We could have one mean for an object's brightness and another for it's positiona
 of a host galaxy.
 """
 
+import copy
+
 import numpy as np
 from astropy.io import ascii
 from astropy.table import Table
@@ -156,6 +158,10 @@ class GraphState:
         """
         data_table = ascii.read(filename, format="ecsv")
         return GraphState.from_table(data_table)
+
+    def copy(self):
+        """Create and return a copy of the GraphState."""
+        return copy.deepcopy(self)
 
     def get_node_state(self, node_name, sample_num=0):
         """Get a dictionary of all parameters local to the given node

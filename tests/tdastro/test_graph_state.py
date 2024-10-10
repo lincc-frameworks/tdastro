@@ -248,6 +248,38 @@ def test_graph_state_update():
         state.update(state4)
 
 
+def test_graph_state_copy():
+    """Test that we can copy a GraphState."""
+    state = GraphState()
+    state.set("a", "v1", 1.0)
+    state.set("a", "v2", 2.0)
+    state.set("b", "v1", 3.0)
+    state.set("c", "v1", 4.0, fixed=True)
+
+    copy_state = state.copy()
+    assert copy_state.num_samples == 1
+    assert copy_state.num_parameters == 4
+    assert copy_state["a"]["v1"] == 1.0
+    assert copy_state["a"]["v2"] == 2.0
+    assert copy_state["b"]["v1"] == 3.0
+    assert copy_state["c"]["v1"] == 4.0
+    assert "v1" in copy_state.fixed_vars["c"]
+
+    # We can change values in the original state without modifying the copied state.
+    state.set("a", "v2", 3.0)
+    state.set("d", "v1", 3.0)
+    state.set("d", "v2", 3.0)
+    assert state.num_parameters == 6
+    assert state["a"]["v2"] == 3.0
+
+    assert copy_state.num_samples == 1
+    assert copy_state.num_parameters == 4
+    assert copy_state["a"]["v1"] == 1.0
+    assert copy_state["a"]["v2"] == 2.0
+    assert copy_state["b"]["v1"] == 3.0
+    assert copy_state["c"]["v1"] == 4.0
+
+
 def test_graph_state_from_table():
     """Test that we can create a GraphState from an AstroPy Table."""
     input = Table(

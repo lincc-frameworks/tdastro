@@ -119,7 +119,9 @@ class PhysicalModel(ParameterizedNode):
         """
         raise NotImplementedError()
 
-    def evaluate(self, times, wavelengths, graph_state=None, given_args=None, rng_info=None, **kwargs):
+    def evaluate(
+        self, times, wavelengths, graph_state=None, given_args=None, rng_info=None, debug_data=None, **kwargs
+    ):
         """Draw observations for this object and apply the noise.
 
         Parameters
@@ -136,6 +138,9 @@ class PhysicalModel(ParameterizedNode):
         rng_info : `dict`, optional
             A dictionary of random number generator information for each node, such as
             the JAX keys or the numpy rngs.
+        debug_data : `dict`, optional
+            A dictionary in which to save debug-level information. If ``None`` then
+            no data is saved.
         **kwargs : `dict`, optional
             All the other keyword arguments.
 
@@ -154,6 +159,13 @@ class PhysicalModel(ParameterizedNode):
                 given_args=given_args, num_samples=1, rng_info=rng_info, **kwargs
             )
         params = self.get_local_params(graph_state)
+
+        # Save the debug data (if needed).
+        if debug_data is not None:
+            debug_data["times_obs"] = np.copy(times)
+            debug_data["wavelengths_obs"] = np.copy(wavelengths)
+            debug_data["source_params"] = params.copy()
+            debug_data["state"] = graph_state.copy()
 
         # Pre-effects are adjustments done to times and/or wavelengths, before flux density
         # computation. We skip if redshift is 0.0 since there is nothing to do.
@@ -176,6 +188,12 @@ class PhysicalModel(ParameterizedNode):
                 dec=params["dec"],
                 **kwargs,
             )
+
+        # Save more debug data (if needed).
+        if debug_data is not None:
+            debug_data["times_rest"] = np.copy(times)
+            debug_data["wavelengths_rest"] = np.copy(wavelengths)
+            debug_data["flux_density_rest"] = np.copy(flux_density)
 
         # Post-effects are adjustments done to the flux density after computation.
         if self.apply_redshift and params["redshift"] != 0.0:

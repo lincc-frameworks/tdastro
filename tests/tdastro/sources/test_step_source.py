@@ -55,6 +55,35 @@ def test_step_source() -> None:
     assert np.array_equal(values, expected)
 
 
+def test_step_source_debug() -> None:
+    """Test that we can produce debugging data during an evaluate call."""
+    model = StepSource(brightness=10.0, t0=1.0, t1=2.0, ra=0.0, dec=0.0, redshift=0.1)
+    state = model.sample_parameters()
+
+    times = np.array([0.0, 1.0, 2.0, 3.0])
+    wavelengths = np.array([100.0, 200.0])
+    debug_data = {}
+    flux_density_obs = model.evaluate(times, wavelengths, state, debug_data=debug_data)
+
+    assert "times_obs" in debug_data
+    assert np.array_equal(debug_data["times_obs"], times)
+
+    assert "wavelengths_obs" in debug_data
+    assert np.array_equal(debug_data["wavelengths_obs"], wavelengths)
+
+    assert "times_rest" in debug_data
+    assert not np.array_equal(debug_data["times_rest"], times)
+
+    assert "wavelengths_rest" in debug_data
+    assert not np.array_equal(debug_data["wavelengths_rest"], wavelengths)
+
+    assert "flux_density_rest" in debug_data
+    assert debug_data["flux_density_rest"].shape == (4, 2)
+    assert not np.array_equal(flux_density_obs, debug_data["flux_density_rest"])
+
+    assert "state" in debug_data
+
+
 def test_step_source_resample() -> None:
     """Check that we can call resample on the model parameters."""
     random.seed(1111)
