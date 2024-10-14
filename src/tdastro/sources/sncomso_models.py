@@ -117,9 +117,9 @@ class SncosmoWrapperModel(PhysicalModel):
         num_samples : `int`
             A count of the number of samples to compute.
             Default: 1
-        rng_info : `dict`, optional
-            A dictionary of random number generator information for each node, such as
-            the JAX keys or the numpy rngs.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
 
         Raises
         ------

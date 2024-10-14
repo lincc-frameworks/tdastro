@@ -451,9 +451,9 @@ class ParameterizedNode:
         graph_state : `GraphState`
             An object mapping graph parameters to their values. This object is modified
             in place as it is sampled.
-        rng_info : `dict`, optional
-            A dictionary of random number generator information for each node, such as
-            the JAX keys or the numpy rngs.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
         **kwargs : `dict`, optional
             Additional function arguments.
         """
@@ -473,9 +473,9 @@ class ParameterizedNode:
         seen_nodes : `dict`
             A dictionary mapping nodes seen during this sampling run to their ID.
             Used to avoid sampling nodes multiple times and to validity check the graph.
-        rng_info : `dict`, optional
-            A dictionary of random number generator information for each node, such as
-            the JAX keys or the numpy rngs.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
 
         Raises
         ------
@@ -532,9 +532,9 @@ class ParameterizedNode:
         num_samples : `int`
             A count of the number of samples to compute.
             Default: 1
-        rng_info : `dict`, optional
-            A dictionary of random number generator information for each node, such as
-            the JAX keys or the numpy rngs.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
 
         Returns
         -------
@@ -765,9 +765,9 @@ class FunctionNode(ParameterizedNode):
         graph_state : `GraphState`
             An object mapping graph parameters to their values. This object is modified
             in place as it is sampled.
-        rng_info : `dict`, optional
-            A dictionary of random number generator information for each node, such as
-            the JAX keys or the numpy rngs.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
         **kwargs : `dict`, optional
             Additional function arguments.
 
@@ -802,9 +802,9 @@ class FunctionNode(ParameterizedNode):
         given_args : `dict`, optional
             A dictionary representing the given arguments for this sample run.
             This can be used as the JAX PyTree for differentiation.
-        rng_info : `dict`, optional
-            A dictionary of random number generator information for each node, such as
-            the JAX keys or the numpy rngs.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
         """
         graph_state = self.sample_parameters(given_args, 1, rng_info)
         return self.compute(graph_state, rng_info)
