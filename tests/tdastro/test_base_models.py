@@ -102,6 +102,15 @@ def test_parameterized_node():
     assert model1.value2(state) == 0.5
     assert model1.value_sum(state) == 1.0
 
+    # We use the default for un-assigned parameters.
+    assert model1.get_param(state, "value3") is None
+    assert model1.get_param(state, "value4", 1.0) == 1.0
+
+    # If we set a position (and there is no node_label), the position shows up in the name.
+    model1.node_pos = 100
+    model1._update_node_string()
+    assert str(model1) == "100:PairModel"
+
     # Use value1=model.value and value2=1.0
     model2 = PairModel(value1=model1.value1, value2=1.0, node_label="test")
     assert str(model2) == "test"
@@ -110,11 +119,6 @@ def test_parameterized_node():
     assert model2.get_param(state, "value1") == 0.5
     assert model2.get_param(state, "value2") == 1.0
     assert model2.get_param(state, "value_sum") == 1.5
-
-    # If we set an ID it shows up in the name.
-    model2.node_pos = 100
-    model2._update_node_string()
-    assert str(model2) == "100:test"
 
     # Compute value1 from model2's result and value2 from the sampler function.
     # The sampler function is auto-wrapped in a FunctionNode.
@@ -175,9 +179,9 @@ def test_parameterized_node_get_info():
     # Get the node strings.
     node_strings = model3.get_all_node_info("node_string")
     assert len(node_strings) == 6
-    assert "0:node3" in node_strings
-    assert "1:node1" in node_strings
-    assert "3:node2" in node_strings
+    assert "node3" in node_strings
+    assert "node1" in node_strings
+    assert "node2" in node_strings
 
     # Get the node hash values and check they are all unique.
     node_hashes = model3.get_all_node_info("node_hash")
@@ -212,18 +216,18 @@ def test_parameterized_node_build_pytree():
     graph_state = model2.sample_parameters()
 
     pytree = model2.build_pytree(graph_state)
-    assert pytree["1:A"]["value1"] == 0.5
-    assert pytree["1:A"]["value2"] == 1.5
-    assert pytree["0:B"]["value2"] == 3.0
+    assert pytree["A"]["value1"] == 0.5
+    assert pytree["A"]["value2"] == 1.5
+    assert pytree["B"]["value2"] == 3.0
 
     # Manually set value2 to allow_gradient to False and check that it no
     # longer appears in the pytree.
     model1.setters["value2"].allow_gradient = False
 
     pytree = model2.build_pytree(graph_state)
-    assert pytree["1:A"]["value1"] == 0.5
-    assert pytree["0:B"]["value2"] == 3.0
-    assert "value2" not in pytree["1:A"]
+    assert pytree["A"]["value1"] == 0.5
+    assert pytree["B"]["value2"] == 3.0
+    assert "value2" not in pytree["A"]
 
     # If we set node B's value1 to allow the gradient, it will appear and
     # neither of node A's value will appear (because the gradient stops at
@@ -232,9 +236,9 @@ def test_parameterized_node_build_pytree():
     model2.setters["value1"].allow_gradient = True
 
     pytree = model2.build_pytree(graph_state)
-    assert "1:A" not in pytree
-    assert pytree["0:B"]["value1"] == 0.5
-    assert pytree["0:B"]["value2"] == 3.0
+    assert "A" not in pytree
+    assert pytree["B"]["value1"] == 0.5
+    assert pytree["B"]["value2"] == 3.0
 
 
 def test_single_variable_node():
@@ -354,6 +358,6 @@ def test_function_node_jax():
     values, gradients = gr_func(pytree)
     print(gradients)
     assert values == 9.0
-    assert gradients["0:sum:_test_func"]["value1"] == 1.0
-    assert gradients["1:div:_test_func2"]["value1"] == 2.0
-    assert gradients["1:div:_test_func2"]["value2"] == -16.0
+    assert gradients["sum:_test_func"]["value1"] == 1.0
+    assert gradients["div:_test_func2"]["value1"] == 2.0
+    assert gradients["div:_test_func2"]["value2"] == -16.0

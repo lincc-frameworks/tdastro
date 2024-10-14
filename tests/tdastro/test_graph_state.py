@@ -27,6 +27,13 @@ def test_create_single_sample_graph_state():
     with pytest.raises(KeyError):
         _ = state["c"]["v1"]
 
+    # We can access the entries using the extended key name.
+    assert state[f"a{state._NAME_SEPARATOR}v1"] == 1.0
+    assert state[f"a{state._NAME_SEPARATOR}v2"] == 2.0
+    assert state[f"b{state._NAME_SEPARATOR}v1"] == 3.0
+    with pytest.raises(KeyError):
+        _ = state[f"c{state._NAME_SEPARATOR}v1"]
+
     # We can create a human readable string representation of the GraphState.
     debug_str = str(state)
     assert debug_str == "a:\n    v1: 1.0\n    v2: 2.0\nb:\n    v1: 3.0"
@@ -63,9 +70,9 @@ def test_create_single_sample_graph_state():
 
     # Test we cannot use a name containing the separator as a substring.
     with pytest.raises(ValueError):
-        state.set("a|>b", "v1", 10.0)
+        state.set(f"a{state._NAME_SEPARATOR}b", "v1", 10.0)
     with pytest.raises(ValueError):
-        state.set("b", "v1|>v3", 10.0)
+        state.set("b", f"v1{state._NAME_SEPARATOR}v3", 10.0)
 
 
 def test_create_multi_sample_graph_state():
@@ -276,15 +283,15 @@ def test_graph_state_to_dict():
     result = state.to_dict()
     assert len(result) == 3
     np.testing.assert_allclose(
-        result[GraphState.extended_param_name("a", "v1")].data,
+        result[GraphState.extended_param_name("a", "v1")],
         [1.0, 2.0, 3.0],
     )
     np.testing.assert_allclose(
-        result[GraphState.extended_param_name("a", "v2")].data,
+        result[GraphState.extended_param_name("a", "v2")],
         [3.0, 4.0, 5.0],
     )
     np.testing.assert_allclose(
-        result[GraphState.extended_param_name("b", "v1")].data,
+        result[GraphState.extended_param_name("b", "v1")],
         [6.0, 7.0, 8.0],
     )
 
