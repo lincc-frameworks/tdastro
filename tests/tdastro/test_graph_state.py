@@ -266,6 +266,29 @@ def test_graph_state_from_table():
     np.testing.assert_allclose(state["b"]["v1"], [7.0, 8.0, 9.0])
 
 
+def test_graph_state_to_dict():
+    """Test that we can create a dictionary from a GraphState."""
+    state = GraphState(num_samples=3)
+    state.set("a", "v1", [1.0, 2.0, 3.0])
+    state.set("a", "v2", [3.0, 4.0, 5.0])
+    state.set("b", "v1", [6.0, 7.0, 8.0])
+
+    result = state.to_dict()
+    assert len(result) == 3
+    np.testing.assert_allclose(
+        result[GraphState.extended_param_name("a", "v1")].data,
+        [1.0, 2.0, 3.0],
+    )
+    np.testing.assert_allclose(
+        result[GraphState.extended_param_name("a", "v2")].data,
+        [3.0, 4.0, 5.0],
+    )
+    np.testing.assert_allclose(
+        result[GraphState.extended_param_name("b", "v1")].data,
+        [6.0, 7.0, 8.0],
+    )
+
+
 def test_graph_state_to_table():
     """Test that we can create an AstroPy Table from a GraphState."""
     state = GraphState(num_samples=3)

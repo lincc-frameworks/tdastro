@@ -18,6 +18,7 @@ requires-python = ">=3.9"
 dependencies = [
     "astropy",
     "jax",
+    "nested-pandas",
     "numpy",
     "pandas",
     "scipy",

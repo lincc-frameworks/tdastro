@@ -320,6 +320,22 @@ class GraphState:
                 values[self.extended_param_name(node_name, param_name)] = np.array(param_value)
         return values
 
+    def to_dict(self):
+        """Flatten the graph state to a dictionary with columns for each parameter.
+
+        The column names are: {node_name}{separator}{param_name}
+
+        Returns
+        -------
+        values : dict
+            The resulting dictionary.
+        """
+        values = {}
+        for node_name, node_params in self.states.items():
+            for param_name, param_value in node_params.items():
+                values[self.extended_param_name(node_name, param_name)] = np.array(param_value)
+        return values
+
     def save_to_file(self, filename, overwrite=False):
         """Save the GraphState to a file.
 
