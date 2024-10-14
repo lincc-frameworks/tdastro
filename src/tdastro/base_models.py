@@ -50,8 +50,6 @@ graph because they have no dependencies.  Such parameters are set by constants o
 static functions.
 """
 
-from hashlib import md5
-
 from tdastro.graph_state import GraphState
 
 
@@ -168,8 +166,6 @@ class ParameterizedNode:
     node_string : `str`
         The full string used to identify a node. This is a combination of the nodes position
         in the graph (if known), node_label (if provided), and class information.
-    node_hash : `int`
-        A precomputed hashed version of ``node_string``.
     setters : `dict`
         A dictionary mapping the parameters' names to information about the setters
         (ParameterSource). The model parameters are stored in the order in which they
@@ -195,7 +191,6 @@ class ParameterizedNode:
         self.node_label = node_label
         self.node_pos = None
         self.node_string = None
-        self.node_hash = None
 
     def __str__(self):
         """Return the string representation of the node."""
@@ -215,10 +210,6 @@ class ParameterizedNode:
         # Allow for the appending of an extra tag.
         if extra_tag is not None:
             self.node_string = f"{self.node_string}:{extra_tag}"
-
-        # Save the hashed value of the node string.
-        hashed_object_name = md5(self.node_string.encode()).hexdigest()
-        self.node_hash = int(hashed_object_name, base=16)
 
         # Update the node_name of all node's parameter setters.
         for _, setter_info in self.setters.items():
@@ -460,9 +451,9 @@ class ParameterizedNode:
         graph_state : `GraphState`
             An object mapping graph parameters to their values. This object is modified
             in place as it is sampled.
-        rng_info : `dict`, optional
-            A dictionary of random number generator information for each node, such as
-            the JAX keys or the numpy rngs.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
         **kwargs : `dict`, optional
             Additional function arguments.
         """
@@ -482,9 +473,9 @@ class ParameterizedNode:
         seen_nodes : `dict`
             A dictionary mapping nodes seen during this sampling run to their ID.
             Used to avoid sampling nodes multiple times and to validity check the graph.
-        rng_info : `dict`, optional
-            A dictionary of random number generator information for each node, such as
-            the JAX keys or the numpy rngs.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
 
         Raises
         ------
@@ -541,9 +532,9 @@ class ParameterizedNode:
         num_samples : `int`
             A count of the number of samples to compute.
             Default: 1
-        rng_info : `dict`, optional
-            A dictionary of random number generator information for each node, such as
-            the JAX keys or the numpy rngs.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
 
         Returns
         -------
@@ -570,43 +561,6 @@ class ParameterizedNode:
         seen_nodes = {}
         self._sample_helper(results, seen_nodes, rng_info)
         return results
-
-    def get_all_node_info(self, field, seen_nodes=None):
-        """Return a list of requested information for each node.
-
-        Parameters
-        ----------
-        field : `str`
-            The name of the attribute to extract from the node.
-            Common examples are: "node_hash" and "node_string"
-        seen_nodes : `set`
-            A set of objects that have already been processed.
-            Modified in place if provided.
-
-        Returns
-        -------
-        result : `list`
-            A list of values for each unique node in the graph.
-        """
-        # Check if the node might have incomplete information.
-        if self.node_pos is None and (field == "node_pos" or field == "node_hash"):
-            raise ValueError(
-                f"Node {self.node_string} is missing position. You must call "
-                f"set_graph_positions() before querying {field}."
-            )
-
-        # Check if we have already processed this node.
-        if seen_nodes is None:
-            seen_nodes = set()
-        if self in seen_nodes:
-            return []  # Nothing to do
-        seen_nodes.add(self)
-
-        # Get the information for this node and all its dependencies.
-        result = [getattr(self, field)]
-        for dep in self.direct_dependencies:
-            result.extend(dep.get_all_node_info(field, seen_nodes))
-        return result
 
     def build_pytree(self, graph_state, partial=None):
         """Build a JAX PyTree representation of the variables in this graph.
@@ -811,9 +765,9 @@ class FunctionNode(ParameterizedNode):
         graph_state : `GraphState`
             An object mapping graph parameters to their values. This object is modified
             in place as it is sampled.
-        rng_info : `dict`, optional
-            A dictionary of random number generator information for each node, such as
-            the JAX keys or the numpy rngs.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
         **kwargs : `dict`, optional
             Additional function arguments.
 
@@ -848,9 +802,9 @@ class FunctionNode(ParameterizedNode):
         given_args : `dict`, optional
             A dictionary representing the given arguments for this sample run.
             This can be used as the JAX PyTree for differentiation.
-        rng_info : `dict`, optional
-            A dictionary of random number generator information for each node, such as
-            the JAX keys or the numpy rngs.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
         """
         graph_state = self.sample_parameters(given_args, 1, rng_info)
         return self.compute(graph_state, rng_info)

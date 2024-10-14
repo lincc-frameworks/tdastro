@@ -4,68 +4,7 @@ from os import urandom
 
 import numpy as np
 
-from tdastro.base_models import FunctionNode, ParameterizedNode
-
-
-def build_rngs_from_hashes(node_hashes, base_seed=None):
-    """Construct a dictionary a list of each node's hash value to a
-    numpy random number generator.
-
-    Parameters
-    ----------
-    node_hashes : iterable
-        All of the node hash values as constructed by hashing the nodes' node_string.
-    base_seed : int
-        The key on which to base the keys for the individual nodes.
-
-    Returns
-    -------
-    rngs : `dict`
-        A dictionary mapping each node's hash value to a unique numpy rng.
-
-    Raises
-    ------
-    ``ValueError`` if duplicates appear in ``node_hashes``.
-    """
-    if base_seed is None:
-        base_seed = base_seed = int.from_bytes(urandom(4), "big")
-
-    # Create a key entry for each node.
-    rngs = {}
-    for value in node_hashes:
-        if value in rngs:
-            raise ValueError(f"Key collision for value {value}")
-
-        new_seed = (value + base_seed) % (2**32)
-        rngs[value] = np.random.default_rng(seed=new_seed)
-    return rngs
-
-
-def build_rngs_from_nodes(nodes, base_seed=None):
-    """Construct a dictionary mapping each node's hash value to a
-    numpy random number generator.
-
-    Parameters
-    ----------
-    nodes : iterable or `ParameterizedNode`
-        All of the nodes.
-    base_seed : `int`
-        The key on which to base the keys for the individual nodes.
-
-    Returns
-    -------
-    keys : `dict`
-        A dictionary mapping each node's hash value to a numpy random number generator.
-    """
-    if isinstance(nodes, ParameterizedNode):
-        nodes = [nodes]
-
-    # Recursively generate the list of nodes' hash values for all dependencies.
-    seen_nodes = set()
-    hash_list = []
-    for node in nodes:
-        hash_list.extend(node.get_all_node_info("node_hash", seen_nodes))
-    return build_rngs_from_hashes(hash_list, base_seed)
+from tdastro.base_models import FunctionNode
 
 
 class NumpyRandomFunc(FunctionNode):
@@ -137,9 +76,9 @@ class NumpyRandomFunc(FunctionNode):
         graph_state : `GraphState`
             An object mapping graph parameters to their values. This object is modified
             in place as it is sampled.
-        rng_info : `dict`, optional
-            A dictionary of random number generator information for each node, such as
-            the JAX keys or the numpy rngs.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
         **kwargs : `dict`, optional
             Additional function arguments.
 
@@ -158,9 +97,7 @@ class NumpyRandomFunc(FunctionNode):
 
         # If a random number generator is given use that. Otherwise use the default one.
         if rng_info is not None:
-            if self.node_hash not in rng_info:
-                raise KeyError("Node's hash not found in rng_info")
-            func = getattr(rng_info[self.node_hash], self.func_name)
+            func = getattr(rng_info, self.func_name)
             results = func(**args, size=num_samples)
         else:
             results = self.func(**args, size=num_samples)
@@ -178,9 +115,9 @@ class NumpyRandomFunc(FunctionNode):
         num_samples : `int`
             A count of the number of samples to compute.
             Default: 1
-        rng_info : `dict`, optional
-            A dictionary of random number generator information for each node, such as
-            the JAX keys or the numpy rngs.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
         **kwargs : `dict`, optional
             Additional function arguments.
         """
