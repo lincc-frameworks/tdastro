@@ -53,39 +53,6 @@ def test_physical_model():
     assert model4.get_param(state, "distance") is None
 
 
-def test_physical_model_get_all_node_info():
-    """Test that we can query get_all_node_info from a PhysicalModel."""
-    bg_model = PhysicalModel(ra=1.0, dec=2.0, distance=3.0, redshift=0.0, node_label="bg")
-    source_model = PhysicalModel(
-        ra=1.0,
-        dec=2.0,
-        distance=3.0,
-        redshift=0.0,
-        background=bg_model,
-        node_label="source",
-    )
-
-    node_labels = source_model.get_all_node_info("node_label")
-    assert len(node_labels) == 2
-    assert "bg" in node_labels
-    assert "source" in node_labels
-
-
-def test_physical_model_build_np_rngs():
-    """Test that we can build a dictionary of random number generators from a PhysicalModel."""
-    bg_model = PhysicalModel(ra=1.0, dec=2.0, distance=3.0, redshift=0.0, node_label="bg")
-    source_model = PhysicalModel(
-        ra=1.0,
-        dec=2.0,
-        distance=3.0,
-        redshift=0.0,
-        background=bg_model,
-        node_label="source",
-    )
-    np_rngs = source_model.build_np_rngs(base_seed=10)
-    assert len(np_rngs) == 2
-
-
 def test_physical_model_get_band_fluxes(passbands_dir):
     """Test that band fluxes are computed correctly."""
     # It should work fine for any positive Fnu.

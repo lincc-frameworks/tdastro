@@ -108,9 +108,9 @@ class NumericalInversePolynomialFunc(FunctionNode):
         graph_state : `GraphState`
             An object mapping graph parameters to their values. This object is modified
             in place as it is sampled.
-        rng_info : `dict`, optional
-            A dictionary of random number generator information for each node, such as
-            the JAX keys or the numpy rngs.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
         **kwargs : `dict`, optional
             Additional function arguments.
 
@@ -120,12 +120,7 @@ class NumericalInversePolynomialFunc(FunctionNode):
             The result of the computation. This return value is provided so that testing
             functions can easily access the results.
         """
-        rng = self._rng
-        if rng_info is not None:
-            if self.node_hash in rng_info:
-                rng = rng_info[self.node_hash]
-            else:
-                raise KeyError("Node's hash not found in rng_info")
+        rng = rng_info if rng_info is not None else self._rng
 
         if self._inv_poly is not None:
             # Batch sample all the results.
