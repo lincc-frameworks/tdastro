@@ -6,7 +6,6 @@ from tdastro.astro_utils.passbands import Passband
 from tdastro.astro_utils.redshift import RedshiftDistFunc, obs_to_rest_times_waves, rest_to_obs_flux
 from tdastro.base_models import ParameterizedNode
 from tdastro.graph_state import GraphState
-from tdastro.rand_nodes.np_random import build_rngs_from_hashes
 
 
 class PhysicalModel(ParameterizedNode):
@@ -133,9 +132,9 @@ class PhysicalModel(ParameterizedNode):
         given_args : `dict`, optional
             A dictionary representing the given arguments for this sample run.
             This can be used as the JAX PyTree for differentiation.
-        rng_info : `dict`, optional
-            A dictionary of random number generator information for each node, such as
-            the JAX keys or the numpy rngs.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
         **kwargs : `dict`, optional
             All the other keyword arguments.
 
@@ -196,9 +195,9 @@ class PhysicalModel(ParameterizedNode):
         num_samples : `int`
             A count of the number of samples to compute.
             Default: 1
-        rng_info : `dict`, optional
-            A dictionary of random number generator information for each node, such as
-            the JAX keys or the numpy rngs.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
         **kwargs : `dict`, optional
             All the keyword arguments, including the values needed to sample
             parameters.
@@ -225,56 +224,6 @@ class PhysicalModel(ParameterizedNode):
         self._sample_helper(graph_state, seen_nodes, rng_info, **kwargs)
 
         return graph_state
-
-    def get_all_node_info(self, field, seen_nodes=None):
-        """Return a list of requested information for each node.
-
-        Parameters
-        ----------
-        field : `str`
-            The name of the attribute to extract from the node.
-            Common examples are: "node_hash" and "node_string"
-        seen_nodes : `set`
-            A set of objects that have already been processed.
-            Modified in place if provided.
-
-        Returns
-        -------
-        result : `list`
-            A list of values for each unique node in the graph.
-        """
-        # Check if we have already processed this node.
-        if seen_nodes is None:
-            seen_nodes = set()
-
-        # Get the information for this node, the background, all effects,
-        # and each of their dependencies.
-        result = super().get_all_node_info(field, seen_nodes)
-        if self.background is not None:
-            result.extend(self.background.get_all_node_info(field, seen_nodes))
-        return result
-
-    def build_np_rngs(self, base_seed=None):
-        """Construct a dictionary of random generators for this model.
-
-        Parameters
-        ----------
-        base_seed : `int`
-            The key on which to base the keys for the individual nodes.
-
-        Returns
-        -------
-        np_rngs : `dict`
-            A dictionary mapping each node's hash value to a numpy random number generator.
-        """
-        # If the graph has not been sampled ever, update the node positions for
-        # every node (model, background, effects).
-        if self.node_pos is None:
-            self.set_graph_positions()
-
-        node_hashes = self.get_all_node_info("node_hash")
-        np_rngs = build_rngs_from_hashes(node_hashes, base_seed)
-        return np_rngs
 
     def get_band_fluxes(self, passband_or_group, times, filters, state) -> np.ndarray:
         """Get the band fluxes for a given Passband or PassbandGroup.

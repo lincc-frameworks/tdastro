@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from tdastro.rand_nodes.np_random import NumpyRandomFunc
 from tdastro.rand_nodes.scipy_random import NumericalInversePolynomialFunc
 
@@ -100,22 +99,16 @@ def test_numerical_inverse_polynomial_func_object_seed():
     values1 = scipy_node.get_param(state1, "function_node_result")
 
     # Re-sample with a given seed=100.
-    rng_info = {scipy_node.node_hash: np.random.default_rng(seed=100)}
-    state2 = scipy_node.sample_parameters(num_samples=10, rng_info=rng_info)
+    state2 = scipy_node.sample_parameters(num_samples=10, rng_info=np.random.default_rng(seed=100))
     values2 = scipy_node.get_param(state2, "function_node_result")
 
     # Re-sample again with a given seed=100.
-    rng_info = {scipy_node.node_hash: np.random.default_rng(seed=100)}
-    state3 = scipy_node.sample_parameters(num_samples=10, rng_info=rng_info)
+    state3 = scipy_node.sample_parameters(num_samples=10, rng_info=np.random.default_rng(seed=100))
     values3 = scipy_node.get_param(state3, "function_node_result")
 
     assert np.allclose(values2, values3)
     assert not np.allclose(values1, values2)
     assert not np.allclose(values1, values3)
-
-    # We correctly fail if we don't have the correct hashes.
-    with pytest.raises(KeyError):
-        _ = scipy_node.sample_parameters(num_samples=10, rng_info={})
 
 
 def test_numerical_inverse_polynomial_func_class():
