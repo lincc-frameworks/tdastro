@@ -1,9 +1,9 @@
 import logging
-import os
 import socket
 import urllib.parse
 import urllib.request
-from typing import Literal, Optional
+from pathlib import Path
+from typing import Literal, Optional, Union
 from urllib.error import HTTPError, URLError
 
 import numpy as np
@@ -29,7 +29,7 @@ class PassbandGroup:
         self,
         preset: str = None,
         passband_parameters: Optional[list] = None,
-        table_dir: Optional[str] = None,
+        table_dir: Optional[Union[str, Path]] = None,
         given_passbands: list = None,
         **kwargs,
     ):
@@ -45,7 +45,7 @@ class PassbandGroup:
             - survey : str
             - filter_name : str
             Dictionaries may also contain the following optional parameters:
-            - table_path : str
+            - table_path : str or Path
             - table_url : str
             - delta_wave : float
             - trim_quantile : float
@@ -82,10 +82,15 @@ class PassbandGroup:
                         parameters[key] = value
 
                 # Set the table path if it is not already set and a table_dir is provided
-                if "table_path" not in parameters and table_dir is not None:
-                    parameters["table_path"] = os.path.join(
-                        table_dir, parameters["survey"], f"{parameters['filter_name']}.dat"
-                    )
+                if "table_path" not in parameters:
+                    if table_dir is not None:
+                        parameters["table_path"] = Path(
+                            table_dir,
+                            parameters["survey"],
+                            f"{parameters['filter_name']}.dat",
+                        )
+                elif isinstance(parameters["table_path"], str):
+                    parameters["table_path"] = Path(parameters["table_path"])
 
                 passband = Passband(**parameters)
                 self.passbands[passband.full_name] = passband
@@ -128,7 +133,7 @@ class PassbandGroup:
                 if table_dir is None:
                     self.passbands[f"LSST_{filter_name}"] = Passband("LSST", filter_name, **kwargs)
                 else:
-                    table_path = os.path.join(table_dir, "LSST", f"{filter_name}.dat")
+                    table_path = Path(table_dir, "LSST", f"{filter_name}.dat")
                     self.passbands[f"LSST_{filter_name}"] = Passband(
                         "LSST",
                         filter_name,
@@ -276,7 +281,7 @@ class Passband:
         filter_name: str,
         delta_wave: Optional[float] = 5.0,
         trim_quantile: Optional[float] = 1e-3,
-        table_path: Optional[str] = None,
+        table_path: Optional[Union[str, Path]] = None,
         table_url: Optional[str] = None,
         table_values: Optional[np.array] = None,
         units: Optional[Literal["nm", "A"]] = "A",
@@ -318,7 +323,7 @@ class Passband:
         self.filter_name = filter_name
         self.full_name = f"{survey}_{filter_name}"
 
-        self.table_path = table_path
+        self.table_path = Path(table_path) if table_path is not None else None
         self.table_url = table_url
         self.units = units
         self._in_band_wave_indices = None
@@ -364,11 +369,14 @@ class Passband:
         """
         # Check if the table file exists locally, and download it if it does not
         if self.table_path is None:
-            self.table_path = os.path.join(
-                os.path.dirname(__file__), f"passbands/{self.survey}/{self.filter_name}.dat"
+            self.table_path = Path(
+                Path(__file__).parent,
+                "passbands",
+                self.survey,
+                f"{self.filter_name}.dat",
             )
-        os.makedirs(os.path.dirname(self.table_path), exist_ok=True)
-        if force_download or not os.path.exists(self.table_path):
+        self.table_path.parent.mkdir(parents=True, exist_ok=True)
+        if force_download or not self.table_path.exists():
             self._download_transmission_table()
 
         # Load the table file
@@ -409,7 +417,7 @@ class Passband:
             socket.setdefaulttimeout(10)
             logging.info(f"Retrieving {self.table_url}")
             urllib.request.urlretrieve(self.table_url, self.table_path)
-            if os.path.getsize(self.table_path) == 0:
+            if self.table_path.stat().st_size == 0:
                 logging.error(f"Transmission table downloaded for {self.full_name} is empty.")
                 return False
             else:

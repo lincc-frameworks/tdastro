@@ -171,7 +171,7 @@ class GraphState:
 
         Parameters
         ----------
-        filename : str
+        filename : str or Path
             The name of the file.
         """
         data_table = ascii.read(filename, format="ecsv")

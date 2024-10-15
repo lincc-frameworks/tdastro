@@ -1,4 +1,3 @@
-import os
 import tempfile
 from pathlib import Path
 
@@ -387,11 +386,11 @@ def test_graph_to_from_file():
     state.set("b", "v1", [6.0, 7.0, 8.0])
 
     with tempfile.TemporaryDirectory() as dir_name:
-        file_path = os.path.join(dir_name, "state.ecsv")
-        assert not Path(file_path).is_file()
+        file_path = Path(dir_name, "state.ecsv")
+        assert not file_path.is_file()
 
         state.save_to_file(file_path)
-        assert Path(file_path).is_file()
+        assert file_path.is_file()
 
         state2 = GraphState.from_file(file_path)
         assert state == state2
