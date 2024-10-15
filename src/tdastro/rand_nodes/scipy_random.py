@@ -9,20 +9,6 @@ from tdastro.base_models import FunctionNode
 from tdastro.graph_state import transpose_dict_of_list
 
 
-class PDFFunctionWrapper:
-    """A class that just wraps a given PDF function.
-
-    Attributes
-    ----------
-    _pdf : function
-        The PDF function.
-    """
-
-    def __init__(self, func):
-        self._pdf = func
-        self.pdf = self._pdf
-
-
 class NumericalInversePolynomialFunc(FunctionNode):
     """A class for sampling from scipy's NumericalInversePolynomial
     given a distribution function, an object with a pdf function,
@@ -58,12 +44,9 @@ class NumericalInversePolynomialFunc(FunctionNode):
     def __init__(self, dist=None, seed=None, **kwargs):
         # Check that the distribution object/class has a pdf or logpdf function
         # or that we have provided a function directly.
-        if hasattr(dist, "pdf") and not hasattr(dist, "logpdf"):
-            self._dist = dist
-        elif callable(dist):
-            self._dist = PDFFunctionWrapper(dist)
-        else:
+        if not hasattr(dist, "pdf") and not hasattr(dist, "logpdf"):
             raise ValueError("Distribution must have either pdf() or logpdf().")
+        self._dist = dist
 
         # Classes show up as type="type". In this case we will need to create
         # a concrete object from the class and any given parameters.
@@ -183,3 +166,69 @@ class NumericalInversePolynomialFunc(FunctionNode):
         """
         state = self.sample_parameters(given_args, num_samples, rng_info)
         return self.compute(state, rng_info, **kwargs)
+
+
+class PDFFunctionWrapper:
+    """A class that just wraps a given PDF function.
+
+    Attributes
+    ----------
+    _pdf : function
+        The PDF function.
+    """
+
+    def __init__(self, func):
+        self._pdf = func
+        self.pdf = self._pdf
+
+
+class SamplePDF(NumericalInversePolynomialFunc):
+    """A node for sampling from a given PDF function.
+
+    Parameters
+    ----------
+    dist : function, class, or object
+        The pdf function from which to sample or a class/object with that function.
+    """
+
+    def __init__(self, dist, **kwargs):
+        if hasattr(dist, "pdf"):
+            self.dist_obj = dist
+        elif callable(dist):
+            self.dist_obj = PDFFunctionWrapper(dist)
+        else:
+            raise ValueError("No pdf function detected.")
+        super().__init__(self.dist_obj, **kwargs)
+
+
+class LogPDFFunctionWrapper:
+    """A class that just wraps a given Log PDF function.
+
+    Attributes
+    ----------
+    _log_pdf : function
+        The log PDF function.
+    """
+
+    def __init__(self, func):
+        self._log_pdf = func
+        self.logpdf = self._log_pdf
+
+
+class SampleLogPDF(NumericalInversePolynomialFunc):
+    """A node for sampling from a given PDF function.
+
+    Parameters
+    ----------
+    dist : function, class, or object
+        The pdf function from which to sample or a class/object with that function.
+    """
+
+    def __init__(self, dist, **kwargs):
+        if hasattr(dist, "logpdf"):
+            self.dist_obj = dist
+        elif callable(dist):
+            self.dist_obj = LogPDFFunctionWrapper(dist)
+        else:
+            raise ValueError("No logpdf function detected.")
+        super().__init__(self.dist_obj, **kwargs)
