@@ -75,6 +75,27 @@ def test_create_single_sample_graph_state():
         state.set("b", f"v1{state._NAME_SEPARATOR}v3", 10.0)
 
 
+def test_graph_state_contains():
+    """Test that we can use the 'in' operator in GraphState."""
+    state = GraphState()
+    state.set("a", "v1", 1.0)
+    state.set("a", "v2", 2.0)
+    state.set("b", "v1", 3.0)
+
+    assert "a" in state
+    assert "b" in state
+    assert "c" not in state
+
+    assert f"a{state._NAME_SEPARATOR}v1" in state
+    assert f"a{state._NAME_SEPARATOR}v2" in state
+    assert f"a{state._NAME_SEPARATOR}v3" not in state
+    assert f"b{state._NAME_SEPARATOR}v1" in state
+    assert f"c{state._NAME_SEPARATOR}v1" not in state
+
+    with pytest.raises(KeyError):
+        assert f"b{state._NAME_SEPARATOR}v1{state._NAME_SEPARATOR}v2" not in state
+
+
 def test_create_multi_sample_graph_state():
     """Test that we can create and access a multi-sample GraphState."""
     state = GraphState(5)

@@ -67,7 +67,7 @@ class GraphState:
             tokens = key.split(self._NAME_SEPARATOR)
             if len(tokens) != 2:
                 raise KeyError(f"Invalid GraphState key: {key}")
-            return True
+            return tokens[0] in self.states and tokens[1] in self.states[tokens[0]]
         else:
             return False
 
