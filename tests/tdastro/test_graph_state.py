@@ -402,6 +402,49 @@ def test_graph_to_from_file():
         state.save_to_file(file_path, overwrite=True)
 
 
+def test_graph_state_extract_params():
+    """Test that we can extract named parameters from a GraphState."""
+    state = GraphState()
+    state.set("a", "v1", 1.0)
+    state.set("a", "v2", 2.0)
+    state.set("a", "v3", 3.0)
+    state.set("b", "v1", 4.0)
+    state.set("c", "v3", 3.0)
+    state.set("d", "v4", 6.0)
+    state.set("e", "v3", 3.0)
+    state.set("e", "v5", 7.0)
+
+    # We can extract and collapse parameters with a single value.
+    # Although v3 appears in three nodes, it has one value (3.0).
+    results = state.extract_params(["v2", "v3", "v4"])
+    assert len(results) == 3
+    assert results["v2"] == 2.0
+    assert results["v3"] == 3.0
+    assert results["v4"] == 6.0
+
+    # We can extract a single value at a time.
+    results = state.extract_params("v5")
+    assert len(results) == 1
+    assert results["v5"] == 7.0
+
+    # If we set collapse to False then we see the duplicates.
+    results = state.extract_params(["v2", "v3", "v4"], collapse=False)
+    assert len(results) == 5
+    assert results["a.v2"] == 2.0
+    assert results["a.v3"] == 3.0
+    assert results["c.v3"] == 3.0
+    assert results["e.v3"] == 3.0
+    assert results["d.v4"] == 6.0
+
+    # We can collapse consistent parameters while keeping insconsistent ones expanded.
+    results = state.extract_params(["v1", "v2", "v3"])
+    assert len(results) == 4
+    assert results["a.v1"] == 1.0
+    assert results["b.v1"] == 4.0
+    assert results["v2"] == 2.0
+    assert results["v3"] == 3.0
+
+
 def test_transpose_dict_of_list():
     """Test the transpose_dict_of_list helper function"""
     input_dict = {

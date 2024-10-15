@@ -324,6 +324,68 @@ class GraphState:
                     new_state.states[node_name][var_name] = value[sample_num]
         return new_state
 
+    def extract_params(self, param_names, collapse=True):
+        """Extract the parameter value(s) by a given name. This is often used for
+        recording the important parameters from an entire model (set of nodes). If
+        two nodes have a parameter with the same name (and collapse==True), the code
+        will check if they are consistent and, if so, return them as a single result.
+        Otherwise the full name for each parameter will be used.
+
+        Parameters
+        ----------
+        param_names : str or list-like
+            The name of a single parameter (str) or a list of names of the parameters
+            to extract.
+        collapse : bool
+            Collapse consistent duplicates (parameters with all the same name and value)
+            to a single entry.
+
+        Returns
+        -------
+        results
+            Returns a dictionary mapping names onto values. If there are incompatible
+            collisions, then the extended names are used as the keys.
+        """
+        # Store the param_names in a set so we can do fast look ups.
+        if isinstance(param_names, str):
+            match_set = set([param_names])
+        elif not isinstance(param_names, set):
+            match_set = set([item for item in param_names])
+
+        # First we go through and extract all parameters that match.
+        results = {}
+        param_to_fullnames = {}
+        for node_name, node_params in self.states.items():
+            for param_name, value in node_params.items():
+                if param_name in match_set:
+                    fullname = f"{node_name}{GraphState._NAME_SEPARATOR}{param_name}"
+                    results[fullname] = value
+
+                    # Also maintain a list of where this parameter has appeared.
+                    if param_name in param_to_fullnames:
+                        param_to_fullnames[param_name].append(fullname)
+                    else:
+                        param_to_fullnames[param_name] = [fullname]
+
+        # Check if we want to collapse the duplicate names.
+        if collapse:
+            for param_name, fullname_list in param_to_fullnames.items():
+                # Check that all values are the same for instances of this parameter.
+                values = results[fullname_list[0]]
+                all_same = True
+                for fullname in fullname_list:
+                    all_same = all_same and np.allclose(values, results[fullname])
+
+                # If all entries are the same, save it with just the parameter name and
+                # delete all the duplicates.
+                if all_same:
+                    results[param_name] = values
+                    for fullname in fullname_list:
+                        del results[fullname]
+
+        # Return the results.
+        return results
+
     def to_table(self):
         """Flatten the graph state to an AstroPy Table with columns for each parameter.
 
