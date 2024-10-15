@@ -5,7 +5,7 @@ To manually run the benchmarks use: asv run
 For more information on writing benchmarks:
 https://asv.readthedocs.io/en/stable/writing_benchmarks.html."""
 
-import os
+from pathlib import Path
 
 import numpy as np
 import tdastro
@@ -20,16 +20,16 @@ from tdastro.sources.sncomso_models import SncosmoWrapperModel
 
 def _load_test_passbands():
     """Load passbands to use in various benchmarks."""
-    passbands_dir = os.path.join(tdastro._TDASTRO_TEST_DATA_DIR, "passbands")
+    passbands_dir = Path(tdastro._TDASTRO_TEST_DATA_DIR, "passbands")
     passbands = PassbandGroup(
         passband_parameters=[
             {
                 "filter_name": "g",
-                "table_path": f"{passbands_dir}/LSST/g.dat",
+                "table_path": passbands_dir / "LSST" / "g.dat",
             },
             {
                 "filter_name": "r",
-                "table_path": f"{passbands_dir}/LSST/r.dat",
+                "table_path": passbands_dir / "LSST" / "r.dat",
             },
         ],
         survey="LSST",
