@@ -9,15 +9,29 @@ from tdastro.base_models import FunctionNode
 from tdastro.graph_state import transpose_dict_of_list
 
 
+class PDFFunctionWrapper:
+    """A class that just wraps a given PDF function.
+
+    Attributes
+    ----------
+    _pdf : function
+        The PDF function.
+    """
+
+    def __init__(self, func):
+        self._pdf = func
+        self.pdf = self._pdf
+
+
 class NumericalInversePolynomialFunc(FunctionNode):
     """A class for sampling from scipy's NumericalInversePolynomial
-    given an distribution object or a class from which to create
-    such an object.
+    given a distribution function, an object with a pdf function,
+    or a class from which to create such an object.
 
     Note
     ----
     If a class is provided, then the sampling function will create a new
-    object (with the sampled parameters) for each sampling.
+    object (with the sampled parameters) for each sampling. This is very expensive.
 
     Attributes
     ----------
@@ -42,12 +56,17 @@ class NumericalInversePolynomialFunc(FunctionNode):
     """
 
     def __init__(self, dist=None, seed=None, **kwargs):
-        # Check that the distribution object/class has a pdf or logpdf function.
-        if not hasattr(dist, "pdf") and not hasattr(dist, "logpdf"):
+        # Check that the distribution object/class has a pdf or logpdf function
+        # or that we have provided a function directly.
+        if hasattr(dist, "pdf") and not hasattr(dist, "logpdf"):
+            self._dist = dist
+        elif callable(dist):
+            self._dist = PDFFunctionWrapper(dist)
+        else:
             raise ValueError("Distribution must have either pdf() or logpdf().")
-        self._dist = dist
 
-        # Classes show up as type="type"
+        # Classes show up as type="type". In this case we will need to create
+        # a concrete object from the class and any given parameters.
         if isinstance(dist, type):
             self._inv_poly = None
             self._vect_sample = np.vectorize(self._create_and_sample)
@@ -79,7 +98,9 @@ class NumericalInversePolynomialFunc(FunctionNode):
         self._rng = np.random.default_rng(seed=new_seed)
 
     def _create_and_sample(self, args, rng):
-        """Create the distribution function and sample it.
+        """Create the distribution function and sample it. This is only
+        needed if our distribution is in the form of a class that must
+        be instantiated with different parameters each sampling run.
 
         Parameters
         ----------
