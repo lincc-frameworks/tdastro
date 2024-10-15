@@ -216,7 +216,7 @@ class LogPDFFunctionWrapper:
 
 
 class SampleLogPDF(NumericalInversePolynomialFunc):
-    """A node for sampling from a given PDF function.
+    """A node for sampling from a given Log PDF function.
 
     Parameters
     ----------
