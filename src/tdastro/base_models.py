@@ -201,10 +201,12 @@ class ParameterizedNode:
 
     def _update_node_string(self, extra_tag=None):
         """Update the node's string."""
-        pos_string = f"{self.node_pos}:" if self.node_pos is not None else ""
         if self.node_label is not None:
-            self.node_string = f"{pos_string}{self.node_label}"
+            # If a label is given, just use that.
+            self.node_string = self.node_label
         else:
+            # Otherwise use a combination of the node's class and position.
+            pos_string = f"{self.node_pos}:" if self.node_pos is not None else ""
             self.node_string = f"{pos_string}{self.__class__.__qualname__}"
 
         # Allow for the appending of an extra tag.
@@ -214,6 +216,17 @@ class ParameterizedNode:
         # Update the node_name of all node's parameter setters.
         for _, setter_info in self.setters.items():
             setter_info.node_name = self.node_string
+
+    def set_node_label(self, new_label):
+        """Set the node's label field.
+
+        Parameter
+        ---------
+        new_label : str or None
+            The new label for the node.
+        """
+        self.node_label = new_label
+        self._update_node_string()
 
     def set_graph_positions(self, seen_nodes=None):
         """Force an update of the graph structure (numbering of each node).
@@ -239,8 +252,8 @@ class ParameterizedNode:
         for dep in self.direct_dependencies:
             dep.set_graph_positions(seen_nodes)
 
-    def get_param(self, graph_state, name):
-        """Get the value of a parameter stored in this node.
+    def get_param(self, graph_state, name, default=None):
+        """Get the value of a parameter stored in this node or a default value.
 
         Note
         ----
@@ -253,20 +266,23 @@ class ParameterizedNode:
             The dictionary of graph state information.
         name : `str`
             The parameter name to query.
+        default : any
+            The default value to return if the parameter is not in GraphState.
 
         Returns
         -------
         any
-            The parameter value.
+            The parameter value or the default.
 
         Raises
         ------
-        ``KeyError`` if this parameter has not be set.
         ``ValueError`` if graph_state is None.
         """
         if graph_state is None:
             raise ValueError(f"Unable to look up parameter={name}. No graph_state given.")
-        return graph_state[self.node_string][name]
+        if self.node_string in graph_state and name in graph_state[self.node_string]:
+            return graph_state[self.node_string][name]
+        return default
 
     def get_local_params(self, graph_state):
         """Get a dictionary of all parameters local to this node.

@@ -27,6 +27,13 @@ def test_create_single_sample_graph_state():
     with pytest.raises(KeyError):
         _ = state["c"]["v1"]
 
+    # We can access the entries using the extended key name.
+    assert state[f"a{state._NAME_SEPARATOR}v1"] == 1.0
+    assert state[f"a{state._NAME_SEPARATOR}v2"] == 2.0
+    assert state[f"b{state._NAME_SEPARATOR}v1"] == 3.0
+    with pytest.raises(KeyError):
+        _ = state[f"c{state._NAME_SEPARATOR}v1"]
+
     # We can create a human readable string representation of the GraphState.
     debug_str = str(state)
     assert debug_str == "a:\n    v1: 1.0\n    v2: 2.0\nb:\n    v1: 3.0"
@@ -63,9 +70,30 @@ def test_create_single_sample_graph_state():
 
     # Test we cannot use a name containing the separator as a substring.
     with pytest.raises(ValueError):
-        state.set("a|>b", "v1", 10.0)
+        state.set(f"a{state._NAME_SEPARATOR}b", "v1", 10.0)
     with pytest.raises(ValueError):
-        state.set("b", "v1|>v3", 10.0)
+        state.set("b", f"v1{state._NAME_SEPARATOR}v3", 10.0)
+
+
+def test_graph_state_contains():
+    """Test that we can use the 'in' operator in GraphState."""
+    state = GraphState()
+    state.set("a", "v1", 1.0)
+    state.set("a", "v2", 2.0)
+    state.set("b", "v1", 3.0)
+
+    assert "a" in state
+    assert "b" in state
+    assert "c" not in state
+
+    assert f"a{state._NAME_SEPARATOR}v1" in state
+    assert f"a{state._NAME_SEPARATOR}v2" in state
+    assert f"a{state._NAME_SEPARATOR}v3" not in state
+    assert f"b{state._NAME_SEPARATOR}v1" in state
+    assert f"c{state._NAME_SEPARATOR}v1" not in state
+
+    with pytest.raises(KeyError):
+        assert f"b{state._NAME_SEPARATOR}v1{state._NAME_SEPARATOR}v2" not in state
 
 
 def test_create_multi_sample_graph_state():
@@ -264,6 +292,29 @@ def test_graph_state_from_table():
     np.testing.assert_allclose(state["a"]["v1"], [1.0, 2.0, 3.0])
     np.testing.assert_allclose(state["a"]["v2"], [4.0, 5.0, 6.0])
     np.testing.assert_allclose(state["b"]["v1"], [7.0, 8.0, 9.0])
+
+
+def test_graph_state_to_dict():
+    """Test that we can create a dictionary from a GraphState."""
+    state = GraphState(num_samples=3)
+    state.set("a", "v1", [1.0, 2.0, 3.0])
+    state.set("a", "v2", [3.0, 4.0, 5.0])
+    state.set("b", "v1", [6.0, 7.0, 8.0])
+
+    result = state.to_dict()
+    assert len(result) == 3
+    np.testing.assert_allclose(
+        result[GraphState.extended_param_name("a", "v1")],
+        [1.0, 2.0, 3.0],
+    )
+    np.testing.assert_allclose(
+        result[GraphState.extended_param_name("a", "v2")],
+        [3.0, 4.0, 5.0],
+    )
+    np.testing.assert_allclose(
+        result[GraphState.extended_param_name("b", "v1")],
+        [6.0, 7.0, 8.0],
+    )
 
 
 def test_graph_state_to_table():

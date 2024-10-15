@@ -25,7 +25,7 @@ def test_static_source() -> None:
     assert model.get_param(state, "ra") is None
     assert model.get_param(state, "dec") is None
     assert model.get_param(state, "distance") is None
-    assert str(model) == "0:my_static_source"
+    assert str(model) == "my_static_source"
 
     times = np.array([1, 2, 3, 4, 5, 10])
     wavelengths = np.array([100.0, 200.0, 300.0])
@@ -47,8 +47,8 @@ def test_test_physical_model_pytree():
     state = model.sample_parameters()
 
     pytree = model.build_pytree(state)
-    assert pytree["0:my_static_source"]["brightness"] == 10.0
-    assert len(pytree["0:my_static_source"]) == 1
+    assert pytree["my_static_source"]["brightness"] == 10.0
+    assert len(pytree["my_static_source"]) == 1
     assert len(pytree) == 1
 
 

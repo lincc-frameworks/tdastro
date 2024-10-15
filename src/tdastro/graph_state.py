@@ -47,7 +47,7 @@ class GraphState:
         are fixed in this GraphState instance.
     """
 
-    _NAME_SEPARATOR = "|>"
+    _NAME_SEPARATOR = "."
 
     def __init__(self, num_samples=1):
         if num_samples < 1:
@@ -59,6 +59,17 @@ class GraphState:
 
     def __len__(self):
         return self.num_parameters
+
+    def __contains__(self, key):
+        if key in self.states:
+            return True
+        elif self._NAME_SEPARATOR in key:
+            tokens = key.split(self._NAME_SEPARATOR)
+            if len(tokens) != 2:
+                raise KeyError(f"Invalid GraphState key: {key}")
+            return tokens[0] in self.states and tokens[1] in self.states[tokens[0]]
+        else:
+            return False
 
     def __str__(self):
         str_lines = []
@@ -97,8 +108,17 @@ class GraphState:
         return True
 
     def __getitem__(self, key):
-        """Access the dictionary of parameter values for a node name."""
-        return self.states[key]
+        """Access the dictionary of parameter values for a node name. Allows
+        access by both the pair of keys and the extended name."""
+        if key in self.states:
+            return self.states[key]
+        elif self._NAME_SEPARATOR in key:
+            tokens = key.split(self._NAME_SEPARATOR)
+            if len(tokens) != 2:
+                raise KeyError(f"Invalid GraphState key: {key}")
+            return self.states[tokens[0]][tokens[1]]
+        else:
+            raise KeyError(f"Unknown GraphState key: {key}")
 
     @staticmethod
     def extended_param_name(node_name, param_name):
@@ -318,6 +338,22 @@ class GraphState:
         for node_name, node_params in self.states.items():
             for param_name, param_value in node_params.items():
                 values[self.extended_param_name(node_name, param_name)] = np.array(param_value)
+        return values
+
+    def to_dict(self):
+        """Flatten the graph state to a dictionary with columns for each parameter.
+
+        The column names are: {node_name}{separator}{param_name}
+
+        Returns
+        -------
+        values : dict
+            The resulting dictionary.
+        """
+        values = {}
+        for node_name, node_params in self.states.items():
+            for param_name, param_value in node_params.items():
+                values[self.extended_param_name(node_name, param_name)] = list(param_value)
         return values
 
     def save_to_file(self, filename, overwrite=False):
