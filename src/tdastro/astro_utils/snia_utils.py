@@ -176,30 +176,6 @@ def _x0_from_distmod(distmod, x1, c, alpha, beta, m_abs):
     return x0
 
 
-def _distmod_from_redshift(redshift, H0=73.0, Omega_m=0.3):
-    """Compute distance modulus given redshift and cosmology.
-
-    Parameters
-    ----------
-    redshift : `float`
-        The redshift value.
-    H0: `float`
-        The Hubble constant.
-    Omega_m: `float`
-        The matter density.
-
-    Returns
-    -------
-    distmod : `float`
-        The distance modulus (in mag)
-    """
-
-    cosmo = FlatLambdaCDM(H0=H0, Om0=Omega_m)
-    distmod = cosmo.distmod(redshift).value
-
-    return distmod
-
-
 class HostmassX1Func(NumericalInversePolynomialFunc):
     """A class for sampling from the HostmassX1Distr.
 
@@ -320,11 +296,27 @@ class DistModFromRedshift(FunctionNode):
     """
 
     def __init__(self, redshift, H0=73.0, Omega_m=0.3, **kwargs):
+        # Create the cosmology once for this node.
+        self.cosmo = FlatLambdaCDM(H0=H0, Om0=Omega_m)
+
         # Call the super class's constructor with the needed information.
         super().__init__(
-            func=_distmod_from_redshift,
+            func=self._distmod_from_redshift,
             redshift=redshift,
-            H0=H0,
-            Omega_m=Omega_m,
             **kwargs,
         )
+
+    def _distmod_from_redshift(self, redshift):
+        """Compute distance modulus given redshift and cosmology.
+
+        Parameters
+        ----------
+        redshift : `float` or `numpy.ndarray`
+            The redshift value(s).
+
+        Returns
+        -------
+        distmod : `float` or `numpy.ndarray`
+            The distance modulus (in mag)
+        """
+        return self.cosmo.distmod(redshift).value

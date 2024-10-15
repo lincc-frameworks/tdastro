@@ -1,6 +1,7 @@
 import numpy as np
+import pytest
 from scipy.stats import norm
-from tdastro.astro_utils.snia_utils import HostmassX1Distr, HostmassX1Func
+from tdastro.astro_utils.snia_utils import DistModFromRedshift, HostmassX1Distr, HostmassX1Func
 from tdastro.rand_nodes.np_random import NumpyRandomFunc
 
 
@@ -95,3 +96,14 @@ def test_sample_hostmass_x1c():
         hm_node1.get_param(states1, "hostmass"),
         hm_node3.get_param(states3, "hostmass"),
     )
+
+
+def test_dist_mod_from_redshift():
+    """Test the computation of dist_mod from the redshift."""
+    redshifts = [0.01, 0.02, 0.05, 0.5]
+    expected = [33.08419428, 34.60580484, 36.64346629, 42.17006132]
+
+    for idx, z in enumerate(redshifts):
+        node = DistModFromRedshift(redshift=z, H0=73.0, Omega_m=0.3)
+        state = node.sample_parameters(num_samples=1)
+        assert node.get_param(state, "function_node_result") == pytest.approx(expected[idx])
