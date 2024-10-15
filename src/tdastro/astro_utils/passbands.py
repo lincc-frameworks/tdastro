@@ -407,7 +407,7 @@ class Passband:
                 )
         try:
             socket.setdefaulttimeout(10)
-            logging.info(f"Retrieving {self.table_url}", flush=True)
+            logging.info(f"Retrieving {self.table_url}")
             urllib.request.urlretrieve(self.table_url, self.table_path)
             if os.path.getsize(self.table_path) == 0:
                 logging.error(f"Transmission table downloaded for {self.full_name} is empty.")
