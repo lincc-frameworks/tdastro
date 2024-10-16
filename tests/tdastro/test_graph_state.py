@@ -405,61 +405,53 @@ def test_graph_to_from_file():
 def test_graph_state_extract_parameters():
     """Test that we can extract named parameters from a GraphState."""
     state = GraphState()
+    state.set("a", "v0", 0.0)
     state.set("a", "v1", 1.0)
     state.set("a", "v2", 2.0)
     state.set("a", "v3", 3.0)
     state.set("b", "v1", 4.0)
     state.set("c", "v2", 5.0)
-    state.set("c", "v3", 3.0)
-    state.set("d", "v4", 6.0)
-    state.set("e", "v3", 3.0)
-    state.set("e", "v5", 7.0)
+    state.set("c", "v3", 6.0)
+    state.set("d", "v4", 7.0)
+    state.set("e", "v3", 8.0)
+    state.set("e", "v5", 9.0)
+    state.set("e", "v6", 10.0)
+    state.set("f", "v6", 11.0)
 
-    # We can always access a parameter by its full name.
-    assert state["a.v1"] == 1.0
-    assert state["a.v2"] == 2.0
+    # We can extract a mixture of unique parameters based on full and short names.
+    results = state.extract_parameters(["a.v1", "c.v2", "v5"])
+    assert len(results) == 3
+    assert results["a.v1"] == 1.0
+    assert results["c.v2"] == 5.0
+    assert results["v5"] == 9.0
 
-    # With no filtering, we extract all the parameters.
-    results = state.extract_parameters()
-    assert len(results) == 9
-
-    # We can extract only certain parameters.
+    # If we extract a parameter that appears in multiple nodes with its short
+    # name, we expand the name for each instance.
     results = state.extract_parameters(["v2", "v3", "v4"])
     assert len(results) == 6
     assert results["a.v2"] == 2.0
     assert results["a.v3"] == 3.0
     assert results["c.v2"] == 5.0
-    assert results["c.v3"] == 3.0
-    assert results["e.v3"] == 3.0
-    assert results["d.v4"] == 6.0
+    assert results["c.v3"] == 6.0
+    assert results["e.v3"] == 8.0
+    assert results["v4"] == 7.0  # We do not expand the name.
 
-    # We can also provide a single parameter name.
+    # We can also provide a single parameter name as a string.
     results = state.extract_parameters("v2")
     assert len(results) == 2
     assert results["a.v2"] == 2.0
     assert results["c.v2"] == 5.0
 
-    # We can extract from only certain nodes.
-    results = state.extract_parameters(nodes=["a", "c"])
-    assert len(results) == 5
-    assert results["a.v1"] == 1.0
-    assert results["a.v2"] == 2.0
+    # Test a complicated list.
+    results = state.extract_parameters(["v0", "c.v2", "e.v3", "v5", "v6", "a.v3"])
+    assert len(results) == 7
+    assert results["v0"] == 0.0
+    assert results["c.v2"] == 5.0
+    assert results["e.v3"] == 8.0
+    assert results["v5"] == 9.0
+    assert results["e.v6"] == 10.0
+    assert results["f.v6"] == 11.0
     assert results["a.v3"] == 3.0
-    assert results["c.v2"] == 5.0
-    assert results["c.v3"] == 3.0
-
-    # We can also provide a single node name.
-    results = state.extract_parameters(nodes="c")
-    assert len(results) == 2
-    assert results["c.v2"] == 5.0
-    assert results["c.v3"] == 3.0
-
-    # We can extract a set of parameters from a set of nodes.
-    results = state.extract_parameters(nodes=["a", "c", "e"], params=["v1", "v2"])
-    assert len(results) == 3
-    assert results["a.v1"] == 1.0
-    assert results["a.v2"] == 2.0
-    assert results["c.v2"] == 5.0
 
 
 def test_transpose_dict_of_list():

@@ -321,47 +321,67 @@ class GraphState:
                     new_state.states[node_name][var_name] = value[sample_num]
         return new_state
 
-    def extract_parameters(self, params=None, nodes=None):
+    def extract_parameters(self, params):
         """Extract the parameter value(s) by a given name. This is often used for
         recording the important parameters from an entire model (set of nodes).
 
         Parameters
         ----------
         params : str or list-like, optional
-            The parameter names to extract. If None (not provided), extract data
-            for all parameters.
-            Default: None
-        nodes: str or list-like, optional
-            The node names to extract. If None (not provided), extract data
-            from all nodes.
-            Default: None
+            The parameter names to extract. These can be full names ("node.param") or
+            use the parameter names.
 
         Returns
         -------
         values : dict
             The resulting dictionary.
         """
-        if nodes is None:
-            use_nodes = None
-        elif isinstance(nodes, str):
-            use_nodes = set([nodes])
-        else:
-            use_nodes = set(nodes)
+        # If we are looking up a single parameter, but it into a list.
+        if isinstance(params, str):
+            params = [params]
 
-        if params is None:
-            use_params = None
-        elif isinstance(params, str):
-            use_params = set([params])
-        else:
-            use_params = set(params)
+        # Go through all the parameters. If a parameters fill name is provided,
+        # look it up now and save the result. Otherwise put it into a list to check
+        # for in each node.
+        single_params = set()
+        results = {}
+        for current in params:
+            if "." in current:
+                node_name, param_name = current.split(".")
+                if node_name in self.states and param_name in self.states[node_name]:
+                    results[current] = self.states[node_name][param_name]
+            else:
+                single_params.add(current)
 
-        values = {}
+        if len(single_params) == 0:
+            # Nothing else to do.
+            return results
+
+        # Traverse the trnested dictionaries looking for cases where the parameter names match.
+        first_seen_node = {}
         for node_name, node_params in self.states.items():
-            if use_nodes is None or node_name in use_nodes:
-                for param_name, param_value in node_params.items():
-                    if use_params is None or param_name in use_params:
-                        values[self.extended_param_name(node_name, param_name)] = param_value
-        return values
+            for param_name, param_value in node_params.items():
+                if param_name in single_params:
+                    if param_name in first_seen_node:
+                        # We've already seen this parameter in another node. Time to use the
+                        # expanded names.
+
+                        # Start by expanding the result we have already seen if needed.
+                        if param_name in results:
+                            full_name_existing = f"{first_seen_node[param_name]}.{param_name}"
+                            results[full_name_existing] = results[param_name]
+                            del results[param_name]
+
+                        # Add the result from the current node.
+                        full_name_current = f"{node_name}.{param_name}"
+                        results[full_name_current] = param_value
+                    else:
+                        # This is the first time we have seen the node. Save it with
+                        # just the parameter name. Also save the node where we saw it.
+                        results[param_name] = param_value
+                        first_seen_node[param_name] = node_name
+
+        return results
 
     def to_table(self):
         """Flatten the graph state to an AstroPy Table with columns for each parameter.
@@ -389,7 +409,11 @@ class GraphState:
         values : dict
             The resulting dictionary.
         """
-        return self.extract_parameters(nodes=None, params=None)
+        values = {}
+        for node_name, node_params in self.states.items():
+            for param_name, param_value in node_params.items():
+                values[self.extended_param_name(node_name, param_name)] = list(param_value)
+        return values
 
     def save_to_file(self, filename, overwrite=False):
         """Save the GraphState to a file.
