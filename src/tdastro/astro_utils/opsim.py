@@ -145,6 +145,9 @@ class OpSim:  # noqa: D101
 
     def __getitem__(self, key):
         """Access the underlying opsim table."""
+        # Auto apply the colmap if possible.
+        if self.colmap is not None and key in self.colmap:
+            return self.table[self.colmap[key]]
         return self.table[key]
 
     @property

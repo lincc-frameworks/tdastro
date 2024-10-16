@@ -34,11 +34,11 @@ def draw_single_random_sn(
     obs_index = np.array(opsim.range_search(ra, dec, radius=1.75))
 
     # Update obs_index to only include observations within SN lifespan
-    phase_obs = opsim[opsim.colmap["time"]][obs_index] - t0
+    phase_obs = opsim["time"][obs_index] - t0
     obs_index = obs_index[(phase_obs > -20 * (1.0 + z)) & (phase_obs < 50 * (1.0 + z))]
 
-    times = opsim[opsim.colmap["time"]][obs_index].to_numpy()
-    filters = opsim[opsim.colmap["filter"]][obs_index].to_numpy(str)
+    times = opsim["time"][obs_index].to_numpy()
+    filters = opsim["filter"][obs_index].to_numpy(str)
     # Change to match band names in passbands object
     filters = np.char.add("LSST_", filters)
 
