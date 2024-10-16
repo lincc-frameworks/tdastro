@@ -170,9 +170,6 @@ class ParameterizedNode:
         A dictionary mapping the parameters' names to information about the setters
         (ParameterSource). The model parameters are stored in the order in which they
         need to be set.
-    direct_dependencies : `dict`
-        A dictionary with keys of other ParameterizedNodes on that this node needs to
-        directly access. We use a dictionary to preserve ordering.
     node_pos : `int` or None
         A unique ID number for each node in the graph indicating its position.
         Assigned during resampling or `set_graph_positions()`
@@ -187,7 +184,6 @@ class ParameterizedNode:
 
     def __init__(self, node_label=None, **kwargs):
         self.setters = {}
-        self.direct_dependencies = {}
         self.node_label = node_label
         self.node_pos = None
         self.node_string = None
@@ -249,8 +245,9 @@ class ParameterizedNode:
         self._update_node_string()
 
         # Recursively update any direct dependencies.
-        for dep in self.direct_dependencies:
-            dep.set_graph_positions(seen_nodes)
+        for setter_info in self.setters.values():
+            if setter_info.dependency is not None and setter_info.dependency is not self:
+                setter_info.dependency.set_graph_positions(seen_nodes)
 
     def get_param(self, graph_state, name, default=None):
         """Get the value of a parameter stored in this node or a default value.
@@ -380,12 +377,6 @@ class ParameterizedNode:
         else:
             # Case 4: The value is constant (including None).
             self.setters[name].set_as_constant(value)
-
-        # Update the dependencies to account for any new nodes in the graph.
-        self.direct_dependencies = {}
-        for setter_info in self.setters.values():
-            if setter_info.dependency is not None and setter_info.dependency is not self:
-                self.direct_dependencies[setter_info.dependency] = True
 
     def set_allow_gradient(self, name, allow_gradient):
         """Turn on or off the ability to compute a gradient for this variable.

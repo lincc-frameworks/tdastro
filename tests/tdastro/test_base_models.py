@@ -152,21 +152,6 @@ def test_parameterized_node():
     assert model4.get_param(state, "value_sum") != model4.get_param(new_state, "value_sum")
 
 
-def test_parameterized_node_get_dependencies():
-    """Test that we can extract the parameters of a graph of ParameterizedNode."""
-    model1 = PairModel(value1=0.5, value2=1.5, node_label="1")
-    assert len(model1.direct_dependencies) == 1
-
-    model2 = PairModel(value1=model1.value1, value2=3.0, node_label="2")
-    assert len(model2.direct_dependencies) == 2
-    assert model1 in model2.direct_dependencies
-
-    model3 = PairModel(value1=model1.value1, value2=model2.value_sum, node_label="3")
-    assert len(model3.direct_dependencies) == 3
-    assert model1 in model3.direct_dependencies
-    assert model2 in model3.direct_dependencies
-
-
 def test_parameterized_node_modify():
     """Test that we can modify the parameters in a node."""
     model = PairModel(value1=0.5, value2=0.5)
