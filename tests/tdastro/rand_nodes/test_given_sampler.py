@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from tdastro.base_models import FunctionNode
 from tdastro.graph_state import GraphState
-from tdastro.rand_nodes.given_sampler import GivenSampler
+from tdastro.math_nodes.given_sampler import GivenSampler
 
 
 def _test_func(value1, value2):

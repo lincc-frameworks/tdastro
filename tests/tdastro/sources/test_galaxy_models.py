@@ -1,5 +1,5 @@
 import numpy as np
-from tdastro.rand_nodes.np_random import NumpyRandomFunc
+from tdastro.math_nodes.np_random import NumpyRandomFunc
 from tdastro.sources.galaxy_models import GaussianGalaxy
 from tdastro.sources.static_source import StaticSource
 

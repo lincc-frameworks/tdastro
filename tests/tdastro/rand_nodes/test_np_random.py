@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from tdastro.rand_nodes.np_random import NumpyRandomFunc
+from tdastro.math_nodes.np_random import NumpyRandomFunc
 
 
 def test_numpy_random_uniform():

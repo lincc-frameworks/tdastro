@@ -1,7 +1,7 @@
 import numpy as np
 from astropy import units as u
 from tdastro.astro_utils.unit_utils import fnu_to_flam
-from tdastro.rand_nodes.np_random import NumpyRandomFunc
+from tdastro.math_nodes.np_random import NumpyRandomFunc
 from tdastro.sources.sncomso_models import SncosmoWrapperModel
 
 

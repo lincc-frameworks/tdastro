@@ -5,7 +5,7 @@ from scipy.stats import norm
 from scipy.stats.sampling import NumericalInversePolynomial
 
 from tdastro.base_models import FunctionNode
-from tdastro.rand_nodes.scipy_random import NumericalInversePolynomialFunc
+from tdastro.math_nodes.scipy_random import NumericalInversePolynomialFunc
 
 
 def snia_volumetric_rates(redshift):
