@@ -1,6 +1,6 @@
 import numpy as np
-from tdastro.rand_nodes.np_random import NumpyRandomFunc
-from tdastro.rand_nodes.scipy_random import (
+from tdastro.math_nodes.np_random import NumpyRandomFunc
+from tdastro.math_nodes.scipy_random import (
     NumericalInversePolynomialFunc,
     SampleLogPDF,
     SamplePDF,
