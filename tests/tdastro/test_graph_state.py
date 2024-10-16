@@ -433,12 +433,24 @@ def test_graph_state_extract_parameters():
     assert results["e.v3"] == 3.0
     assert results["d.v4"] == 6.0
 
+    # We can also provide a single parameter name.
+    results = state.extract_parameters("v2")
+    assert len(results) == 2
+    assert results["a.v2"] == 2.0
+    assert results["c.v2"] == 5.0
+
     # We can extract from only certain nodes.
     results = state.extract_parameters(nodes=["a", "c"])
     assert len(results) == 5
     assert results["a.v1"] == 1.0
     assert results["a.v2"] == 2.0
     assert results["a.v3"] == 3.0
+    assert results["c.v2"] == 5.0
+    assert results["c.v3"] == 3.0
+
+    # We can also provide a single node name.
+    results = state.extract_parameters(nodes="c")
+    assert len(results) == 2
     assert results["c.v2"] == 5.0
     assert results["c.v3"] == 3.0
 
