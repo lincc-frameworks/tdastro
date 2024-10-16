@@ -5,8 +5,6 @@ To manually run the benchmarks use: asv run
 For more information on writing benchmarks:
 https://asv.readthedocs.io/en/stable/writing_benchmarks.html."""
 
-from pathlib import Path
-
 import numpy as np
 import tdastro
 from astropy import units as u
@@ -20,7 +18,7 @@ from tdastro.sources.sncomso_models import SncosmoWrapperModel
 
 def _load_test_passbands():
     """Load passbands to use in various benchmarks."""
-    passbands_dir = Path(tdastro._TDASTRO_TEST_DATA_DIR, "passbands")
+    passbands_dir = tdastro._TDASTRO_TEST_DATA_DIR / "passbands"
     passbands = PassbandGroup(
         passband_parameters=[
             {
