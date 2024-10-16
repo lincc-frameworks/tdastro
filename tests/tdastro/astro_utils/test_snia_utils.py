@@ -1,8 +1,8 @@
 import numpy as np
 import pytest
 from scipy.stats import norm
-from tdastro.math_nodess.snia_utils import DistModFromRedshift, HostmassX1Distr, HostmassX1Func
-from tdastro.rand_nodes.np_random import NumpyRandomFunc
+from tdastro.astro_utils.snia_utils import DistModFromRedshift, HostmassX1Distr, HostmassX1Func
+from tdastro.math_nodes.np_random import NumpyRandomFunc
 
 
 def test_hostmass_x1_distr():
