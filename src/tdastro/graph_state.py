@@ -47,8 +47,6 @@ class GraphState:
         are fixed in this GraphState instance.
     """
 
-    _NAME_SEPARATOR = "."
-
     def __init__(self, num_samples=1):
         if num_samples < 1:
             raise ValueError(f"Invalid number of samples {num_samples}")
@@ -63,8 +61,8 @@ class GraphState:
     def __contains__(self, key):
         if key in self.states:
             return True
-        elif self._NAME_SEPARATOR in key:
-            tokens = key.split(self._NAME_SEPARATOR)
+        elif "." in key:
+            tokens = key.split(".")
             if len(tokens) != 2:
                 raise KeyError(f"Invalid GraphState key: {key}")
             return tokens[0] in self.states and tokens[1] in self.states[tokens[0]]
@@ -112,8 +110,8 @@ class GraphState:
         access by both the pair of keys and the extended name."""
         if key in self.states:
             return self.states[key]
-        elif self._NAME_SEPARATOR in key:
-            tokens = key.split(self._NAME_SEPARATOR)
+        elif "." in key:
+            tokens = key.split(".")
             if len(tokens) != 2:
                 raise KeyError(f"Invalid GraphState key: {key}")
             return self.states[tokens[0]][tokens[1]]
@@ -134,14 +132,14 @@ class GraphState:
         Returns
         -------
         extended : str
-            A name of the form {node_name}{_NAME_SEPARATOR}{param_name}
+            A name of the form {node_name}.{param_name}
         """
-        return f"{node_name}{GraphState._NAME_SEPARATOR}{param_name}"
+        return f"{node_name}.{param_name}"
 
     @classmethod
     def from_table(cls, input_table):
         """Create the GraphState from an AstroPy Table with columns for each parameter
-        and column names of the form '{node_name}{_NAME_SEPARATOR}{param_name}'.
+        and column names of the form '{node_name}.{param_name}'.
 
         Parameters
         ----------
@@ -151,11 +149,10 @@ class GraphState:
         num_samples = len(input_table)
         result = GraphState(num_samples=num_samples)
         for col in input_table.colnames:
-            components = col.split(cls._NAME_SEPARATOR)
+            components = col.split(".")
             if len(components) != 2:
                 raise ValueError(
-                    f"Invalid name for entry {col}. Entries should be of the form "
-                    f"'node_name{cls._NAME_SEPARATOR}param_name'."
+                    f"Invalid name for entry {col}. Entries should be of the form " f"'node_name.param_name'."
                 )
 
             # If we only have a single value then store that value instead of the np array.
@@ -226,8 +223,8 @@ class GraphState:
             Default: ``False``
         """
         # Check that the names do not use the separator value.
-        if self._NAME_SEPARATOR in node_name or self._NAME_SEPARATOR in var_name:
-            raise ValueError(f"Names cannot contain the substring '{self._NAME_SEPARATOR}'.")
+        if "." in node_name or "." in var_name:
+            raise ValueError("Names cannot contain the character '.'")
 
         # Update the meta data.
         if node_name not in self.states:
@@ -324,6 +321,48 @@ class GraphState:
                     new_state.states[node_name][var_name] = value[sample_num]
         return new_state
 
+    def extract_parameters(self, params=None, nodes=None):
+        """Extract the parameter value(s) by a given name. This is often used for
+        recording the important parameters from an entire model (set of nodes).
+
+        Parameters
+        ----------
+        params : str or list-like, optional
+            The parameter names to extract. If None (not provided), extract data
+            for all parameters.
+            Default: None
+        nodes: str or list-like, optional
+            The node names to extract. If None (not provided), extract data
+            from all nodes.
+            Default: None
+
+        Returns
+        -------
+        values : dict
+            The resulting dictionary.
+        """
+        if nodes is None:
+            use_nodes = None
+        elif isinstance(nodes, str):
+            use_nodes = set([nodes])
+        else:
+            use_nodes = set(nodes)
+
+        if params is None:
+            use_params = None
+        elif isinstance(params, str):
+            use_params = set([params])
+        else:
+            use_params = set(params)
+
+        values = {}
+        for node_name, node_params in self.states.items():
+            if use_nodes is None or node_name in use_nodes:
+                for param_name, param_value in node_params.items():
+                    if use_params is None or param_name in use_params:
+                        values[self.extended_param_name(node_name, param_name)] = param_value
+        return values
+
     def to_table(self):
         """Flatten the graph state to an AstroPy Table with columns for each parameter.
 
@@ -340,37 +379,17 @@ class GraphState:
                 values[self.extended_param_name(node_name, param_name)] = np.array(param_value)
         return values
 
-    def to_dict(self, nodes=None, params=None):
+    def to_dict(self):
         """Flatten the graph state to a dictionary with columns for each parameter.
 
         The column names are: {node_name}{separator}{param_name}
-
-        Parameters
-        ----------
-        nodes : list or set, optional
-            A list of node names to extract. If None, then extracts data from
-            all nodes.
-            Default: None
-        params : list or set, optional
-            A list of parameter names to extract. If None, then extracts all the
-            parameters.
-            Default: None
 
         Returns
         -------
         values : dict
             The resulting dictionary.
         """
-        use_nodes = set(nodes) if nodes is not None else None
-        use_params = set(params) if params is not None else None
-
-        values = {}
-        for node_name, node_params in self.states.items():
-            if use_nodes is None or node_name in use_nodes:
-                for param_name, param_value in node_params.items():
-                    if use_params is None or param_name in use_params:
-                        values[self.extended_param_name(node_name, param_name)] = param_value
-        return values
+        return self.extract_parameters(nodes=None, params=None)
 
     def save_to_file(self, filename, overwrite=False):
         """Save the GraphState to a file.

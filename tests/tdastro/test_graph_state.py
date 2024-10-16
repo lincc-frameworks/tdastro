@@ -28,11 +28,11 @@ def test_create_single_sample_graph_state():
         _ = state["c"]["v1"]
 
     # We can access the entries using the extended key name.
-    assert state[f"a{state._NAME_SEPARATOR}v1"] == 1.0
-    assert state[f"a{state._NAME_SEPARATOR}v2"] == 2.0
-    assert state[f"b{state._NAME_SEPARATOR}v1"] == 3.0
+    assert state["a.v1"] == 1.0
+    assert state["a.v2"] == 2.0
+    assert state["b.v1"] == 3.0
     with pytest.raises(KeyError):
-        _ = state[f"c{state._NAME_SEPARATOR}v1"]
+        _ = state["c.v1"]
 
     # We can create a human readable string representation of the GraphState.
     debug_str = str(state)
@@ -70,9 +70,9 @@ def test_create_single_sample_graph_state():
 
     # Test we cannot use a name containing the separator as a substring.
     with pytest.raises(ValueError):
-        state.set(f"a{state._NAME_SEPARATOR}b", "v1", 10.0)
+        state.set("a.b", "v1", 10.0)
     with pytest.raises(ValueError):
-        state.set("b", f"v1{state._NAME_SEPARATOR}v3", 10.0)
+        state.set("b", "v1.v3", 10.0)
 
 
 def test_graph_state_contains():
@@ -86,14 +86,14 @@ def test_graph_state_contains():
     assert "b" in state
     assert "c" not in state
 
-    assert f"a{state._NAME_SEPARATOR}v1" in state
-    assert f"a{state._NAME_SEPARATOR}v2" in state
-    assert f"a{state._NAME_SEPARATOR}v3" not in state
-    assert f"b{state._NAME_SEPARATOR}v1" in state
-    assert f"c{state._NAME_SEPARATOR}v1" not in state
+    assert "a.v1" in state
+    assert "a.v2" in state
+    assert "a.v3" not in state
+    assert "b.v1" in state
+    assert "c.v1" not in state
 
     with pytest.raises(KeyError):
-        assert f"b{state._NAME_SEPARATOR}v1{state._NAME_SEPARATOR}v2" not in state
+        assert "b.v1.v2" not in state
 
 
 def test_create_multi_sample_graph_state():
@@ -402,7 +402,7 @@ def test_graph_to_from_file():
         state.save_to_file(file_path, overwrite=True)
 
 
-def test_graph_state_to_dict_extract_params():
+def test_graph_state_extract_parameters():
     """Test that we can extract named parameters from a GraphState."""
     state = GraphState()
     state.set("a", "v1", 1.0)
@@ -415,12 +415,16 @@ def test_graph_state_to_dict_extract_params():
     state.set("e", "v3", 3.0)
     state.set("e", "v5", 7.0)
 
+    # We can always access a parameter by its full name.
+    assert state["a.v1"] == 1.0
+    assert state["a.v2"] == 2.0
+
     # With no filtering, we extract all the parameters.
-    results = state.to_dict()
+    results = state.extract_parameters()
     assert len(results) == 9
 
     # We can extract only certain parameters.
-    results = state.to_dict(params=["v2", "v3", "v4"])
+    results = state.extract_parameters(["v2", "v3", "v4"])
     assert len(results) == 6
     assert results["a.v2"] == 2.0
     assert results["a.v3"] == 3.0
@@ -430,7 +434,7 @@ def test_graph_state_to_dict_extract_params():
     assert results["d.v4"] == 6.0
 
     # We can extract from only certain nodes.
-    results = state.to_dict(nodes=["a", "c"])
+    results = state.extract_parameters(nodes=["a", "c"])
     assert len(results) == 5
     assert results["a.v1"] == 1.0
     assert results["a.v2"] == 2.0
@@ -439,7 +443,7 @@ def test_graph_state_to_dict_extract_params():
     assert results["c.v3"] == 3.0
 
     # We can extract a set of parameters from a set of nodes.
-    results = state.to_dict(nodes=["a", "c", "e"], params=["v1", "v2"])
+    results = state.extract_parameters(nodes=["a", "c", "e"], params=["v1", "v2"])
     assert len(results) == 3
     assert results["a.v1"] == 1.0
     assert results["a.v2"] == 2.0
