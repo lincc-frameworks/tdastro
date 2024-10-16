@@ -203,7 +203,7 @@ class ParameterizedNode:
         else:
             # Otherwise use a combination of the node's class and position.
             pos_string = f"{self.node_pos}:" if self.node_pos is not None else ""
-            self.node_string = f"{pos_string}{self.__class__.__qualname__}"
+            self.node_string = f"{pos_string}{self.__class__.__name__}"
 
         # Allow for the appending of an extra tag.
         if extra_tag is not None:
