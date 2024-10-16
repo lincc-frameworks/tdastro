@@ -19,7 +19,7 @@ def test_physical_model():
 
     # None of the parameters are in the PyTree.
     pytree = model1.build_pytree(state)
-    assert len(pytree["0:PhysicalModel"]) == 0
+    assert len(pytree["PhysicalModel_0"]) == 0
 
     # We can turn off the redshift computation.
     model1.set_apply_redshift(False)
