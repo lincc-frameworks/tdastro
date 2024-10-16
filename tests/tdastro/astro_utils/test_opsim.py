@@ -1,4 +1,3 @@
-import os
 import tempfile
 from pathlib import Path
 
@@ -134,19 +133,19 @@ def test_write_read_opsim():
     ops_data = OpSim(pd.DataFrame(values))
 
     with tempfile.TemporaryDirectory() as dir_name:
-        filename = os.path.join(dir_name, "test_write_read_opsim.db")
+        file_path = Path(dir_name, "test_write_read_opsim.db")
 
         # The opsim does not exist until we write it.
-        assert not Path(filename).is_file()
+        assert not file_path.is_file()
         with pytest.raises(FileNotFoundError):
-            _ = OpSim.from_db(filename)
+            _ = OpSim.from_db(file_path)
 
         # We can write the opsim db.
-        ops_data.write_opsim_table(filename)
-        assert Path(filename).is_file()
+        ops_data.write_opsim_table(file_path)
+        assert file_path.is_file()
 
         # We can reread the opsim db.
-        ops_data2 = OpSim.from_db(filename)
+        ops_data2 = OpSim.from_db(file_path)
         assert len(ops_data2) == 5
         assert np.allclose(values["observationStartMJD"], ops_data2["observationStartMJD"].to_numpy())
         assert np.allclose(values["fieldRA"], ops_data2["fieldRA"].to_numpy())
@@ -154,8 +153,8 @@ def test_write_read_opsim():
 
         # We cannot overwrite unless we set overwrite=True
         with pytest.raises(ValueError):
-            ops_data.write_opsim_table(filename, overwrite=False)
-        ops_data.write_opsim_table(filename, overwrite=True)
+            ops_data.write_opsim_table(file_path, overwrite=False)
+        ops_data.write_opsim_table(file_path, overwrite=True)
 
 
 def test_opsim_range_search():

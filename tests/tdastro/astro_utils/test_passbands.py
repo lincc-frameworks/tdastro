@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 from unittest.mock import patch
 
 import numpy as np
@@ -17,8 +17,9 @@ def create_lsst_passband(path, filter_name, **kwargs):
 def create_toy_passband(path, transmission_table, filter_name="a", **kwargs):
     """Helper function to create a toy Passband object for testing."""
     survey = "TOY"
-    table_path = f"{path}/{survey}/{filter_name}.dat"
-    os.makedirs(os.path.dirname(table_path), exist_ok=True)
+    dir_path = Path(path, survey)
+    dir_path.mkdir(parents=True, exist_ok=True)
+    table_path = dir_path / f"{filter_name}.dat"
 
     # Create a transmission table file
     with open(table_path, "w") as f:
