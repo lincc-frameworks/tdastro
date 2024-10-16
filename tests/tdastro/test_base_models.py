@@ -109,7 +109,7 @@ def test_parameterized_node():
     # If we set a position (and there is no node_label), the position shows up in the name.
     model1.node_pos = 100
     model1._update_node_string()
-    assert str(model1) == "100:PairModel"
+    assert str(model1) == "PairModel_100"
 
     # Use value1=model.value and value2=1.0
     model2 = PairModel(value1=model1.value1, value2=1.0, node_label="test")
@@ -218,7 +218,7 @@ def test_function_node_basic():
     assert my_func.compute(state, value2=3.0) == 4.0
     assert my_func.compute(state, value2=3.0, unused_param=5.0) == 4.0
     assert my_func.compute(state, value2=3.0, value1=1.0) == 4.0
-    assert str(my_func) == "0:FunctionNode:_test_func"
+    assert str(my_func) == "FunctionNode:_test_func_0"
 
 
 def test_function_node_chain():
@@ -312,11 +312,9 @@ def test_function_node_jax():
     graph_state = sum_node.sample_parameters()
 
     pytree = sum_node.build_pytree(graph_state)
-    print(pytree)
     gr_func = jax.value_and_grad(sum_node.resample_and_compute)
     values, gradients = gr_func(pytree)
-    print(gradients)
     assert values == 9.0
-    assert gradients["sum:_test_func"]["value1"] == 1.0
-    assert gradients["div:_test_func2"]["value1"] == 2.0
-    assert gradients["div:_test_func2"]["value2"] == -16.0
+    assert gradients["sum"]["value1"] == 1.0
+    assert gradients["div"]["value1"] == 2.0
+    assert gradients["div"]["value2"] == -16.0

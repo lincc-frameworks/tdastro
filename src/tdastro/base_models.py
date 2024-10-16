@@ -188,41 +188,35 @@ class ParameterizedNode:
         self.node_pos = None
         self.node_string = None
 
+        # Give the node a temporary name.
+        self._update_node_string()
+
     def __str__(self):
         """Return the string representation of the node."""
-        if self.node_string is None:
-            # Create and cache the node string.
-            self._update_node_string()
         return self.node_string
 
-    def _update_node_string(self, extra_tag=None):
-        """Update the node's string."""
+    def _update_node_string(self, new_str=None):
+        """Update the node's string.
+
+        Parameters
+        ----------
+        new_str : str, optional
+            The new node string. If not provided, the node_string
+            is automatically computed from the other node information.
+        """
         if self.node_label is not None:
-            # If a label is given, just use that.
+            # If a label is given, just use that. It overrides even the new_str.
             self.node_string = self.node_label
+        elif new_str is not None:
+            self.node_string = new_str
         else:
             # Otherwise use a combination of the node's class and position.
-            pos_string = f"{self.node_pos}:" if self.node_pos is not None else ""
-            self.node_string = f"{pos_string}{self.__class__.__name__}"
-
-        # Allow for the appending of an extra tag.
-        if extra_tag is not None:
-            self.node_string = f"{self.node_string}:{extra_tag}"
+            pos_string = f"_{self.node_pos}" if self.node_pos is not None else ""
+            self.node_string = f"{self.__class__.__name__}{pos_string}"
 
         # Update the node_name of all node's parameter setters.
         for _, setter_info in self.setters.items():
             setter_info.node_name = self.node_string
-
-    def set_node_label(self, new_label):
-        """Set the node's label field.
-
-        Parameter
-        ---------
-        new_label : str or None
-            The new label for the node.
-        """
-        self.node_label = new_label
-        self._update_node_string()
 
     def set_graph_positions(self, seen_nodes=None):
         """Force an update of the graph structure (numbering of each node).
@@ -706,14 +700,15 @@ class FunctionNode(ParameterizedNode):
             self.add_parameter(name, None)
             self.setters[name].set_as_compute_output(param_name=name)
 
-    def _update_node_string(self, extra_tag=None):
-        """Update the node's string."""
-        if extra_tag is not None:
-            super()._update_node_string(extra_tag)
-        elif self.func is not None:
-            super()._update_node_string(self.func.__name__)
-        else:
-            super()._update_node_string()
+    def _update_node_string(self, new_str=None):
+        """Update the node's string. A Function node's string includes
+        the function name in addition to the class name.
+        """
+        if new_str is None:
+            pos_string = f"_{self.node_pos}" if self.node_pos is not None else ""
+            fn_str = f":{self.func.__name__}" if self.func is not None else ""
+            new_str = f"{self.__class__.__name__}{fn_str}{pos_string}"
+        super()._update_node_string(new_str)
 
     def _build_inputs(self, graph_state, **kwargs):
         """Build the input arguments for the function.
