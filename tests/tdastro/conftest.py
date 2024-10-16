@@ -1,4 +1,4 @@
-import os.path
+from pathlib import Path
 
 import pytest
 from tdastro import _TDASTRO_TEST_DATA_DIR
@@ -7,31 +7,31 @@ from tdastro import _TDASTRO_TEST_DATA_DIR
 @pytest.fixture
 def test_data_dir():
     """Return the base test data directory."""
-    return _TDASTRO_TEST_DATA_DIR
+    return Path(_TDASTRO_TEST_DATA_DIR)
 
 
 @pytest.fixture
 def grid_data_good_file(test_data_dir):
     """Return the file path for the good grid input file."""
-    return os.path.join(test_data_dir, "grid_input_good.ecsv")
+    return test_data_dir / "grid_input_good.ecsv"
 
 
 @pytest.fixture
 def grid_data_bad_file(test_data_dir):
     """Return the file path for the bad grid input file."""
-    return os.path.join(test_data_dir, "grid_input_bad.txt")
+    return test_data_dir / "grid_input_bad.txt"
 
 
 @pytest.fixture
 def opsim_small(test_data_dir):
     """Return the file path for the bad grid input file."""
-    return os.path.join(test_data_dir, "opsim_small.db")
+    return test_data_dir / "opsim_small.db"
 
 
 @pytest.fixture
 def opsim_shorten(test_data_dir):
     """Return the file path for the bad grid input file."""
-    return os.path.join(test_data_dir, "opsim_shorten.db")
+    return test_data_dir / "opsim_shorten.db"
 
 
 @pytest.fixture
@@ -54,4 +54,4 @@ def oversampled_observations(opsim_shorten):
 @pytest.fixture
 def passbands_dir(test_data_dir):
     """Return the file path for passbands directory."""
-    return os.path.join(test_data_dir, "passbands")
+    return test_data_dir / "passbands"
