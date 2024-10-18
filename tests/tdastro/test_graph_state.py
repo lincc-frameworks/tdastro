@@ -24,11 +24,11 @@ def test_create_single_sample_graph_state():
         _ = state["c"]["v1"]
 
     # We can access the entries using the extended key name.
-    assert state[f"a{state._NAME_SEPARATOR}v1"] == 1.0
-    assert state[f"a{state._NAME_SEPARATOR}v2"] == 2.0
-    assert state[f"b{state._NAME_SEPARATOR}v1"] == 3.0
+    assert state["a.v1"] == 1.0
+    assert state["a.v2"] == 2.0
+    assert state["b.v1"] == 3.0
     with pytest.raises(KeyError):
-        _ = state[f"c{state._NAME_SEPARATOR}v1"]
+        _ = state["c.v1"]
 
     # We can create a human readable string representation of the GraphState.
     debug_str = str(state)
@@ -66,9 +66,9 @@ def test_create_single_sample_graph_state():
 
     # Test we cannot use a name containing the separator as a substring.
     with pytest.raises(ValueError):
-        state.set(f"a{state._NAME_SEPARATOR}b", "v1", 10.0)
+        state.set("a.b", "v1", 10.0)
     with pytest.raises(ValueError):
-        state.set("b", f"v1{state._NAME_SEPARATOR}v3", 10.0)
+        state.set("b", "v1.v3", 10.0)
 
 
 def test_graph_state_contains():
@@ -82,14 +82,14 @@ def test_graph_state_contains():
     assert "b" in state
     assert "c" not in state
 
-    assert f"a{state._NAME_SEPARATOR}v1" in state
-    assert f"a{state._NAME_SEPARATOR}v2" in state
-    assert f"a{state._NAME_SEPARATOR}v3" not in state
-    assert f"b{state._NAME_SEPARATOR}v1" in state
-    assert f"c{state._NAME_SEPARATOR}v1" not in state
+    assert "a.v1" in state
+    assert "a.v2" in state
+    assert "a.v3" not in state
+    assert "b.v1" in state
+    assert "c.v1" not in state
 
     with pytest.raises(KeyError):
-        assert f"b{state._NAME_SEPARATOR}v1{state._NAME_SEPARATOR}v2" not in state
+        assert "b.v1.v2" not in state
 
 
 def test_create_multi_sample_graph_state():
@@ -395,6 +395,65 @@ def test_graph_to_from_file(tmp_path):
     with pytest.raises(OSError):
         state.save_to_file(file_path)
     state.save_to_file(file_path, overwrite=True)
+
+
+def test_graph_state_extract_parameters():
+    """Test that we can extract named parameters from a GraphState."""
+    state = GraphState()
+    state.set("a", "v0", 0.0)
+    state.set("a", "v1", 1.0)
+    state.set("a", "v2", 2.0)
+    state.set("a", "v3", 3.0)
+    state.set("b", "v1", 4.0)
+    state.set("c", "v2", 5.0)
+    state.set("c", "v3", 6.0)
+    state.set("d", "v4", 7.0)
+    state.set("e", "v3", 8.0)
+    state.set("e", "v5", 9.0)
+    state.set("e", "v6", 10.0)
+    state.set("f", "v6", 11.0)
+
+    # We can extract a mixture of unique parameters based on full and short names.
+    results = state.extract_parameters(["a.v1", "c.v2", "v5"])
+    assert len(results) == 3
+    assert results["a.v1"] == 1.0
+    assert results["c.v2"] == 5.0
+    assert results["v5"] == 9.0
+
+    # If we extract a parameter that appears in multiple nodes with its short
+    # name, we expand the name for each instance.
+    results = state.extract_parameters(["v2", "v3", "v4"])
+    assert len(results) == 6
+    assert results["a.v2"] == 2.0
+    assert results["a.v3"] == 3.0
+    assert results["c.v2"] == 5.0
+    assert results["c.v3"] == 6.0
+    assert results["e.v3"] == 8.0
+    assert results["v4"] == 7.0  # We do not expand the name.
+
+    # We can also provide a single parameter name as a string.
+    results = state.extract_parameters("v2")
+    assert len(results) == 2
+    assert results["a.v2"] == 2.0
+    assert results["c.v2"] == 5.0
+
+    # Test a complicated list.
+    results = state.extract_parameters(["v0", "c.v2", "e.v3", "v5", "v6", "a.v3"])
+    assert len(results) == 7
+    assert results["v0"] == 0.0
+    assert results["c.v2"] == 5.0
+    assert results["e.v3"] == 8.0
+    assert results["v5"] == 9.0
+    assert results["e.v6"] == 10.0
+    assert results["f.v6"] == 11.0
+    assert results["a.v3"] == 3.0
+
+    # We raise a KeyError if we try to lookup a parameter that is not in the GraphState.
+    with pytest.raises(KeyError):
+        _ = state.extract_parameters(["v2", "v3", "c.v4"])
+
+    with pytest.raises(KeyError):
+        _ = state.extract_parameters(["v2", "v100"])
 
 
 def test_transpose_dict_of_list():
