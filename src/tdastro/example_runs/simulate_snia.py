@@ -5,7 +5,7 @@ from tdastro.astro_utils.noise_model import apply_noise
 from tdastro.astro_utils.passbands import PassbandGroup
 from tdastro.astro_utils.snia_utils import DistModFromRedshift, HostmassX1Func, X0FromDistMod
 from tdastro.astro_utils.unit_utils import flam_to_fnu, fnu_to_flam
-from tdastro.rand_nodes.np_random import NumpyRandomFunc
+from tdastro.math_nodes.np_random import NumpyRandomFunc
 from tdastro.sources.sncomso_models import SncosmoWrapperModel
 from tdastro.sources.snia_host import SNIaHost
 
