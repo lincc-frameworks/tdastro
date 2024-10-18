@@ -170,9 +170,6 @@ class ParameterizedNode:
         A dictionary mapping the parameters' names to information about the setters
         (ParameterSource). The model parameters are stored in the order in which they
         need to be set.
-    direct_dependencies : `dict`
-        A dictionary with keys of other ParameterizedNodes on that this node needs to
-        directly access. We use a dictionary to preserve ordering.
     node_pos : `int` or None
         A unique ID number for each node in the graph indicating its position.
         Assigned during resampling or `set_graph_positions()`
@@ -187,46 +184,39 @@ class ParameterizedNode:
 
     def __init__(self, node_label=None, **kwargs):
         self.setters = {}
-        self.direct_dependencies = {}
         self.node_label = node_label
         self.node_pos = None
         self.node_string = None
 
+        # Give the node a temporary name.
+        self._update_node_string()
+
     def __str__(self):
         """Return the string representation of the node."""
-        if self.node_string is None:
-            # Create and cache the node string.
-            self._update_node_string()
         return self.node_string
 
-    def _update_node_string(self, extra_tag=None):
-        """Update the node's string."""
+    def _update_node_string(self, new_str=None):
+        """Update the node's string.
+
+        Parameters
+        ----------
+        new_str : str, optional
+            The new node string. If not provided, the node_string
+            is automatically computed from the other node information.
+        """
         if self.node_label is not None:
-            # If a label is given, just use that.
+            # If a label is given, just use that. It overrides even the new_str.
             self.node_string = self.node_label
+        elif new_str is not None:
+            self.node_string = new_str
         else:
             # Otherwise use a combination of the node's class and position.
-            pos_string = f"{self.node_pos}:" if self.node_pos is not None else ""
-            self.node_string = f"{pos_string}{self.__class__.__qualname__}"
-
-        # Allow for the appending of an extra tag.
-        if extra_tag is not None:
-            self.node_string = f"{self.node_string}:{extra_tag}"
+            pos_string = f"_{self.node_pos}" if self.node_pos is not None else ""
+            self.node_string = f"{self.__class__.__name__}{pos_string}"
 
         # Update the node_name of all node's parameter setters.
         for _, setter_info in self.setters.items():
             setter_info.node_name = self.node_string
-
-    def set_node_label(self, new_label):
-        """Set the node's label field.
-
-        Parameter
-        ---------
-        new_label : str or None
-            The new label for the node.
-        """
-        self.node_label = new_label
-        self._update_node_string()
 
     def set_graph_positions(self, seen_nodes=None):
         """Force an update of the graph structure (numbering of each node).
@@ -249,8 +239,9 @@ class ParameterizedNode:
         self._update_node_string()
 
         # Recursively update any direct dependencies.
-        for dep in self.direct_dependencies:
-            dep.set_graph_positions(seen_nodes)
+        for setter_info in self.setters.values():
+            if setter_info.dependency is not None and setter_info.dependency is not self:
+                setter_info.dependency.set_graph_positions(seen_nodes)
 
     def get_param(self, graph_state, name, default=None):
         """Get the value of a parameter stored in this node or a default value.
@@ -380,12 +371,6 @@ class ParameterizedNode:
         else:
             # Case 4: The value is constant (including None).
             self.setters[name].set_as_constant(value)
-
-        # Update the dependencies to account for any new nodes in the graph.
-        self.direct_dependencies = {}
-        for setter_info in self.setters.values():
-            if setter_info.dependency is not None and setter_info.dependency is not self:
-                self.direct_dependencies[setter_info.dependency] = True
 
     def set_allow_gradient(self, name, allow_gradient):
         """Turn on or off the ability to compute a gradient for this variable.
@@ -715,14 +700,15 @@ class FunctionNode(ParameterizedNode):
             self.add_parameter(name, None)
             self.setters[name].set_as_compute_output(param_name=name)
 
-    def _update_node_string(self, extra_tag=None):
-        """Update the node's string."""
-        if extra_tag is not None:
-            super()._update_node_string(extra_tag)
-        elif self.func is not None:
-            super()._update_node_string(self.func.__name__)
-        else:
-            super()._update_node_string()
+    def _update_node_string(self, new_str=None):
+        """Update the node's string. A Function node's string includes
+        the function name in addition to the class name.
+        """
+        if new_str is None:
+            pos_string = f"_{self.node_pos}" if self.node_pos is not None else ""
+            fn_str = f":{self.func.__name__}" if self.func is not None else ""
+            new_str = f"{self.__class__.__name__}{fn_str}{pos_string}"
+        super()._update_node_string(new_str)
 
     def _build_inputs(self, graph_state, **kwargs):
         """Build the input arguments for the function.
