@@ -340,7 +340,7 @@ class GraphState:
         if isinstance(params, str):
             params = [params]
 
-        # Go through all the parameters. If a parameters fill name is provided,
+        # Go through all the parameters. If a parameters full name is provided,
         # look it up now and save the result. Otherwise put it into a list to check
         # for in each node.
         single_params = set()
@@ -350,6 +350,8 @@ class GraphState:
                 node_name, param_name = current.split(".")
                 if node_name in self.states and param_name in self.states[node_name]:
                     results[current] = self.states[node_name][param_name]
+                else:
+                    raise KeyError(f"Parameter {current} not found in GraphState.")
             else:
                 single_params.add(current)
 
@@ -357,7 +359,7 @@ class GraphState:
             # Nothing else to do.
             return results
 
-        # Traverse the trnested dictionaries looking for cases where the parameter names match.
+        # Traverse the nested dictionaries looking for cases where the parameter names match.
         first_seen_node = {}
         for node_name, node_params in self.states.items():
             for param_name, param_value in node_params.items():
@@ -380,6 +382,11 @@ class GraphState:
                         # just the parameter name. Also save the node where we saw it.
                         results[param_name] = param_value
                         first_seen_node[param_name] = node_name
+
+        # Check that we found a match for all the short parameter names.
+        for param_name in single_params:
+            if param_name not in first_seen_node:
+                raise KeyError(f"Parameter {param_name} not found in GraphState.")
 
         return results
 

@@ -453,6 +453,13 @@ def test_graph_state_extract_parameters():
     assert results["f.v6"] == 11.0
     assert results["a.v3"] == 3.0
 
+    # We raise a KeyError if we try to lookup a parameter that is not in the GraphState.
+    with pytest.raises(KeyError):
+        _ = state.extract_parameters(["v2", "v3", "c.v4"])
+
+    with pytest.raises(KeyError):
+        _ = state.extract_parameters(["v2", "v100"])
+
 
 def test_transpose_dict_of_list():
     """Test the transpose_dict_of_list helper function"""
