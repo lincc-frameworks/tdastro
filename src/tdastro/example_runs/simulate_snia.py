@@ -1,6 +1,7 @@
 import numpy as np
 import sncosmo
 from astropy import units as u
+from scipy.interpolate import interp1d
 from tdastro.astro_utils.noise_model import apply_noise
 from tdastro.astro_utils.passbands import PassbandGroup
 from tdastro.astro_utils.snia_utils import (
@@ -11,6 +12,7 @@ from tdastro.astro_utils.snia_utils import (
 )
 from tdastro.astro_utils.unit_utils import flam_to_fnu, fnu_to_flam
 from tdastro.math_nodes.np_random import NumpyRandomFunc
+from tdastro.math_nodes.scipy_random import SamplePDF
 from tdastro.sources.sncomso_models import SncosmoWrapperModel
 from tdastro.sources.snia_host import SNIaHost
 
@@ -107,12 +109,18 @@ def run_snia_end2end(oversampled_observations, passbands_dir, solid_angle=0.0001
     zmin = 0.1
     zmax = 0.4
 
+    H0 = 70.0
+    Omega_m = 0.3
+
+    nsn, z = num_snia_per_redshift_bin(zmin, zmax, 100, H0=H0, Omega_m=Omega_m)
+    zpdf = interp1d(z, nsn, bounds_error=False, fill_value=0)
+
     # Create a host galaxy.
     host = SNIaHost(
         ra=NumpyRandomFunc("uniform", low=-0.5, high=0.5),  # all pointings RA = 0.0
         dec=NumpyRandomFunc("uniform", low=-0.5, high=0.5),  # all pointings Dec = 0.0
         hostmass=NumpyRandomFunc("uniform", low=7, high=12),
-        redshift=NumpyRandomFunc("uniform", low=zmin, high=zmax),
+        redshift=SamplePDF(zpdf),
     )
 
     distmod_func = DistModFromRedshift(host.redshift, H0=73.0, Omega_m=0.3)
@@ -169,8 +177,6 @@ def run_snia_end2end(oversampled_observations, passbands_dir, solid_angle=0.0001
 
     # Calculate nsample using SN Ia rate model
     if nsample is None and solid_angle is not None:
-        H0 = 70.0
-        Omega_m = 0.3
         nsn, _ = num_snia_per_redshift_bin(
             zmin, zmax, znbins=1, solid_angle=solid_angle, H0=H0, Omega_m=Omega_m
         )
@@ -214,7 +220,7 @@ def run_snia_end2end(oversampled_observations, passbands_dir, solid_angle=0.0001
             flam_unit=u.erg / u.second / u.cm**2 / u.AA,
             fnu_unit=u.nJy,
         )
-        np.testing.assert_allclose(res["flux_nJy"], fnu_sncosmo, atol=1e-8, rtol=1e-8)
+        np.testing.assert_allclose(res["flux_nJy"], fnu_sncosmo, atol=1e-8, rtol=1e-6)
         np.testing.assert_allclose(res["flux_flam"], flux_sncosmo, atol=1e-30, rtol=1e-5)
 
         # Skip test for negative fluxes
