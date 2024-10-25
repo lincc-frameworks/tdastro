@@ -27,12 +27,17 @@ class SncosmoWrapperModel(PhysicalModel):
     ----------
     source_name : `str`
         The name used to set the source.
+    t0 : `float`
+        The start time of the sncosmo model.
+        Default: 0.0
+    node_label : `str`, optional
+        An identifier (or name) for the current node.
     **kwargs : `dict`, optional
         Any additional keyword arguments.
     """
 
-    def __init__(self, source_name, t0=0.0, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, source_name, t0=0.0, node_label=None, **kwargs):
+        super().__init__(node_label=node_label, **kwargs)
         self.source_name = source_name
         self.source = get_source(source_name)
 
