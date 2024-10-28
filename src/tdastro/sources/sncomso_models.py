@@ -36,6 +36,9 @@ class SncosmoWrapperModel(PhysicalModel):
         Any additional keyword arguments.
     """
 
+    # A class variable for the units so we are not computing them each time.
+    _FLAM_UNIT = u.erg / u.second / u.cm**2 / u.AA
+
     def __init__(self, source_name, t0=0.0, node_label=None, **kwargs):
         super().__init__(node_label=node_label, **kwargs)
         self.source_name = source_name
@@ -160,7 +163,7 @@ class SncosmoWrapperModel(PhysicalModel):
             flux_flam,
             wavelengths,
             wave_unit=u.AA,
-            flam_unit=u.erg / u.second / u.cm**2 / u.AA,
+            flam_unit=self._FLAM_UNIT,
             fnu_unit=u.nJy,
         )
 
