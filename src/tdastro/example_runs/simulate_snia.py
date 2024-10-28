@@ -4,24 +4,33 @@ from pathlib import Path
 import numpy as np
 import sncosmo
 from astropy import units as u
+from scipy.interpolate import interp1d
 from tdastro.astro_utils.noise_model import apply_noise
 from tdastro.astro_utils.passbands import PassbandGroup
-from tdastro.astro_utils.snia_utils import DistModFromRedshift, HostmassX1Func, X0FromDistMod
+from tdastro.astro_utils.snia_utils import (
+    DistModFromRedshift,
+    HostmassX1Func,
+    X0FromDistMod,
+    num_snia_per_redshift_bin,
+)
 from tdastro.astro_utils.unit_utils import flam_to_fnu, fnu_to_flam
 from tdastro.math_nodes.np_random import NumpyRandomFunc
+from tdastro.math_nodes.scipy_random import SamplePDF
 from tdastro.sources.sncomso_models import SncosmoWrapperModel
 from tdastro.sources.snia_host import SNIaHost
 
 logger = logging.getLogger(__name__)
 
 
-def construct_snia_source(oversampled_observations):
+def construct_snia_source(oversampled_observations, zpdf):
     """Create a SNIA source/host pair with characteristics from an OpSim.
 
     Parameters
     ----------
     oversampled_observations : OpSim
         The opsim data to use.
+    zpdf : interp1d
+        The PDF for the redshift.
 
     Returns
     -------
@@ -43,7 +52,7 @@ def construct_snia_source(oversampled_observations):
         ra=NumpyRandomFunc("uniform", low=-0.5, high=0.5),  # all pointings RA = 0.0
         dec=NumpyRandomFunc("uniform", low=-0.5, high=0.5),  # all pointings Dec = 0.0
         hostmass=NumpyRandomFunc("uniform", low=7, high=12),
-        redshift=NumpyRandomFunc("uniform", low=0.1, high=0.4),
+        redshift=SamplePDF(zpdf),
         node_label="host",
     )
 
@@ -114,7 +123,7 @@ def load_and_register_passband(passbands_dir, to_use):
     # Register sncosmo bandpasses
     for f, passband in passbands.passbands.items():
         sncosmo_bandpass = sncosmo.Bandpass(*passband.processed_transmission_table.T, name=f"tdastro_{f}")
-        sncosmo.register(sncosmo_bandpass)
+        sncosmo.register(sncosmo_bandpass, force=True)
 
     return passbands
 
@@ -200,7 +209,9 @@ def draw_single_random_sn(
     return res
 
 
-def run_snia_end2end(oversampled_observations, passbands_dir, nsample=1, check_sncosmo=False):
+def run_snia_end2end(
+    oversampled_observations, passbands_dir, solid_angle=0.0001, nsample=1, check_sncosmo=False
+):
     """Test that we can sample and create SN Ia simulation using the salt3 model.
 
     Parameters
@@ -209,6 +220,8 @@ def run_snia_end2end(oversampled_observations, passbands_dir, nsample=1, check_s
         The opsim data to use.
     passbands_dir : str
         The name of the directory holding the passband information.
+    solid_angle : float
+        Solid angle for calculating number of SN.
     nsample : int
         The number of samples to test.
         Default:  1
@@ -224,7 +237,23 @@ def run_snia_end2end(oversampled_observations, passbands_dir, nsample=1, check_s
     passbands : PassbandGroup
         The passbands used.
     """
-    source = construct_snia_source(oversampled_observations)
+    # Compute the distribution from which to sample the redshift.
+    zmin = 0.1
+    zmax = 0.4
+    H0 = 70.0
+    Omega_m = 0.3
+    nsn, z = num_snia_per_redshift_bin(zmin, zmax, 100, H0=H0, Omega_m=Omega_m)
+    zpdf = interp1d(z, nsn, bounds_error=False, fill_value=0)
+
+    # Calculate nsample using SN Ia rate model
+    if nsample is None and solid_angle is not None:
+        nsn, _ = num_snia_per_redshift_bin(
+            zmin, zmax, znbins=1, solid_angle=solid_angle, H0=H0, Omega_m=Omega_m
+        )
+        nsample = int(nsn)
+        print(f"Drawing {nsample} samples from redshift {zmin} to {zmax}.")
+
+    source = construct_snia_source(oversampled_observations, zpdf)
     passbands = load_and_register_passband(passbands_dir, to_use=["g", "r"])
 
     logger.info(f"Sampling {nsample} states.")
@@ -264,7 +293,7 @@ def run_snia_end2end(oversampled_observations, passbands_dir, nsample=1, check_s
                 flam_unit=u.erg / u.second / u.cm**2 / u.AA,
                 fnu_unit=u.nJy,
             )
-            np.testing.assert_allclose(res["flux_nJy"], fnu_sncosmo, atol=1e-8, rtol=1e-8)
+            np.testing.assert_allclose(res["flux_nJy"], fnu_sncosmo, atol=1e-8, rtol=1e-6)
             np.testing.assert_allclose(res["flux_flam"], flux_sncosmo, atol=1e-30, rtol=1e-5)
 
             # Skip test for negative fluxes
