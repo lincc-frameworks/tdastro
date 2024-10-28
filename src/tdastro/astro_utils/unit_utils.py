@@ -48,8 +48,8 @@ def flam_to_fnu(flux_flam, wavelengths, *, wave_unit, flam_unit, fnu_unit):
     flux_fnu : `list` or `np.array`
         The flux values in fnu units.
     """
-    flux_flam = np.array(flux_flam)
-    wavelengths = np.array(wavelengths)
+    flux_flam = np.asarray(flux_flam)
+    wavelengths = np.asarray(wavelengths)
 
     # Check if we need to reshape wavelengths to match the number
     # of rows in flux_flam.
@@ -95,8 +95,8 @@ def fnu_to_flam(flux_fnu, wavelengths, *, wave_unit, flam_unit, fnu_unit):
     flux_flam : `list` or `np.array`
         The flux values in flam units.
     """
-    flux_fnu = np.array(flux_fnu)
-    wavelengths = np.array(wavelengths)
+    flux_fnu = np.asarray(flux_fnu)
+    wavelengths = np.asarray(wavelengths)
 
     # Check if we need to reshape wavelengths to match the number
     # of rows in flux_fnu.
