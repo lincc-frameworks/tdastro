@@ -121,6 +121,7 @@ def run_snia_end2end(oversampled_observations, passbands_dir, solid_angle=0.0001
         dec=NumpyRandomFunc("uniform", low=-0.5, high=0.5),  # all pointings Dec = 0.0
         hostmass=NumpyRandomFunc("uniform", low=7, high=12),
         redshift=SamplePDF(zpdf),
+        node_label="host",
     )
 
     distmod_func = DistModFromRedshift(host.redshift, H0=73.0, Omega_m=0.3)
@@ -135,6 +136,7 @@ def run_snia_end2end(oversampled_observations, passbands_dir, solid_angle=0.0001
         alpha=0.14,
         beta=3.1,
         m_abs=m_abs_func,
+        node_label="x0_func",
     )
 
     sncosmo_modelname = "salt3"
@@ -148,6 +150,7 @@ def run_snia_end2end(oversampled_observations, passbands_dir, solid_angle=0.0001
         ra=NumpyRandomFunc("normal", loc=host.ra, scale=0.01),
         dec=NumpyRandomFunc("normal", loc=host.dec, scale=0.01),
         redshift=host.redshift,
+        node_label="source",
     )
 
     passbands = PassbandGroup(
