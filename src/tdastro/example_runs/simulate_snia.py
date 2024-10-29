@@ -177,7 +177,7 @@ def draw_single_random_sn(
     # match band names in passbands object.
     times = opsim["time"][obs_index].to_numpy()
     if len(times) == 0:
-        raise ValueError(f"No overlap time in opsim for (ra,dec)=({ra:.2f},{dec:.2f})")
+        logger.warning(f"No overlap time in opsim for (ra,dec)=({ra:.2f},{dec:.2f})")
     res["times"] = times
 
     filters = opsim["filter"][obs_index].to_numpy(str)
