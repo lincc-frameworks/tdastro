@@ -20,10 +20,10 @@ class GaussianGalaxy(PhysicalModel):
 
     def __init__(self, brightness, radius, **kwargs):
         super().__init__(**kwargs)
-        self.add_parameter("galaxy_radius_std", radius, required=True, **kwargs)
-        self.add_parameter("brightness", brightness, required=True, **kwargs)
+        self.add_parameter("galaxy_radius_std", radius, **kwargs)
+        self.add_parameter("brightness", brightness, **kwargs)
 
-    def _evaluate(self, times, wavelengths, graph_state, ra=None, dec=None, **kwargs):
+    def compute_flux(self, times, wavelengths, graph_state, ra=None, dec=None, **kwargs):
         """Draw effect-free observations for this object.
 
         Parameters
@@ -31,7 +31,7 @@ class GaussianGalaxy(PhysicalModel):
         times : `numpy.ndarray`
             A length T array of rest frame timestamps.
         wavelengths : `numpy.ndarray`, optional
-            A length N array of wavelengths.
+            A length N array of wavelengths (in angstroms).
         graph_state : `GraphState`
             An object mapping graph parameters to their values.
         ra : `float`, optional
@@ -44,7 +44,7 @@ class GaussianGalaxy(PhysicalModel):
         Returns
         -------
         flux_density : `numpy.ndarray`
-            A length T x N matrix of SED values.
+            A length T x N matrix of SED values (in nJy).
         """
         params = self.get_local_params(graph_state)
 

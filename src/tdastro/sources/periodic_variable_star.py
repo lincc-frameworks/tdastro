@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 
 from tdastro.astro_utils.black_body import black_body_luminosity_density_per_solid
-from tdastro.consts import PARSEC_TO_CM
+from tdastro.consts import ANGSTROM_TO_CM, CGS_FNU_UNIT_TO_NJY, PARSEC_TO_CM
 from tdastro.sources.periodic_source import PeriodicSource
 
 
@@ -34,7 +34,7 @@ class PeriodicVariableStar(PeriodicSource, ABC):
         phases : `numpy.ndarray`
             A length T array of phases, in the range [0, 1].
         wavelengths : `numpy.ndarray`, optional
-            A length N array of wavelengths.
+            A length N array of wavelengths, in angstroms.
         graph_state : `dict`, optional
             A given setting of all the parameters and their values.
         **kwargs : `dict`, optional
@@ -43,13 +43,15 @@ class PeriodicVariableStar(PeriodicSource, ABC):
         Returns
         -------
         flux_density : `numpy.ndarray`
-            A length T x N matrix of SED values.
+            A length T x N matrix of SED values, in nJy.
         """
-        distance = self.get_param(graph_state, "distance") * PARSEC_TO_CM
-        return self._dl_dnu_domega_phases(phases, wavelengths, graph_state, **kwargs) / np.square(distance)
+        distance_cm = self.get_param(graph_state, "distance") * PARSEC_TO_CM
+        wavelengths_cm = wavelengths * ANGSTROM_TO_CM
+        dl_dnu_domega_cgs = self._dl_dnu_domega_phases(phases, wavelengths_cm, graph_state, **kwargs)
+        return dl_dnu_domega_cgs / np.square(distance_cm) * CGS_FNU_UNIT_TO_NJY
 
     @abstractmethod
-    def _dl_dnu_domega_phases(self, phases, wavelengths, graph_state, **kwargs):
+    def _dl_dnu_domega_phases(self, phases, wavelengths_cm, graph_state, **kwargs):
         r"""Draw effect-free luminosity density per unit solid angle, as a function of phase.
 
         It is dL / d \nu / d \Omega, so the units are erg / s / Hz / sr.
@@ -63,8 +65,8 @@ class PeriodicVariableStar(PeriodicSource, ABC):
         ----------
         phases : `numpy.ndarray`
             A length T array of phases, in the range [0, 1].
-        wavelengths : `numpy.ndarray`, optional
-            A length N array of wavelengths.
+        wavelengths_cm : `numpy.ndarray`, optional
+            A length N array of wavelengths in cm.
         graph_state : `dict`, optional
             A given setting of all the parameters and their values.
         **kwargs : `dict`, optional
@@ -74,6 +76,7 @@ class PeriodicVariableStar(PeriodicSource, ABC):
         -------
         luminosity_density_per_solid_angle : `numpy.ndarray`
             A length T x N matrix of luminosity density per unit solid angle values.
+            Units are CGS, erg/s/Hz/steradian.
         """
         raise NotImplementedError()
 
@@ -105,22 +108,22 @@ class EclipsingBinaryStar(PeriodicVariableStar):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.add_parameter("major_semiaxis", required=True, **kwargs)
-        self.add_parameter("inclination", required=True, **kwargs)
-        self.add_parameter("primary_radius", required=True, **kwargs)
-        self.add_parameter("secondary_radius", required=True, **kwargs)
-        self.add_parameter("primary_temperature", required=True, **kwargs)
-        self.add_parameter("secondary_temperature", required=True, **kwargs)
+        self.add_parameter("major_semiaxis", **kwargs)
+        self.add_parameter("inclination", **kwargs)
+        self.add_parameter("primary_radius", **kwargs)
+        self.add_parameter("secondary_radius", **kwargs)
+        self.add_parameter("primary_temperature", **kwargs)
+        self.add_parameter("secondary_temperature", **kwargs)
 
-    def _dl_dnu_domega_phases(self, phases, wavelengths, graph_state, **kwargs):
+    def _dl_dnu_domega_phases(self, phases, wavelengths_cm, graph_state, **kwargs):
         """Draw effect-free luminosity density for this object, as a function of phase.
 
         Parameters
         ----------
         phases : `numpy.ndarray`
             A length T array of phases, in the range [0, 1].
-        wavelengths : `numpy.ndarray`, optional
-            A length N array of wavelengths.
+        wavelengths_cm : `numpy.ndarray`, optional
+            A length N array of wavelengths, in cm.
         graph_state : `GraphState`
             An object mapping graph parameters to their values.
         **kwargs : `dict`, optional
@@ -130,6 +133,7 @@ class EclipsingBinaryStar(PeriodicVariableStar):
         -------
         luminosity_density : `numpy.ndarray`
             A length T x N matrix of luminosity density values.
+            Output is in CGS units of erg/s/Hz/steradian.
         """
         phases = phases[:, None]
 
@@ -143,10 +147,10 @@ class EclipsingBinaryStar(PeriodicVariableStar):
         inclination = params["inclination"]
 
         primary_lum = black_body_luminosity_density_per_solid(
-            primary_temperature, primary_radius, wavelengths
+            primary_temperature, primary_radius, wavelengths_cm
         )
         secondary_lum = black_body_luminosity_density_per_solid(
-            secondary_temperature, secondary_radius, wavelengths
+            secondary_temperature, secondary_radius, wavelengths_cm
         )
 
         # Distance between the centers of the stars on the plane of the sky

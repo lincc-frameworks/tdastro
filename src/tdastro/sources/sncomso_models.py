@@ -4,8 +4,10 @@ https://github.com/sncosmo/sncosmo/blob/v2.10.1/sncosmo/models.py
 https://sncosmo.readthedocs.io/en/stable/models.html
 """
 
+from astropy import units as u
 from sncosmo.models import get_source
 
+from tdastro.astro_utils.unit_utils import flam_to_fnu
 from tdastro.sources.physical_model import PhysicalModel
 
 
@@ -25,12 +27,17 @@ class SncosmoWrapperModel(PhysicalModel):
     ----------
     source_name : `str`
         The name used to set the source.
+    t0 : `float`
+        The start time of the sncosmo model.
+        Default: 0.0
+    node_label : `str`, optional
+        An identifier (or name) for the current node.
     **kwargs : `dict`, optional
         Any additional keyword arguments.
     """
 
-    def __init__(self, source_name, t0=0.0, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, source_name, t0=0.0, node_label=None, **kwargs):
+        super().__init__(node_label=node_label, **kwargs)
         self.source_name = source_name
         self.source = get_source(source_name)
 
@@ -115,9 +122,9 @@ class SncosmoWrapperModel(PhysicalModel):
         num_samples : `int`
             A count of the number of samples to compute.
             Default: 1
-        rng_info : `dict`, optional
-            A dictionary of random number generator information for each node, such as
-            the JAX keys or the numpy rngs.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
 
         Raises
         ------
@@ -126,7 +133,7 @@ class SncosmoWrapperModel(PhysicalModel):
         super()._sample_helper(graph_state, seen_nodes, rng_info)
         self._update_sncosmo_model_parameters(graph_state)
 
-    def _evaluate(self, times, wavelengths, graph_state=None, **kwargs):
+    def compute_flux(self, times, wavelengths, graph_state=None, **kwargs):
         """Draw effect-free observations for this object.
 
         Parameters
@@ -134,7 +141,7 @@ class SncosmoWrapperModel(PhysicalModel):
         times : `numpy.ndarray`
             A length T array of rest frame timestamps.
         wavelengths : `numpy.ndarray`, optional
-            A length N array of wavelengths.
+            A length N array of wavelengths (in angstroms).
         graph_state : `GraphState`
             An object mapping graph parameters to their values.
         **kwargs : `dict`, optional
@@ -143,8 +150,18 @@ class SncosmoWrapperModel(PhysicalModel):
         Returns
         -------
         flux_density : `numpy.ndarray`
-            A length T x N matrix of SED values.
+            A length T x N matrix of SED values (in nJy).
         """
         params = self.get_local_params(graph_state)
         self._update_sncosmo_model_parameters(graph_state)
-        return self.source.flux(times - params["t0"], wavelengths)
+
+        flux_flam = self.source.flux(times - params["t0"], wavelengths)
+        flux_fnu = flam_to_fnu(
+            flux_flam,
+            wavelengths,
+            wave_unit=u.AA,
+            flam_unit=u.erg / u.second / u.cm**2 / u.AA,
+            fnu_unit=u.nJy,
+        )
+
+        return flux_fnu

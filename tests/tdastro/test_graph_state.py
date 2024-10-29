@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+from astropy.table import Table
 from tdastro.graph_state import GraphState, transpose_dict_of_list
 
 
@@ -21,6 +22,13 @@ def test_create_single_sample_graph_state():
         _ = state["a"]["v3"]
     with pytest.raises(KeyError):
         _ = state["c"]["v1"]
+
+    # We can access the entries using the extended key name.
+    assert state["a.v1"] == 1.0
+    assert state["a.v2"] == 2.0
+    assert state["b.v1"] == 3.0
+    with pytest.raises(KeyError):
+        _ = state["c.v1"]
 
     # We can create a human readable string representation of the GraphState.
     debug_str = str(state)
@@ -55,6 +63,33 @@ def test_create_single_sample_graph_state():
     state.set("a", "v1", 10.0)
     assert len(state) == 3
     assert state["a"]["v1"] == 10.0
+
+    # Test we cannot use a name containing the separator as a substring.
+    with pytest.raises(ValueError):
+        state.set("a.b", "v1", 10.0)
+    with pytest.raises(ValueError):
+        state.set("b", "v1.v3", 10.0)
+
+
+def test_graph_state_contains():
+    """Test that we can use the 'in' operator in GraphState."""
+    state = GraphState()
+    state.set("a", "v1", 1.0)
+    state.set("a", "v2", 2.0)
+    state.set("b", "v1", 3.0)
+
+    assert "a" in state
+    assert "b" in state
+    assert "c" not in state
+
+    assert "a.v1" in state
+    assert "a.v2" in state
+    assert "a.v3" not in state
+    assert "b.v1" in state
+    assert "c.v1" not in state
+
+    with pytest.raises(KeyError):
+        assert "b.v1.v2" not in state
 
 
 def test_create_multi_sample_graph_state():
@@ -121,6 +156,53 @@ def test_create_multi_sample_graph_state_reference():
     state2["a"]["v2"][2] = 5.0
     assert np.allclose(state2["a"]["v2"], [2.0, 2.5, 5.0, 3.5, 4.0])
     assert np.allclose(state2["b"]["v1"], [2.0, 2.5, 3.0, 3.5, 4.0])
+
+
+def test_graph_state_equal():
+    """Test that we use == on GraphStates."""
+    state1 = GraphState(num_samples=2)
+    state1.set("a", "v1", [1.0, 2.0])
+    state1.set("a", "v2", [2.0, 3.0])
+    state1.set("b", "v1", [3.0, 4.0])
+
+    state2 = GraphState(num_samples=2)
+    state2.set("a", "v1", [1.0, 2.0])
+    state2.set("a", "v2", [2.0, 3.0])
+    state2.set("b", "v1", [3.0, 4.0])
+
+    assert state1 == state2
+
+    state2.set("b", "v1", [3.0, 5.0])
+    assert state1 != state2
+
+    state2.set("b", "v1", [3.0, 4.0])
+    assert state1 == state2
+
+    state2.set("b", "v2", [3.0, 4.0])
+    assert state1 != state2
+
+    state3 = GraphState(num_samples=3)
+    state3.set("a", "v1", [1.0, 2.0, 3.0])
+    state3.set("a", "v2", [2.0, 3.0, 4.0])
+    state3.set("b", "v1", [3.0, 4.0, 5.0])
+    assert state3 != state1
+    assert state3 != state2
+
+    # Test that equality works with a single sample (not arrays).
+    state4 = GraphState(num_samples=1)
+    state4.set("a", "v1", 1.0)
+    state4.set("a", "v2", 2.0)
+    state4.set("b", "v1", 3.0)
+
+    state5 = GraphState(num_samples=1)
+    state5.set("a", "v1", 1.0)
+    state5.set("a", "v2", 2.0)
+    state5.set("b", "v1", 3.0)
+
+    assert state4 == state5
+
+    state5.set("a", "v2", 2.5)
+    assert state4 != state5
 
 
 def test_graph_state_fixed():
@@ -190,6 +272,70 @@ def test_graph_state_update():
         state.update(state4)
 
 
+def test_graph_state_from_table():
+    """Test that we can create a GraphState from an AstroPy Table."""
+    input = Table(
+        {
+            GraphState.extended_param_name("a", "v1"): [1.0, 2.0, 3.0],
+            GraphState.extended_param_name("a", "v2"): [4.0, 5.0, 6.0],
+            GraphState.extended_param_name("b", "v1"): [7.0, 8.0, 9.0],
+        }
+    )
+    state = GraphState.from_table(input)
+
+    assert len(state) == 3
+    assert state.num_samples == 3
+    np.testing.assert_allclose(state["a"]["v1"], [1.0, 2.0, 3.0])
+    np.testing.assert_allclose(state["a"]["v2"], [4.0, 5.0, 6.0])
+    np.testing.assert_allclose(state["b"]["v1"], [7.0, 8.0, 9.0])
+
+
+def test_graph_state_to_dict():
+    """Test that we can create a dictionary from a GraphState."""
+    state = GraphState(num_samples=3)
+    state.set("a", "v1", [1.0, 2.0, 3.0])
+    state.set("a", "v2", [3.0, 4.0, 5.0])
+    state.set("b", "v1", [6.0, 7.0, 8.0])
+
+    result = state.to_dict()
+    assert len(result) == 3
+    np.testing.assert_allclose(
+        result[GraphState.extended_param_name("a", "v1")],
+        [1.0, 2.0, 3.0],
+    )
+    np.testing.assert_allclose(
+        result[GraphState.extended_param_name("a", "v2")],
+        [3.0, 4.0, 5.0],
+    )
+    np.testing.assert_allclose(
+        result[GraphState.extended_param_name("b", "v1")],
+        [6.0, 7.0, 8.0],
+    )
+
+
+def test_graph_state_to_table():
+    """Test that we can create an AstroPy Table from a GraphState."""
+    state = GraphState(num_samples=3)
+    state.set("a", "v1", [1.0, 2.0, 3.0])
+    state.set("a", "v2", [3.0, 4.0, 5.0])
+    state.set("b", "v1", [6.0, 7.0, 8.0])
+
+    result = state.to_table()
+    assert len(result) == 3
+    np.testing.assert_allclose(
+        result[GraphState.extended_param_name("a", "v1")].data,
+        [1.0, 2.0, 3.0],
+    )
+    np.testing.assert_allclose(
+        result[GraphState.extended_param_name("a", "v2")].data,
+        [3.0, 4.0, 5.0],
+    )
+    np.testing.assert_allclose(
+        result[GraphState.extended_param_name("b", "v1")].data,
+        [6.0, 7.0, 8.0],
+    )
+
+
 def test_graph_state_update_multi():
     """Test that we can update a single sample GraphState."""
     state = GraphState(num_samples=3)
@@ -227,6 +373,87 @@ def test_graph_state_update_multi():
     state4.set("e", "v1", 1.0)
     with pytest.raises(ValueError):
         state.update(state4)
+
+
+def test_graph_to_from_file(tmp_path):
+    """Test that we can create an AstroPy Table from a GraphState."""
+    state = GraphState(num_samples=3)
+    state.set("a", "v1", [1.0, 2.0, 3.0])
+    state.set("a", "v2", [3.0, 4.0, 5.0])
+    state.set("b", "v1", [6.0, 7.0, 8.0])
+
+    file_path = tmp_path / "state.ecsv"
+    assert not file_path.is_file()
+
+    state.save_to_file(file_path)
+    assert file_path.is_file()
+
+    state2 = GraphState.from_file(file_path)
+    assert state == state2
+
+    # Cannot overwrite with it set to False, but works when set to True.
+    with pytest.raises(OSError):
+        state.save_to_file(file_path)
+    state.save_to_file(file_path, overwrite=True)
+
+
+def test_graph_state_extract_parameters():
+    """Test that we can extract named parameters from a GraphState."""
+    state = GraphState()
+    state.set("a", "v0", 0.0)
+    state.set("a", "v1", 1.0)
+    state.set("a", "v2", 2.0)
+    state.set("a", "v3", 3.0)
+    state.set("b", "v1", 4.0)
+    state.set("c", "v2", 5.0)
+    state.set("c", "v3", 6.0)
+    state.set("d", "v4", 7.0)
+    state.set("e", "v3", 8.0)
+    state.set("e", "v5", 9.0)
+    state.set("e", "v6", 10.0)
+    state.set("f", "v6", 11.0)
+
+    # We can extract a mixture of unique parameters based on full and short names.
+    results = state.extract_parameters(["a.v1", "c.v2", "v5"])
+    assert len(results) == 3
+    assert results["a.v1"] == 1.0
+    assert results["c.v2"] == 5.0
+    assert results["v5"] == 9.0
+
+    # If we extract a parameter that appears in multiple nodes with its short
+    # name, we expand the name for each instance.
+    results = state.extract_parameters(["v2", "v3", "v4"])
+    assert len(results) == 6
+    assert results["a.v2"] == 2.0
+    assert results["a.v3"] == 3.0
+    assert results["c.v2"] == 5.0
+    assert results["c.v3"] == 6.0
+    assert results["e.v3"] == 8.0
+    assert results["v4"] == 7.0  # We do not expand the name.
+
+    # We can also provide a single parameter name as a string.
+    results = state.extract_parameters("v2")
+    assert len(results) == 2
+    assert results["a.v2"] == 2.0
+    assert results["c.v2"] == 5.0
+
+    # Test a complicated list.
+    results = state.extract_parameters(["v0", "c.v2", "e.v3", "v5", "v6", "a.v3"])
+    assert len(results) == 7
+    assert results["v0"] == 0.0
+    assert results["c.v2"] == 5.0
+    assert results["e.v3"] == 8.0
+    assert results["v5"] == 9.0
+    assert results["e.v6"] == 10.0
+    assert results["f.v6"] == 11.0
+    assert results["a.v3"] == 3.0
+
+    # We raise a KeyError if we try to lookup a parameter that is not in the GraphState.
+    with pytest.raises(KeyError):
+        _ = state.extract_parameters(["v2", "v3", "c.v4"])
+
+    with pytest.raises(KeyError):
+        _ = state.extract_parameters(["v2", "v100"])
 
 
 def test_transpose_dict_of_list():

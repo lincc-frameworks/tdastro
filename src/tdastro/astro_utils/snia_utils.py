@@ -1,10 +1,89 @@
 import numpy as np
+import scipy.integrate as integrate
 from astropy.cosmology import FlatLambdaCDM
 from scipy.stats import norm
 from scipy.stats.sampling import NumericalInversePolynomial
 
 from tdastro.base_models import FunctionNode
-from tdastro.util_nodes.scipy_random import NumericalInversePolynomialFunc
+from tdastro.math_nodes.scipy_random import NumericalInversePolynomialFunc
+
+
+def snia_volumetric_rates(redshift):
+    """
+    SN Ia volumetric rate based on Frohmaier et al. (2019).
+    r_v(z) = r0 * (1+z)^alpha （SNe Ia yr^-1 Mpc^-3 h_70^3）
+    r0 = 2.27+/-0.19e-5
+    alpha = 1.7+/-0.21
+
+    Parameters
+    ----------
+    redshift: `float` or `numpy.ndarray`
+        The redshift of the supernova
+
+    Returns
+    -------
+    rate_vol: `float` or `numpy.ndarray`
+        The volumetric rate of the supernova given the redshift
+    """
+
+    r0 = 2.27e-5
+    alpha = 1.7
+    rate_vol = r0 * np.power(1.0 + redshift, alpha)
+
+    return rate_vol
+
+
+def num_snia_per_redshift_bin(zmin=0.001, zmax=10, znbins=20, solid_angle=None, H0=73.0, Omega_m=0.3):
+    """
+    Calculate the number of SNe Ia in each redshift bin based on rates.
+
+    r_v(z) = dN/dz
+    V = comoving volume
+    T = length of survey in years
+    N = int r_v(z)dz * dV * dT
+
+    Parameters
+    ----------
+    zmin: `float`
+        Min redshift value for calculation.
+    zmax: `float`
+        Max redshift value for calculation.
+    znbins: `int`
+        Number of redshift bins for calculating SNe Ia numbers.
+    solid_angle: `float`
+        Solid angle for calculating the number of SNe (in sr).
+    H0: `float`
+        The Hubble Constant.
+    Omega_m: `float`
+        The matter density.
+
+    Returns
+    -------
+    num_sn: `numpy.ndarray`
+        Number of SNe Ia in each zbin per year.
+    z_mean: `numpy.ndarray`
+        Mean value for each redshift bin.
+    """
+
+    if solid_angle is None:
+        solid_angle = 4 * np.pi
+
+    cosmo = FlatLambdaCDM(H0=H0, Om0=Omega_m)
+
+    zarr = np.linspace(zmin, zmax, znbins + 1)
+
+    int_arr = np.linspace(zarr[:-1], zarr[1:], 50, axis=1)
+    z_mean = np.mean(int_arr, axis=1)
+
+    dV = (
+        solid_angle * cosmo.differential_comoving_volume(int_arr) * (H0 / 70.0) ** 3
+    )  # * 4pi because differential_comoving_volume is per solid angle
+    r_v = snia_volumetric_rates(int_arr)
+    dn_dz = r_v * dV.value
+
+    num_sn = integrate.trapezoid(dn_dz, int_arr, axis=1)
+
+    return num_sn, z_mean
 
 
 class HostmassX1Distr:
@@ -69,8 +148,8 @@ class HostmassX1Distr:
 
 def _x0_from_distmod(distmod, x1, c, alpha, beta, m_abs):
     """Calculate the SALT3 x0 parameter given distance modulus based on Tripp relation.
-    distmod = -2.5*log10(x0) + alpha * x1 - beta * c - m_abs
-    x0 = 10 ^ (-0.4* (distmod - alpha * x1 + beta * c + m_abs))
+    distmod = -2.5*log10(x0) + alpha * x1 - beta * c - m_abs + 10.635
+    x0 = 10 ^ (-0.4* (distmod - alpha * x1 + beta * c + m_abs - 10.635))
 
     Parameters
     ----------
@@ -92,33 +171,9 @@ def _x0_from_distmod(distmod, x1, c, alpha, beta, m_abs):
     x0 : `float`
         The x0 parameter
     """
-    x0 = np.power(10.0, -0.4 * (distmod - alpha * x1 + beta * c + m_abs))
+    x0 = np.power(10.0, -0.4 * (distmod - alpha * x1 + beta * c + m_abs - 10.635))
 
     return x0
-
-
-def _distmod_from_redshift(redshift, H0=73.0, Omega_m=0.3):
-    """Compute distance modulus given redshift and cosmology.
-
-    Parameters
-    ----------
-    redshift : `float`
-        The redshift value.
-    H0: `float`
-        The Hubble constant.
-    Omega_m: `float`
-        The matter density.
-
-    Returns
-    -------
-    distmod : `float`
-        The distance modulus (in mag)
-    """
-
-    cosmo = FlatLambdaCDM(H0=H0, Om0=Omega_m)
-    distmod = cosmo.distmod(redshift).value
-
-    return distmod
 
 
 class HostmassX1Func(NumericalInversePolynomialFunc):
@@ -156,9 +211,9 @@ class HostmassX1Func(NumericalInversePolynomialFunc):
         graph_state : `GraphState`
             An object mapping graph parameters to their values. This object is modified
             in place as it is sampled.
-        rng_info : `dict`, optional
-            A dictionary of random number generator information for each node, such as
-            the JAX keys or the numpy rngs.
+        rng_info : numpy.random._generator.Generator or None, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
         **kwargs : `dict`, optional
             Additional function arguments.
 
@@ -172,7 +227,9 @@ class HostmassX1Func(NumericalInversePolynomialFunc):
         hostmass = self.get_param(graph_state, "hostmass")
 
         if graph_state.num_samples == 1:
-            results = self._inv_poly_ge_10.rvs(1, rng) if hostmass >= 10 else self._inv_poly_lt_10.rvs(1, rng)
+            results = (
+                self._inv_poly_ge_10.rvs(1, rng)[0] if hostmass >= 10 else self._inv_poly_lt_10.rvs(1, rng)[0]
+            )
         else:
             results = np.zeros(graph_state.num_samples)
 
@@ -239,11 +296,27 @@ class DistModFromRedshift(FunctionNode):
     """
 
     def __init__(self, redshift, H0=73.0, Omega_m=0.3, **kwargs):
+        # Create the cosmology once for this node.
+        self.cosmo = FlatLambdaCDM(H0=H0, Om0=Omega_m)
+
         # Call the super class's constructor with the needed information.
         super().__init__(
-            func=_distmod_from_redshift,
+            func=self._distmod_from_redshift,
             redshift=redshift,
-            H0=H0,
-            Omega_m=Omega_m,
             **kwargs,
         )
+
+    def _distmod_from_redshift(self, redshift):
+        """Compute distance modulus given redshift and cosmology.
+
+        Parameters
+        ----------
+        redshift : `float` or `numpy.ndarray`
+            The redshift value(s).
+
+        Returns
+        -------
+        distmod : `float` or `numpy.ndarray`
+            The distance modulus (in mag)
+        """
+        return self.cosmo.distmod(redshift).value

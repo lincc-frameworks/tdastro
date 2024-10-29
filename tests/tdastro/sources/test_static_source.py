@@ -25,7 +25,7 @@ def test_static_source() -> None:
     assert model.get_param(state, "ra") is None
     assert model.get_param(state, "dec") is None
     assert model.get_param(state, "distance") is None
-    assert str(model) == "0:my_static_source"
+    assert str(model) == "my_static_source"
 
     times = np.array([1, 2, 3, 4, 5, 10])
     wavelengths = np.array([100.0, 200.0, 300.0])
@@ -41,6 +41,17 @@ def test_static_source() -> None:
     assert np.all(values == 5.0)
 
 
+def test_test_physical_model_pytree():
+    """Test tthat the PyTree only contains brightness."""
+    model = StaticSource(brightness=10.0, node_label="my_static_source")
+    state = model.sample_parameters()
+
+    pytree = model.build_pytree(state)
+    assert pytree["my_static_source"]["brightness"] == 10.0
+    assert len(pytree["my_static_source"]) == 1
+    assert len(pytree) == 1
+
+
 def test_static_source_host() -> None:
     """Test that we can sample and create a StaticSource object with properties
     derived from the host object."""
@@ -52,10 +63,10 @@ def test_static_source_host() -> None:
     assert model.get_param(state, "ra") == 1.0
     assert model.get_param(state, "dec") == 2.0
     assert model.get_param(state, "distance") == 3.0
-    assert str(model) == "0:StaticSource"
+    assert str(model) == "StaticSource_0"
 
     # Test that we have given a different name to the host.
-    assert str(host) == "1:StaticSource"
+    assert str(host) == "StaticSource_1"
 
 
 def test_static_source_resample() -> None:

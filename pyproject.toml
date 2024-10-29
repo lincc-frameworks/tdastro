@@ -32,7 +32,7 @@ dependencies = [
 # On a mac, install optional dependencies with `pip install '.[dev]'` (include the single quotes)
 [project.optional-dependencies]
 dev = [
-    "asv==0.6.3", # Used to compute performance benchmarks
+    "asv==0.6.4", # Used to compute performance benchmarks
     "fsspec[http]",  # Read OpSim file from the web with utils/make_opsim_shorten.py
     "jupyter", # Clears output from Jupyter notebooks
     "pre-commit", # Used to run checks before finalizing a git commit
@@ -109,6 +109,7 @@ ignore = [
     "UP028", # Allow yield in for loop
     "E721", # Allow direct type comparison
     "N803", # Allow arguments to start with a capital letter
+    "N806", # Allow variables to use non-lowercase letter
 ]
 
 [tool.coverage.run]

@@ -20,10 +20,10 @@ class StepSource(StaticSource):
 
     def __init__(self, brightness, t0, t1, **kwargs):
         super().__init__(brightness, **kwargs)
-        self.add_parameter("t0", t0, required=True, **kwargs)
-        self.add_parameter("t1", t1, required=True, **kwargs)
+        self.add_parameter("t0", t0, **kwargs)
+        self.add_parameter("t1", t1, **kwargs)
 
-    def _evaluate(self, times, wavelengths, graph_state, **kwargs):
+    def compute_flux(self, times, wavelengths, graph_state, **kwargs):
         """Draw effect-free observations for this object.
 
         Parameters
@@ -31,7 +31,7 @@ class StepSource(StaticSource):
         times : `numpy.ndarray`
             A length T array of rest frame timestamps.
         wavelengths : `numpy.ndarray`, optional
-            A length N array of wavelengths.
+            A length N array of wavelengths (in angstroms).
         graph_state : `GraphState`
             An object mapping graph parameters to their values.
         **kwargs : `dict`, optional
@@ -40,7 +40,7 @@ class StepSource(StaticSource):
         Returns
         -------
         flux_density : `numpy.ndarray`
-            A length T x N matrix of SED values.
+            A length T x N matrix of SED values (in nJy).
         """
         flux_density = np.zeros((len(times), len(wavelengths)))
         params = self.get_local_params(graph_state)

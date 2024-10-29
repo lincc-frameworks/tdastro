@@ -20,7 +20,8 @@ class SplineModel(PhysicalModel):
     _times : `numpy.ndarray`
         A length T array containing the times at which the data was sampled.
     _wavelengths : `numpy.ndarray`
-        A length W array containing the wavelengths at which the data was sampled.
+        A length W array containing the wavelengths at which the data was sampled
+        (in angstroms).
     _spline : `RectBivariateSpline`
         The spline object for predicting the flux from a given (time, wavelength).
     name : `str`
@@ -31,7 +32,8 @@ class SplineModel(PhysicalModel):
     times : `numpy.ndarray`
         A length T array containing the times at which the data was sampled.
     wavelengths : `numpy.ndarray`
-        A length W array containing the wavelengths at which the data was sampled.
+        A length W array containing the wavelengths at which the data was sampled
+        (in angstroms).
     flux : `numpy.ndarray`
         A shape (T, W) matrix with flux values for each pair of time and wavelength.
         Fluxes provided in erg / s / cm^2 / Angstrom.
@@ -69,7 +71,7 @@ class SplineModel(PhysicalModel):
         self._wavelengths = wavelengths
         self._spline = RectBivariateSpline(times, wavelengths, flux, kx=time_degree, ky=wave_degree)
 
-    def _evaluate(self, times, wavelengths, graph_state, **kwargs):
+    def compute_flux(self, times, wavelengths, graph_state, **kwargs):
         """Draw effect-free observations for this object.
 
         Parameters
@@ -77,7 +79,7 @@ class SplineModel(PhysicalModel):
         times : `numpy.ndarray`
             A length T array of rest frame timestamps.
         wavelengths : `numpy.ndarray`, optional
-            A length N array of wavelengths.
+            A length N array of wavelengths (in angstroms).
         graph_state : `GraphState`
             An object mapping graph parameters to their values.
         **kwargs : `dict`, optional
@@ -86,7 +88,7 @@ class SplineModel(PhysicalModel):
         Returns
         -------
         flux_density : `numpy.ndarray`
-            A length T x N matrix of SED values.
+            A length T x N matrix of SED values (in nJy).
         """
         params = self.get_local_params(graph_state)
         return params["amplitude"] * self._spline(times, wavelengths, grid=True)

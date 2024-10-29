@@ -8,7 +8,7 @@ import pandas as pd
 from scipy.spatial import KDTree
 
 from tdastro.astro_utils.mag_flux import mag2flux
-from tdastro.astro_utils.noise_model import poisson_flux_std
+from tdastro.astro_utils.noise_model import poisson_bandflux_std
 from tdastro.astro_utils.zeropoint import (
     _lsstcam_extinction_coeff,
     _lsstcam_zeropoint_per_sec_zenith,
@@ -17,9 +17,12 @@ from tdastro.astro_utils.zeropoint import (
 from tdastro.consts import GAUSS_EFF_AREA2FWHM_SQ
 
 _rubin_opsim_colnames = {
-    "time": "observationStartMJD",
-    "ra": "fieldRA",
+    "airmass": "airmass",
     "dec": "fieldDec",
+    "exptime": "visitExposureTime",
+    "filter": "filter",
+    "ra": "fieldRA",
+    "time": "observationStartMJD",
     "zp": "zp_nJy",  # We add this column to the table
 }
 """Default mapping of short column names to Rubin OpSim column names."""
@@ -77,7 +80,7 @@ class OpSim:  # noqa: D101
 
     Attributes
     ----------
-    table : `dict` or `pandas.core.frame.DataFrame`
+    table : `pandas.core.frame.DataFrame`
         The table with all the OpSim information.
     colmap : `dict`
         A mapping of short column names to their names in the underlying table.
@@ -92,7 +95,7 @@ class OpSim:  # noqa: D101
         The dark current for the LSST camera in electrons per second per pixel.
     """
 
-    _required_names = ["ra", "dec", "time", "zp"]
+    _required_names = ["ra", "dec", "time"]
 
     # Class constants for the column names.
     def __init__(
@@ -127,15 +130,49 @@ class OpSim:  # noqa: D101
         self._kd_tree = None
         self._build_kd_tree()
 
-        if self.colmap["zp"] not in self.table.columns:
-            self._assign_zero_points(col_name=self.colmap["zp"], ext_coeff=ext_coeff, zp_per_sec=zp_per_sec)
+        # If we are not given zero point data, try to derive it from the other columns.
+        if not self.has_columns("zp"):
+            if self.has_columns(["filter", "airmass", "exptime"]):
+                self._assign_zero_points(ext_coeff=ext_coeff, zp_per_sec=zp_per_sec)
+            else:
+                raise ValueError(
+                    "OpSim must include either a zero point column or the columns "
+                    "needed to derive it (filter, airmass, and exposure time)."
+                )
 
     def __len__(self):
         return len(self.table)
 
     def __getitem__(self, key):
         """Access the underlying opsim table."""
+        # Auto apply the colmap if possible.
+        if self.colmap is not None and key in self.colmap:
+            return self.table[self.colmap[key]]
         return self.table[key]
+
+    @property
+    def columns(self):
+        """Get the column names."""
+        return self.table.columns
+
+    def has_columns(self, columns):
+        """Checks whether OpSim has a column or columns while accounting
+        for the colmap.
+
+        Parameters
+        ----------
+        columns : `str` or iterable
+            The column name or column names to check.
+
+        Returns
+        -------
+        `bool`
+            True if and only if all the columns are contained in the table.
+        """
+        if isinstance(columns, str):
+            return self.colmap.get(columns, columns) in self.table.columns
+
+        return all(self.colmap.get(col, col) in self.table.columns for col in columns)
 
     def _build_kd_tree(self):
         """Construct the KD-tree from the opsim table."""
@@ -150,17 +187,29 @@ class OpSim:  # noqa: D101
         # Construct the kd-tree.
         self._kd_tree = KDTree(cart_coords)
 
-    def _assign_zero_points(
-        self, col_name: str, *, ext_coeff: dict[str, float] | None, zp_per_sec: dict[str, float] | None
-    ):
-        """Assign instrumental zero points in nJy to the OpSim tables"""
-        self.table[col_name] = flux_electron_zeropoint(
+    def _assign_zero_points(self, *, ext_coeff: dict[str, float] | None, zp_per_sec: dict[str, float] | None):
+        """Assign instrumental zero points in nJy to the OpSim tables.
+
+        Parameters
+        ----------
+        ext_coeff : dict[str, float], optional
+            Atmospheric extinction coefficient for each bandpass.
+            Keys are the bandpass names, values are the coefficients.
+            If None, the LSST coefficients are used.
+        zp_per_sec : dict[str, float], optional
+             The instrumental zeropoint for each bandpass in AB magnitudes,
+             i.e. the magnitude that produces 1 electron in a 1-second exposure.
+             Keys are the bandpass names, values are the zeropoints.
+             If None, the LSST zeropoints are used.
+        """
+        zp_values = flux_electron_zeropoint(
             ext_coeff=ext_coeff,
             instr_zp_mag=zp_per_sec,
             band=self.table[self.colmap.get("filter", "filter")],
             airmass=self.table[self.colmap.get("airmass", "airmass")],
             exptime=self.table[self.colmap.get("exptime", "visitExposureTime")],
         )
+        self.add_column(self.colmap.get("zp", "zp"), zp_values, overwrite=True)
 
     @classmethod
     def from_db(cls, filename, sql_query="SELECT * FROM observations", colmap=_rubin_opsim_colnames):
@@ -201,6 +250,28 @@ class OpSim:  # noqa: D101
         con.close()
 
         return OpSim(opsim, colmap=colmap)
+
+    def add_column(self, colname, values, overwrite=False):
+        """Add a column to the current opsim table.
+
+        Parameters
+        ----------
+        colname : `str`
+            The name of the new column.
+        values : `int`, `float`, `str`, `list`, or `numpy.ndarray`
+            The value(s) to add.
+        overwrite : `bool`
+            Overwrite the column is it already exists.
+            Default: False
+        """
+        colname = self.colmap.get(colname, colname)
+        if colname in self.table.columns and not overwrite:
+            raise KeyError(f"Column {colname} already exists.")
+
+        # If the input is a scalar, turn it into an array of the correct length
+        if np.isscalar(values):
+            values = np.full((len(self.table)), values)
+        self.table[colname] = values
 
     def write_opsim_table(self, filename, tablename="observations", overwrite=False):
         """Write out an opsim database to a given SQL table.
@@ -295,20 +366,20 @@ class OpSim:  # noqa: D101
             results[col] = self.table[table_col][neighbors].to_numpy()
         return results
 
-    def flux_err_point_source(self, flux, index):
-        """Compute observational flux error for a point source
+    def bandflux_error_point_source(self, bandflux, index):
+        """Compute observational bandflux error for a point source
 
         Parameters
         ----------
-        flux : array_like of float
-            Flux of the point source in nJy.
+        bandflux : array_like of float
+            Band bandflux of the point source in nJy.
         index : array_like of int
             The index of the observation in the OpSim table.
 
         Returns
         -------
         flux_err : array_like of float
-            Simulated flux noise in nJy.
+            Simulated bandflux noise in nJy.
         """
         observations = self.table.iloc[index]
 
@@ -319,8 +390,8 @@ class OpSim:  # noqa: D101
         # table value is in mag/arcsec^2
         sky_njy = mag2flux(observations["skyBrightness"])
 
-        return poisson_flux_std(
-            flux,
+        return poisson_bandflux_std(
+            bandflux,
             pixel_scale=self.pixel_scale,
             total_exposure_time=observations["visitExposureTime"],
             exposure_count=observations["numExposures"],
@@ -330,3 +401,127 @@ class OpSim:  # noqa: D101
             readout_noise=self.read_noise,
             dark_current=self.dark_current,
         )
+
+
+def opsim_add_random_data(opsim_data, colname, min_val=0.0, max_val=1.0):
+    """Add a column composed of random uniform data. Used for testing.
+
+    Parameters
+    ----------
+    opsim_data : OpSim
+        The OpSim data structure to modify.
+    colname : `str`
+        The name of the new column to add.
+    min_val : `float`
+        The minimum value of the uniform range.
+        Default: 0.0
+    max_val : `float`
+        The maximum value of the uniform range.
+        Default: 1.0
+    """
+    values = np.random.uniform(low=min_val, high=max_val, size=len(opsim_data))
+    opsim_data.add_column(colname, values)
+
+
+def oversample_opsim(
+    opsim: OpSim,
+    *,
+    pointing: tuple[float, float] = (200, -50),
+    search_radius: float = 1.75,
+    delta_t: float = 0.01,
+    time_range: tuple[float | None, float | None] = (None, None),
+    bands: list[str] | None = None,
+    strategy: str = "darkest_sky",
+):
+    """Single-pointing oversampled OpSim table.
+
+    It includes observations for a single pointing only,
+    but with very high time resolution. The observations
+    would alternate between the bands.
+
+    Parameters
+    ----------
+    opsim : OpSim
+        The OpSim table to oversample.
+    pointing : tuple of RA and Dec in degrees
+        The pointing to use for the oversampled table.
+    search_radius : float, optional
+        The search radius for the oversampled table in degrees.
+        The default is the half of the LSST's field of view.
+    delta_t : float, optional
+        The time between observations in days.
+    time_range : tuple or floats or Nones, optional
+        The start and end times of the observations in MJD.
+        `None` means to use the minimum (maximum) time in
+        all the observations found for the given pointing.
+        Time is being samples as np.arange(*time_range, delta_t).
+    bands : list of str or None, optional
+        The list of bands to include in the oversampled table.
+        The default is to include all bands found for the given pointing.
+    strategy : str, optional
+        The strategy to select prototype observations.
+        - "darkest_sky" selects the observations with the minimal sky brightness
+          (maximum "skyBrightness" value) in each band. This is the default.
+        - "random" selects the observations randomly. Fixed seed is used.
+
+    """
+    ra, dec = pointing
+    observations = opsim.table.iloc[opsim.range_search(ra, dec, search_radius)]
+    if len(observations) == 0:
+        raise ValueError("No observations found for the given pointing.")
+
+    time_min, time_max = time_range
+    if time_min is None:
+        time_min = np.min(observations["observationStartMJD"])
+    if time_max is None:
+        time_max = np.max(observations["observationStartMJD"])
+    if time_min >= time_max:
+        raise ValueError(f"Invalid time_range: start > end: {time_min} > {time_max}")
+
+    uniq_bands = np.unique(observations["filter"])
+    if bands is None:
+        bands = uniq_bands
+    elif not set(bands).issubset(uniq_bands):
+        raise ValueError(f"Invalid bands: {bands}")
+
+    new_times = np.arange(time_min, time_max, delta_t)
+    n = len(new_times)
+    if n < len(bands):
+        raise ValueError("Not enough time points to cover all bands.")
+
+    new_table = pd.DataFrame(
+        {
+            # Just in case, to not have confusion with the original table
+            "observationId": opsim.table["observationId"].max() + 1 + np.arange(n),
+            "observationStartMJD": new_times,
+            "fieldRA": ra,
+            "fieldDec": dec,
+            "filter": np.tile(bands, n // len(bands)),
+        }
+    )
+    other_columns = [column for column in observations.columns if column not in new_table.columns]
+
+    if strategy == "darkest_sky":
+        for band in bands:
+            # MAXimum magnitude is MINimum brightness (darkest sky)
+            idxmax = observations["skyBrightness"][observations["filter"] == band].idxmax()
+            idx = new_table.index[new_table["filter"] == band]
+            darkest_sky_obs = pd.DataFrame.from_records([observations.loc[idxmax]] * idx.size, index=idx)
+            new_table.loc[idx, other_columns] = darkest_sky_obs[other_columns]
+    elif strategy == "random":
+        rng = np.random.default_rng(0)
+        for band in bands:
+            single_band_obs = observations[observations["filter"] == band]
+            idx = new_table.index[new_table["filter"] == band]
+            random_obs = single_band_obs.sample(idx.size, replace=True, random_state=rng).set_index(idx)
+            new_table.loc[idx, other_columns] = random_obs[other_columns]
+    else:
+        raise ValueError(f"Invalid strategy: {strategy}")
+
+    return OpSim(
+        new_table,
+        colmap=opsim.colmap,
+        pixel_scale=opsim.pixel_scale,
+        read_noise=opsim.read_noise,
+        dark_current=opsim.dark_current,
+    )

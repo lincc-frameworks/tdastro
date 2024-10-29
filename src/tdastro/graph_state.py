@@ -25,6 +25,8 @@ of a host galaxy.
 """
 
 import numpy as np
+from astropy.io import ascii
+from astropy.table import Table
 
 
 class GraphState:
@@ -56,6 +58,17 @@ class GraphState:
     def __len__(self):
         return self.num_parameters
 
+    def __contains__(self, key):
+        if key in self.states:
+            return True
+        elif "." in key:
+            tokens = key.split(".")
+            if len(tokens) != 2:
+                raise KeyError(f"Invalid GraphState key: {key}")
+            return tokens[0] in self.states and tokens[1] in self.states[tokens[0]]
+        else:
+            return False
+
     def __str__(self):
         str_lines = []
         for node_name, node_vars in self.states.items():
@@ -64,9 +77,102 @@ class GraphState:
                 str_lines.append(f"    {var_name}: {value}")
         return "\n".join(str_lines)
 
+    def __eq__(self, other):
+        if self.num_samples != other.num_samples:
+            return False
+        if len(self.states) != len(other.states):
+            return False
+
+        for node_name, node_params in self.states.items():
+            # Check that this node exists in both GraphStates and has the same number
+            # of parameters.
+            if node_name not in other.states:
+                return False
+            other_params = other.states[node_name]
+            if len(node_params) != len(other_params):
+                return False
+
+            # Check that the values of each parameter matches.
+            for var_name, var_value in node_params.items():
+                if var_name not in other_params:
+                    return False
+                if not np.allclose(var_value, other_params[var_name]):
+                    return False
+
+        # Check that the 'fixed' dictionary is the same.
+        if self.fixed_vars != other.fixed_vars:
+            return False
+
+        return True
+
     def __getitem__(self, key):
-        """Access the dictionary of parameter values for a node name."""
-        return self.states[key]
+        """Access the dictionary of parameter values for a node name. Allows
+        access by both the pair of keys and the extended name."""
+        if key in self.states:
+            return self.states[key]
+        elif "." in key:
+            tokens = key.split(".")
+            if len(tokens) != 2:
+                raise KeyError(f"Invalid GraphState key: {key}")
+            return self.states[tokens[0]][tokens[1]]
+        else:
+            raise KeyError(f"Unknown GraphState key: {key}")
+
+    @staticmethod
+    def extended_param_name(node_name, param_name):
+        """A helper function to create the full parameter name.
+
+        Parameters
+        ----------
+        node_name : str
+            The name of the node.
+        param_name : str
+            The name of the parameter.
+
+        Returns
+        -------
+        extended : str
+            A name of the form {node_name}.{param_name}
+        """
+        return f"{node_name}.{param_name}"
+
+    @classmethod
+    def from_table(cls, input_table):
+        """Create the GraphState from an AstroPy Table with columns for each parameter
+        and column names of the form '{node_name}.{param_name}'.
+
+        Parameters
+        ----------
+        input_table : astropy.table.Table
+            The input table.
+        """
+        num_samples = len(input_table)
+        result = GraphState(num_samples=num_samples)
+        for col in input_table.colnames:
+            components = col.split(".")
+            if len(components) != 2:
+                raise ValueError(
+                    f"Invalid name for entry {col}. Entries should be of the form " f"'node_name.param_name'."
+                )
+
+            # If we only have a single value then store that value instead of the np array.
+            if num_samples == 1:
+                result.set(components[0], components[1], input_table[col].data[0])
+            else:
+                result.set(components[0], components[1], input_table[col].data)
+        return result
+
+    @classmethod
+    def from_file(cls, filename):
+        """Create the GraphState from a saved file.
+
+        Parameters
+        ----------
+        filename : str or Path
+            The name of the file.
+        """
+        data_table = ascii.read(filename, format="ecsv")
+        return GraphState.from_table(data_table)
 
     def get_node_state(self, node_name, sample_num=0):
         """Get a dictionary of all parameters local to the given node
@@ -116,6 +222,10 @@ class GraphState:
             Treat this parameter as fixed and do not change it during subsequent calls to set.
             Default: ``False``
         """
+        # Check that the names do not use the separator value.
+        if "." in node_name or "." in var_name:
+            raise ValueError("Names cannot contain the character '.'")
+
         # Update the meta data.
         if node_name not in self.states:
             self.states[node_name] = {}
@@ -210,6 +320,121 @@ class GraphState:
                 else:
                     new_state.states[node_name][var_name] = value[sample_num]
         return new_state
+
+    def extract_parameters(self, params):
+        """Extract the parameter value(s) by a given name. This is often used for
+        recording the important parameters from an entire model (set of nodes).
+
+        Parameters
+        ----------
+        params : str or list-like, optional
+            The parameter names to extract. These can be full names ("node.param") or
+            use the parameter names.
+
+        Returns
+        -------
+        values : dict
+            The resulting dictionary.
+        """
+        # If we are looking up a single parameter, but it into a list.
+        if isinstance(params, str):
+            params = [params]
+
+        # Go through all the parameters. If a parameters full name is provided,
+        # look it up now and save the result. Otherwise put it into a list to check
+        # for in each node.
+        single_params = set()
+        results = {}
+        for current in params:
+            if "." in current:
+                node_name, param_name = current.split(".")
+                if node_name in self.states and param_name in self.states[node_name]:
+                    results[current] = self.states[node_name][param_name]
+                else:
+                    raise KeyError(f"Parameter {current} not found in GraphState.")
+            else:
+                single_params.add(current)
+
+        if len(single_params) == 0:
+            # Nothing else to do.
+            return results
+
+        # Traverse the nested dictionaries looking for cases where the parameter names match.
+        first_seen_node = {}
+        for node_name, node_params in self.states.items():
+            for param_name, param_value in node_params.items():
+                if param_name in single_params:
+                    if param_name in first_seen_node:
+                        # We've already seen this parameter in another node. Time to use the
+                        # expanded names.
+
+                        # Start by expanding the result we have already seen if needed.
+                        if param_name in results:
+                            full_name_existing = f"{first_seen_node[param_name]}.{param_name}"
+                            results[full_name_existing] = results[param_name]
+                            del results[param_name]
+
+                        # Add the result from the current node.
+                        full_name_current = f"{node_name}.{param_name}"
+                        results[full_name_current] = param_value
+                    else:
+                        # This is the first time we have seen the node. Save it with
+                        # just the parameter name. Also save the node where we saw it.
+                        results[param_name] = param_value
+                        first_seen_node[param_name] = node_name
+
+        # Check that we found a match for all the short parameter names.
+        for param_name in single_params:
+            if param_name not in first_seen_node:
+                raise KeyError(f"Parameter {param_name} not found in GraphState.")
+
+        return results
+
+    def to_table(self):
+        """Flatten the graph state to an AstroPy Table with columns for each parameter.
+
+        The column names are: {node_name}{separator}{param_name}
+
+        Returns
+        -------
+        values : astropy.table.Table
+            The resulting Table.
+        """
+        values = Table()
+        for node_name, node_params in self.states.items():
+            for param_name, param_value in node_params.items():
+                values[self.extended_param_name(node_name, param_name)] = np.array(param_value)
+        return values
+
+    def to_dict(self):
+        """Flatten the graph state to a dictionary with columns for each parameter.
+
+        The column names are: {node_name}{separator}{param_name}
+
+        Returns
+        -------
+        values : dict
+            The resulting dictionary.
+        """
+        values = {}
+        for node_name, node_params in self.states.items():
+            for param_name, param_value in node_params.items():
+                values[self.extended_param_name(node_name, param_name)] = list(param_value)
+        return values
+
+    def save_to_file(self, filename, overwrite=False):
+        """Save the GraphState to a file.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the file to save.
+        overwrite : bool
+            Whether to overwrite an existing file.
+            Default: False
+        """
+        data_table = self.to_table()
+        ascii.write(data_table, filename, format="ecsv", overwrite=overwrite)
 
 
 def transpose_dict_of_list(input_dict, num_elem):

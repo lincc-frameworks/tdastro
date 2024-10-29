@@ -1,7 +1,7 @@
 import numpy as np
+from tdastro.math_nodes.np_random import NumpyRandomFunc
 from tdastro.sources.galaxy_models import GaussianGalaxy
 from tdastro.sources.static_source import StaticSource
-from tdastro.util_nodes.np_random import NumpyRandomFunc
 
 
 def test_gaussian_galaxy() -> None:

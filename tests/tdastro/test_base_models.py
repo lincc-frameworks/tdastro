@@ -3,7 +3,8 @@ import random
 import jax
 import numpy as np
 import pytest
-from tdastro.base_models import FunctionNode, ParameterizedNode, ParameterSource, SingleVariableNode
+from tdastro.base_models import FunctionNode, ParameterizedNode, ParameterSource
+from tdastro.math_nodes.single_value_node import SingleVariableNode
 
 
 def _sampler_fun(**kwargs):
@@ -47,12 +48,11 @@ class PairModel(ParameterizedNode):
 
     def __init__(self, value1, value2, **kwargs):
         super().__init__(**kwargs)
-        self.add_parameter("value1", value1, required=True, **kwargs)
-        self.add_parameter("value2", value2, required=True, **kwargs)
+        self.add_parameter("value1", value1, **kwargs)
+        self.add_parameter("value2", value2, **kwargs)
         self.add_parameter(
             "value_sum",
             FunctionNode(_test_func, value1=self.value1, value2=self.value2),
-            required=True,
             **kwargs,
         )
 
@@ -65,16 +65,12 @@ def test_parameter_source():
     assert source.source_type == ParameterSource.UNDEFINED
     assert source.dependency is None
     assert source.value is None
-    assert not source.fixed
-    assert not source.required
 
     source.set_as_constant(10.0)
     assert source.parameter_name == "test"
     assert source.source_type == ParameterSource.CONSTANT
     assert source.dependency is None
     assert source.value == 10.0
-    assert not source.fixed
-    assert not source.required
 
     with pytest.raises(ValueError):
         source.set_as_constant(_test_func)
@@ -84,15 +80,11 @@ def test_parameter_source():
     assert source.source_type == ParameterSource.MODEL_PARAMETER
     assert source.dependency is node
     assert source.value == "A"
-    assert not source.fixed
-    assert not source.required
 
     func = FunctionNode(_test_func, value1=0.1, value2=0.4)
     source.set_as_function(func)
     assert source.source_type == ParameterSource.FUNCTION_NODE
     assert source.dependency is func
-    assert not source.fixed
-    assert not source.required
 
 
 def test_parameterized_node():
@@ -106,6 +98,20 @@ def test_parameterized_node():
     assert model1.get_param(state, "value2") == 0.5
     assert model1.get_param(state, "value_sum") == 1.0
 
+    # We can also access the parameters using their names and the graph state.
+    assert model1.value1(state) == 0.5
+    assert model1.value2(state) == 0.5
+    assert model1.value_sum(state) == 1.0
+
+    # We use the default for un-assigned parameters.
+    assert model1.get_param(state, "value3") is None
+    assert model1.get_param(state, "value4", 1.0) == 1.0
+
+    # If we set a position (and there is no node_label), the position shows up in the name.
+    model1.node_pos = 100
+    model1._update_node_string()
+    assert str(model1) == "PairModel_100"
+
     # Use value1=model.value and value2=1.0
     model2 = PairModel(value1=model1.value1, value2=1.0, node_label="test")
     assert str(model2) == "test"
@@ -114,11 +120,6 @@ def test_parameterized_node():
     assert model2.get_param(state, "value1") == 0.5
     assert model2.get_param(state, "value2") == 1.0
     assert model2.get_param(state, "value_sum") == 1.5
-
-    # If we set an ID it shows up in the name.
-    model2.node_pos = 100
-    model2._update_node_string()
-    assert str(model2) == "100:test"
 
     # Compute value1 from model2's result and value2 from the sampler function.
     # The sampler function is auto-wrapped in a FunctionNode.
@@ -152,47 +153,6 @@ def test_parameterized_node():
     assert model4.get_param(state, "value_sum") != model4.get_param(new_state, "value_sum")
 
 
-def test_parameterized_node_get_dependencies():
-    """Test that we can extract the parameters of a graph of ParameterizedNode."""
-    model1 = PairModel(value1=0.5, value2=1.5, node_label="1")
-    assert len(model1.direct_dependencies) == 1
-
-    model2 = PairModel(value1=model1.value1, value2=3.0, node_label="2")
-    assert len(model2.direct_dependencies) == 2
-    assert model1 in model2.direct_dependencies
-
-    model3 = PairModel(value1=model1.value1, value2=model2.value_sum, node_label="3")
-    assert len(model3.direct_dependencies) == 3
-    assert model1 in model3.direct_dependencies
-    assert model2 in model3.direct_dependencies
-
-
-def test_parameterized_node_get_info():
-    """Test that we can extract the parameters of a graph of ParameterizedNode."""
-    model1 = PairModel(value1=0.5, value2=1.5, node_label="node1")
-    model2 = PairModel(value1=model1.value1, value2=3.0, node_label="node2")
-    model3 = PairModel(value1=model1.value1, value2=model2.value_sum, node_label="node3")
-
-    # We need to finalize the model names to include the node's position in the string.
-    model3.set_graph_positions()
-
-    # Get the node strings.
-    node_strings = model3.get_all_node_info("node_string")
-    assert len(node_strings) == 6
-    assert "0:node3" in node_strings
-    assert "1:node1" in node_strings
-    assert "3:node2" in node_strings
-
-    # Get the node hash values and check they are all unique.
-    node_hashes = model3.get_all_node_info("node_hash")
-    assert len(node_hashes) == len(set(node_hashes))
-
-    # Get the node positions. These should be integers [0, 5]
-    node_pos = model3.get_all_node_info("node_pos")
-    for i in range(6):
-        assert i in node_pos
-
-
 def test_parameterized_node_modify():
     """Test that we can modify the parameters in a node."""
     model = PairModel(value1=0.5, value2=0.5)
@@ -216,26 +176,29 @@ def test_parameterized_node_build_pytree():
     graph_state = model2.sample_parameters()
 
     pytree = model2.build_pytree(graph_state)
-    assert pytree["1:A"]["value1"] == 0.5
-    assert pytree["1:A"]["value2"] == 1.5
-    assert pytree["0:B"]["value2"] == 3.0
+    assert pytree["A"]["value1"] == 0.5
+    assert pytree["A"]["value2"] == 1.5
+    assert pytree["B"]["value2"] == 3.0
 
-    # Manually set value2 to fixed and check that it no longer appears in the pytree.
-    model1.setters["value2"].fixed = True
+    # Manually set value2 to allow_gradient to False and check that it no
+    # longer appears in the pytree.
+    model1.setters["value2"].allow_gradient = False
 
     pytree = model2.build_pytree(graph_state)
-    assert pytree["1:A"]["value1"] == 0.5
-    assert pytree["0:B"]["value2"] == 3.0
-    assert "value2" not in pytree["1:A"]
+    assert pytree["A"]["value1"] == 0.5
+    assert pytree["B"]["value2"] == 3.0
+    assert "value2" not in pytree["A"]
 
+    # If we set node B's value1 to allow the gradient, it will appear and
+    # neither of node A's value will appear (because the gradient stops at
+    # B.value1).
+    model1.setters["value2"].allow_gradient = True
+    model2.setters["value1"].allow_gradient = True
 
-def test_single_variable_node():
-    """Test that we can create and query a SingleVariableNode."""
-    node = SingleVariableNode("A", 10.0)
-    assert str(node) == "SingleVariableNode"
-
-    state = node.sample_parameters()
-    assert node.get_param(state, "A") == 10
+    pytree = model2.build_pytree(graph_state)
+    assert "A" not in pytree
+    assert pytree["B"]["value1"] == 0.5
+    assert pytree["B"]["value2"] == 3.0
 
 
 def test_function_node_basic():
@@ -247,7 +210,7 @@ def test_function_node_basic():
     assert my_func.compute(state, value2=3.0) == 4.0
     assert my_func.compute(state, value2=3.0, unused_param=5.0) == 4.0
     assert my_func.compute(state, value2=3.0, value1=1.0) == 4.0
-    assert str(my_func) == "0:FunctionNode:_test_func"
+    assert str(my_func) == "FunctionNode:_test_func_0"
 
 
 def test_function_node_chain():
@@ -341,11 +304,9 @@ def test_function_node_jax():
     graph_state = sum_node.sample_parameters()
 
     pytree = sum_node.build_pytree(graph_state)
-    print(pytree)
     gr_func = jax.value_and_grad(sum_node.resample_and_compute)
     values, gradients = gr_func(pytree)
-    print(gradients)
     assert values == 9.0
-    assert gradients["0:sum:_test_func"]["value1"] == 1.0
-    assert gradients["1:div:_test_func2"]["value1"] == 2.0
-    assert gradients["1:div:_test_func2"]["value2"] == -16.0
+    assert gradients["sum"]["value1"] == 1.0
+    assert gradients["div"]["value1"] == 2.0
+    assert gradients["div"]["value2"] == -16.0

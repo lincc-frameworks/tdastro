@@ -1,6 +1,10 @@
 import numpy as np
-from tdastro.util_nodes.np_random import NumpyRandomFunc
-from tdastro.util_nodes.scipy_random import NumericalInversePolynomialFunc
+from tdastro.math_nodes.np_random import NumpyRandomFunc
+from tdastro.math_nodes.scipy_random import (
+    NumericalInversePolynomialFunc,
+    SampleLogPDF,
+    SamplePDF,
+)
 
 
 class FlatDist:
@@ -89,6 +93,28 @@ def test_numerical_inverse_polynomial_func_object():
     assert np.abs(np.mean(samples) - 0.5) < 0.01
 
 
+def test_numerical_inverse_polynomial_func_object_seed():
+    """Test that we can generate numbers from a uniform distribution with a given seed."""
+    dist = FlatDist(min_val=0.25, max_val=0.75)
+    scipy_node = NumericalInversePolynomialFunc(dist)
+
+    # Sample without a given seed.
+    state1 = scipy_node.sample_parameters(num_samples=10)
+    values1 = scipy_node.get_param(state1, "function_node_result")
+
+    # Re-sample with a given seed=100.
+    state2 = scipy_node.sample_parameters(num_samples=10, rng_info=np.random.default_rng(seed=100))
+    values2 = scipy_node.get_param(state2, "function_node_result")
+
+    # Re-sample again with a given seed=100.
+    state3 = scipy_node.sample_parameters(num_samples=10, rng_info=np.random.default_rng(seed=100))
+    values3 = scipy_node.get_param(state3, "function_node_result")
+
+    assert np.allclose(values2, values3)
+    assert not np.allclose(values1, values2)
+    assert not np.allclose(values1, values3)
+
+
 def test_numerical_inverse_polynomial_func_class():
     """Test that we can generate numbers from a uniform distribution."""
     scipy_node = NumericalInversePolynomialFunc(
@@ -111,3 +137,59 @@ def test_numerical_inverse_polynomial_func_class():
     # Test that the generated values are consistent with the distributions.
     assert np.all(values >= min_vals)
     assert np.all(values <= max_vals)
+
+
+def test_numerical_sample_pdf():
+    """Test that we can create a SamplePDF node from a function."""
+
+    def _triangle_pdf(x):
+        if x < 0.0:
+            return 0.0
+        if x > 2.0:
+            return 0.0
+        return 1.0 - 0.5 * x
+
+    scipy_node = SamplePDF(_triangle_pdf, seed=100)
+
+    # Test that we get distribution that ramps down as x increases.
+    num_samples = 50_000
+    counts = np.zeros(10)
+    for _ in range(num_samples):
+        value = scipy_node.generate()
+        assert 0.0 <= value <= 2.0
+
+        bin = int(10 * value / 2.0)
+        counts[bin] += 1
+
+    mid_heights = np.array([0.95, 0.85, 0.75, 0.65, 0.55, 0.45, 0.35, 0.25, 0.15, 0.05])
+    expected = mid_heights * 0.2 * num_samples
+    for idx in range(10):
+        assert np.abs(counts[idx] - expected[idx]) < 200.0
+
+
+def test_numerical_sample_logpdf():
+    """Test that we can create a SampleLogPDF node from a function."""
+
+    def _triangle_logpdf(x):
+        if x < 0.0:
+            return -np.inf
+        if x > 2.0:
+            return -np.inf
+        return np.log(1.0 - 0.5 * x)
+
+    scipy_node = SampleLogPDF(_triangle_logpdf, seed=100)
+
+    # Test that we get distribution that ramps down as x increases.
+    num_samples = 50_000
+    counts = np.zeros(10)
+    for _ in range(num_samples):
+        value = scipy_node.generate()
+        assert 0.0 <= value <= 2.0
+
+        bin = int(10 * value / 2.0)
+        counts[bin] += 1
+
+    mid_heights = np.array([0.95, 0.85, 0.75, 0.65, 0.55, 0.45, 0.35, 0.25, 0.15, 0.05])
+    expected = mid_heights * 0.2 * num_samples
+    for idx in range(10):
+        assert np.abs(counts[idx] - expected[idx]) < 200.0
