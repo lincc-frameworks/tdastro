@@ -89,4 +89,4 @@ def test_pzflow_node_from_file(test_flow_filename):
     state = pz_node.sample_parameters(num_samples=100)
     assert len(state["loaded_node"]) == 2
     assert len(state["loaded_node"]["redshift"]) == 100
-    assert len(state["loaded_node"]["hostmass"]) == 100
+    assert len(state["loaded_node"]["brightness"]) == 100
