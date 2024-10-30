@@ -85,8 +85,8 @@ def test_pzflow_node_from_file(test_flow_filename):
     """Test that we can load and query a test flow."""
     pz_node = PZFlowNode.from_file(test_flow_filename, node_label="loaded_node")
 
-    # Sample a bunch of parameters.
+    # Sample the pair of parameters defined by this flow (redshift and hostmass).
     state = pz_node.sample_parameters(num_samples=100)
     assert len(state["loaded_node"]) == 2
-    assert len(state["loaded_node"]["a"]) == 100
-    assert len(state["loaded_node"]["b"]) == 100
+    assert len(state["loaded_node"]["redshift"]) == 100
+    assert len(state["loaded_node"]["hostmass"]) == 100
