@@ -1,8 +1,10 @@
 import numpy as np
+import pandas as pd
 import pytest
+from astropy.table import Table
 from tdastro.base_models import FunctionNode
 from tdastro.graph_state import GraphState
-from tdastro.math_nodes.given_sampler import GivenSampler
+from tdastro.math_nodes.given_sampler import GivenSampler, TableSampler
 
 
 def _test_func(value1, value2):
@@ -72,3 +74,56 @@ def test_test_given_sampler_compound():
         compound_node.get_param(state2, "function_node_result"),
         [3.0, 3.5, 4.0, 4.5, 5.0, 1.0, 5.5, 6.0],
     )
+
+
+@pytest.mark.parametrize("test_data_type", ["dict", "ap_table", "pd_df"])
+def test_table_sampler(test_data_type):
+    """Test that we can retrieve numbers from a TableSampler from a
+    dictionary, AstroPy Table, and Panda's DataFrame."""
+    raw_data_dict = {
+        "A": [1, 2, 3, 4, 5, 6, 7, 8],
+        "B": [1, 1, 1, 1, 1, 1, 1, 1],
+        "C": [3, 4, 5, 6, 7, 8, 9, 10],
+    }
+
+    # Convert the data type depending on the parameterized value.
+    if test_data_type == "dict":
+        data = raw_data_dict
+    elif test_data_type == "ap_table":
+        data = Table(raw_data_dict)
+    elif test_data_type == "pd_df":
+        data = pd.DataFrame(raw_data_dict)
+    else:
+        data = None
+
+    # Create the table sampler from the data.
+    table_node = TableSampler(data, node_label="node")
+    state = table_node.sample_parameters(num_samples=2)
+    assert len(state) == 3
+    assert np.allclose(state["node"]["A"], [1, 2])
+    assert np.allclose(state["node"]["B"], [1, 1])
+    assert np.allclose(state["node"]["C"], [3, 4])
+
+    state = table_node.sample_parameters(num_samples=1)
+    assert len(state) == 3
+    assert state["node"]["A"] == 3
+    assert state["node"]["B"] == 1
+    assert state["node"]["C"] == 5
+
+    state = table_node.sample_parameters(num_samples=4)
+    assert len(state) == 3
+    assert np.allclose(state["node"]["A"], [4, 5, 6, 7])
+    assert np.allclose(state["node"]["B"], [1, 1, 1, 1])
+    assert np.allclose(state["node"]["C"], [6, 7, 8, 9])
+
+    # We go past the end of the data.
+    with pytest.raises(IndexError):
+        _ = table_node.sample_parameters(num_samples=4)
+
+    # We can reset and sample from the beginning.
+    table_node.reset()
+    state = table_node.sample_parameters(num_samples=2)
+    assert len(state) == 3
+    assert np.allclose(state["node"]["A"], [1, 2])
+    assert np.allclose(state["node"]["B"], [1, 1])
+    assert np.allclose(state["node"]["C"], [3, 4])
