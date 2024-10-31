@@ -144,8 +144,8 @@ class PhysicalModel(ParameterizedNode):
             A length T x N matrix of SED values (in nJy).
         """
         # Make sure times and wavelengths are numpy arrays.
-        times = np.array(times)
-        wavelengths = np.array(wavelengths)
+        times = np.asarray(times)
+        wavelengths = np.asarray(wavelengths)
 
         # Check if we need to sample the graph.
         if graph_state is None:

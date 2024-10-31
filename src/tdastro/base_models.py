@@ -472,7 +472,7 @@ class ParameterizedNode:
             An object mapping graph parameters to their values. This object is modified
             in place as it is sampled.
         seen_nodes : `dict`
-            A dictionary mapping nodes seen during this sampling run to their ID.
+            A dictionary mapping nodes strings seen during this sampling run to their object.
             Used to avoid sampling nodes multiple times and to validity check the graph.
         rng_info : numpy.random._generator.Generator, optional
             A given numpy random number generator to use for this computation. If not
@@ -482,9 +482,12 @@ class ParameterizedNode:
         ------
         Raise a ``KeyError`` if the sampling encounters an error with the order of dependencies.
         """
-        if self in seen_nodes:
+        node_str = str(self)
+        if node_str in seen_nodes:
+            if seen_nodes[node_str] != self:
+                raise ValueError(f"Duplicate node label {node_str}.")
             return  # Nothing to do
-        seen_nodes[self] = self.node_pos
+        seen_nodes[node_str] = self
 
         # Run through each parameter and sample it based on the given recipe.
         # As of Python 3.7 dictionaries are guaranteed to preserve insertion ordering,
