@@ -153,6 +153,26 @@ def test_parameterized_node():
     assert model4.get_param(state, "value_sum") != model4.get_param(new_state, "value_sum")
 
 
+def test_parameterized_node_label_collision():
+    """Test that throw an error when two nodes use the same label."""
+    node_a = SingleVariableNode("A", 10.0, node_label="A")
+    node_b = SingleVariableNode("B", 20.0, node_label="B")
+    pair1 = PairModel(value1=node_a.A, value2=node_b.B, node_label="pair1")
+    pair2 = PairModel(value1=pair1.value_sum, value2=node_b.B, node_label="pair2")
+
+    # No collision even though node_b is referenced twice.
+    state = pair2.sample_parameters()
+    assert state["pair1"]["value_sum"] == 30.0
+    assert state["pair2"]["value_sum"] == 50.0
+
+    # We run into a problem if we reuse a label. Label "A" collides multiple
+    # levels above.
+    node_c = SingleVariableNode("C", 5.0, node_label="C")
+    pair3 = PairModel(value1=pair2.value_sum, value2=node_c.C, node_label="A")
+    with pytest.raises(ValueError):
+        _ = pair3.sample_parameters()
+
+
 def test_parameterized_node_modify():
     """Test that we can modify the parameters in a node."""
     model = PairModel(value1=0.5, value2=0.5)
