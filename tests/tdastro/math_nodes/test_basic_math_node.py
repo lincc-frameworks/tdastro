@@ -34,6 +34,35 @@ def test_basic_math_node():
     assert state["test"]["function_node_result"] == pytest.approx(math.pow(5.0, 2.5))
 
 
+def test_basic_math_node_special_cases():
+    """Test that we can handle some of the special cases for a BasicMathNode."""
+    node_a = SingleVariableNode("a", 180.0)
+    node = BasicMathNode("sin(deg2rad(x) + pi / 2.0)", x=node_a.a, node_label="test", backend="math")
+    state = node.sample_parameters()
+    assert state["test"]["function_node_result"] == pytest.approx(-1.0)
+
+
+def test_basic_math_node_fail():
+    """Test that we perform the needed checks for a math node."""
+    # Imports not allowed
+    with pytest.raises(ValueError):
+        _ = BasicMathNode("import os")
+
+    # Ifs not allowed (won't work with JAX)
+    with pytest.raises(ValueError):
+        _ = BasicMathNode("x if 1.0 else 1.0", x=2.0)
+
+    # We only allow functions on the allow list.
+    with pytest.raises(ValueError):
+        _ = BasicMathNode("fake_delete_everything_no_confirm('./')")
+    with pytest.raises(ValueError):
+        _ = BasicMathNode("median(10, 20)")
+
+    # All variables must be defined.
+    with pytest.raises(ValueError):
+        _ = BasicMathNode("x + y", x=1.0)
+
+
 def test_basic_math_node_numpy():
     """Test that we can perform computations via a BasicMathNode."""
     node_a = SingleVariableNode("a", 10.0)
