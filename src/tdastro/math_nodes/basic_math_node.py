@@ -75,7 +75,7 @@ class BasicMathNode(FunctionNode):
         ast.Invert,
     )
 
-    # A map from aa very limited set of supported math constant/function names to
+    # A map from a very limited set of supported math constant/function names to
     # the corresponding names in [math, numpy, jax]. This is needed because
     # a very few functions have different names in different libraries.
     _math_map = {
