@@ -8,7 +8,6 @@ This module is a wrapper for the following libraries:
   * dust_extinction:
         Gordon 2024, JOSS, 9(100), 7023.
         https://github.com/karllark/dust_extinction
-
 """
 
 import importlib
@@ -16,7 +15,6 @@ from pkgutil import iter_modules
 
 import astropy.units as u
 import dust_extinction
-import dustmaps
 from astropy.coordinates import SkyCoord
 from dustmaps.config import config as dm_config
 
@@ -28,63 +26,72 @@ class DustExtinctionEffect:
 
     Attributes
     ----------
-    dust_map : `dustmaps.DustMap` or `str`
-        The dust map or its name.
-    ext_model : `function` or `str`
-        The extinction function to use or its name.
+    dust_map : dustmaps.DustMap or str
+        The dust map or its name. Since different dustmap's query function
+        may produce different outputs, you should include the corresponding
+        ebv_func to transform the result into ebv if needed.
+    extinction_model : function or str
+        The extinction object from the dust_extinction library or its name.
+        If a string is provided, the code will find a matching extinction
+        function in the dust_extinction package and use that.
+    ebv_func : function
+        A function to translate the result of the dustmap query into an ebv.
+    **kwargs : `dict`, optional
+        Any additional keyword arguments.
     """
 
-    def __init__(self, dust_map, ext_model, **kwargs):
+    def __init__(self, dust_map, extinction_model, ebv_func=None, **kwargs):
+        self.ebv_func = ebv_func
+
         if isinstance(dust_map, str):
-            dust_map = DustExtinctionEffect.load_dustmap(dust_map)
-        self.dust_map = dust_map
+            # Initially we only support loading the SFD dustmap by string.
+            # But we can expand this as needed.
+            dust_map = dust_map.lower()
+            if dust_map == "sfd":
+                self._load_sfd_dustmap()
+            else:
+                raise ValueError("Unsupported load from dustmap {dust_map}")
+        else:
+            # If given a dustmap, use that directly.
+            self.dust_map = dust_map
 
-        if isinstance(ext_model, str):
-            ext_model = DustExtinctionEffect.load_extinction_model(ext_model, **kwargs)
-        self.extinction_model = ext_model
+        if isinstance(extinction_model, str):
+            extinction_model = DustExtinctionEffect.load_extinction_model(extinction_model, **kwargs)
+        self.extinction_model = extinction_model
 
-    @staticmethod
-    def load_dustmap(name):
-        """Load a dustmap from files, downloading it if needed.
+    def _load_sfd_dustmap(self):
+        """Load the SFD dustmap, downloading it if needed.
 
-        Parameters
-        ----------
-        name : str
-            The name of the dustmap.
-            Must be one of: bayestar, chen2014, csfd, edenhofer2023, iphas,
-            leike_ensslin_2019, leike2020, lenz2017, marshall, pg2010, planck,
-            or sfd.
+        Uses data from:
+        1.  Schlegel, Finkbeiner, and Davis
+            The Astrophysical Journal, Volume 500, Issue 2, pp. 525-553.
+            https://ui.adsabs.harvard.edu/abs/1998ApJ...500..525S/abstract
+
+        2.  Schlegel and Finkbeiner
+            The Astrophysical Journal, Volume 737, Issue 2, article id. 103, 13 pp. (2011).
+            https://ui.adsabs.harvard.edu/abs/2011ApJ...737..103S/abstract
 
         Returns
         -------
-        dust_map : `dustmaps.DustMap`
-            A "query" object for the requested dustmap.
+        sfd_query : SFDQuery
+            The "query" object for the requested dustmap.
         """
-        # Find the correct submodule within dustmaps and load it.
-        dm_module = None
-        for submodule in iter_modules(dustmaps.__path__):
-            if name == submodule.name:
-                dm_module = importlib.import_module(f"dustmaps.{name}")
-        if dm_module is None:
-            raise KeyError(f"Invalid dustmap '{name}'")
+        import dustmaps.sfd
 
-        # Fetch the data to TDAstro's cache directory.
+        # Download the dustmap if needed.
         dm_config["data_dir"] = str(_TDASTRO_CACHE_DATA_DIR / "dustmaps")
-        dm_module.fetch()
+        dustmaps.sfd.fetch()
 
-        # Get the query object by searching for a class using the {Module}Query
-        # naming convention.
-        target_name = f"{name}query"
-        query_class_name = None
-        for attr in dir(dm_module):
-            if attr.lower() == target_name:
-                query_class_name = attr
-        if query_class_name is None:
-            raise ValueError(f"Unable to find query class within module dustmaps.{name}")
+        # Load the dustmap.
+        from dustmaps.sfd import SFDQuery
 
-        # Get the class, create a query object, and return that object.
-        dm_class = getattr(dm_module, query_class_name)
-        return dm_class()
+        self.dust_map = SFDQuery()
+
+        # Add the correction function.
+        def _sfd_scale_ebv(input, **kwargs):
+            """Scale the result of the SFD query."""
+
+        self.ebv_func = _sfd_scale_ebv
 
     @staticmethod
     def load_extinction_model(name, **kwargs):
@@ -109,33 +116,53 @@ class DustExtinctionEffect:
                 return ext_class(**kwargs)
         raise KeyError(f"Invalid dust extinction model '{name}'")
 
-    def apply(self, flux_density, wavelengths, ra, dec, dist=1.0):
-        """Apply the effect to observations (flux_density values)
+    def apply(self, flux_density, wavelengths, ebv=None, ra=None, dec=None, dist=None, **kwargs):
+        """Apply the effect to observations (flux_density values). The user can either
+        provide a ebv value directly or (RA, dec) and distance information that can
+        be used in the dustmap query.
 
         Parameters
         ----------
-        flux_density : `numpy.ndarray`
+        flux_density : numpy.ndarray
             An array of flux density values (in nJy).
-        wavelengths : `numpy.ndarray`, optional
+        wavelengths : numpy.ndarray, optional
             An array of wavelengths (in angstroms).
-        ra : `float`
+        ebv : float or np.array
+            A given ebv value or array of values. If present then this is used
+            instead of looking it up in the dust map.
+        ra : float, optional
             The object's right ascension (in degrees).
-        dec : `float`
+        dec : float, optional
             The object's declination (in degrees).
-        dist : `float`
-            The object's distance (in ?).
-            Default = 1.0
+        dist : float, optional
+            The object's distance (in parsecs).
+        **kwargs : `dict`, optional
+            Any additional keyword arguments.
 
         Returns
         -------
-        flux_density : `numpy.ndarray`
+        flux_density : numpy.ndarray
             The results (in nJy).
         """
-        # Get the extinction value at the object's location.
-        coord = SkyCoord(ra, dec, dist, frame="icrs", unit="deg")
-        ebv = self.dust_map.query(coord)
+        if ebv is None:
+            if self.dust_map is None:
+                raise ValueError("If ebv=None then a dust map must be provided.")
+            if ra is None or dec is None:
+                raise ValueError("If ebv=None then ra, dec must be provided for a lookup.")
 
-        # Do we need to convert ebv by a factor from this table:
-        # https://iopscience.iop.org/article/10.1088/0004-637X/737/2/103#apj398709t6
+            # Get the extinction value at the object's location.
+            if dist is not None:
+                coord = SkyCoord(ra, dec, dist, frame="icrs", unit="deg")
+            else:
+                coord = SkyCoord(ra, dec, frame="icrs", unit="deg")
+            dustmap_value = self.dust_map.query(coord)
+
+            # Perform any corrections needed for this dust map.
+            if self.ebv_func is not None:
+                ebv = self.ebv_func(dustmap_value, **kwargs)
+            else:
+                ebv = dustmap_value
+
+        print(f"Using ebv={ebv}")
 
         return flux_density * self.extinction_model.extinguish(wavelengths * u.angstrom, Ebv=ebv)
