@@ -125,7 +125,13 @@ class BasicMathNode(FunctionNode):
         # Create a function from the expression. Note the expression has
         # already been sanitized and validated via _prepare().
         def eval_func(**kwargs):
-            return eval(self.expression, globals(), kwargs)
+            try:
+                return eval(self.expression, globals(), kwargs)
+            except Exception as problem:
+                # Provide more detailed logging, including the expression and parameters
+                # used, when we encounter a math error like divide by zero.
+                new_message = f"Error during math operation '{self.expression}' with args={kwargs}"
+                raise type(problem)(new_message) from problem
 
         super().__init__(eval_func, node_label=node_label, **kwargs)
 
