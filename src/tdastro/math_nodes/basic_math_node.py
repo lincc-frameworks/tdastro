@@ -5,7 +5,6 @@ small FunctionNodes to perform basic math.
 """
 
 import ast
-import logging
 
 # Disable unused import because we need all of these imported
 # so they can be used during evaluation of the node.
@@ -15,8 +14,6 @@ import jax.numpy as jnp  # noqa: F401
 import numpy as np  # noqa: F401
 
 from tdastro.base_models import FunctionNode
-
-logger = logging.getLogger(__name__)
 
 
 class BasicMathNode(FunctionNode):
