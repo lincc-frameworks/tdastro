@@ -63,6 +63,22 @@ def test_basic_math_node_fail():
         _ = BasicMathNode("x + y", x=1.0)
 
 
+@pytest.mark.filterwarnings("ignore::RuntimeWarning")
+def test_basic_math_node_error():
+    """Test that we augment the error with information about the expression and parameters."""
+    node = BasicMathNode("y / x", x=0.0, y=1.0)
+    try:
+        node.sample_parameters()
+    except ZeroDivisionError as err:
+        assert str(err) == "Error during math operation 'y / x' with args={'x': 0.0, 'y': 1.0}"
+
+    node = BasicMathNode("sqrt(x)", x=-10.0)
+    try:
+        node.sample_parameters()
+    except ValueError as err:
+        assert str(err) == "Error during math operation 'np.sqrt(x)' with args={'x': -10.0}"
+
+
 def test_basic_math_node_numpy():
     """Test that we can perform computations via a BasicMathNode."""
     node_a = SingleVariableNode("a", 10.0)
