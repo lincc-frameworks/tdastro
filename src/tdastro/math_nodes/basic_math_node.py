@@ -5,6 +5,7 @@ small FunctionNodes to perform basic math.
 """
 
 import ast
+import logging
 
 # Disable unused import because we need all of these imported
 # so they can be used during evaluation of the node.
@@ -14,6 +15,8 @@ import jax.numpy as jnp  # noqa: F401
 import numpy as np  # noqa: F401
 
 from tdastro.base_models import FunctionNode
+
+logger = logging.getLogger(__name__)
 
 
 class BasicMathNode(FunctionNode):
@@ -125,7 +128,16 @@ class BasicMathNode(FunctionNode):
         # Create a function from the expression. Note the expression has
         # already been sanitized and validated via _prepare().
         def eval_func(**kwargs):
-            return eval(self.expression, globals(), kwargs)
+            try:
+                return eval(self.expression, globals(), kwargs)
+            except Exception as problem:
+                # Provide more detailed logging, including the expression and parameters
+                # used, when we encounter a math error like divide by zero.
+                logger.error(
+                    f"{type(problem)} encountered during operation: {self.expression}\n"
+                    f"with arguments={kwargs}"
+                )
+                raise problem
 
         super().__init__(eval_func, node_label=node_label, **kwargs)
 
