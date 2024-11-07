@@ -133,11 +133,8 @@ class BasicMathNode(FunctionNode):
             except Exception as problem:
                 # Provide more detailed logging, including the expression and parameters
                 # used, when we encounter a math error like divide by zero.
-                logger.error(
-                    f"{type(problem)} encountered during operation: {self.expression}\n"
-                    f"with arguments={kwargs}"
-                )
-                raise problem
+                new_message = f"Error during math operation '{self.expression}' with args={kwargs}"
+                raise type(problem)(new_message) from problem
 
         super().__init__(eval_func, node_label=node_label, **kwargs)
 
