@@ -58,6 +58,17 @@ class GraphState:
     def __len__(self):
         return self.num_parameters
 
+    def __next__(self):
+        return next(self._iterate())
+
+    def __iter__(self):
+        return self._iterate()
+
+    def _iterate(self):
+        """Returns a single sliced state."""
+        for idx in range(self.num_samples):
+            yield self.extract_single_sample(idx)
+
     def __contains__(self, key):
         if key in self.states:
             return True
@@ -66,6 +77,11 @@ class GraphState:
             if len(tokens) != 2:
                 raise KeyError(f"Invalid GraphState key: {key}")
             return tokens[0] in self.states and tokens[1] in self.states[tokens[0]]
+        elif len(self.states) == 1:
+            # Special case when we have only a single node stored in the graph state.
+            node_state = list(self.states.values())[0]
+            if key in node_state:
+                return True
         else:
             return False
 
@@ -115,6 +131,12 @@ class GraphState:
             if len(tokens) != 2:
                 raise KeyError(f"Invalid GraphState key: {key}")
             return self.states[tokens[0]][tokens[1]]
+        elif len(self.states) == 1:
+            # Special case when we have only a single node stored
+            # in the graph state.
+            node_state = list(self.states.values())[0]
+            if key in node_state:
+                return node_state[key]
         else:
             raise KeyError(f"Unknown GraphState key: {key}")
 

@@ -40,6 +40,18 @@ def test_create_single_sample_graph_state():
     assert a_vals["v1"] == 1.0
     assert a_vals["v2"] == 2.0
 
+    # If the state only has a single node, we can access that node's variables
+    # directly. But we get an error if we try to do this with multiple nodes.
+    state2 = GraphState()
+    state2.set("a", "v1", 1.0)
+    state2.set("a", "v2", 2.0)
+    assert state2["v1"] == 1.0
+    assert state2["v2"] == 2.0
+
+    state2.set("b", "v3", 3.0)
+    with pytest.raises(KeyError):
+        _ = state["v1"]
+
     # Can't access an out-of-bounds sample_num.
     with pytest.raises(ValueError):
         _ = state.get_node_state("a", 2)
@@ -90,6 +102,14 @@ def test_graph_state_contains():
 
     with pytest.raises(KeyError):
         assert "b.v1.v2" not in state
+
+    # If the state only has a single node, we can access that node's variables directly.
+    state2 = GraphState()
+    state2.set("a", "v1", 1.0)
+    state2.set("a", "v2", 2.0)
+    assert "a" in state2
+    assert "v1" in state2
+    assert "v2" in state2
 
 
 def test_create_multi_sample_graph_state():
@@ -156,6 +176,23 @@ def test_create_multi_sample_graph_state_reference():
     state2["a"]["v2"][2] = 5.0
     assert np.allclose(state2["a"]["v2"], [2.0, 2.5, 5.0, 3.5, 4.0])
     assert np.allclose(state2["b"]["v1"], [2.0, 2.5, 3.0, 3.5, 4.0])
+
+
+def test_graph_state_iterate():
+    """Test that we can use an iterator to transform a GraphState with
+    multiple samples into a list of GraphStates each with a single sample.
+    """
+    state = GraphState(10)
+    state.set("a", "v1", 1.0)
+    state.set("a", "v2", np.arange(10))
+
+    list_version = [x for x in state]
+    assert len(list_version) == 10
+    for i in range(10):
+        sample_state = list_version[i]
+        assert sample_state.num_samples == 1
+        assert sample_state["a.v1"] == 1.0
+        assert sample_state["a.v2"] == i
 
 
 def test_graph_state_equal():
