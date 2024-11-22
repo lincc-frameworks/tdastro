@@ -23,3 +23,7 @@ def test_read_grid_data_bad(grid_data_bad_file):
 
     with pytest.raises(ValueError):
         _, _, _ = read_grid_data(grid_data_bad_file, format="ascii", validate=True)
+
+    # We fail when loading a nonexistent file.
+    with pytest.raises(FileNotFoundError):
+        _, _, _ = read_grid_data("no_such_file_here", format="ascii", validate=True)
