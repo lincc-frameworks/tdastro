@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 from sncosmo.models import SALT2Source
 from tdastro.sources.salt2_jax import SALT2JaxModel
+from tdastro.sources.sncomso_models import SncosmoWrapperModel
 
 
 def test_salt2_model(test_data_dir):
@@ -27,7 +28,9 @@ def test_salt2_model(test_data_dir):
         ]
     )
 
-    flux = model.evaluate(times, waves)
+    # Keep the TDAstro results in f_lambda units to compare with sncosmo.
+    state = model.sample_parameters()
+    flux = model.compute_flux(times, waves, state, use_flam=True)
     assert np.allclose(flux * 1e12, expected_times_1e12)
 
 
@@ -46,8 +49,34 @@ def test_salt2_model_parity(test_data_dir):
     times = np.arange(-1.0, 15.0, 0.01)
     waves = np.arange(3800.0, 4200.0, 0.5)
 
-    flux_td = td_model.evaluate(times, waves)
+    # Keep the TDAstro results in f_lambda units to compare with sncosmo.
+    state = td_model.sample_parameters()
+    flux_td = td_model.compute_flux(times, waves, state, use_flam=True)
     flux_sn = sn_model._flux(times, waves)
+    assert np.allclose(flux_td * 1e12, flux_sn * 1e12)
+
+
+def test_salt2_model_parity_fnu(test_data_dir):
+    """Test loading a SALT2 object from a file and test we get the same
+    results as the sncosmo version.
+    """
+    dir_name = test_data_dir / "truncated-salt2-h17"
+    td_model = SALT2JaxModel(x0=0.4, x1=0.3, c=1.1, model_dir=dir_name)
+
+    # We need to overwrite the source parameter to correspond to
+    # the truncated directory data.
+    sn_model = SncosmoWrapperModel("SALT2", x0=0.4, x1=0.3, c=1.1)
+    sn_model.source = SALT2Source(modeldir=dir_name)
+
+    # Test compared to values computed via sncosmo's implementation that
+    # fall within the range of the truncated grid. We multiple by 1e12
+    # for comparison precision purposes.
+    times = np.arange(-1.0, 15.0, 0.01)
+    waves = np.arange(3800.0, 4200.0, 0.5)
+
+    # Allow TDAstro to return both sets of results in f_nu.
+    flux_td = td_model.evaluate(times, waves)
+    flux_sn = sn_model.evaluate(times, waves)
     assert np.allclose(flux_td * 1e12, flux_sn * 1e12)
 
 

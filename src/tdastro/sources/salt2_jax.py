@@ -1,6 +1,9 @@
 from pathlib import Path
 
+from astropy import units as u
+
 from tdastro.astro_utils.salt2_color_law import SALT2ColorLaw
+from tdastro.astro_utils.unit_utils import flam_to_fnu
 from tdastro.sources.physical_model import PhysicalModel
 from tdastro.utils.bicubic_interp import BicubicInterpolator
 
@@ -58,6 +61,9 @@ class SALT2JaxModel(PhysicalModel):
         Any additional keyword arguments.
     """
 
+    # A class variable for the units so we are not computing them each time.
+    _FLAM_UNIT = u.erg / u.second / u.cm**2 / u.AA
+
     def __init__(
         self,
         x0=None,
@@ -90,7 +96,7 @@ class SALT2JaxModel(PhysicalModel):
         # Use the default color correction values.
         self._colorlaw = SALT2ColorLaw.from_file(model_path / cl_filename)
 
-    def compute_flux(self, phase, wavelengths, graph_state, **kwargs):
+    def compute_flux(self, phase, wavelengths, graph_state, use_flam=False, **kwargs):
         """Draw effect-free observations for this object.
 
         Parameters
@@ -101,13 +107,17 @@ class SALT2JaxModel(PhysicalModel):
             A length N array of wavelengths (in angstroms).
         graph_state : `GraphState`
             An object mapping graph parameters to their values.
+        use_flam : bool
+            Output the results in f_lambda units as opposed to f_nu units.
+            This should only be set to True for specific testing scenarios.
+
         **kwargs : `dict`, optional
            Any additional keyword arguments.
 
         Returns
         -------
         flux_density : `numpy.ndarray`
-            A length T x N matrix of SED values (in nJy).
+            A length T x N matrix of SED values (in nJy by default).
         """
         m0_vals = self._m0_model(phase, wavelengths)
         m1_vals = self._m1_model(phase, wavelengths)
@@ -118,4 +128,15 @@ class SALT2JaxModel(PhysicalModel):
             * (m0_vals + params["x1"] * m1_vals)
             * 10.0 ** (-0.4 * self._colorlaw.apply(wavelengths) * params["c"])
         )
+
+        # Convert to f_nu. Doing this conversion should be the desired behavior
+        # almost all of the time.
+        if not use_flam:
+            flux_density = flam_to_fnu(
+                flux_density,
+                wavelengths,
+                wave_unit=u.AA,
+                flam_unit=self._FLAM_UNIT,
+                fnu_unit=u.nJy,
+            )
         return flux_density
