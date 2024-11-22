@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 
 import numpy as np
 from astropy.table import Table
@@ -38,6 +39,8 @@ def read_grid_data(input_file, format="ascii", validate=False):
     ``ValueError`` if any data validation fails.
     """
     logging.debug(f"Loading file {input_file} (format={format})")
+    if not Path(input_file).is_file():
+        raise FileNotFoundError(f"File {input_file} not found.")
 
     data = Table.read(input_file, format=format, comment=r"\s*#")
     if len(data.colnames) != 3:

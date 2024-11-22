@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 from sncosmo.models import SALT2Source
 from tdastro.sources.salt2_jax import SALT2JaxModel
 
@@ -48,3 +49,10 @@ def test_salt2_model_parity(test_data_dir):
     flux_td = td_model.evaluate(times, waves)
     flux_sn = sn_model._flux(times, waves)
     assert np.allclose(flux_td * 1e12, flux_sn * 1e12)
+
+
+def test_salt2_no_model(test_data_dir):
+    """Test that we fail if using the wrong model directory."""
+    dir_name = test_data_dir / "no_such_salt2_model_dir"
+    with pytest.raises(FileNotFoundError):
+        _ = SALT2JaxModel(x0=0.5, x1=0.2, c=1.0, model_dir=dir_name)
