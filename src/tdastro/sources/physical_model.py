@@ -141,7 +141,8 @@ class PhysicalModel(ParameterizedNode):
         Returns
         -------
         flux_density : `numpy.ndarray`
-            A length T x N matrix of SED values (in nJy).
+            A length S x T x N matrix of SED values (in nJy). Where S is the number of samples.
+            If S=1 then the function returns a T x N matrix.
         """
         # Make sure times and wavelengths are numpy arrays.
         times = np.asarray(times)
@@ -152,36 +153,46 @@ class PhysicalModel(ParameterizedNode):
             graph_state = self.sample_parameters(
                 given_args=given_args, num_samples=1, rng_info=rng_info, **kwargs
             )
-        params = self.get_local_params(graph_state)
 
-        # Pre-effects are adjustments done to times and/or wavelengths, before flux density
-        # computation. We skip if redshift is 0.0 since there is nothing to do.
-        if self.apply_redshift and params["redshift"] != 0.0:
-            if params.get("redshift", None) is None:
-                raise ValueError("The 'redshift' parameter is required for redshifted models.")
-            if params.get("t0", None) is None:
-                raise ValueError("The 't0' parameter is required for redshifted models.")
-            times, wavelengths = obs_to_rest_times_waves(times, wavelengths, params["redshift"], params["t0"])
+        results = np.empty((graph_state.num_samples, len(times), len(wavelengths)))
+        for sample_num, state in enumerate(graph_state):
+            params = self.get_local_params(state)
 
-        # Compute the flux density for both the current object and add in anything
-        # behind it, such as a host galaxy.
-        flux_density = self.compute_flux(times, wavelengths, graph_state, **kwargs)
-        if self.background is not None:
-            flux_density += self.background.compute_flux(
-                times,
-                wavelengths,
-                graph_state,
-                ra=params["ra"],
-                dec=params["dec"],
-                **kwargs,
-            )
+            # Pre-effects are adjustments done to times and/or wavelengths, before flux density
+            # computation. We skip if redshift is 0.0 since there is nothing to do.
+            if self.apply_redshift and params["redshift"] != 0.0:
+                if params.get("redshift", None) is None:
+                    raise ValueError("The 'redshift' parameter is required for redshifted models.")
+                if params.get("t0", None) is None:
+                    raise ValueError("The 't0' parameter is required for redshifted models.")
+                times, wavelengths = obs_to_rest_times_waves(
+                    times, wavelengths, params["redshift"], params["t0"]
+                )
 
-        # Post-effects are adjustments done to the flux density after computation.
-        if self.apply_redshift and params["redshift"] != 0.0:
-            # We have alread checked that redshift is not None.
-            flux_density = rest_to_obs_flux(flux_density, params["redshift"])
+            # Compute the flux density for both the current object and add in anything
+            # behind it, such as a host galaxy.
+            flux_density = self.compute_flux(times, wavelengths, state, **kwargs)
+            if self.background is not None:
+                flux_density += self.background.compute_flux(
+                    times,
+                    wavelengths,
+                    state,
+                    ra=params["ra"],
+                    dec=params["dec"],
+                    **kwargs,
+                )
 
-        return flux_density
+            # Post-effects are adjustments done to the flux density after computation.
+            if self.apply_redshift and params["redshift"] != 0.0:
+                # We have alread checked that redshift is not None.
+                flux_density = rest_to_obs_flux(flux_density, params["redshift"])
+
+            # Save the result.
+            results[sample_num, :, :] = flux_density
+
+        if graph_state.num_samples == 1:
+            return results[0, :, :]
+        return results
 
     def sample_parameters(self, given_args=None, num_samples=1, rng_info=None, **kwargs):
         """Sample the model's underlying parameters if they are provided by a function
