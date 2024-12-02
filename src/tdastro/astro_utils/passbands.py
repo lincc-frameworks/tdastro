@@ -106,7 +106,6 @@ class PassbandGroup:
 
         # Compute the unique points and bounds for the group.
         self._update_waves()
-        self._calculate_in_band_wave_indices()
 
     def __str__(self) -> str:
         """Return a string representation of the PassbandGroup."""
@@ -149,7 +148,14 @@ class PassbandGroup:
 
     def _update_waves(self, threshold=1e-5) -> None:
         """Update the group's wave attribute to be the union of all wavelengths in
-        the passbands.
+        the passbands and update the group's _in_band_wave_indices attribute, which is
+        the indices of the group's wave grid that are in the passband's wave grid.
+
+        Eg, if a group's waves are [11, 12, 13, 14, 15] and a single band's are [13, 14],
+        we get [2, 3].
+
+        The indices are stored in the passband's _in_band_wave_indices attribute as either
+        a tuple of two ints (lower, upper) or a 1D np.ndarray of ints.
 
         Parameters
         ----------
@@ -170,14 +176,9 @@ class PassbandGroup:
             gap_sizes = np.insert(sorted_waves[1:] - sorted_waves[:-1], 0, 1e8)
             self.waves = sorted_waves[gap_sizes >= threshold]
 
-    def _calculate_in_band_wave_indices(self) -> None:
-        """Calculate the indices of the group's wave grid that are in the passband's wave grid.
-
-        Eg, if a group's waves are [11, 12, 13, 14, 15] and a single band's are [13, 14], we get [2, 3].
-
-        The indices are stored in the passband's _in_band_wave_indices attribute as either a tuple of two ints
-        (lower, upper) or a 1D np.ndarray of ints.
-        """
+        # Update the mapping of each passband's wavelengths to the corresponding indices in the
+        # unioned list of all wavelengths.
+        self._in_band_wave_indices = {}
         for name, passband in self.passbands.items():
             # We only want the fluxes that are in the passband's wavelength range
             # So, find the indices in the group's wave grid that are in the passband's wave grid
@@ -210,7 +211,6 @@ class PassbandGroup:
             passband.process_transmission_table(delta_wave, trim_quantile)
 
         self._update_waves()
-        self._calculate_in_band_wave_indices()
 
     def fluxes_to_bandfluxes(self, flux_density_matrix: np.ndarray) -> np.ndarray:
         """Calculate bandfluxes for all passbands in the group.
@@ -241,7 +241,7 @@ class PassbandGroup:
             if indices is None:
                 raise ValueError(
                     f"Passband {full_name} does not have _in_band_wave_indices set. "
-                    "This should have been calculated in PassbandGroup._calculate_in_band_wave_indices."
+                    "This should have been calculated in PassbandGroup._update_waves."
                 )
 
             in_band_fluxes = flux_density_matrix[:, indices]
