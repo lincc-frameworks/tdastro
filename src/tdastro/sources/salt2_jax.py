@@ -1,6 +1,9 @@
 from pathlib import Path
 
+from astropy import units as u
+
 from tdastro.astro_utils.salt2_color_law import SALT2ColorLaw
+from tdastro.astro_utils.unit_utils import flam_to_fnu
 from tdastro.sources.physical_model import PhysicalModel
 from tdastro.utils.bicubic_interp import BicubicInterpolator
 
@@ -58,6 +61,9 @@ class SALT2JaxModel(PhysicalModel):
         Any additional keyword arguments.
     """
 
+    # A class variable for the units so we are not computing them each time.
+    _FLAM_UNIT = u.erg / u.second / u.cm**2 / u.AA
+
     def __init__(
         self,
         x0=None,
@@ -101,6 +107,7 @@ class SALT2JaxModel(PhysicalModel):
             A length N array of wavelengths (in angstroms).
         graph_state : `GraphState`
             An object mapping graph parameters to their values.
+
         **kwargs : `dict`, optional
            Any additional keyword arguments.
 
@@ -117,5 +124,14 @@ class SALT2JaxModel(PhysicalModel):
             params["x0"]
             * (m0_vals + params["x1"] * m1_vals)
             * 10.0 ** (-0.4 * self._colorlaw.apply(wavelengths) * params["c"])
+        )
+
+        # Convert to the correct units.
+        flux_density = flam_to_fnu(
+            flux_density,
+            wavelengths,
+            wave_unit=u.AA,
+            flam_unit=self._FLAM_UNIT,
+            fnu_unit=u.nJy,
         )
         return flux_density
