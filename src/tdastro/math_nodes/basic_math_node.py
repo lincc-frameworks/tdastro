@@ -135,7 +135,7 @@ class BasicMathNode(FunctionNode):
 
         super().__init__(eval_func, node_label=node_label, **kwargs)
 
-    def __call__(self, **kwargs):
+    def eval(self, **kwargs):
         """Evaluate the expression."""
         return eval(self.expression, globals(), kwargs)
 
