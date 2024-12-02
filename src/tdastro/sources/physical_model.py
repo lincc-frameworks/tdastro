@@ -253,17 +253,17 @@ class PhysicalModel(ParameterizedNode):
 
         Returns
         -------
-        band_fluxes : `numpy.ndarray` or `dict
-            A length T array of band fluxes, or a dictionary of band names mapped to fluxes (if a passband
-            group is used).
+        band_fluxes : `numpy.ndarray`
+            A matrix of the band fluxes. If only one sample is provided in the GraphState,
+            then returns a length T array. Otherwise returns a size S x T array where S is the
+            number of samples in the graph state.
         """
         if isinstance(passband_or_group, Passband):
-            if filters is not None and not np.array_equal(
-                filters, np.repeat(passband_or_group.filter_name, len(times))
-            ):
+            if filters is not None and not np.all(filters == passband_or_group.filter_name):
                 raise ValueError(
-                    "If passband_or_group is a Passband, "
-                    "filters must be None or a list of the same filter repeated."
+                    "If passband_or_group is a Passband, filters must either be None "
+                    "or a list where every entry matches the given filter's name: "
+                    f"{passband_or_group.filter_name}."
                 )
             spectral_fluxes = self.evaluate(times, passband_or_group.waves, state)
             return passband_or_group.fluxes_to_bandflux(spectral_fluxes)
@@ -271,10 +271,13 @@ class PhysicalModel(ParameterizedNode):
         if filters is None:
             raise ValueError("If passband_or_group is a PassbandGroup, filters must be provided.")
 
-        band_fluxes = np.empty_like(times)
+        band_fluxes = np.empty((state.num_samples, len(times)))
         for filter_name in np.unique(filters):
             passband = passband_or_group.passbands[filter_name]
             filter_mask = filters == filter_name
             spectral_fluxes = self.evaluate(times[filter_mask], passband.waves, state)
-            band_fluxes[filter_mask] = passband.fluxes_to_bandflux(spectral_fluxes)
+            band_fluxes[:, filter_mask] = passband.fluxes_to_bandflux(spectral_fluxes)
+
+        if state.num_samples == 1:
+            return band_fluxes[0, :]
         return band_fluxes

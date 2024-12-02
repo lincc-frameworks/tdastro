@@ -395,6 +395,36 @@ def test_passband_fluxes_to_bandflux(passbands_dir, tmp_path):
     assert len(in_band_flux) == 5
 
 
+def test_passband_fluxes_to_bandflux_mult_samples(passbands_dir, tmp_path):
+    """Test the fluxes_to_bandflux method of the Passband class with multiple samples."""
+    transmission_table = "100 0.5\n200 0.75\n300 0.25\n"
+    a_band = create_toy_passband(tmp_path, transmission_table, delta_wave=100, trim_quantile=None)
+
+    # Define some mock flux values and calculate our expected bandflux
+    flux = np.array(
+        [
+            [
+                [1.0, 1.0, 1.0],
+                [2.0, 1.0, 1.0],
+                [3.0, 1.0, 1.0],
+                [2.0, 1.0, 1.0],
+                [1.0, 1.0, 1.0],
+            ],
+            [
+                [2.0, 2.0, 2.0],
+                [4.0, 2.0, 2.0],
+                [6.0, 2.0, 2.0],
+                [4.0, 2.0, 2.0],
+                [2.0, 2.0, 2.0],
+            ],
+        ]
+    )
+    expected = np.array([[1.0, 1.375, 1.75, 1.375, 1.0], [2.0, 2.75, 3.5, 2.75, 2.0]])
+
+    result = a_band.fluxes_to_bandflux(flux)
+    np.testing.assert_allclose(result, expected)
+
+
 def test_passband_wrapped_from_physical_source(passbands_dir, tmp_path):
     """Test get_band_fluxes, PhysicalModel's wrapped version of Passband's fluxes_to_bandflux.."""
     # Set up physical model

@@ -89,8 +89,9 @@ def test_physical_model_get_band_fluxes(passbands_dir):
     static_source = StaticSource(brightness=f_nu)
     state = static_source.sample_parameters()
     passbands = PassbandGroup(preset="LSST")
+    n_passbands = len(passbands)
 
-    times = np.arange(len(passbands), dtype=float)
+    times = np.arange(n_passbands, dtype=float)
     filters = np.array(sorted(passbands.passbands.keys()))
 
     # It should fail if no filters are provided.
@@ -101,4 +102,15 @@ def test_physical_model_get_band_fluxes(passbands_dir):
         _band_fluxes = static_source.get_band_fluxes(passbands.passbands["LSST_r"], times, filters, state)
 
     band_fluxes = static_source.get_band_fluxes(passbands, times, filters, state)
+    assert band_fluxes.shape == (n_passbands,)
     np.testing.assert_allclose(band_fluxes, f_nu, rtol=1e-10)
+
+    # If we use multiple samples, we should get a correctly sized array.
+    n_samples = 21
+    brightness_list = [1.5 * i for i in range(n_samples)]
+    static_source2 = StaticSource(brightness=GivenSampler(brightness_list))
+    state2 = static_source2.sample_parameters(num_samples=n_samples)
+    band_fluxes2 = static_source2.get_band_fluxes(passbands, times, filters, state2)
+    assert band_fluxes2.shape == (n_samples, n_passbands)
+    for idx, brightness in enumerate(brightness_list):
+        np.testing.assert_allclose(band_fluxes2[idx, :], brightness, rtol=1e-10)
