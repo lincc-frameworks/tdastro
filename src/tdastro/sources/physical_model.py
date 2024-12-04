@@ -141,7 +141,7 @@ class PhysicalModel(ParameterizedNode):
         Returns
         -------
         flux_density : `numpy.ndarray`
-            A length S x T x N matrix of SED values (in nJy), where S is the number of samples, 
+            A length S x T x N matrix of SED values (in nJy), where S is the number of samples,
             T is the number of time steps, and N is the number of wavelengths.
             If S=1 then the function returns a T x N matrix.
         """
