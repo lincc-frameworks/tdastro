@@ -591,7 +591,7 @@ class Passband:
         Parameters
         ----------
         flux_density_matrix : np.ndarray
-            A 2D or 3D array of flux densities. If the array is 2D is contains a single sample where
+            A 2D or 3D array of flux densities. If the array is 2D it contains a single sample where
             the rows are the T times and columns are M wavelengths. If the array is 3D it contains S
             samples and the values are indexed as (sample_num, time, wavelength).
 
