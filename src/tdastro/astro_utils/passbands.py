@@ -591,16 +591,31 @@ class Passband:
         Parameters
         ----------
         flux_density_matrix : np.ndarray
-            A 2D array of flux densities where rows are times and columns are wavelengths.
+            A 2D or 3D array of flux densities. If the array is 2D it contains a single sample where
+            the rows are the T times and columns are M wavelengths. If the array is 3D it contains S
+            samples and the values are indexed as (sample_num, time, wavelength).
 
         Returns
         -------
-        np.ndarray
-            An array of bandfluxes with length flux_density_matrix, where each element is the bandflux
-            at the corresponding time.
+        bandfluxes : np.ndarray
+            A 1D or 2D array. If the flux_density_matrix contains a single sample (2D input) then
+            the function returns a 1D length T array where each element is the bandflux
+            at the corresponding time. Otherwise the function returns a size S x T array where
+            each entry corresponds to the value for a given sample at a given time.
         """
-        if flux_density_matrix.size == 0 or len(self.waves) != len(flux_density_matrix[0]):
-            flux_density_matrix_num_cols = 0 if flux_density_matrix.size == 0 else len(flux_density_matrix[0])
+        if flux_density_matrix.size == 0:
+            raise ValueError("Empty flux density matrix used.")
+        if len(flux_density_matrix.shape) == 2:
+            w_axis = 1
+            flux_density_matrix_num_cols = flux_density_matrix.shape[1]
+        elif len(flux_density_matrix.shape) == 3:
+            w_axis = 2
+            flux_density_matrix_num_cols = flux_density_matrix.shape[2]
+        else:
+            raise ValueError("Invalid flux density matrix. Must be 2 or 3-dimensional.")
+
+        # Check the number of wavelengths match.
+        if len(self.waves) != flux_density_matrix_num_cols:
             raise ValueError(
                 f"Passband mismatched grids: Flux density matrix has {flux_density_matrix_num_cols} "
                 f"columns, which does not match the {len(self.waves)} rows in band {self.full_name}'s "
@@ -612,6 +627,5 @@ class Passband:
         # Calculate the bandflux as ∫ f(λ)φ_b(λ) dλ,
         # where f(λ) is the flux density and φ_b(λ) is the normalized system response
         integrand = flux_density_matrix * self.processed_transmission_table[:, 1]
-        bandfluxes = scipy.integrate.trapezoid(integrand, x=self.waves)
-
+        bandfluxes = scipy.integrate.trapezoid(integrand, x=self.waves, axis=w_axis)
         return bandfluxes
