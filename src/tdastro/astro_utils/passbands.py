@@ -194,6 +194,20 @@ class PassbandGroup:
                 indices = np.searchsorted(self.waves, passband.waves)
             self._in_band_wave_indices[name] = indices
 
+    def wave_bounds(self):
+        """Get the minimum and maximum wavelength for this group.
+
+        Returns
+        -------
+        min_wave : float
+            The minimum wavelength.
+        max_wave : float
+            The maximum wavelength.
+        """
+        min_wave = np.min(self.waves)
+        max_wave = np.max(self.waves)
+        return min_wave, max_wave
+
     def process_transmission_tables(
         self, delta_wave: Optional[float] = 5.0, trim_quantile: Optional[float] = 1e-3
     ):

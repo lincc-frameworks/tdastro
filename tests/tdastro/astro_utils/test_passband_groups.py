@@ -98,6 +98,11 @@ def test_passband_group_init(tmp_path, passbands_dir):
         np.unique(np.concatenate([np.arange(100, 301, 5), np.arange(250, 351, 5), np.arange(400, 601, 5)])),
     )
 
+    # Test that we can retrieve bounds for this passband group.
+    min_w, max_w = toy_passband_group.wave_bounds()
+    assert min_w == 100.0
+    assert max_w == 600.0
+
     # Test that the PassbandGroup class raises an error for an unknown preset
     try:
         _ = PassbandGroup(preset="Unknown")
