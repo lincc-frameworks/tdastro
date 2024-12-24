@@ -68,12 +68,19 @@ def test_passband_group_init(tmp_path, passbands_dir):
     # Test that the PassbandGroup class can be initialized with a preset
     lsst_passband_group = create_lsst_passband_group(passbands_dir)
     assert len(lsst_passband_group.passbands) == 6
-    assert "LSST_u" in lsst_passband_group.passbands
-    assert "LSST_g" in lsst_passband_group.passbands
-    assert "LSST_r" in lsst_passband_group.passbands
-    assert "LSST_i" in lsst_passband_group.passbands
-    assert "LSST_z" in lsst_passband_group.passbands
-    assert "LSST_y" in lsst_passband_group.passbands
+    assert len(lsst_passband_group) == 6
+    assert "LSST_u" in lsst_passband_group
+    assert "LSST_g" in lsst_passband_group
+    assert "LSST_r" in lsst_passband_group
+    assert "LSST_i" in lsst_passband_group
+    assert "LSST_z" in lsst_passband_group
+    assert "LSST_y" in lsst_passband_group
+    assert "LSST_purple" not in lsst_passband_group
+
+    # We can access passbands using the [] notation.
+    assert lsst_passband_group["LSST_u"].filter_name == "u"
+    with pytest.raises(KeyError):
+        _ = lsst_passband_group["LSST_purple"]
 
     # Test that the PassbandGroup class can be initialized with a dict of passband parameters
     lsst_gri_passband_parameters = [
@@ -82,17 +89,17 @@ def test_passband_group_init(tmp_path, passbands_dir):
         {"survey": "LSST", "filter_name": "i", "table_path": f"{passbands_dir}/LSST/i.dat"},
     ]
     lsst_gri_passband_group = PassbandGroup(passband_parameters=lsst_gri_passband_parameters)
-    assert len(lsst_gri_passband_group.passbands) == 3
-    assert "LSST_g" in lsst_gri_passband_group.passbands
-    assert "LSST_r" in lsst_gri_passband_group.passbands
-    assert "LSST_i" in lsst_gri_passband_group.passbands
+    assert len(lsst_gri_passband_group) == 3
+    assert "LSST_g" in lsst_gri_passband_group
+    assert "LSST_r" in lsst_gri_passband_group
+    assert "LSST_i" in lsst_gri_passband_group
 
     # Test our toy passband group, which makes a PassbandGroup using a custom passband parameters dictionary
     toy_passband_group = create_toy_passband_group(tmp_path)
-    assert len(toy_passband_group.passbands) == 3
-    assert "TOY_a" in toy_passband_group.passbands
-    assert "TOY_b" in toy_passband_group.passbands
-    assert "TOY_c" in toy_passband_group.passbands
+    assert len(toy_passband_group) == 3
+    assert "TOY_a" in toy_passband_group
+    assert "TOY_b" in toy_passband_group
+    assert "TOY_c" in toy_passband_group
     np.testing.assert_allclose(
         toy_passband_group.waves,
         np.unique(np.concatenate([np.arange(100, 301, 5), np.arange(250, 351, 5), np.arange(400, 601, 5)])),
@@ -135,14 +142,55 @@ def test_passband_group_from_list(tmp_path):
         ),
     ]
     test_passband_group = PassbandGroup(given_passbands=pb_list)
-    assert len(test_passband_group.passbands) == 3
-    assert "my_survey_a" in test_passband_group.passbands
-    assert "my_survey_b" in test_passband_group.passbands
-    assert "my_survey_c" in test_passband_group.passbands
+    assert len(test_passband_group) == 3
+    assert "my_survey_a" in test_passband_group
+    assert "my_survey_b" in test_passband_group
+    assert "my_survey_c" in test_passband_group
 
     assert np.allclose(
         test_passband_group.waves,
         np.unique(np.concatenate([np.arange(100, 301, 5), np.arange(250, 351, 5), np.arange(400, 601, 5)])),
+    )
+
+
+def test_passband_subset_passbands(tmp_path):
+    """Test that we can filter unneed passbands from the group."""
+    pb_list = [
+        Passband(
+            "my_survey",
+            "a",
+            table_values=np.array([[100, 0.5], [200, 0.75], [300, 0.25]]),
+            trim_quantile=None,
+        ),
+        Passband(
+            "my_survey",
+            "b",
+            table_values=np.array([[250, 0.25], [300, 0.5], [350, 0.75]]),
+            trim_quantile=None,
+        ),
+        Passband(
+            "my_survey",
+            "c",
+            table_values=np.array([[400, 0.75], [500, 0.25], [600, 0.5]]),
+            trim_quantile=None,
+        ),
+        Passband(
+            "my_survey",
+            "d",
+            table_values=np.array([[800, 0.75], [850, 0.25], [900, 0.5]]),
+            trim_quantile=None,
+        ),
+    ]
+    test_passband_group = PassbandGroup(given_passbands=pb_list)
+    assert len(test_passband_group) == 4
+
+    # Filter keep two of the passbands, one by full name and the other by filter name.
+    test_passband_group.subset(["my_survey_a", "c"])
+    assert len(test_passband_group) == 2
+
+    assert np.allclose(
+        test_passband_group.waves,
+        np.unique(np.concatenate([np.arange(100, 301, 5), np.arange(400, 601, 5)])),
     )
 
 

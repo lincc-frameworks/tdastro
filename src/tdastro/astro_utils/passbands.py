@@ -117,6 +117,36 @@ class PassbandGroup:
     def __len__(self) -> int:
         return len(self.passbands)
 
+    def __getitem__(self, key):
+        """Return the passband corresponding to a full name."""
+        if key in self.passbands:
+            return self.passbands[key]
+        else:
+            raise KeyError(f"Unknown passband {key}")
+
+    def __contains__(self, key):
+        if key in self.passbands:
+            return True
+        return False
+
+    def subset(self, bands_to_keep: list[str]):
+        """Filter the passbands down to a set matching the given list of bands.
+        These can be either filter names or full names.
+
+        Parameters
+        ----------
+        bands_to_keep : list[str]
+            The band names to keep.
+        """
+        all_bands = list(self.passbands.keys())
+        for pb_name in all_bands:
+            pb_obj = self.passbands[pb_name]
+            if pb_name not in bands_to_keep and pb_obj.filter_name not in bands_to_keep:
+                del self.passbands[pb_name]
+
+        # Update the internal data structures.
+        self._update_waves()
+
     def _load_preset(self, preset: str, table_dir: Optional[str], **kwargs) -> None:
         """Load a pre-defined set of passbands.
 
@@ -362,6 +392,25 @@ class Passband:
     def __str__(self) -> str:
         """Return a string representation of the Passband."""
         return f"Passband: {self.full_name}"
+
+    def __eq__(self, other) -> bool:
+        """Determine if two passbands have equal values for the processed tables."""
+        if self.units != other.units:
+            return False
+
+        # Check that they are using the same wavelengths.
+        if len(self.waves) != len(other.waves):
+            return False
+        if not np.allclose(self.waves, other.waves):
+            return False
+
+        # Check that they have the (approximately) same transmission tables.
+        if self.processed_transmission_table.shape != other.processed_transmission_table.shape:
+            return False
+        if not np.allclose(self.processed_transmission_table, other.processed_transmission_table):
+            return False
+
+        return True
 
     def _standardize_units(self):
         """Convert the units into Angstroms."""

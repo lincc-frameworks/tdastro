@@ -41,6 +41,17 @@ def test_passband_str(passbands_dir, tmp_path):
     assert str(a_band) == "Passband: TOY_a"
 
 
+def test_passband_eq(passbands_dir, tmp_path):
+    """Test the __str__ method of the Passband class."""
+    a_band = Passband("LSST", "a", table_values=np.array([[1000, 0.5], [1005, 0.6], [1010, 0.7]]))
+    b_band = Passband("LSST", "b", table_values=np.array([[1000, 0.5], [1005, 0.6], [1010, 0.7]]))
+    c_band = Passband("LSST", "c", table_values=np.array([[1000, 0.5], [1005, 0.7], [1010, 0.7]]))
+    d_band = Passband("LSST", "d", table_values=np.array([[1000, 0.5], [1005, 0.6], [1020, 0.7]]))
+    assert a_band == b_band
+    assert a_band != c_band
+    assert a_band != d_band
+
+
 def test_passband_manual_create(tmp_path):
     """Test that we can create a passband from the transmission table."""
     # Test we get a TypeError if we don't provide a survey and filter_name
