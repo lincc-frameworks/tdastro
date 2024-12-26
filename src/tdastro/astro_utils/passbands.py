@@ -9,6 +9,8 @@ from urllib.error import HTTPError, URLError
 import numpy as np
 import scipy.integrate
 
+import tdastro
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 
@@ -305,10 +307,6 @@ class Passband:
         The name of the passband's filter: eg, "u".
     full_name : str
         The full name of the passband. This is the survey and filter concatenated: eg, "LSST_u".
-    table_path : str
-        The path to the transmission table file.
-    table_url : str
-        The URL to download the transmission table file.
     waves : np.ndarray
         The wavelengths of the transmission table. To be used when evaluating models to generate fluxes
         that will be passed to fluxes_to_bandflux.
@@ -367,19 +365,37 @@ class Passband:
         self.survey = survey
         self.filter_name = filter_name
         self.full_name = f"{survey}_{filter_name}"
-
-        self.table_path = Path(table_path) if table_path is not None else None
-        self.table_url = table_url
         self.units = units
 
         if table_values is not None:
+            # If the data values are given directly, use those.
             if table_values.shape[1] != 2:
                 raise ValueError("Passband requires an input table with exactly two columns.")
             if table_path is not None or table_url is not None:
                 raise ValueError("Multiple inputs given for passband table.")
             self._loaded_table = np.copy(table_values)
         else:
-            self._load_transmission_table(force_download=force_download)
+            # Load the data from a file, possibly downloading it if needed.
+            if table_path is None:
+                # If no path is given, use the default.
+                table_path = Path(
+                    tdastro._TDASTRO_BASE_DATA_DIR,
+                    "passbands",
+                    self.survey,
+                    f"{self.filter_name}.dat",
+                )
+            else:
+                table_path = Path(table_path)
+
+            # If no URL is given, try loading a default.
+            if table_url is None:
+                table_url = _get_passband_url(self.survey, self.filter_name)
+
+            self._loaded_table = Passband.load_transmission_table(
+                table_path,
+                table_url=table_url,
+                force_download=force_download,
+            )
 
         # Check that wavelengths are strictly increasing
         if not np.all(np.diff(self._loaded_table[:, 0]) > 0):
@@ -421,32 +437,43 @@ class Passband:
             raise ValueError(f"Unknown Passband units {self.units}")
         self.units = "A"
 
-    def _load_transmission_table(self, force_download: bool = False) -> None:
-        """Load a transmission table from a file (or download it if it doesn't exist). Table must have 2
-        columns: wavelengths and transmissions; wavelengths must be strictly increasing.
+    @staticmethod
+    def load_transmission_table(
+        table_path: Union[str, Path],
+        table_url: Optional[str] = None,
+        force_download: bool = False,
+    ) -> np.ndarray:
+        """Load a transmission table from a file (or download it if it doesn't exist).
+        Table must have 2 columns: wavelengths and transmissions; wavelengths must be
+        strictly increasing.
+
+        Parameters
+        ----------
+        table_path : str or Path
+            The path to the transmission table file. If no file exists at this location, the
+            file will be downloaded from table_url.
+        table_url : str, optional
+            The URL to download the transmission table file. If None, the table URL will be set to
+            a default URL based on the survey and filter_name. Default is None.
+        force_download : bool, optional
+            If True, the transmission table will be downloaded even if it already exists locally.
+            Default is False.
 
         Returns
         -------
         np.ndarray
             A 2D array of wavelengths and transmissions.
         """
-        # Check if the table file exists locally, and download it if it does not
-        if self.table_path is None:
-            self.table_path = Path(
-                Path(__file__).parent,
-                "passbands",
-                self.survey,
-                f"{self.filter_name}.dat",
-            )
-        self.table_path.parent.mkdir(parents=True, exist_ok=True)
-        if force_download or not self.table_path.exists():
-            self._download_transmission_table()
+        table_path.parent.mkdir(parents=True, exist_ok=True)
+        if force_download or not table_path.exists():
+            Passband.download_transmission_table(table_path, table_url)
 
         # Load the table file
         try:
-            loaded_table = np.loadtxt(self.table_path)
+            loaded_table = np.loadtxt(table_path)
         except OSError as e:
             raise OSError(f"Error reading transmission table from file: {e}") from e
+
         # Check that the table has the correct shape
         if loaded_table.size == 0 or loaded_table.shape[1] != 2:
             raise ValueError("Transmission table must have exactly 2 columns.")
@@ -454,43 +481,51 @@ class Passband:
         if not np.all(np.diff(loaded_table[:, 0]) > 0):
             raise ValueError("Wavelengths in transmission table must be strictly increasing.")
 
-        self._loaded_table = loaded_table
+        return loaded_table
 
-    def _download_transmission_table(self) -> bool:
+    @staticmethod
+    def download_transmission_table(
+        table_path: Union[str, Path],
+        table_url: str,
+    ) -> bool:
         """Download a transmission table from a URL.
+
+        Parameters
+        ----------
+        table_path : str or Path
+            The path to the transmission table file. This is where the downloaded file
+            will be written.
+        table_url : str
+            The URL to download the transmission table file.
 
         Returns
         -------
         bool
             True if the download was successful, False otherwise.
-
-        Raises
-        ------
-        NotImplementedError
-            If no table_url has been set and the survey is not supported for transmission table download.
         """
-        if self.table_url is None:
-            if self.survey == "LSST":
-                self.table_url = f"https://github.com/lsst/throughputs/blob/main/baseline/total_{self.filter_name}.dat?raw=true"
-            else:
-                raise NotImplementedError(
-                    f"Transmission table download is not yet implemented for survey: {self.survey}."
-                )
+        # Check that there is a valid URL for the download.
+        if table_url is None:
+            raise ValueError("No URL given for table download.")
+
+        # Create the directory in which to save the file if it does not already exist.
+        table_path = Path(table_path)
+        table_path.parent.mkdir(parents=True, exist_ok=True)
+
         try:
             socket.setdefaulttimeout(10)
-            logging.info(f"Retrieving {self.table_url}")
-            urllib.request.urlretrieve(self.table_url, self.table_path)
-            if self.table_path.stat().st_size == 0:
-                logging.error(f"Transmission table downloaded for {self.full_name} is empty.")
+            logging.info(f"Retrieving {table_url}")
+            urllib.request.urlretrieve(table_url, table_path)
+            if table_path.stat().st_size == 0:
+                logging.error(f"Transmission table downloaded from {table_url} is empty.")
                 return False
             else:
-                logging.info(f"Downloaded: {self.full_name} transmission table.")
+                logging.info(f"Downloaded transmission table {table_url}.")
                 return True
         except HTTPError as e:
-            logging.error(f"HTTP error occurred when downloading table for {self.full_name}: {e}")
+            logging.error(f"HTTP error occurred when downloading table {table_url}: {e}")
             return False
         except URLError as e:
-            logging.error(f"URL error occurred when downloading table for {self.full_name}: {e}")
+            logging.error(f"URL error occurred when downloading table {table_url}: {e}")
             return False
 
     def process_transmission_table(
@@ -692,3 +727,27 @@ class Passband:
         integrand = flux_density_matrix * self.processed_transmission_table[:, 1]
         bandfluxes = scipy.integrate.trapezoid(integrand, x=self.waves, axis=w_axis)
         return bandfluxes
+
+
+# --- Helper Functions ----------------------------------------------------
+
+
+def _get_passband_url(survey: str, filter: str) -> Union[str, None]:
+    """Get the URL to download passband information.
+
+    Parameters
+    ----------
+    survey : str,
+        The passband's survey.
+    filter : str,
+        The passband's filter.
+
+    Returns
+    -------
+    url : str or None
+        Returns a string with the URL if the survey's data location is known.
+        Otherwise returns None.
+    """
+    if survey == "LSST":
+        return f"https://github.com/lsst/throughputs/blob/main/baseline/total_{filter}.dat?raw=true"
+    return None

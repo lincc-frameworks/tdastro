@@ -149,5 +149,6 @@ _html/
 # Project initialization script
 .initialize_new_project.sh
 
-# Default cached location for passband tables
+# Default cached location for all data
+data/*
 src/tdastro/astro_utils/passbands/*
