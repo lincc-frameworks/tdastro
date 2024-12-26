@@ -4,7 +4,7 @@ import pytest
 from astropy.table import Table
 from tdastro.base_models import FunctionNode
 from tdastro.graph_state import GraphState
-from tdastro.math_nodes.given_sampler import GivenSampler, TableSampler
+from tdastro.math_nodes.given_sampler import GivenValueList, TableSampler
 
 
 def _test_func(value1, value2):
@@ -20,9 +20,9 @@ def _test_func(value1, value2):
     return value1 + value2
 
 
-def test_given_sampler():
-    """Test that we can retrieve numbers from a GivenSampler."""
-    given_node = GivenSampler([1.0, 1.5, 2.0, 2.5, 3.0, -1.0, 3.5])
+def test_given_value_list():
+    """Test that we can retrieve numbers from a GivenValueList."""
+    given_node = GivenValueList([1.0, 1.5, 2.0, 2.5, 3.0, -1.0, 3.5])
 
     # Check that we generate the correct result and save it in the GraphState.
     state1 = GraphState(num_samples=2)
@@ -40,12 +40,12 @@ def test_given_sampler():
     assert np.array_equal(results, [2.5, 3.0])
     assert np.array_equal(given_node.get_param(state3, "function_node_result"), [2.5, 3.0])
 
-    # Check that GivenSampler raises an error when it has run out of samples.
+    # Check that GivenValueList raises an error when it has run out of samples.
     state4 = GraphState(num_samples=4)
     with pytest.raises(IndexError):
         _ = given_node.compute(state4)
 
-    # Resetting the GivenSampler starts back at the beginning.
+    # Resetting the GivenValueList starts back at the beginning.
     given_node.reset()
     state5 = GraphState(num_samples=6)
     results = given_node.compute(state5)
@@ -56,10 +56,10 @@ def test_given_sampler():
     )
 
 
-def test_test_given_sampler_compound():
-    """Test that we can use the GivenSampler as input into another node."""
+def test_test_given_value_list_compound():
+    """Test that we can use the GivenValueList as input into another node."""
     values = [1.0, 1.5, 2.0, 2.5, 3.0, -1.0, 3.5, 4.0, 10.0, -2.0]
-    given_node = GivenSampler(values)
+    given_node = GivenValueList(values)
 
     # Create a function node that takes the next value and adds 2.0.
     compound_node = FunctionNode(_test_func, value1=given_node, value2=2.0)

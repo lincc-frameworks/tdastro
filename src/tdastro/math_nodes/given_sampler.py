@@ -10,8 +10,8 @@ from astropy.table import Table
 from tdastro.base_models import FunctionNode
 
 
-class GivenSampler(FunctionNode):
-    """A FunctionNode that returns given results.
+class GivenValueList(FunctionNode):
+    """A FunctionNode that returns given results for a single parameter.
 
     Attributes
     ----------
