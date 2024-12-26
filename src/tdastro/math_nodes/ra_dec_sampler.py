@@ -33,8 +33,8 @@ class UniformRADEC(NumpyRandomFunc):
             An object mapping graph parameters to their values. This object is modified
             in place as it is sampled.
         rng_info : numpy.random._generator.Generator, optional
-            Unused in this function, but included to provide consistency with other
-            compute functions.
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
         **kwargs : `dict`, optional
             Additional function arguments.
 

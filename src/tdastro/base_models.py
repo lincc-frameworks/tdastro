@@ -777,17 +777,33 @@ class FunctionNode(ParameterizedNode):
         self._save_results(results, graph_state)
         return results
 
-    def resample_and_compute(self, given_args=None, rng_info=None):
-        """A helper function for JAX gradients that runs the sampling then computation.
+    def generate(self, given_args=None, num_samples=1, rng_info=None, **kwargs):
+        """A helper function that regenerates the parameters for this nodes and the
+        ones above it, then returns the the output or this individual node.
+
+        This is used both for testing and for computing JAX gradients.
 
         Parameters
         ----------
         given_args : `dict`, optional
             A dictionary representing the given arguments for this sample run.
             This can be used as the JAX PyTree for differentiation.
+        num_samples : `int`
+            A count of the number of samples to compute.
+            Default: 1
         rng_info : numpy.random._generator.Generator, optional
             A given numpy random number generator to use for this computation. If not
             provided, the function uses the node's random number generator.
+        **kwargs : `dict`, optional
+            Additional function arguments.
         """
-        graph_state = self.sample_parameters(given_args, 1, rng_info)
-        return self.compute(graph_state, rng_info)
+        state = self.sample_parameters(given_args, num_samples, rng_info)
+
+        # Get the result(s) of compute from the state object.
+        if len(self.outputs) == 1:
+            return self.get_param(state, self.outputs[0])
+
+        results = []
+        for output_name in self.outputs:
+            results.append(self.get_param(state, output_name))
+        return results
