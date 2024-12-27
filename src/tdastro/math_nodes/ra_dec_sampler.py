@@ -2,6 +2,7 @@
 
 import numpy as np
 
+from tdastro.math_nodes.given_sampler import TableSampler
 from tdastro.math_nodes.np_random import NumpyRandomFunc
 
 
@@ -63,3 +64,25 @@ class UniformRADEC(NumpyRandomFunc):
         graph_state.set(self.node_string, "ra", ra)
         graph_state.set(self.node_string, "dec", dec)
         return [ra, dec]
+
+
+class OpSimRADECSampler(TableSampler):
+    """A FunctionNode that samples RA and dec (and time) from an OpSim.
+    RA and dec are returned in degrees.
+
+    Parameters
+    ----------
+    data : OpSim
+        The OpSim object to use for sampling.
+    in_order : bool
+        Return the given data in order of the rows (True). If False, performs
+        random sampling with replacement. Default: False
+    """
+
+    def __init__(self, data, in_order=False, **kwargs):
+        data_dict = {
+            "ra": data["ra"],
+            "dec": data["dec"],
+            "time": data["time"],
+        }
+        super().__init__(data_dict, in_order=in_order, **kwargs)

@@ -4,7 +4,7 @@ import pytest
 from astropy.table import Table
 from tdastro.base_models import FunctionNode
 from tdastro.graph_state import GraphState
-from tdastro.math_nodes.given_sampler import GivenValueList, TableSampler
+from tdastro.math_nodes.given_sampler import GivenValueList, GivenValueSampler, TableSampler
 
 
 def _test_func(value1, value2):
@@ -76,6 +76,21 @@ def test_test_given_value_list_compound():
     )
 
 
+def test_given_value_sampler():
+    """Test that we can retrieve numbers from a GivenValueSampler."""
+    given_node = GivenValueSampler([1, 3, 5, 7])
+
+    # Check that we have sampled uniformly from the given options.
+    state = GraphState(num_samples=5_000)
+    results = given_node.compute(state)
+    assert len(results) == 5_000
+    assert np.all((results == 1) | (results == 3) | (results == 5) | (results == 7))
+    assert len(results[results == 1]) > 1000
+    assert len(results[results == 3]) > 1000
+    assert len(results[results == 5]) > 1000
+    assert len(results[results == 7]) > 1000
+
+
 @pytest.mark.parametrize("test_data_type", ["dict", "ap_table", "pd_df"])
 def test_table_sampler(test_data_type):
     """Test that we can retrieve numbers from a TableSampler from a
@@ -97,7 +112,7 @@ def test_table_sampler(test_data_type):
         data = None
 
     # Create the table sampler from the data.
-    table_node = TableSampler(data, node_label="node")
+    table_node = TableSampler(data, in_order=True, node_label="node")
     state = table_node.sample_parameters(num_samples=2)
     assert len(state) == 3
     assert np.allclose(state["node"]["A"], [1, 2])
@@ -127,3 +142,35 @@ def test_table_sampler(test_data_type):
     assert np.allclose(state["node"]["A"], [1, 2])
     assert np.allclose(state["node"]["B"], [1, 1])
     assert np.allclose(state["node"]["C"], [3, 4])
+
+
+def test_table_sampler_ranndomized():
+    """Test that we can retrieve numbers from a TableSampler."""
+    raw_data_dict = {
+        "A": [1, 3, 5],
+        "B": [2, 4, 6],
+    }
+
+    # Create the table sampler from the data.
+    table_node = TableSampler(raw_data_dict, node_label="node")
+    state = table_node.sample_parameters(num_samples=2000)
+    assert len(state) == 2
+
+    # We have sampled the a_vals roughly uniformly from the three options.
+    a_vals = state["node"]["A"]
+    assert len(a_vals) == 2000
+    assert np.all((a_vals == 1) | (a_vals == 3) | (a_vals == 5))
+    assert len(a_vals[a_vals == 1]) > 500
+    assert len(a_vals[a_vals == 3]) > 500
+    assert len(a_vals[a_vals == 5]) > 500
+
+    # We have sampled the b_vals roughly uniformly from the three options.
+    b_vals = state["node"]["B"]
+    assert len(b_vals) == 2000
+    assert np.all((b_vals == 2) | (b_vals == 4) | (b_vals == 6))
+    assert len(b_vals[b_vals == 2]) > 500
+    assert len(b_vals[b_vals == 4]) > 500
+    assert len(b_vals[b_vals == 6]) > 500
+
+    # We always sample consistent ROWS of a and b.
+    assert np.all(b_vals - a_vals == 1)

@@ -1,5 +1,6 @@
 import numpy as np
-from tdastro.math_nodes.ra_dec_sampler import UniformRADEC
+from tdastro.astro_utils.opsim import OpSim
+from tdastro.math_nodes.ra_dec_sampler import OpSimRADECSampler, UniformRADEC
 
 
 def test_uniform_ra_dec():
@@ -55,3 +56,43 @@ def test_uniform_ra_dec():
     assert len(all_dec) == num_samples
     assert np.all(all_dec >= -np.pi)
     assert np.all(all_dec <= np.pi)
+
+
+def test_opsim_ra_dec_sampler():
+    """Test that we can sample from am OpSim object."""
+    values = {
+        "observationStartMJD": np.array([0.0, 1.0, 2.0, 3.0, 4.0]),
+        "fieldRA": np.array([15.0, 30.0, 15.0, 0.0, 60.0]),
+        "fieldDec": np.array([-10.0, -5.0, 0.0, 5.0, 10.0]),
+        "zp_nJy": np.ones(5),
+    }
+    ops_data = OpSim(values)
+    assert len(ops_data) == 5
+
+    sampler_node = OpSimRADECSampler(ops_data, in_order=True)
+
+    # Test we can generate a single value.
+    (ra, dec, time) = sampler_node.generate(num_samples=1)
+    assert ra == 15.0
+    assert dec == -10.0
+    assert time == 0.0
+
+    # Test we can generate multiple observations
+    (ra, dec, time) = sampler_node.generate(num_samples=2)
+    assert np.allclose(ra, [30.0, 15.0])
+    assert np.allclose(dec, [-5.0, 0.0])
+    assert np.allclose(time, [1.0, 2.0])
+
+    # Do randomized sampling.
+    sampler_node2 = OpSimRADECSampler(ops_data, in_order=False, seed=100, node_label="sampler")
+    state = sampler_node2.sample_parameters(num_samples=5000)
+
+    # Check that the samples are uniform and consistent.
+    int_times = state["sampler"]["time"].astype(int)
+    assert np.allclose(state["sampler"]["ra"], values["fieldRA"][int_times])
+    assert np.allclose(state["sampler"]["dec"], values["fieldDec"][int_times])
+    assert len(int_times[int_times == 0]) > 750
+    assert len(int_times[int_times == 1]) > 750
+    assert len(int_times[int_times == 2]) > 750
+    assert len(int_times[int_times == 3]) > 750
+    assert len(int_times[int_times == 4]) > 750
