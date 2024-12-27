@@ -96,3 +96,14 @@ def test_opsim_ra_dec_sampler():
     assert len(int_times[int_times == 2]) > 750
     assert len(int_times[int_times == 3]) > 750
     assert len(int_times[int_times == 4]) > 750
+
+    # Do randomized sampling with offsets.
+    sampler_node3 = OpSimRADECSampler(ops_data, in_order=False, seed=100, radius=0.1, node_label="sampler")
+    state = sampler_node3.sample_parameters(num_samples=5000)
+
+    # Check that the samples are not all the centers (unique values > 5) but are close.
+    int_times = state["sampler"]["time"].astype(int)
+    assert len(np.unique(state["sampler"]["ra"])) > 5
+    assert len(np.unique(state["sampler"]["dec"])) > 5
+    assert np.allclose(state["sampler"]["ra"], values["fieldRA"][int_times], atol=0.2)
+    assert np.allclose(state["sampler"]["dec"], values["fieldDec"][int_times], atol=0.2)
