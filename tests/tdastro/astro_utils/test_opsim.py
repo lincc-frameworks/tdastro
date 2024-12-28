@@ -26,6 +26,11 @@ def test_create_opsim():
     assert len(ops_data) == 5
     assert len(ops_data.columns) == 4
 
+    # Check that we can extract the time bounds.
+    t_min, t_max = ops_data.time_bounds()
+    assert t_min == 0.0
+    assert t_max == 4.0
+
     # We can query which columns the OpSim has.
     assert ops_data.has_columns("fieldRA")
     assert ops_data.has_columns("dec")

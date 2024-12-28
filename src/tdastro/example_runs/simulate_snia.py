@@ -8,10 +8,8 @@ from scipy.interpolate import interp1d
 from tdastro.astro_utils.noise_model import apply_noise
 from tdastro.astro_utils.passbands import PassbandGroup
 from tdastro.astro_utils.snia_utils import (
-    DistModFromRedshift,
-    HostmassX1Func,
-    X0FromDistMod,
     num_snia_per_redshift_bin,
+    snia_x0_x1_from_host,
 )
 from tdastro.astro_utils.unit_utils import flam_to_fnu, fnu_to_flam
 from tdastro.math_nodes.np_random import NumpyRandomFunc
@@ -56,18 +54,15 @@ def construct_snia_source(oversampled_observations, zpdf):
         node_label="host",
     )
 
-    distmod_func = DistModFromRedshift(host.redshift, H0=73.0, Omega_m=0.3)
-    x1_func = HostmassX1Func(host.hostmass)
     c_func = NumpyRandomFunc("normal", loc=0, scale=0.02)
-    m_abs_func = NumpyRandomFunc("normal", loc=-19.3, scale=0.1)
-    x0_func = X0FromDistMod(
-        distmod=distmod_func,
-        x1=x1_func,
-        c=c_func,
+    x0_func, x1_func = snia_x0_x1_from_host(
+        host,
+        H0=73.0,
+        Omega_m=0.3,
         alpha=0.14,
         beta=3.1,
-        m_abs=m_abs_func,
-        node_label="x0_func",
+        c_func=c_func,
+        m_abs_func=NumpyRandomFunc("normal", loc=-19.3, scale=0.1),
     )
 
     sncosmo_modelname = "salt3"

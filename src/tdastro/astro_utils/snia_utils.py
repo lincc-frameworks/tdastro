@@ -5,6 +5,7 @@ from scipy.stats import norm
 from scipy.stats.sampling import NumericalInversePolynomial
 
 from tdastro.base_models import FunctionNode
+from tdastro.math_nodes.np_random import NumpyRandomFunc
 from tdastro.math_nodes.scipy_random import NumericalInversePolynomialFunc
 
 
@@ -320,3 +321,58 @@ class DistModFromRedshift(FunctionNode):
             The distance modulus (in mag)
         """
         return self.cosmo.distmod(redshift).value
+
+
+def snia_x0_x1_from_host(
+    host,
+    H0=73.0,
+    Omega_m=0.3,
+    alpha=0.14,
+    beta=3.1,
+    c_func=None,
+    m_abs_func=None,
+):
+    """Constructs multiple interdependent FunctionNodes to generate
+    the parameters for an SNIA supernova.
+
+    Parameters
+    ----------
+    host : PhysicalModel
+        The PhysicalModel for the host, including information on redshift and hostmass.
+    H0 : constant
+        The Hubble constant. Default: 73.0
+    Omega_m : constant
+        The matter density Omega_m. Default: 0.3
+    alpha : function or constant
+        The alpha parameter in the Tripp relation. Default: 0.14
+    beta : function or constant
+        The beta parameter in the Tripp relation. Default: 3.1
+    c_func : function, constant, or None, optional
+        The function or constant providing the c value. If None then samples
+        from a normal distribution with loc=0, scale=0.02. Default: None
+    m_abs_func : function, constant, or None, optional
+        The function or constant providing the m_abs value. If None then samples
+        from a normal distribution with loc=-19.3, scale=0.1. Default: None
+
+    Returns
+    -------
+    x0_func : X0FromDistMod
+        The FunctionNode for computing the x0 parameter from the host's distmod.
+    x1_func : HostmassX1Func
+        The FunctionNode for computing the x1 parameter from the host's mass.
+    """
+    distmod_func = DistModFromRedshift(host.redshift, H0=H0, Omega_m=Omega_m, node_label="distmod_func")
+    x1_func = HostmassX1Func(host.hostmass, node_label="x1_func")
+    c_func = c_func if c_func is not None else NumpyRandomFunc("normal", loc=0, scale=0.02)
+    m_abs_func = m_abs_func if m_abs_func is not None else NumpyRandomFunc("normal", loc=-19.3, scale=0.1)
+
+    x0_func = X0FromDistMod(
+        distmod=distmod_func,
+        x1=x1_func,
+        c=c_func,
+        alpha=alpha,
+        beta=beta,
+        m_abs=m_abs_func,
+        node_label="x0_func",
+    )
+    return x0_func, x1_func

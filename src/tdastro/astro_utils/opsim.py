@@ -155,6 +155,18 @@ class OpSim:  # noqa: D101
         """Get the column names."""
         return self.table.columns
 
+    def time_bounds(self):
+        """Returns the min and max times for all observations in the OpSim.
+
+        Returns
+        -------
+        t_min, t_max : float, float
+            The min and max times for all observations in the OpSim.
+        """
+        t_min = self.table[self.colmap["time"]].min()
+        t_max = self.table[self.colmap["time"]].max()
+        return t_min, t_max
+
     def has_columns(self, columns):
         """Checks whether OpSim has a column or columns while accounting
         for the colmap.

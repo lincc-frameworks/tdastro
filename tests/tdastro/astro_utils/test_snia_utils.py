@@ -1,8 +1,15 @@
 import numpy as np
 import pytest
 from scipy.stats import norm
-from tdastro.astro_utils.snia_utils import DistModFromRedshift, HostmassX1Distr, HostmassX1Func
+from tdastro.astro_utils.snia_utils import (
+    DistModFromRedshift,
+    HostmassX1Distr,
+    HostmassX1Func,
+    X0FromDistMod,
+    snia_x0_x1_from_host,
+)
 from tdastro.math_nodes.np_random import NumpyRandomFunc
+from tdastro.sources.snia_host import SNIaHost
 
 
 def test_hostmass_x1_distr():
@@ -107,3 +114,50 @@ def test_dist_mod_from_redshift():
         node = DistModFromRedshift(redshift=z, H0=73.0, Omega_m=0.3)
         state = node.sample_parameters(num_samples=1)
         assert node.get_param(state, "function_node_result") == pytest.approx(expected[idx])
+
+
+def test_snia_x0_x1_from_host():
+    """Test that we can assemble the x0 and x1 functions from the host data."""
+    static_host = SNIaHost(
+        ra=0.0,
+        dec=0.0,
+        hostmass=8.0,
+        redshift=0.3,
+        node_label="host",
+    )
+
+    # Manually create x0_func and x1_func.
+    distmod_func = DistModFromRedshift(static_host.redshift, H0=73.0, Omega_m=0.3)
+    x1_func_a = HostmassX1Func(static_host.hostmass, node_label="x1_func")
+    c_func = NumpyRandomFunc("normal", loc=0, scale=0.02)
+    m_abs_func = NumpyRandomFunc("normal", loc=-19.3, scale=0.1)
+    x0_func_a = X0FromDistMod(
+        distmod=distmod_func,
+        x1=x1_func_a,
+        c=c_func,
+        alpha=0.14,
+        beta=3.1,
+        m_abs=m_abs_func,
+        node_label="x0_func",
+    )
+
+    # Sample using a random number generator with a specified seed (for consistency).
+    rng_a = np.random.default_rng(seed=100)
+    state_a = x0_func_a.sample_parameters(rng_info=rng_a)
+
+    # Create the functions with snia_x0_x1_from_host().
+    x0_func_b, _ = snia_x0_x1_from_host(
+        static_host,
+        H0=73.0,
+        Omega_m=0.3,
+        alpha=0.14,
+        beta=3.1,
+    )
+
+    # Sample using a random number generator with the SAME specified seed.
+    rng_b = np.random.default_rng(seed=100)
+    state_b = x0_func_b.sample_parameters(rng_info=rng_b)
+
+    # Test that we get the same results.
+    assert state_a["x1_func"]["function_node_result"] == state_b["x1_func"]["function_node_result"]
+    assert state_a["x0_func"]["function_node_result"] == state_b["x0_func"]["function_node_result"]
