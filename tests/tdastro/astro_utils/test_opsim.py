@@ -7,6 +7,7 @@ import pytest
 from tdastro.astro_utils.mag_flux import mag2flux
 from tdastro.astro_utils.opsim import (
     OpSim,
+    create_random_opsim,
     opsim_add_random_data,
     oversample_opsim,
 )
@@ -251,6 +252,12 @@ def test_opsim_flux_err_point_source(opsim_shorten):
 
     # Tolerance is very high, we should investigate why the values are so different.
     np.testing.assert_allclose(flux_err, expected_flux_err, rtol=0.2)
+
+
+def test_create_random_opsim():
+    """Test that we can create a complete random OpSim."""
+    opsim = create_random_opsim(1000)
+    assert len(opsim) == 1000
 
 
 def test_oversample_opsim(opsim_shorten):

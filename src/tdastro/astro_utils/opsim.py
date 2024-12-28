@@ -403,6 +403,43 @@ class OpSim:  # noqa: D101
         )
 
 
+def create_random_opsim(num_obs, seed=None):
+    """Create a random OpSim pointings drawn uniformly from (RA, dec).
+
+    Parameters
+    ----------
+    num_obs : int
+        The size of the OpSim to generate.
+    seed : int
+        The seed to used for random number generation. If None then
+        uses a default random number generator.
+        Default: None
+
+    Returns
+    -------
+    opsim_data : OpSim
+        The OpSim data structure.
+    seed : int, optional
+        The seed for the random number generator.
+    """
+    if num_obs <= 0:
+        raise ValueError("Number of observations must be greater than zero.")
+
+    rng = np.random.default_rng() if seed is None else np.random.default_rng(seed=seed)
+
+    # Generate the (RA, dec) pairs uniformly on the surface of a sphere.
+    ra = np.degrees(rng.uniform(0.0, 2.0 * np.pi, size=num_obs))
+    dec = np.degrees(np.arccos(2.0 * rng.uniform(0.0, 1.0, size=num_obs) - 1.0) - (np.pi / 2.0))
+
+    input_data = {
+        "observationStartMJD": 0.05 * np.arange(num_obs),
+        "fieldRA": ra,
+        "fieldDec": dec,
+        "zp_nJy": np.ones(num_obs),
+    }
+    return OpSim(input_data)
+
+
 def opsim_add_random_data(opsim_data, colname, min_val=0.0, max_val=1.0):
     """Add a column composed of random uniform data. Used for testing.
 
