@@ -10,12 +10,13 @@ from tdastro.sources.static_source import StaticSource
 def test_physical_model():
     """Test that we can create a PhysicalModel."""
     # Everything is specified.
-    model1 = PhysicalModel(ra=1.0, dec=2.0, redshift=0.0)
+    model1 = PhysicalModel(ra=1.0, dec=2.0, redshift=0.0, t0=1.0)
     state = model1.sample_parameters()
 
     assert model1.get_param(state, "ra") == 1.0
     assert model1.get_param(state, "dec") == 2.0
     assert model1.get_param(state, "redshift") == 0.0
+    assert model1.get_param(state, "t0") == 1.0
     assert model1.apply_redshift
 
     # None of the parameters are in the PyTree.
@@ -26,13 +27,14 @@ def test_physical_model():
     model1.set_apply_redshift(False)
     assert not model1.apply_redshift
 
-    # Derive the distance from the redshift.
+    # Derive the distance from the redshift. t0 is not given.
     model2 = PhysicalModel(ra=1.0, dec=2.0, redshift=1100.0, cosmology=Planck18)
     state = model2.sample_parameters()
     assert model2.get_param(state, "ra") == 1.0
     assert model2.get_param(state, "dec") == 2.0
     assert model2.get_param(state, "redshift") == 1100.0
     assert 13.0 * 1e12 < model2.get_param(state, "distance") < 16.0 * 1e12
+    assert model2.get_param(state, "t0") == 0.0
 
     # Check that the RedshiftDistFunc node has the same computed value.
     # The syntax is a bit ugly because we are checking internal state.

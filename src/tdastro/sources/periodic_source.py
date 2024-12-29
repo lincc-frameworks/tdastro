@@ -17,10 +17,11 @@ class PeriodicSource(PhysicalModel, ABC):
         Any additional keyword arguments.
     """
 
-    def __init__(self, period, t0, **kwargs):
+    def __init__(self, period, **kwargs):
         super().__init__(**kwargs)
+
+        # t0 is added in the PhysicalModel constructor.
         self.add_parameter("period", period, **kwargs)
-        self.add_parameter("t0", t0, **kwargs)
 
     @abstractmethod
     def _evaluate_phases(self, phases, wavelengths, graph_state, **kwargs):

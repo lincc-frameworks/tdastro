@@ -21,8 +21,8 @@ class PeriodicVariableStar(PeriodicSource, ABC):
         The distance to the source, in pc.
     """
 
-    def __init__(self, period, t0, **kwargs):
-        super().__init__(period, t0, **kwargs)
+    def __init__(self, period, **kwargs):
+        super().__init__(period, **kwargs)
         if "distance" not in self.setters:
             raise ValueError("Distance parameter is required for PeriodicVariableStar")
 

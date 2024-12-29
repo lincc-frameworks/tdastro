@@ -45,9 +45,6 @@ class SALT2JaxModel(PhysicalModel):
         The SALT2 x1 parameter.
     c : parameter
         The SALT2 c parameter.
-    t0 : parameter
-        The start time of the supernova in MJD.
-        Default: 0.0
     model_dir : `str`
         The path for the model file directory.
         Default: ""
@@ -85,7 +82,6 @@ class SALT2JaxModel(PhysicalModel):
         self.add_parameter("x0", x0, **kwargs)
         self.add_parameter("x1", x1, **kwargs)
         self.add_parameter("c", c, **kwargs)
-        self.add_parameter("t0", t0, **kwargs)
 
         # Load the data files.
         model_path = Path(model_dir)
@@ -118,15 +114,15 @@ class SALT2JaxModel(PhysicalModel):
         time_mask : numpy.ndarray
             A length T array of Booleans indicating whether the time is of interest.
         """
-        if graph_state is not None:
-            # If we have the graph state, extract the sampled parameters from that.
-            z = self.get_param(graph_state, "redshift", 0.0)
-            z = z if z is not None else 0.0
+        if graph_state is None:
+            raise ValueError("graph_state needed to compute mask_by_time")
 
-            t0 = self.get_param(graph_state, "t0", 0.0)
-            t0 = t0 if t0 is not None else 0.0
-        else:
+        z = self.get_param(graph_state, "redshift", 0.0)
+        if z is None:
             z = 0.0
+
+        t0 = self.get_param(graph_state, "t0", 0.0)
+        if t0 is None:
             t0 = 0.0
 
         # Compute the mask.

@@ -27,9 +27,6 @@ class SncosmoWrapperModel(PhysicalModel):
     ----------
     source_name : `str`
         The name used to set the source.
-    t0 : `float`
-        The start time of the sncosmo model.
-        Default: 0.0
     node_label : `str`, optional
         An identifier (or name) for the current node.
     **kwargs : `dict`, optional
@@ -39,14 +36,10 @@ class SncosmoWrapperModel(PhysicalModel):
     # A class variable for the units so we are not computing them each time.
     _FLAM_UNIT = u.erg / u.second / u.cm**2 / u.AA
 
-    def __init__(self, source_name, t0=0.0, node_label=None, **kwargs):
+    def __init__(self, source_name, node_label=None, **kwargs):
         super().__init__(node_label=node_label, **kwargs)
         self.source_name = source_name
         self.source = get_source(source_name)
-
-        # Set the object's t0 as a parameter for the PhysicalModel, but
-        # not the sncosmo model.
-        self.add_parameter("t0", t0)
 
         # Use the kwargs to initialize the sncosmo model's parameters.
         self.source_param_names = []
@@ -153,24 +146,14 @@ class SncosmoWrapperModel(PhysicalModel):
         time_mask : numpy.ndarray
             A length T array of Booleans indicating whether the time is of interest.
         """
-        if graph_state is not None:
-            # If we have the graph state, extract the sampled parameters from that.
-            z = self.get_param(graph_state, "redshift", 0.0)
-            t0 = self.get_param(graph_state, "t0", 0.0)
-        else:
-            # Look for the redshift value in the sncosmo Source object.
-            if "redshift" in self.source.parameters:
-                z = self.source.get("redshift")
-            elif "z" in self.source.parameters:
-                z = self.source.get("z")
-            else:
-                z = 0.0
-            t0 = 0.0
+        if graph_state is None:
+            raise ValueError("graph_state needed to compute mask_by_time")
 
-        # Check that neither parameter is none, which can happen when extracting from
-        # the graph state (if the parameter is set to None in the constructor).
+        z = self.get_param(graph_state, "redshift", 0.0)
         if z is None:
             z = 0.0
+
+        t0 = self.get_param(graph_state, "t0", 0.0)
         if t0 is None:
             t0 = 0.0
 

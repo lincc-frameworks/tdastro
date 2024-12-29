@@ -18,9 +18,8 @@ class StepSource(StaticSource):
         Any additional keyword arguments.
     """
 
-    def __init__(self, brightness, t0, t1, **kwargs):
+    def __init__(self, brightness, t1, **kwargs):
         super().__init__(brightness, **kwargs)
-        self.add_parameter("t0", t0, **kwargs)
         self.add_parameter("t1", t1, **kwargs)
 
     def compute_flux(self, times, wavelengths, graph_state, **kwargs):
