@@ -114,6 +114,49 @@ def test_opsim_add_columns():
     assert np.all(values <= 5.0)
 
 
+def test_opsim_filter_rows():
+    """Test that the user can filter out OpSim rows."""
+    times = np.arange(0.0, 10.0, 1.0)
+    values = {
+        "observationStartMJD": times,
+        "fieldRA": 15.0 * (times + 1.0),
+        "fieldDec": -1.0 * times,
+        "zp_nJy": np.ones(10),
+        "filter": np.tile(["r", "g"], 5),
+    }
+    ops_data = OpSim(values)
+    assert len(ops_data) == 10
+    assert len(ops_data.columns) == 5
+
+    # We can filter the OpSim to specific rows by index.
+    inds = [0, 1, 2, 3, 4, 5, 7, 8]
+    ops_data.filter_rows(inds)
+    assert len(ops_data) == 8
+    assert len(ops_data.columns) == 5
+
+    expected_times = np.array(inds)
+    assert np.allclose(ops_data["time"], expected_times)
+    assert np.allclose(ops_data["ra"], 15.0 * (expected_times + 1.0))
+    assert np.allclose(ops_data["dec"], -1.0 * expected_times)
+    assert np.array_equal(ops_data["filter"], values["filter"][inds])
+
+    # Check that the size of the internal KD-tree has changed.
+    assert ops_data._kd_tree.n == 8
+
+    # We can filter the OpSim to specific rows by mask.
+    ops_data.filter_rows(ops_data["filter"] == "r")
+    assert len(ops_data) == 4
+
+    expected_times = np.array([0.0, 2.0, 4.0, 8.0])
+    assert np.allclose(ops_data["time"], expected_times)
+    assert np.allclose(ops_data["ra"], 15.0 * (expected_times + 1.0))
+    assert np.allclose(ops_data["dec"], -1.0 * expected_times)
+    assert np.all(ops_data["filter"] == "r")
+
+    # Check that the size of the internal KD-tree has changed (again).
+    assert ops_data._kd_tree.n == 4
+
+
 def test_read_small_opsim(opsim_small):
     """Read in a small OpSim file from the testing data directory."""
     ops_data = OpSim.from_db(opsim_small)

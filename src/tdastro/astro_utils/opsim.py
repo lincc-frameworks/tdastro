@@ -301,6 +301,37 @@ class OpSim:  # noqa: D101
 
         con.close()
 
+    def filter_rows(self, rows):
+        """Filter the rows in the OpSim to only include those indices that are provided
+        in a list of row indices (integers) or marked True in a mask.
+
+        Parameters
+        ----------
+        rows : numpy.ndarray
+            Either a Boolean array of the same length as the table or list of integer
+            row indices to keep.
+        """
+        if len(self.table) == 0 or len(rows) == 0:  # Nothing to filter
+            return
+
+        # Check if we are dealing with a mask of a list of indices.
+        rows = np.asarray(rows)
+        if rows.dtype == bool:
+            if len(rows) != len(self.table):
+                raise ValueError(
+                    f"Mask length mismatch. Expected {len(self.table)} rows, but found {len(rows)}."
+                )
+            mask = rows
+        else:
+            mask = np.full((len(self.table),), False)
+            mask[rows] = True
+
+        # Do the actual filtering.
+        self.table = self.table[mask]
+
+        # Rebuild the KD-Tree with the subset of rows.
+        self._build_kd_tree()
+
     def range_search(self, query_ra, query_dec, radius):
         """Return the indices of the opsim pointings that fall within the field
         of view of the query point(s).
