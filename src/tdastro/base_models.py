@@ -243,6 +243,39 @@ class ParameterizedNode:
             if setter_info.dependency is not None and setter_info.dependency is not self:
                 setter_info.dependency.set_graph_positions(seen_nodes)
 
+    def list_params(self):
+        """Return a list of this node's parameterized values.
+
+        Returns
+        -------
+        names : list[str]
+            The name of all of the parameterized values for this node.
+        """
+        return list(self.setters.keys())
+
+    def has_valid_param(self, name):
+        """Check whether the node has a given parameterized value and that it is not
+        always set to None.
+
+        Parameters
+        ----------
+        name : str
+            The name of the parameter.
+
+        Returns
+        -------
+        contains : bool
+            Whether the node contains a given parameter and it is not always None.
+        """
+        if name not in self.setters:
+            return False
+
+        setter = self.setters[name]
+        if setter.source_type == ParameterSource.CONSTANT and setter.value is None:
+            return False
+
+        return True
+
     def get_param(self, graph_state, name, default=None):
         """Get the value of a parameter stored in this node or a default value.
 
