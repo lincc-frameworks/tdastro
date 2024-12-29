@@ -20,6 +20,8 @@ class StepSource(StaticSource):
 
     def __init__(self, brightness, t1, **kwargs):
         super().__init__(brightness, **kwargs)
+
+        # t0 is added in the PhysicalModel constructor.
         self.add_parameter("t1", t1, **kwargs)
 
     def compute_flux(self, times, wavelengths, graph_state, **kwargs):
