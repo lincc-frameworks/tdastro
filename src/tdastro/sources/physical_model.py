@@ -97,6 +97,25 @@ class PhysicalModel(ParameterizedNode):
         """
         self.apply_redshift = apply_redshift
 
+    def mask_by_time(self, times, graph_state=None):
+        """Compute a mask for whether a given time is of interest for a given object.
+        For example, a user can use this function to generate a mask to include
+        only the observations of interest for a window around the supernova.
+
+        Parameters
+        ----------
+        times : numpy.ndarray
+            A length T array of observer frame timestamps in MJD.
+        graph_state : GraphState, optional
+            An object mapping graph parameters to their values.
+
+        Returns
+        -------
+        time_mask : numpy.ndarray
+            A length T array of Booleans indicating whether the time is of interest.
+        """
+        return np.full(len(times), True)
+
     def compute_flux(self, times, wavelengths, graph_state):
         """Draw effect-free rest frame flux densities.
         The rest-frame flux is defined as F_nu = L_nu / 4*pi*D_L**2,
@@ -105,7 +124,7 @@ class PhysicalModel(ParameterizedNode):
         Parameters
         ----------
         times : `numpy.ndarray`
-            A length T array of rest frame timestamps.
+            A length T array of rest frame timestamps in MJD.
         wavelengths : `numpy.ndarray`, optional
             A length N array of rest frame wavelengths (in angstroms).
         graph_state : `GraphState`
@@ -124,7 +143,7 @@ class PhysicalModel(ParameterizedNode):
         Parameters
         ----------
         times : `numpy.ndarray`
-            A length T array of observer frame timestamps.
+            A length T array of observer frame timestamps in MJD.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths (in angstroms).
         graph_state : `GraphState`, optional
@@ -245,7 +264,7 @@ class PhysicalModel(ParameterizedNode):
         passband_or_group : `Passband` or `PassbandGroup`
             The passband (or passband group) to use.
         times : `numpy.ndarray`
-            A length T array of observer frame timestamps.
+            A length T array of observer frame timestamps in MJD.
         filters : `numpy.ndarray` or None
             A length T array of filter names. It may be None if
             passband_or_group is a Passband.

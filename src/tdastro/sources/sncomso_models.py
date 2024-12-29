@@ -136,6 +136,50 @@ class SncosmoWrapperModel(PhysicalModel):
         super()._sample_helper(graph_state, seen_nodes, rng_info)
         self._update_sncosmo_model_parameters(graph_state)
 
+    def mask_by_time(self, times, graph_state=None):
+        """Compute a mask for whether a given time is of interest for a given object.
+        For example, a user can use this function to generate a mask to include
+        only the observations of interest for a window around the supernova.
+
+        Parameters
+        ----------
+        times : numpy.ndarray
+            A length T array of observer frame timestamps in MJD.
+        graph_state : GraphState, optional
+            An object mapping graph parameters to their values.
+
+        Returns
+        -------
+        time_mask : numpy.ndarray
+            A length T array of Booleans indicating whether the time is of interest.
+        """
+        if graph_state is not None:
+            # If we have the graph state, extract the sampled parameters from that.
+            z = self.get_param(graph_state, "redshift", 0.0)
+            t0 = self.get_param(graph_state, "t0", 0.0)
+        else:
+            # Look for the redshift value in the sncosmo Source object.
+            if "redshift" in self.source.parameters:
+                z = self.source.get("redshift")
+            elif "z" in self.source.parameters:
+                z = self.source.get("z")
+            else:
+                z = 0.0
+            t0 = 0.0
+
+        # Check that neither parameter is none, which can happen when extracting from
+        # the graph state (if the parameter is set to None in the constructor).
+        if z is None:
+            z = 0.0
+        if t0 is None:
+            t0 = 0.0
+
+        # Compute the mask.
+        good_times = (times > t0 + self.source.minphase() * (1.0 + z)) & (
+            times < t0 + self.source.maxphase() * (1.0 + z)
+        )
+        return good_times
+
     def compute_flux(self, times, wavelengths, graph_state=None, **kwargs):
         """Draw effect-free observations for this object.
 

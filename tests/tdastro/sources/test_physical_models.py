@@ -54,6 +54,15 @@ def test_physical_model():
     assert model4.get_param(state, "distance") is None
 
 
+def test_physical_model_mask_by_time():
+    """Test that we can use the default mask_by_time() function."""
+    model = PhysicalModel(ra=1.0, dec=2.0, redshift=0.0)
+    times = np.arange(-10.0, 10.0, 0.5)
+
+    # By default use all times.
+    assert np.all(model.mask_by_time(times))
+
+
 def test_physical_model_evaluate():
     """Test that we can evaluate a PhysicalModel."""
     times = np.array([0.0, 1.0, 2.0, 3.0, 4.0])

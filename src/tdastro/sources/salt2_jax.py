@@ -45,6 +45,9 @@ class SALT2JaxModel(PhysicalModel):
         The SALT2 x1 parameter.
     c : parameter
         The SALT2 c parameter.
+    t0 : parameter
+        The start time of the supernova in MJD.
+        Default: 0.0
     model_dir : `str`
         The path for the model file directory.
         Default: ""
@@ -69,6 +72,7 @@ class SALT2JaxModel(PhysicalModel):
         x0=None,
         x1=None,
         c=None,
+        t0=0.0,
         model_dir="",
         m0_filename="salt2_template_0.dat",
         m1_filename="salt2_template_1.dat",
@@ -81,6 +85,7 @@ class SALT2JaxModel(PhysicalModel):
         self.add_parameter("x0", x0, **kwargs)
         self.add_parameter("x1", x1, **kwargs)
         self.add_parameter("c", c, **kwargs)
+        self.add_parameter("t0", t0, **kwargs)
 
         # Load the data files.
         model_path = Path(model_dir)
@@ -95,6 +100,38 @@ class SALT2JaxModel(PhysicalModel):
 
         # Use the default color correction values.
         self._colorlaw = SALT2ColorLaw.from_file(model_path / cl_filename)
+
+    def mask_by_time(self, times, graph_state=None):
+        """Compute a mask for whether a given time is of interest for a given object.
+        For example, a user can use this function to generate a mask to include
+        only the observations of interest for a window around the supernova.
+
+        Parameters
+        ----------
+        times : numpy.ndarray
+            A length T array of observer frame timestamps in MJD.
+        graph_state : GraphState, optional
+            An object mapping graph parameters to their values.
+
+        Returns
+        -------
+        time_mask : numpy.ndarray
+            A length T array of Booleans indicating whether the time is of interest.
+        """
+        if graph_state is not None:
+            # If we have the graph state, extract the sampled parameters from that.
+            z = self.get_param(graph_state, "redshift", 0.0)
+            z = z if z is not None else 0.0
+
+            t0 = self.get_param(graph_state, "t0", 0.0)
+            t0 = t0 if t0 is not None else 0.0
+        else:
+            z = 0.0
+            t0 = 0.0
+
+        # Compute the mask.
+        good_times = (times > t0 + -20.0 * (1.0 + z)) & (times < t0 + 50.0 * (1.0 + z))
+        return good_times
 
     def compute_flux(self, phase, wavelengths, graph_state, **kwargs):
         """Draw effect-free observations for this object.
