@@ -6,12 +6,25 @@ from pathlib import Path
 from typing import Literal, Optional, Union
 from urllib.error import HTTPError, URLError
 
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy.integrate
 
 import tdastro
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+
+
+# Set default colors for plotting to match:
+# https://community.lsst.org/t/lsst-filter-profiles/1463
+_lsst_filter_plot_colors = {
+    "g": "blue",
+    "i": "yellow",
+    "r": "green",
+    "u": "purple",
+    "y": "red",
+    "z": "orange",
+}
 
 
 class PassbandGroup:
@@ -294,6 +307,26 @@ class PassbandGroup:
 
             bandfluxes[full_name] = passband.fluxes_to_bandflux(in_band_fluxes)
         return bandfluxes
+
+    def plot(self, ax=None, figure=None):
+        """Plot the PassbandGroup on a single plot.
+
+        Parameters
+        ----------
+        ax : matplotlib.pyplot.Axes or None, optional
+            Axes, None by default.
+        figure : matplotlib.pyplot.Figure or None
+            Figure, None by default.
+        """
+        if ax is None:
+            if figure is None:
+                figure = plt.figure()
+            ax = figure.add_axes([0, 0, 1, 1])
+
+        # Plot each passband.
+        for pb_obj in self.passbands.values():
+            pb_obj.plot(ax=ax, plot_loaded=False)
+        ax.legend()
 
 
 class Passband:
@@ -727,6 +760,47 @@ class Passband:
         integrand = flux_density_matrix * self.processed_transmission_table[:, 1]
         bandfluxes = scipy.integrate.trapezoid(integrand, x=self.waves, axis=w_axis)
         return bandfluxes
+
+    def plot(self, ax=None, figure=None, color=None, plot_loaded=False):
+        """Plot the passband.
+
+        Parameters
+        ----------
+        ax : matplotlib.pyplot.Axes or None, optional
+            Axes, None by default.
+        figure : matplotlib.pyplot.Figure or None
+            Figure, None by default.
+        color : str or None, optional
+            The color of the curve.
+        plot_loaded : bool
+            Also plot the loaded table as a dashed line. Used for debugging.
+        """
+        if ax is None:
+            if figure is None:
+                figure = plt.figure()
+            ax = figure.add_axes([0, 0, 1, 1])
+
+        # If the color is provided, we use that. Otherwise we try
+        # the LSST filter colors (or default to black).
+        if color is None:
+            color = _lsst_filter_plot_colors.get(self.filter_name, "black")
+
+        ax.plot(
+            self.processed_transmission_table[:, 0],  # X values are the wavelength
+            self.processed_transmission_table[:, 1],  # Y values are the transmission values.
+            color=color,
+            label=self.full_name,
+        )
+        if plot_loaded:
+            ax.plot(
+                self._loaded_table[:, 0],  # X values are the wavelength
+                self._loaded_table[:, 1],  # Y values are the transmission values.
+                color=color,
+                linestyle="--",
+            )
+
+        ax.set_xlabel("Wavelength (A)")
+        ax.set_ylabel("Transmission Value")
 
 
 # --- Helper Functions ----------------------------------------------------
