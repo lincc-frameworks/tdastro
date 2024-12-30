@@ -51,6 +51,54 @@ def create_toy_passband_group(path, delta_wave=5.0, trim_quantile=None):
     return PassbandGroup(passband_parameters=passbands)
 
 
+def test_passband_group_access(tmp_path):
+    """Test that we can create a passband group and access the individual passbands."""
+    table_vals = np.array([[100, 0.5], [200, 0.75], [300, 0.25]])
+    pb_list = [
+        Passband("survey1", "a", table_values=table_vals, trim_quantile=None),
+        Passband("survey1", "b", table_values=table_vals, trim_quantile=None),
+        Passband("survey1", "c", table_values=table_vals, trim_quantile=None),
+        Passband("survey2", "c", table_values=table_vals, trim_quantile=None),
+        Passband("survey2", "d", table_values=table_vals, trim_quantile=None),
+    ]
+
+    pb_group = PassbandGroup(given_passbands=pb_list)
+    assert len(pb_group) == 5
+    assert "survey1_a" in pb_group
+    assert "survey1_b" in pb_group
+    assert "survey1_c" in pb_group
+    assert "survey2_c" in pb_group
+    assert "survey2_d" in pb_group
+
+    # We can access the passbands by their full name.
+    assert pb_group["survey1_a"].filter_name == "a"
+    assert pb_group["survey1_b"].filter_name == "b"
+    assert pb_group["survey1_c"].filter_name == "c"
+    assert pb_group["survey2_c"].filter_name == "c"
+    assert pb_group["survey2_d"].filter_name == "d"
+
+    # If the group only has a single passband for a given filter,
+    # We can use the filter name to access it.
+    assert pb_group["a"].full_name == "survey1_a"
+    assert pb_group["b"].full_name == "survey1_b"
+    assert pb_group["d"].full_name == "survey2_d"
+
+    # But we get an error if we try to look up by a filter name that occurs twice.
+    with pytest.raises(KeyError):
+        _ = pb_group["c"]
+
+    # The contains functionality will work with all filter names.
+    assert "a" in pb_group
+    assert "b" in pb_group
+    assert "c" in pb_group
+    assert "d" in pb_group
+
+    # Check that we can filter a list of filter_names by whether they occur in the passband group.
+    filters = ["a", "b", "e", "f", "c", "1", "2", "d", "a", "a"]
+    expected = [True, True, False, False, True, False, False, True, True, True]
+    assert np.array_equal(pb_group.mask_by_filter(filters), expected)
+
+
 def test_passband_group_init(tmp_path, passbands_dir):
     """Test the initialization of the Passband class, and implicitly, _load_preset."""
     # Test that we cannot create an empty PassbandGroup object

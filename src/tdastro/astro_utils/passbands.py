@@ -13,6 +13,7 @@ import scipy.integrate
 import tdastro
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
 
 
 # Set default colors for plotting to match:
@@ -30,6 +31,12 @@ _lsst_filter_plot_colors = {
 class PassbandGroup:
     """A group of passbands.
 
+    The given passbands can come from a single survey or multiple surveys. As such, a given filter may appear
+    in multiple passbands in a passband group. For example we might generate data from a combination of Rubin
+    and DECCAM and want to use both their r filters. Thus the primary mapping is done by the passband's full
+    name “{SURVEY}_{FILTER}”. Lookups by filter name are permitted in cases where the filter only occurs once
+    in the group and thus the desired passband is unambiguous.
+
     Attributes
     ----------
     passbands : dict of Passband
@@ -41,6 +48,8 @@ class PassbandGroup:
     _in_band_wave_indices : dict
         A dictionary mapping the passband name (eg, "LSST_u") to the indices of that specific
         passband's wavelengths in the full waves list.
+    _filter_to_name : dict
+        A dictionary mapping the filter name to a list of matching passband full names.
     """
 
     def __init__(
@@ -83,6 +92,7 @@ class PassbandGroup:
         """
         self.passbands = {}
         self._in_band_wave_indices = {}
+        self._filter_to_name = {}
 
         if preset is None and passband_parameters is None and given_passbands is None:
             raise ValueError(
@@ -120,7 +130,7 @@ class PassbandGroup:
                 self.passbands[pb_obj.full_name] = pb_obj
 
         # Compute the unique points and bounds for the group.
-        self._update_waves()
+        self._update_internal_data()
 
     def __str__(self) -> str:
         """Return a string representation of the PassbandGroup."""
@@ -133,14 +143,26 @@ class PassbandGroup:
         return len(self.passbands)
 
     def __getitem__(self, key):
-        """Return the passband corresponding to a full name."""
+        """Return the passband corresponding to a full name or filter name."""
         if key in self.passbands:
             return self.passbands[key]
+        elif key in self._filter_to_name:
+            # If we are looking up the passband by filter name, we check
+            # that the filter only appears in a single Passband object.
+            pb_list = self._filter_to_name[key]
+            if len(pb_list) > 1:
+                raise KeyError(
+                    f"Filter {key} corresponds to multiple passbands: {pb_list}.\n"
+                    "Lookup the passband by full name."
+                )
+            return self.passbands[pb_list[0]]
         else:
             raise KeyError(f"Unknown passband {key}")
 
     def __contains__(self, key):
         if key in self.passbands:
+            return True
+        elif key in self._filter_to_name:
             return True
         return False
 
@@ -160,7 +182,7 @@ class PassbandGroup:
                 del self.passbands[pb_name]
 
         # Update the internal data structures.
-        self._update_waves()
+        self._update_internal_data()
 
     def _load_preset(self, preset: str, table_dir: Optional[str], **kwargs) -> None:
         """Load a pre-defined set of passbands.
@@ -176,6 +198,7 @@ class PassbandGroup:
         **kwargs
             Additional keyword arguments to pass to the Passband constructor.
         """
+        logger.info(f"Loading passbands from preset {preset}")
         if preset == "LSST":
             for filter_name in ["u", "g", "r", "i", "z", "y"]:
                 if table_dir is None:
@@ -190,6 +213,19 @@ class PassbandGroup:
                     )
         else:
             raise ValueError(f"Unknown passband preset: {preset}")
+
+    def _update_internal_data(self) -> None:
+        """Update the cached internal data."""
+        # Update the mapping of filter name to full_name.
+        self._filter_to_name = {}
+        for full_name, pb_obj in self.passbands.items():
+            if pb_obj.filter_name in self._filter_to_name:
+                logger.info("Multiple passband objects detected for filter {pb_obj.filter_name}")
+                self._filter_to_name[pb_obj.filter_name].append(full_name)
+            else:
+                self._filter_to_name[pb_obj.filter_name] = [full_name]
+
+        self._update_waves()
 
     def _update_waves(self, threshold=1e-5) -> None:
         """Update the group's wave attribute to be the union of all wavelengths in
@@ -253,6 +289,26 @@ class PassbandGroup:
         max_wave = np.max(self.waves)
         return min_wave, max_wave
 
+    def mask_by_filter(self, filters):
+        """Compute a mask for whether a given observations is of interest for
+        for a given analysis. For example this could be used to remove unneeded
+        observations from an OpSim or other data set.
+
+        Parameters
+        ----------
+        filters : list-like
+            A length T array of filter names or full names.
+
+        Returns
+        -------
+        mask : numpy.ndarray
+            A length T array of Booleans indicating whether the filter is of interest.
+        """
+        filters = np.asarray(filters)
+        full_name_mask = np.isin(filters, list(self.passbands.keys()))
+        filter_name_mask = np.isin(filters, list(self._filter_to_name.keys()))
+        return full_name_mask | filter_name_mask
+
     def process_transmission_tables(
         self, delta_wave: Optional[float] = 5.0, trim_quantile: Optional[float] = 1e-3
     ):
@@ -269,7 +325,7 @@ class PassbandGroup:
         for passband in self.passbands.values():
             passband.process_transmission_table(delta_wave, trim_quantile)
 
-        self._update_waves()
+        self._update_internal_data()
 
     def fluxes_to_bandfluxes(self, flux_density_matrix: np.ndarray) -> np.ndarray:
         """Calculate bandfluxes for all passbands in the group.
@@ -282,7 +338,8 @@ class PassbandGroup:
         Returns
         -------
         dict of np.ndarray
-            A dictionary of bandfluxes with passband names as keys and np.ndarrays of bandfluxes as values.
+            A dictionary of bandfluxes with passband full names as keys and np.ndarrays of
+            bandfluxes as values.
         """
         if flux_density_matrix.size == 0 or len(self.waves) != len(flux_density_matrix[0]):
             flux_density_matrix_num_cols = 0 if flux_density_matrix.size == 0 else len(flux_density_matrix[0])
@@ -300,7 +357,7 @@ class PassbandGroup:
             if indices is None:
                 raise ValueError(
                     f"Passband {full_name} does not have _in_band_wave_indices set. "
-                    "This should have been calculated in PassbandGroup._update_waves."
+                    "This should have been calculated in PassbandGroup._update_internal_data."
                 )
 
             in_band_fluxes = flux_density_matrix[:, indices]
@@ -497,6 +554,8 @@ class Passband:
         np.ndarray
             A 2D array of wavelengths and transmissions.
         """
+        logger.info(f"Loading passband from file: {table_path}")
+
         table_path.parent.mkdir(parents=True, exist_ok=True)
         if force_download or not table_path.exists():
             Passband.download_transmission_table(table_path, table_url)
@@ -539,6 +598,7 @@ class Passband:
         # Check that there is a valid URL for the download.
         if table_url is None:
             raise ValueError("No URL given for table download.")
+        logger.info(f"Downloading passband file from {table_url} to {table_path}")
 
         # Create the directory in which to save the file if it does not already exist.
         table_path = Path(table_path)
@@ -546,19 +606,19 @@ class Passband:
 
         try:
             socket.setdefaulttimeout(10)
-            logging.info(f"Retrieving {table_url}")
+            logger.info(f"Retrieving {table_url}")
             urllib.request.urlretrieve(table_url, table_path)
             if table_path.stat().st_size == 0:
-                logging.error(f"Transmission table downloaded from {table_url} is empty.")
+                logger.error(f"Transmission table downloaded from {table_url} is empty.")
                 return False
             else:
-                logging.info(f"Downloaded transmission table {table_url}.")
+                logger.info(f"Downloaded transmission table {table_url}.")
                 return True
         except HTTPError as e:
-            logging.error(f"HTTP error occurred when downloading table {table_url}: {e}")
+            logger.error(f"HTTP error occurred when downloading table {table_url}: {e}")
             return False
         except URLError as e:
-            logging.error(f"URL error occurred when downloading table {table_url}: {e}")
+            logger.error(f"URL error occurred when downloading table {table_url}: {e}")
             return False
 
     def process_transmission_table(
