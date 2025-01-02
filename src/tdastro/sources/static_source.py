@@ -6,6 +6,13 @@ from tdastro.sources.physical_model import PhysicalModel
 class StaticSource(PhysicalModel):
     """A static source.
 
+    Parameterized values include:
+      * brightness - The inherent brightness
+      * dec - The object's declination in degrees. [from PhysicalModel]
+      * distance - The object's luminosity distance in pc. [from PhysicalModel]
+      * ra - The object's right ascension in degrees. [from PhysicalModel]
+      * redshift - The object's redshift. [from PhysicalModel]
+
     Parameters
     ----------
     brightness : `float`

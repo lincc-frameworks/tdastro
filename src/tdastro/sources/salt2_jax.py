@@ -28,6 +28,16 @@ class SALT2JaxModel(PhysicalModel):
     The wrapped sncosmo version in sncosmo_models.py is faster and should be used
     when auto-differentiation is not needed.
 
+    Parameterized values include:
+      * c - The SALT2 c parameter.
+      * dec - The object's declination in degrees. [from PhysicalModel]
+      * distance - The object's luminosity distance in pc. [from PhysicalModel]
+      * period - The period of the source, in days.
+      * ra - The object's right ascension in degrees. [from PhysicalModel]
+      * redshift - The object's redshift. [from PhysicalModel]
+      * x0 - The SALT2 x0 parameter.
+      * x1 - The SALT2 x0 parameter.
+
     Attributes
     ----------
     _m0_model : BicubicInterpolator

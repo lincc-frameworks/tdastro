@@ -15,6 +15,13 @@ class SplineModel(PhysicalModel):
     points are fit by a spline. Based on sncosmo's TimeSeriesSource:
     https://github.com/sncosmo/sncosmo/blob/v2.10.1/sncosmo/models.py
 
+    Parameterized values include:
+      * amplitude - A unitless scaling parameter for the flux density values.
+      * dec - The object's declination in degrees. [from PhysicalModel]
+      * distance - The object's luminosity distance in pc. [from PhysicalModel]
+      * ra - The object's right ascension in degrees. [from PhysicalModel]
+      * redshift - The object's redshift. [from PhysicalModel]
+
     Attributes
     ----------
     _times : `numpy.ndarray`
