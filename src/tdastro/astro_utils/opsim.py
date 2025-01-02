@@ -322,6 +322,11 @@ class OpSim:  # noqa: D101
         rows : numpy.ndarray
             Either a Boolean array of the same length as the table or list of integer
             row indices to keep.
+
+        Returns
+        -------
+        opsim : OpSim
+            The opsim object to allow chaining.
         """
         if len(self.table) == 0 or len(rows) == 0:  # Nothing to filter
             return
@@ -343,6 +348,8 @@ class OpSim:  # noqa: D101
 
         # Rebuild the KD-Tree with the subset of rows.
         self._build_kd_tree()
+
+        return self
 
     def range_search(self, query_ra, query_dec, radius):
         """Return the indices of the opsim pointings that fall within the field
