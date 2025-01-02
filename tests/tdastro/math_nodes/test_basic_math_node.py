@@ -147,7 +147,7 @@ def test_basic_math_node_autodiff_jax():
     state = node.sample_parameters()
     pytree = node.build_pytree(state)
 
-    gr_func = jax.value_and_grad(node.resample_and_compute)
+    gr_func = jax.value_and_grad(node.generate)
     values, gradients = gr_func(pytree)
     assert values == 2.0
     assert gradients["a_node"]["a"] > 0.0
