@@ -44,6 +44,9 @@ The value is from
 https://smtn-002.lsst.io/v/OPSIM-1171/index.html
 """
 
+_lsstcam_view_radius = 1.75
+"""The angular radius of the observation field (in degrees)."""
+
 
 # Suppress "no docstring", because we define it via an attribute.
 class OpSim:  # noqa: D101
@@ -77,6 +80,9 @@ class OpSim:  # noqa: D101
         The dark current for the LSST camera in electrons per second per pixel. Defaults to
         the Rubin OpSim value, stored in `_rubin_dark_current`:
         {_lsstcam_dark_current}
+    radius : float or None, optional
+        The angular radius of the observations (in degrees).
+        Defaults to the Rubin value, stored in `_lsstcam_view_radius`: {_lsstcam_view_radius}
 
     Attributes
     ----------
@@ -99,6 +105,8 @@ class OpSim:  # noqa: D101
     zp_per_sec : `dict` or None, optional
         Mapping of filter names to zeropoints at zenith. Defaults to
         the Rubin OpSim values.
+    radius : float
+        The angular radius of the observations (in degrees).
     """
 
     _required_names = ["ra", "dec", "time"]
@@ -114,6 +122,7 @@ class OpSim:  # noqa: D101
         pixel_scale=None,
         read_noise=None,
         dark_current=None,
+        radius=None,
     ):
         if isinstance(table, dict):
             self.table = pd.DataFrame(table)
@@ -133,6 +142,7 @@ class OpSim:  # noqa: D101
         self.dark_current = _lsstcam_dark_current if dark_current is None else dark_current
         self.ext_coeff = _lsstcam_extinction_coeff if ext_coeff is None else ext_coeff
         self.zp_per_sec = _lsstcam_zeropoint_per_sec_zenith if zp_per_sec is None else zp_per_sec
+        self.radius = _lsstcam_view_radius if radius is None else radius
 
         # Build the kd-tree.
         self._kd_tree = None
@@ -362,7 +372,7 @@ class OpSim:  # noqa: D101
         )
         return new_opsim
 
-    def range_search(self, query_ra, query_dec, radius):
+    def range_search(self, query_ra, query_dec, radius=None):
         """Return the indices of the opsim pointings that fall within the field
         of view of the query point(s).
 
@@ -372,8 +382,9 @@ class OpSim:  # noqa: D101
             The query right ascension (in degrees).
         query_dec : `float` or `numpy.ndarray`
             The query declination (in degrees).
-        radius : `float`
-            The angular radius of the observation (in degrees).
+        radius : `float` or None, optional
+            The angular radius of the observation (in degrees). If None
+            uses the default radius for the OpSim.
 
         Returns
         -------
@@ -381,6 +392,8 @@ class OpSim:  # noqa: D101
             Depending on the input, this is either a list of indices for a single query point
             or a list of arrays (of indices) for an array of query points.
         """
+        radius = self.radius if radius is None else radius
+
         # Transform the query point(s) to 3-d Cartesian coordinate(s).
         ra_rad = np.radians(query_ra)
         dec_rad = np.radians(query_dec)
@@ -393,7 +406,7 @@ class OpSim:  # noqa: D101
         adjusted_radius = 2.0 * np.sin(0.5 * np.radians(radius))
         return self._kd_tree.query_ball_point(cart_query, adjusted_radius)
 
-    def get_observations(self, query_ra, query_dec, radius, cols=None):
+    def get_observations(self, query_ra, query_dec, radius=None, cols=None):
         """Return the observation information when the query point falls within
         the field of view of a pointing in the survey.
 
@@ -403,8 +416,9 @@ class OpSim:  # noqa: D101
             The query right ascension (in degrees).
         query_dec : `float`
             The query declination (in degrees).
-        radius : `float`
-            The angular radius of the observation (in degrees).
+        radius : `float` or None, optional
+            The angular radius of the observation (in degrees). If None
+            uses the default radius for the OpSim.
         cols : `list`
             A list of the names of columns to extract. If `None` returns all the
             columns.
