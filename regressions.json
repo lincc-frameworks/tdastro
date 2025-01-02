@@ -1,1 +1,1 @@
-{"regressions": []}
+{"regressions": [["benchmarks.TimeSuite.time_chained_evaluate", "graphs/Cython/branch-HEAD/build/machine-gh-runner/packaging/python-3.10/benchmarks.TimeSuite.time_chained_evaluate.json", {}, null, 0.006657334750002519, 0.004471842000005684, [[null, 622, 0.004471842000005684, 0.006657334750002519]]]]}
