@@ -7,7 +7,7 @@ from tdastro.sources.sncomso_models import SncosmoWrapperModel
 
 def test_sncomso_models_hsiao() -> None:
     """Test that we can create and evalue a 'hsiao' model."""
-    model = SncosmoWrapperModel("hsiao", amplitude=2.0e10)
+    model = SncosmoWrapperModel("hsiao", t0=0.0, amplitude=2.0e10)
     state = model.sample_parameters()
     assert model.get_param(state, "amplitude") == 2.0e10
     assert model.get_param(state, "t0") == 0.0
@@ -30,6 +30,13 @@ def test_sncomso_models_hsiao() -> None:
         fnu_unit=u.nJy,
     )
     assert np.allclose(fluxes_flam, [133.98143039, 152.74613574, 134.40916824])
+
+    # Check that we can mask times.  The 'hsiao' model uses phases (-20.0, 85.0).
+    sample_times = np.arange(-50.0, 100.0, 1.0)
+    mask = model.mask_by_time(sample_times, graph_state=state)
+
+    expected_mask = (sample_times > -20.0) & (sample_times < 85.0)
+    assert np.array_equal(mask, expected_mask)
 
 
 def test_sncomso_models_hsiao_t0() -> None:
@@ -56,10 +63,18 @@ def test_sncomso_models_hsiao_t0() -> None:
     )
     assert np.allclose(fluxes_flam, [67.83696271, 67.98471119, 47.20395186])
 
+    # Check that we can mask times.  The 'hsiao' model uses phases (-20.0, 85.0),
+    # which is offset by t0=55000.0.
+    sample_times = np.arange(-50.0, 100.0, 1.0) + 55000.0
+    mask = model.mask_by_time(sample_times, graph_state=state)
+
+    expected_mask = (sample_times > 54980.0) & (sample_times < 55085.0)
+    assert np.array_equal(mask, expected_mask)
+
 
 def test_sncomso_models_set() -> None:
     """Test that we can create and evalue a 'hsiao' model and set parameter."""
-    model = SncosmoWrapperModel("hsiao", redshift=0.5)
+    model = SncosmoWrapperModel("hsiao", t0=0.0, redshift=0.5)
 
     # sncosmo parameters exist at default values.
     assert np.array_equal(model.param_names, ["amplitude"])
