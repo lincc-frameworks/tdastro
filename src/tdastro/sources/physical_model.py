@@ -21,6 +21,12 @@ class PhysicalModel(ParameterizedNode):
 
     Physical models also support adding and applying a variety of effects, such as redshift.
 
+    Parameterized values include:
+      * dec - The object's declination in degrees.
+      * distance - The object's luminosity distance in pc.
+      * ra - The object's right ascension in degrees.
+      * redshift - The object's redshift.
+
     Attributes
     ----------
     background : `PhysicalModel`

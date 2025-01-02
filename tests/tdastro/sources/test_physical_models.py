@@ -17,6 +17,8 @@ def test_physical_model():
     assert model1.get_param(state, "dec") == 2.0
     assert model1.get_param(state, "redshift") == 0.0
     assert model1.get_param(state, "t0") == 1.0
+    assert model1.get_param(state, "distance") is None
+    assert not model1.has_valid_param("distance")
     assert model1.apply_redshift
 
     # None of the parameters are in the PyTree.

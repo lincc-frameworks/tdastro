@@ -6,6 +6,14 @@ from tdastro.sources.physical_model import PhysicalModel
 class PeriodicSource(PhysicalModel, ABC):
     """A periodic source.
 
+    Parameterized values include:
+      * dec - The object's declination in degrees. [from PhysicalModel]
+      * distance - The object's luminosity distance in pc. [from PhysicalModel]
+      * period - The period of the source, in days.
+      * ra - The object's right ascension in degrees. [from PhysicalModel]
+      * redshift - The object's redshift. [from PhysicalModel]
+      * t0 - The t0 of the zero phase, date.
+
     Parameters
     ----------
     period : `float`
