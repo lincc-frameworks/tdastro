@@ -49,7 +49,7 @@ class UniformRADEC(NumpyRandomFunc):
 
         # Generate the random (RA, dec) lists.
         ra = rng.uniform(0.0, 2.0 * np.pi, size=graph_state.num_samples)
-        dec = np.arccos(2.0 * rng.uniform(0.0, 1.0, size=graph_state.num_samples) - 1.0) - (np.pi / 2.0)
+        dec = np.arcsin(rng.uniform(-1.0, 1.0, size=graph_state.num_samples))
         if self.use_degrees:
             ra = np.degrees(ra)
             dec = np.degrees(dec)
