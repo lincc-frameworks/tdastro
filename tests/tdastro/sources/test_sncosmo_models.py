@@ -7,7 +7,7 @@ from tdastro.sources.sncomso_models import SncosmoWrapperModel
 
 def test_sncomso_models_hsiao() -> None:
     """Test that we can create and evalue a 'hsiao' model."""
-    model = SncosmoWrapperModel("hsiao", amplitude=2.0e10)
+    model = SncosmoWrapperModel("hsiao", t0=0.0, amplitude=2.0e10)
     state = model.sample_parameters()
     assert model.get_param(state, "amplitude") == 2.0e10
     assert model.get_param(state, "t0") == 0.0
@@ -74,7 +74,7 @@ def test_sncomso_models_hsiao_t0() -> None:
 
 def test_sncomso_models_set() -> None:
     """Test that we can create and evalue a 'hsiao' model and set parameter."""
-    model = SncosmoWrapperModel("hsiao", redshift=0.5)
+    model = SncosmoWrapperModel("hsiao", t0=0.0, redshift=0.5)
 
     # sncosmo parameters exist at default values.
     assert np.array_equal(model.param_names, ["amplitude"])
