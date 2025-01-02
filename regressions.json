@@ -1,1 +1,1 @@
-{"regressions": [["benchmarks.TimeSuite.time_fnu_to_flam", "graphs/Cython/branch-HEAD/build/machine-gh-runner/packaging/python-3.10/benchmarks.TimeSuite.time_fnu_to_flam.json", {}, null, 0.0020648537500029818, 0.0007360860000005687, [[null, 618, 0.0007360860000005687, 0.0020648537500029818]]]]}
+{"regressions": []}
