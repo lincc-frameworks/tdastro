@@ -301,6 +301,18 @@ class OpSim:  # noqa: D101
 
         con.close()
 
+    def time_bounds(self):
+        """Returns the min and max times for all observations in the OpSim.
+
+        Returns
+        -------
+        t_min, t_max : float, float
+            The min and max times for all observations in the OpSim.
+        """
+        t_min = self.table[self.colmap["time"]].min()
+        t_max = self.table[self.colmap["time"]].max()
+        return t_min, t_max
+
     def filter_rows(self, rows):
         """Filter the rows in the OpSim to only include those indices that are provided
         in a list of row indices (integers) or marked True in a mask.
