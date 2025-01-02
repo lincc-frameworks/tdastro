@@ -41,14 +41,15 @@ def test_static_source() -> None:
     assert np.all(values == 5.0)
 
 
-def test_test_physical_model_pytree():
+def test_static_source_pytree():
     """Test tthat the PyTree only contains brightness."""
     model = StaticSource(brightness=10.0, node_label="my_static_source")
     state = model.sample_parameters()
 
     pytree = model.build_pytree(state)
     assert pytree["my_static_source"]["brightness"] == 10.0
-    assert len(pytree["my_static_source"]) == 1
+    assert pytree["my_static_source"]["t0"] == 0.0
+    assert len(pytree["my_static_source"]) == 2
     assert len(pytree) == 1
 
 

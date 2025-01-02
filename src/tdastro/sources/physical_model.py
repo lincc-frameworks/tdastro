@@ -26,7 +26,7 @@ class PhysicalModel(ParameterizedNode):
       * distance - The object's luminosity distance in pc.
       * ra - The object's right ascension in degrees.
       * redshift - The object's redshift.
-      * t0 - The t0 of the zero phase, date.
+      * t0 - The t0 of the zero phase (if applicable), date.
 
     Attributes
     ----------
@@ -44,7 +44,8 @@ class PhysicalModel(ParameterizedNode):
     redshift : `float`
         The object's redshift.
     t0 : `float`
-        The phase offset in MJD. Default: 0.0
+        The phase offset in MJD. For non-time-varying phenomena, this has no effect.
+        Default: 0.0
     distance : `float`
         The object's luminosity distance (in pc). If no value is provided and
         a ``cosmology`` parameter is given, the model will try to derive from
@@ -62,7 +63,7 @@ class PhysicalModel(ParameterizedNode):
         self.add_parameter("ra", ra, allow_gradient=False)
         self.add_parameter("dec", dec, allow_gradient=False)
         self.add_parameter("redshift", redshift, allow_gradient=False)
-        self.add_parameter("t0", t0, allow_gradient=False)
+        self.add_parameter("t0", t0)
 
         # If the luminosity distance is provided, use that. Otherwise try the
         # redshift value using the cosmology (if given). Finally, default to None.

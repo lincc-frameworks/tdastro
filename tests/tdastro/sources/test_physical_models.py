@@ -21,9 +21,9 @@ def test_physical_model():
     assert not model1.has_valid_param("distance")
     assert model1.apply_redshift
 
-    # None of the parameters are in the PyTree.
+    # Only the t0 parameter is in the PyTree.
     pytree = model1.build_pytree(state)
-    assert len(pytree["PhysicalModel_0"]) == 0
+    assert len(pytree["PhysicalModel_0"]) == 1
 
     # We can turn off the redshift computation.
     model1.set_apply_redshift(False)
