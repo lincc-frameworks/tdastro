@@ -19,7 +19,7 @@ class SncosmoWrapperModel(PhysicalModel):
       * distance - The object's luminosity distance in pc. [from PhysicalModel]
       * ra - The object's right ascension in degrees. [from PhysicalModel]
       * redshift - The object's redshift. [from PhysicalModel]
-      * t0 - The t0 of the zero phase, date.
+      * t0 - The t0 of the zero phase, date. [from PhysicalModel]
     Additional parameterized values are used for specific sncosmo models.
 
     Attributes
@@ -35,9 +35,6 @@ class SncosmoWrapperModel(PhysicalModel):
     ----------
     source_name : `str`
         The name used to set the source.
-    t0 : `float`
-        The start time of the sncosmo model.
-        Default: 0.0
     node_label : `str`, optional
         An identifier (or name) for the current node.
     **kwargs : `dict`, optional
@@ -47,14 +44,10 @@ class SncosmoWrapperModel(PhysicalModel):
     # A class variable for the units so we are not computing them each time.
     _FLAM_UNIT = u.erg / u.second / u.cm**2 / u.AA
 
-    def __init__(self, source_name, t0=0.0, node_label=None, **kwargs):
+    def __init__(self, source_name, node_label=None, **kwargs):
         super().__init__(node_label=node_label, **kwargs)
         self.source_name = source_name
         self.source = get_source(source_name)
-
-        # Set the object's t0 as a parameter for the PhysicalModel, but
-        # not the sncosmo model.
-        self.add_parameter("t0", t0)
 
         # Use the kwargs to initialize the sncosmo model's parameters.
         self.source_param_names = []
@@ -143,6 +136,40 @@ class SncosmoWrapperModel(PhysicalModel):
         """
         super()._sample_helper(graph_state, seen_nodes, rng_info)
         self._update_sncosmo_model_parameters(graph_state)
+
+    def mask_by_time(self, times, graph_state=None):
+        """Compute a mask for whether a given time is of interest for a given object.
+        For example, a user can use this function to generate a mask to include
+        only the observations of interest for a window around the supernova.
+
+        Parameters
+        ----------
+        times : numpy.ndarray
+            A length T array of observer frame timestamps in MJD.
+        graph_state : GraphState, optional
+            An object mapping graph parameters to their values.
+
+        Returns
+        -------
+        time_mask : numpy.ndarray
+            A length T array of Booleans indicating whether the time is of interest.
+        """
+        if graph_state is None:
+            raise ValueError("graph_state needed to compute mask_by_time")
+
+        z = self.get_param(graph_state, "redshift", 0.0)
+        if z is None:
+            z = 0.0
+
+        t0 = self.get_param(graph_state, "t0", 0.0)
+        if t0 is None:
+            t0 = 0.0
+
+        # Compute the mask.
+        good_times = (times > t0 + self.source.minphase() * (1.0 + z)) & (
+            times < t0 + self.source.maxphase() * (1.0 + z)
+        )
+        return good_times
 
     def compute_flux(self, times, wavelengths, graph_state=None, **kwargs):
         """Draw effect-free observations for this object.

@@ -16,7 +16,7 @@ class PeriodicVariableStar(PeriodicSource, ABC):
       * period - The period of the source, in days. [from PeriodicSource]
       * ra - The object's right ascension in degrees. [from PhysicalModel]
       * redshift - The object's redshift. [from PhysicalModel]
-      * t0 - The t0 of the zero phase, date. [from PeriodicSource]
+      * t0 - The t0 of the zero phase, date. [from PhysicalModel]
 
     Attributes
     ----------
@@ -29,8 +29,8 @@ class PeriodicVariableStar(PeriodicSource, ABC):
         The distance to the source, in pc.
     """
 
-    def __init__(self, period, t0, **kwargs):
-        super().__init__(period, t0, **kwargs)
+    def __init__(self, period, **kwargs):
+        super().__init__(period, **kwargs)
         if not self.has_valid_param("distance"):
             raise ValueError("Distance parameter is required for PeriodicVariableStar")
 

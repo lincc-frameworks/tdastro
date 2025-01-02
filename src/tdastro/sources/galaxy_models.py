@@ -15,6 +15,7 @@ class GaussianGalaxy(PhysicalModel):
       * galaxy_radius_std - The standard deviation of the brightness in degrees.
       * ra - The object's right ascension in degrees. [from PhysicalModel]
       * redshift - The object's redshift. [from PhysicalModel]
+      * t0 - No effect for a GuassianGalaxy [from PhysicalModel]
 
     Parameters
     ----------

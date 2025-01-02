@@ -12,6 +12,7 @@ class StaticSource(PhysicalModel):
       * distance - The object's luminosity distance in pc. [from PhysicalModel]
       * ra - The object's right ascension in degrees. [from PhysicalModel]
       * redshift - The object's redshift. [from PhysicalModel]
+      * t0 - No effect for static model. [from PhysicalModel]
 
     Parameters
     ----------
