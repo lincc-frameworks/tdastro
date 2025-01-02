@@ -462,13 +462,28 @@ def create_random_opsim(num_obs, seed=None):
     ra = np.degrees(rng.uniform(0.0, 2.0 * np.pi, size=num_obs))
     dec = np.degrees(np.arccos(2.0 * rng.uniform(0.0, 1.0, size=num_obs) - 1.0) - (np.pi / 2.0))
 
+    # Generate the information needed to compute zeropoint.
+    airmass = rng.uniform(1.3, 1.7, size=num_obs)
+    filter = rng.choice(["u", "g", "r", "i", "z", "y"], size=num_obs)
+
     input_data = {
         "observationStartMJD": 0.05 * np.arange(num_obs),
         "fieldRA": ra,
         "fieldDec": dec,
-        "zp_nJy": np.ones(num_obs),
+        "airmass": airmass,
+        "filter": filter,
+        "visitExposureTime": 29.0 * np.ones(num_obs),
     }
-    return OpSim(input_data)
+
+    opsim = OpSim(
+        input_data,
+        ext_coeff=_lsstcam_extinction_coeff,
+        zp_per_sec=_lsstcam_zeropoint_per_sec_zenith,
+        pixel_scale=LSSTCAM_PIXEL_SCALE,
+        read_noise=_lsstcam_readout_noise,
+        dark_current=_lsstcam_dark_current,
+    )
+    return opsim
 
 
 def opsim_add_random_data(opsim_data, colname, min_val=0.0, max_val=1.0):
