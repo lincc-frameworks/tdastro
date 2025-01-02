@@ -16,7 +16,7 @@ class PeriodicVariableStar(PeriodicSource, ABC):
       * period - The period of the source, in days. [from PeriodicSource]
       * ra - The object's right ascension in degrees. [from PhysicalModel]
       * redshift - The object's redshift. [from PhysicalModel]
-      * t0 - The t0 of the zero phase, date. [from PeriodicSource]
+      * t0 - The t0 of the zero phase, date. [from PhysicalModel]
 
     Attributes
     ----------

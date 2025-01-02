@@ -12,15 +12,12 @@ class PeriodicSource(PhysicalModel, ABC):
       * period - The period of the source, in days.
       * ra - The object's right ascension in degrees. [from PhysicalModel]
       * redshift - The object's redshift. [from PhysicalModel]
-      * t0 - The t0 of the zero phase, date.
+      * t0 - The t0 of the zero phase, date. [from PhysicalModel]
 
     Parameters
     ----------
     period : `float`
         The period of the source, in days.
-    t0 : `float`
-        The t0 of the zero phase, date. Could be date of the minimum or maximum light
-        or any other reference time point.
     **kwargs : `dict`, optional
         Any additional keyword arguments.
     """

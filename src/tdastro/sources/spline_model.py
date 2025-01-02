@@ -21,6 +21,7 @@ class SplineModel(PhysicalModel):
       * distance - The object's luminosity distance in pc. [from PhysicalModel]
       * ra - The object's right ascension in degrees. [from PhysicalModel]
       * redshift - The object's redshift. [from PhysicalModel]
+      * t0 - The t0 of the zero phase, date. [from PhysicalModel]
 
     Attributes
     ----------

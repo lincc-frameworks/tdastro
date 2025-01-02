@@ -35,6 +35,7 @@ class SALT2JaxModel(PhysicalModel):
       * period - The period of the source, in days.
       * ra - The object's right ascension in degrees. [from PhysicalModel]
       * redshift - The object's redshift. [from PhysicalModel]
+      * t0 - The t0 of the zero phase, date. [from PhysicalModel]
       * x0 - The SALT2 x0 parameter.
       * x1 - The SALT2 x0 parameter.
 

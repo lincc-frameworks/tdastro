@@ -26,6 +26,7 @@ class PhysicalModel(ParameterizedNode):
       * distance - The object's luminosity distance in pc.
       * ra - The object's right ascension in degrees.
       * redshift - The object's redshift.
+      * t0 - The t0 of the zero phase, date.
 
     Attributes
     ----------
