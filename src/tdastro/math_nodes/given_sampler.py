@@ -144,8 +144,6 @@ class TableSampler(NumpyRandomFunc):
     ----------
     data : astropy.table.Table
         The object containing the data to sample.
-    columns : list of str
-        The column names for the output columns.
     in_order : bool
         Return the given data in order of the rows (True). If False, performs
         random sampling with replacement. Default: False
@@ -215,7 +213,7 @@ class TableSampler(NumpyRandomFunc):
 
         # Parse out each column into a separate parameter with the column name as its name.
         results = []
-        for attr_name in self.columns:
+        for attr_name in self.outputs:
             attr_values = np.asarray(self.data[attr_name][sample_inds])
             if graph_state.num_samples == 1:
                 results.append(attr_values[0])
