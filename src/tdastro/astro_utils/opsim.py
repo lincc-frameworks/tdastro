@@ -87,12 +87,18 @@ class OpSim:  # noqa: D101
     _kd_tree : `scipy.spatial.KDTree` or None
         A kd_tree of the OpSim pointings for fast spatial queries. We use the scipy
         kd-tree instead of astropy's functions so we can directly control caching.
-    _pixel_scale : `float` or None, optional
+    pixel_scale : `float` or None, optional
         The pixel scale for the LSST camera in arcseconds per pixel.
-    _read_noise : `float` or None, optional
+    read_noise : `float` or None, optional
         The readout noise for the LSST camera in electrons per pixel.
-    _dark_current : `float` or None, optional
+    dark_current : `float` or None, optional
         The dark current for the LSST camera in electrons per second per pixel.
+    ext_coeff : `dict` or None, optional
+        Mapping of filter names to extinction coefficients. Defaults to
+        the Rubin OpSim values.
+    zp_per_sec : `dict` or None, optional
+        Mapping of filter names to zeropoints at zenith. Defaults to
+        the Rubin OpSim values.
     """
 
     _required_names = ["ra", "dec", "time"]
@@ -125,6 +131,8 @@ class OpSim:  # noqa: D101
         self.pixel_scale = LSSTCAM_PIXEL_SCALE if pixel_scale is None else pixel_scale
         self.read_noise = _lsstcam_readout_noise if read_noise is None else read_noise
         self.dark_current = _lsstcam_dark_current if dark_current is None else dark_current
+        self.ext_coeff = _lsstcam_extinction_coeff if ext_coeff is None else ext_coeff
+        self.zp_per_sec = _lsstcam_zeropoint_per_sec_zenith if zp_per_sec is None else zp_per_sec
 
         # Build the kd-tree.
         self._kd_tree = None
@@ -133,7 +141,7 @@ class OpSim:  # noqa: D101
         # If we are not given zero point data, try to derive it from the other columns.
         if not self.has_columns("zp"):
             if self.has_columns(["filter", "airmass", "exptime"]):
-                self._assign_zero_points(ext_coeff=ext_coeff, zp_per_sec=zp_per_sec)
+                self._assign_zero_points(ext_coeff=self.ext_coeff, zp_per_sec=self.zp_per_sec)
             else:
                 raise ValueError(
                     "OpSim must include either a zero point column or the columns "
@@ -325,12 +333,9 @@ class OpSim:  # noqa: D101
 
         Returns
         -------
-        opsim : OpSim
-            The opsim object to allow chaining.
+        new_opsim : OpSim
+            A new OpSim object with the reduced rows.
         """
-        if len(self.table) == 0 or len(rows) == 0:  # Nothing to filter
-            return
-
         # Check if we are dealing with a mask of a list of indices.
         rows = np.asarray(rows)
         if rows.dtype == bool:
@@ -343,13 +348,19 @@ class OpSim:  # noqa: D101
             mask = np.full((len(self.table),), False)
             mask[rows] = True
 
-        # Do the actual filtering.
-        self.table = self.table[mask]
-
-        # Rebuild the KD-Tree with the subset of rows.
-        self._build_kd_tree()
-
-        return self
+        # Do the actual filtering and generate a new OpSim. This automatically creates
+        # the cached data, such as the KD-tree.
+        new_table = self.table[mask]
+        new_opsim = OpSim(
+            new_table,
+            colmap=self.colmap,
+            ext_coeff=self.ext_coeff,
+            zp_per_sec=self.zp_per_sec,
+            pixel_scale=self.pixel_scale,
+            read_noise=self.read_noise,
+            dark_current=self.dark_current,
+        )
+        return new_opsim
 
     def range_search(self, query_ra, query_dec, radius):
         """Return the indices of the opsim pointings that fall within the field

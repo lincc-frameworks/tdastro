@@ -135,7 +135,7 @@ def test_opsim_filter_rows():
 
     # We can filter the OpSim to specific rows by index.
     inds = [0, 1, 2, 3, 4, 5, 7, 8]
-    ops_data.filter_rows(inds)
+    ops_data = ops_data.filter_rows(inds)
     assert len(ops_data) == 8
     assert len(ops_data.columns) == 5
 
@@ -149,7 +149,7 @@ def test_opsim_filter_rows():
     assert ops_data._kd_tree.n == 8
 
     # We can filter the OpSim to specific rows by mask.
-    ops_data.filter_rows(ops_data["filter"] == "r")
+    ops_data = ops_data.filter_rows(ops_data["filter"] == "r")
     assert len(ops_data) == 4
 
     expected_times = np.array([0.0, 2.0, 4.0, 8.0])
