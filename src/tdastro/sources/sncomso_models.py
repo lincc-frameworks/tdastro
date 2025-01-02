@@ -14,6 +14,14 @@ from tdastro.sources.physical_model import PhysicalModel
 class SncosmoWrapperModel(PhysicalModel):
     """A wrapper for sncosmo models.
 
+    Parameterized values include:
+      * dec - The object's declination in degrees. [from PhysicalModel]
+      * distance - The object's luminosity distance in pc. [from PhysicalModel]
+      * ra - The object's right ascension in degrees. [from PhysicalModel]
+      * redshift - The object's redshift. [from PhysicalModel]
+      * t0 - The t0 of the zero phase, date.
+    Additional parameterized values are used for specific sncosmo models.
+
     Attributes
     ----------
     source : `sncosmo.Source`
