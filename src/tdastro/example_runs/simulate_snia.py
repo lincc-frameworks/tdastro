@@ -38,8 +38,7 @@ def construct_snia_source(oversampled_observations, zpdf):
     logger.info("Creating the source model.")
 
     # Get the range in which t0 can occur.
-    t_min = oversampled_observations["observationStartMJD"].min()
-    t_max = oversampled_observations["observationStartMJD"].max()
+    t_min, t_max = oversampled_observations.time_bounds()
 
     # TODO: Extract the ra and dec center from the opsim in case that changes.
     # Currently we are relying on the fact the test opsim has all pointings
