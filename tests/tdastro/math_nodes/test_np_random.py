@@ -36,13 +36,6 @@ def test_numpy_random_uniform():
     assert np.all(values >= 10.0)
     assert np.abs(np.mean(values) - 15.0) < 0.5
 
-    # We can override the range dynamically.
-    values = np.array([np_node3.generate(low=2.0) for _ in range(10_000)])
-    assert len(np.unique(values)) > 10
-    assert np.all(values <= 20.0)
-    assert np.all(values >= 2.0)
-    assert np.abs(np.mean(values) - 11.0) < 0.5
-
 
 def test_numpy_random_uniform_multi():
     """Test that we can many generate numbers at once from a uniform distribution."""

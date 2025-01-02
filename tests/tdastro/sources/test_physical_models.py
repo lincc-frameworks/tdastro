@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from astropy.cosmology import Planck18
 from tdastro.astro_utils.passbands import PassbandGroup
-from tdastro.math_nodes.given_sampler import GivenSampler
+from tdastro.math_nodes.given_sampler import GivenValueList
 from tdastro.sources.physical_model import PhysicalModel
 from tdastro.sources.static_source import StaticSource
 
@@ -60,7 +60,7 @@ def test_physical_model_evaluate():
     """Test that we can evaluate a PhysicalModel."""
     times = np.array([0.0, 1.0, 2.0, 3.0, 4.0])
     waves = np.array([4000.0, 5000.0])
-    brightness = GivenSampler([10.0, 20.0, 30.0])
+    brightness = GivenValueList([10.0, 20.0, 30.0])
     static_source = StaticSource(brightness=brightness)
 
     # Providing no state should give a single sample.
@@ -110,7 +110,7 @@ def test_physical_model_get_band_fluxes(passbands_dir):
     # If we use multiple samples, we should get a correctly sized array.
     n_samples = 21
     brightness_list = [1.5 * i for i in range(n_samples)]
-    static_source2 = StaticSource(brightness=GivenSampler(brightness_list))
+    static_source2 = StaticSource(brightness=GivenValueList(brightness_list))
     state2 = static_source2.sample_parameters(num_samples=n_samples)
     band_fluxes2 = static_source2.get_band_fluxes(passbands, times, filters, state2)
     assert band_fluxes2.shape == (n_samples, n_passbands)
