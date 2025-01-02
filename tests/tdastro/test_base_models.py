@@ -93,6 +93,12 @@ def test_parameterized_node():
     model1 = PairModel(value1=0.5, value2=0.5)
     assert str(model1) == "PairModel"
 
+    # Check that we can lookup parameters.
+    assert model1.has_valid_param("value1")
+    assert model1.has_valid_param("value2")
+    assert model1.has_valid_param("value_sum")
+    assert not model1.has_valid_param("value3")
+
     state = model1.sample_parameters()
     assert model1.get_param(state, "value1") == 0.5
     assert model1.get_param(state, "value2") == 0.5
@@ -106,6 +112,9 @@ def test_parameterized_node():
     # We use the default for un-assigned parameters.
     assert model1.get_param(state, "value3") is None
     assert model1.get_param(state, "value4", 1.0) == 1.0
+
+    # Check that we can list the parameters.
+    assert np.array_equal(model1.list_params(), ["value1", "value2", "value_sum"])
 
     # If we set a position (and there is no node_label), the position shows up in the name.
     model1.node_pos = 100
