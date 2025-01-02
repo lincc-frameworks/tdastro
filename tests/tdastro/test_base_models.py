@@ -232,6 +232,9 @@ def test_function_node_basic():
     assert my_func.compute(state, value2=3.0, value1=1.0) == 4.0
     assert str(my_func) == "FunctionNode:_test_func_0"
 
+    # We can also compute this result (for testing) by calling generate().
+    assert my_func.generate() == 3.0
+
 
 def test_function_node_chain():
     """Test that we can create and query a chained FunctionNode."""
@@ -324,7 +327,7 @@ def test_function_node_jax():
     graph_state = sum_node.sample_parameters()
 
     pytree = sum_node.build_pytree(graph_state)
-    gr_func = jax.value_and_grad(sum_node.resample_and_compute)
+    gr_func = jax.value_and_grad(sum_node.generate)
     values, gradients = gr_func(pytree)
     assert values == 9.0
     assert gradients["sum"]["value1"] == 1.0
