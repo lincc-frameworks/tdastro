@@ -224,6 +224,10 @@ def test_opsim_range_search():
     assert set(ops_data.range_search(15.0, 10.0, 1e-6)) == set([1])
     assert set(ops_data.range_search(15.02, 10.0, 1e-6)) == set()
 
+    # With no radius provided, it should default to 1.75.
+    assert set(ops_data.range_search(15.0, 10.0)) == set([1, 2, 3])
+    assert set(ops_data.range_search(25.0, 10.0)) == set([4, 5])
+
     # Test a batched query.
     query_ra = np.array([15.0, 25.0, 15.0])
     query_dec = np.array([10.0, 10.0, 5.0])
