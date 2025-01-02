@@ -174,8 +174,7 @@ class TableSampler(NumpyRandomFunc):
             raise ValueError("No data provided to TableSampler.")
 
         # Add each of the flow's data columns as an output parameter.
-        self.columns = [x for x in self.data.colnames]
-        super().__init__("uniform", outputs=self.columns, **kwargs)
+        super().__init__("uniform", outputs=self.data.colnames, **kwargs)
 
     def reset(self):
         """Reset the next index to use. Only used for in-order sampling."""
