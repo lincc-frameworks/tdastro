@@ -4,6 +4,7 @@ https://github.com/sncosmo/sncosmo/blob/v2.10.1/sncosmo/models.py
 https://sncosmo.readthedocs.io/en/stable/models.html
 """
 
+import numpy as np
 from astropy import units as u
 from sncosmo.models import get_source
 
@@ -193,7 +194,21 @@ class SncosmoWrapperModel(PhysicalModel):
         params = self.get_local_params(graph_state)
         self._update_sncosmo_model_parameters(graph_state)
 
-        flux_flam = self.source.flux(times - params["t0"], wavelengths)
+        # sncosmo gives an error if the wavelengths are out of bounds, so we truncate
+        # and fill the rest of the predictions with zero.
+        min_wave_idx = np.searchsorted(wavelengths, self.source.minwave(), side="left")
+        max_wave_idx = np.searchsorted(wavelengths, self.source.maxwave(), side="right")
+        print(f"wavelengths = {wavelengths}")
+        print(f"Minwave = {self.source.minwave()} at {min_wave_idx}")
+        print(f"Maxwave = {self.source.maxwave()} at {max_wave_idx}")
+        print(f"wavelengths = {wavelengths[min_wave_idx:max_wave_idx]}")
+
+        model_flam = self.source.flux(times - params["t0"], wavelengths[min_wave_idx:max_wave_idx])
+        print(f"Model_flam={model_flam}")
+
+        flux_flam = np.zeros((len(times), len(wavelengths)))
+        flux_flam[:, min_wave_idx:max_wave_idx] = model_flam
+
         flux_fnu = flam_to_fnu(
             flux_flam,
             wavelengths,

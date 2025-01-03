@@ -1,6 +1,6 @@
-"""The core functions for running the TDAstro simulation.
-"""
+"""The core functions for running the TDAstro simulation."""
 
+import numpy as np
 import pandas as pd
 
 from tdastro.astro_utils.noise_model import apply_noise
@@ -35,9 +35,13 @@ def simulate_passbands(source, num_samples, opsim, passbands, rng=None):
     sample_states = source.sample_parameters(num_samples=num_samples, rng_info=rng)
 
     # Determine which of the of the simulated positions match opsim locations.
-    ra = source.get_param("ra")
-    dec = source.get_param("dec")
+    ra = source.get_param(sample_states, "ra")
+    dec = source.get_param(sample_states, "dec")
     all_obs_matches = opsim.range_search(ra, dec)
+
+    # Get all times and all filters as numpy arrays so we can do easy subsets.
+    all_times = np.asarray(opsim["time"].values)
+    all_filters = np.asarray(opsim["filter"].values)
 
     # Create a dictionary for keeping all the result information.
     results_dict = {
@@ -50,8 +54,8 @@ def simulate_passbands(source, num_samples, opsim, passbands, rng=None):
 
     for idx, state in enumerate(sample_states):
         # Find the indices and times where the current source is seen.
-        obs_index = all_obs_matches[idx]
-        obs_times = opsim["time"][obs_index]
+        obs_index = np.asarray(all_obs_matches[idx])
+        obs_times = all_times[obs_index]
 
         # Filter to only the "interesting" indices / times for this object.
         obs_mask = source.mask_by_time(obs_times, state)
@@ -59,7 +63,7 @@ def simulate_passbands(source, num_samples, opsim, passbands, rng=None):
         obs_times = obs_times[obs_mask]
 
         # Extract the filters for this observation.
-        obs_filters = opsim["filter"][obs_index]
+        obs_filters = all_filters[obs_index]
 
         # Compute the band_fluxes and errors over just the given filters.
         bandfluxes_perfect = source.get_band_fluxes(passbands, obs_times, obs_filters, state)
