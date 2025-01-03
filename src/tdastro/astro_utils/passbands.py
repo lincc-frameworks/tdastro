@@ -19,12 +19,12 @@ logger = logging.getLogger(__name__)
 # Set default colors for plotting to match:
 # https://community.lsst.org/t/lsst-filter-profiles/1463
 _lsst_filter_plot_colors = {
-    "g": "blue",
-    "i": "yellow",
-    "r": "green",
     "u": "purple",
-    "y": "red",
+    "g": "blue",
+    "r": "green",
+    "i": "yellow",
     "z": "orange",
+    "y": "red",
 }
 
 
