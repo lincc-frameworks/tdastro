@@ -303,7 +303,7 @@ class PhysicalModel(ParameterizedNode):
 
         band_fluxes = np.empty((state.num_samples, len(times)))
         for filter_name in np.unique(filters):
-            passband = passband_or_group.passbands[filter_name]
+            passband = passband_or_group[filter_name]
             filter_mask = filters == filter_name
             spectral_fluxes = self.evaluate(times[filter_mask], passband.waves, state)
             band_fluxes[:, filter_mask] = passband.fluxes_to_bandflux(spectral_fluxes)

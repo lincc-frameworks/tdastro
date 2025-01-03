@@ -921,6 +921,7 @@ class Passband:
 
         ax.set_xlabel(r"Wavelength, $\AA$")
         ax.set_ylabel("Transmission Value")
+        ax.set_ylim(0, None)
 
 
 # --- Helper Functions ----------------------------------------------------
