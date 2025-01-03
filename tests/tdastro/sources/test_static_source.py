@@ -48,7 +48,7 @@ def test_static_source_pytree():
 
     pytree = model.build_pytree(state)
     assert pytree["my_static_source"]["brightness"] == 10.0
-    assert pytree["my_static_source"]["t0"] == 0.0
+    assert pytree["my_static_source"]["t0"] is None
     assert len(pytree["my_static_source"]) == 2
     assert len(pytree) == 1
 

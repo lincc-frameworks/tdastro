@@ -45,7 +45,6 @@ class PhysicalModel(ParameterizedNode):
         The object's redshift.
     t0 : `float`
         The phase offset in MJD. For non-time-varying phenomena, this has no effect.
-        Default: 0.0
     distance : `float`
         The object's luminosity distance (in pc). If no value is provided and
         a ``cosmology`` parameter is given, the model will try to derive from
@@ -56,7 +55,7 @@ class PhysicalModel(ParameterizedNode):
         Any additional keyword arguments.
     """
 
-    def __init__(self, ra=None, dec=None, redshift=None, t0=0.0, distance=None, background=None, **kwargs):
+    def __init__(self, ra=None, dec=None, redshift=None, t0=None, distance=None, background=None, **kwargs):
         super().__init__(**kwargs)
 
         # Set RA, dec, and redshift from the parameters.

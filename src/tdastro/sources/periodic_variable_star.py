@@ -31,7 +31,7 @@ class PeriodicVariableStar(PeriodicSource, ABC):
 
     def __init__(self, period, **kwargs):
         super().__init__(period, **kwargs)
-        if "distance" not in self.setters:
+        if not self.has_valid_param("distance"):
             raise ValueError("Distance parameter is required for PeriodicVariableStar")
 
     def _evaluate_phases(self, phases, wavelengths, graph_state, **kwargs):

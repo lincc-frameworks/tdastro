@@ -73,7 +73,7 @@ def test_sncomso_models_hsiao_t0() -> None:
 
 
 def test_sncomso_models_bounds() -> None:
-    """Test that wwe do not crash is we give wavelengths outside the model bounds."""
+    """Test that we do not crash if we give wavelengths outside the model bounds."""
     model = SncosmoWrapperModel("nugent-sn1a", amplitude=2.0e10, t0=0.0)
     min_w = model.source.minwave()
     max_w = model.source.maxwave()

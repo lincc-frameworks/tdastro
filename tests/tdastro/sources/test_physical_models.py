@@ -36,7 +36,7 @@ def test_physical_model():
     assert model2.get_param(state, "dec") == 2.0
     assert model2.get_param(state, "redshift") == 1100.0
     assert 13.0 * 1e12 < model2.get_param(state, "distance") < 16.0 * 1e12
-    assert model2.get_param(state, "t0") == 0.0
+    assert model2.get_param(state, "t0") is None
 
     # Check that the RedshiftDistFunc node has the same computed value.
     # The syntax is a bit ugly because we are checking internal state.
