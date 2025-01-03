@@ -198,14 +198,8 @@ class SncosmoWrapperModel(PhysicalModel):
         # and fill the rest of the predictions with zero.
         min_wave_idx = np.searchsorted(wavelengths, self.source.minwave(), side="left")
         max_wave_idx = np.searchsorted(wavelengths, self.source.maxwave(), side="right")
-        print(f"wavelengths = {wavelengths}")
-        print(f"Minwave = {self.source.minwave()} at {min_wave_idx}")
-        print(f"Maxwave = {self.source.maxwave()} at {max_wave_idx}")
-        print(f"wavelengths = {wavelengths[min_wave_idx:max_wave_idx]}")
 
         model_flam = self.source.flux(times - params["t0"], wavelengths[min_wave_idx:max_wave_idx])
-        print(f"Model_flam={model_flam}")
-
         flux_flam = np.zeros((len(times), len(wavelengths)))
         flux_flam[:, min_wave_idx:max_wave_idx] = model_flam
 
