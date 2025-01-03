@@ -57,7 +57,8 @@ class PassbandGroup:
         preset: str = None,
         passband_parameters: Optional[list] = None,
         table_dir: Optional[Union[str, Path]] = None,
-        given_passbands: list = None,
+        given_passbands: Optional[list] = None,
+        filters_to_load: Optional[list] = None,
         **kwargs,
     ):
         """Construct a PassbandGroup object.
@@ -87,6 +88,10 @@ class PassbandGroup:
             A list of Passband objects from which to create the PassbandGroup. These
             overwrite any passbands with the same full name provided by either
             preset or passband_parameters.
+        filters_to_load : list, optional
+            A list of filters to include in this PassbandGroup. If None, includes all filters.
+            Otherwise drops filters that do not occur and throws an error if a filter is missing.
+            Used for loading a subset of the filters.
         **kwargs
             Additional keyword arguments to pass to the Passband constructor.
         """
@@ -128,6 +133,25 @@ class PassbandGroup:
         if given_passbands is not None:
             for pb_obj in given_passbands:
                 self.passbands[pb_obj.full_name] = pb_obj
+
+        # Prune any filters that are not on the given list and check for any missing filters.
+        # We match on either the full name or the filter name.
+        if filters_to_load is not None:
+            filters_to_load = set(filters_to_load)
+            filters_remaining = filters_to_load.copy()
+            all_bands = list(self.passbands.keys())
+
+            for pb_name in all_bands:
+                pb_obj = self.passbands[pb_name]
+                if pb_name in filters_to_load:
+                    filters_remaining.discard(pb_name)
+                elif pb_obj.filter_name in filters_to_load:
+                    filters_remaining.discard(pb_obj.filter_name)
+                else:
+                    del self.passbands[pb_name]
+
+            if len(filters_remaining) != 0:
+                raise ValueError(f"The following filters were not found: {filters_remaining}")
 
         # Compute the unique points and bounds for the group.
         self._update_internal_data()
@@ -202,49 +226,23 @@ class PassbandGroup:
         if not dir_path.is_dir():
             raise ValueError(f"{dir_path} is not a valid directory.")
 
-        # Iterate through the files in the directory, adding the ones
-        # that match our filter list (or all of them if the list is None)
+        # Iterate through the files in the directory.
         all_params = []
-        loaded_filters = set()
         for entry in dir_path.iterdir():
             if entry.is_file():
                 filter_name = entry.stem
-                if filters is None or filter_name in filters:
-                    params = {
-                        "survey": dir_path.name,
-                        "filter_name": filter_name,
-                        "table_path": dir_path / entry,
-                        "delta_wave": delta_wave,
-                        "trim_quantile": trim_quantile,
-                        "units": units,
-                    }
-                    all_params.append(params)
-                    loaded_filters.add(filter_name)
+                params = {
+                    "survey": dir_path.name,
+                    "filter_name": filter_name,
+                    "table_path": dir_path / entry,
+                    "delta_wave": delta_wave,
+                    "trim_quantile": trim_quantile,
+                    "units": units,
+                }
+                all_params.append(params)
 
-        # Check that we loaded all the filters we were looking for.
-        if filters is not None and set(filters) != loaded_filters:
-            raise FileNotFoundError(f"Missing filter file. Expected {filters} but found {loaded_filters}")
-
-        # Do the actual loading.
-        return PassbandGroup(passband_parameters=all_params)
-
-    def subset(self, bands_to_keep: list[str]):
-        """Filter the passbands down to a set matching the given list of bands.
-        These can be either filter names or full names.
-
-        Parameters
-        ----------
-        bands_to_keep : list[str]
-            The band names to keep.
-        """
-        all_bands = list(self.passbands.keys())
-        for pb_name in all_bands:
-            pb_obj = self.passbands[pb_name]
-            if pb_name not in bands_to_keep and pb_obj.filter_name not in bands_to_keep:
-                del self.passbands[pb_name]
-
-        # Update the internal data structures.
-        self._update_internal_data()
+        # Do the actual loading. The subsetting of filters happens here.
+        return PassbandGroup(passband_parameters=all_params, filters_to_load=filters)
 
     def _load_preset(self, preset: str, table_dir: Optional[str], **kwargs) -> None:
         """Load a pre-defined set of passbands.

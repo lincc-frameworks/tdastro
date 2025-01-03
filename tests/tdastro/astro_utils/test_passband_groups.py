@@ -197,7 +197,7 @@ def test_passband_group_from_dir(tmp_path):
         assert wave_start == pb_group[filter]._loaded_table[0][0]
 
     # Check that we throw an error if we try to load a filter that does not exist.
-    with pytest.raises(FileNotFoundError):
+    with pytest.raises(ValueError):
         _ = PassbandGroup.from_dir(table_dir, filters=["a", "b", "z"])
 
 
@@ -235,8 +235,8 @@ def test_passband_group_from_list(tmp_path):
     )
 
 
-def test_passband_subset_passbands(tmp_path):
-    """Test that we can filter unneed passbands from the group."""
+def test_passband_load_subset_passbands(tmp_path):
+    """Test that we can load a subset of filters."""
     pb_list = [
         Passband(
             "my_survey",
@@ -263,17 +263,19 @@ def test_passband_subset_passbands(tmp_path):
             trim_quantile=None,
         ),
     ]
-    test_passband_group = PassbandGroup(given_passbands=pb_list)
-    assert len(test_passband_group) == 4
 
-    # Filter keep two of the passbands, one by full name and the other by filter name.
-    test_passband_group.subset(["my_survey_a", "c"])
+    # Load one filter by full name and the other by filter name.
+    test_passband_group = PassbandGroup(given_passbands=pb_list, filters_to_load=["my_survey_a", "c"])
     assert len(test_passband_group) == 2
 
     assert np.allclose(
         test_passband_group.waves,
         np.unique(np.concatenate([np.arange(100, 301, 5), np.arange(400, 601, 5)])),
     )
+
+    # We run into an error if we try to load a filter that does not exist.
+    with pytest.raises(ValueError):
+        _ = PassbandGroup(given_passbands=pb_list, filters_to_load=["my_survey_a", "z"])
 
 
 def test_passband_unique_waves():
