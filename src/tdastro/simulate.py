@@ -40,8 +40,8 @@ def simulate_passbands(source, num_samples, opsim, passbands, rng=None):
     all_obs_matches = opsim.range_search(ra, dec)
 
     # Get all times and all filters as numpy arrays so we can do easy subsets.
-    all_times = np.asarray(opsim["time"].values)
-    all_filters = np.asarray(opsim["filter"].values)
+    all_times = np.asarray(opsim["time"].values, dtype=float)
+    all_filters = np.asarray(opsim["filter"].values, dtype=str)
 
     # Create a dictionary for keeping all the result information.
     results_dict = {
