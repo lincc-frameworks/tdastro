@@ -167,6 +167,40 @@ def test_passband_group_init(tmp_path, passbands_dir):
         raise AssertionError("PassbandGroup should raise an error for an unknown preset")
 
 
+def test_passband_group_from_dir(tmp_path):
+    """Test that we can load a PassbandGroup from a directory."""
+    survey = "FAKE"
+
+    # Create a new survey directory and fill it with filter files.
+    table_dir = tmp_path / survey
+    table_dir.mkdir()
+    transmission_tables = {
+        "a": "100 0.5\n150 0.75\n200 0.25\n",
+        "b": "200 0.25\n250 0.5\n300 0.75\n",
+        "c": "300 0.75\n350 0.25\n400 0.5\n",
+        "d": "400 0.75\n450 0.25\n500 0.5\n",
+        "e": "500 0.75\n550 0.25\n600 0.5\n",
+    }
+    for filter_name in transmission_tables:
+        with open(table_dir / f"{filter_name}.dat", "w") as f:
+            f.write(transmission_tables[filter_name])
+
+    # Load four of the filters from the PassbandGroup
+    load_filters = ["a", "b", "c", "e"]
+    pb_group = PassbandGroup.from_dir(table_dir, filters=load_filters)
+    assert len(pb_group) == len(load_filters)
+
+    for filter in load_filters:
+        assert filter in pb_group
+
+        wave_start = int(transmission_tables[filter].split()[0])
+        assert wave_start == pb_group[filter]._loaded_table[0][0]
+
+    # Check that we throw an error if we try to load a filter that does not exist.
+    with pytest.raises(FileNotFoundError):
+        _ = PassbandGroup.from_dir(table_dir, filters=["a", "b", "z"])
+
+
 def test_passband_group_from_list(tmp_path):
     """Test that we can create a PassbandGroup from a pre-specified list."""
     pb_list = [

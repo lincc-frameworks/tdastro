@@ -166,6 +166,68 @@ class PassbandGroup:
             return True
         return False
 
+    @classmethod
+    def from_dir(
+        cls,
+        dir_path: Union[str, Path],
+        filters: Optional[list] = None,
+        delta_wave: Optional[float] = 5.0,
+        trim_quantile: Optional[float] = 1e-3,
+        units: Optional[Literal["nm", "A"]] = "A",
+    ):
+        """Load the passbands from a directory where the directorty name corresponds
+        to the survey and the file names correspond to the filters:
+        path_to_survey_dir/survey_name/filter_name.dat
+
+        Parameters
+        ----------
+        dir_path : str or Path
+            The path to the passband files including the survey directory.
+        filters : list, set, or None, optional
+            A list of filters to load.
+        delta_wave : float or None, optional
+            The grid step of the wave grid, in angstroms.
+            It is typically used to downsample transmission using linear interpolation.
+            Default is 5 angstroms. If `None` the original grid is used.
+        trim_quantile : float or None, optional
+            The quantile to trim the transmission table by. For example, if trim_quantile is 1e-3, the
+            transmission table will be trimmed to include only the central 99.8% of the area under the
+            transmission curve.
+        units : Literal['nm','A'], optional
+            Denotes whether the wavelength units of the table are nanometers ('nm') or Angstroms ('A').
+            By default 'A'. Does not affect the output units of the class, only the interpretation of the
+            provided passband table.
+        """
+        dir_path = Path(dir_path)
+        if not dir_path.is_dir():
+            raise ValueError(f"{dir_path} is not a valid directory.")
+
+        # Iterate through the files in the directory, adding the ones
+        # that match our filter list (or all of them if the list is None)
+        all_params = []
+        loaded_filters = set()
+        for entry in dir_path.iterdir():
+            if entry.is_file():
+                filter_name = entry.stem
+                if filters is None or filter_name in filters:
+                    params = {
+                        "survey": dir_path.name,
+                        "filter_name": filter_name,
+                        "table_path": dir_path / entry,
+                        "delta_wave": delta_wave,
+                        "trim_quantile": trim_quantile,
+                        "units": units,
+                    }
+                    all_params.append(params)
+                    loaded_filters.add(filter_name)
+
+        # Check that we loaded all the filters we were looking for.
+        if filters is not None and set(filters) != loaded_filters:
+            raise FileNotFoundError(f"Missing filter file. Expected {filters} but found {loaded_filters}")
+
+        # Do the actual loading.
+        return PassbandGroup(passband_parameters=all_params)
+
     def subset(self, bands_to_keep: list[str]):
         """Filter the passbands down to a set matching the given list of bands.
         These can be either filter names or full names.
