@@ -919,7 +919,7 @@ class Passband:
                 linestyle="--",
             )
 
-        ax.set_xlabel("Wavelength (A)")
+        ax.set_xlabel(r"Wavelength, $\AA$")
         ax.set_ylabel("Transmission Value")
 
 
