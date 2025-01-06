@@ -22,6 +22,7 @@ dependencies = [
     "jax",
     "numpy",
     "pandas",
+    "pzflow",
     "scipy",
     "sncosmo",
 ]

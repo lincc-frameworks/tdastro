@@ -147,26 +147,6 @@ class NumericalInversePolynomialFunc(FunctionNode):
         self._save_results(results, graph_state)
         return results
 
-    def generate(self, given_args=None, num_samples=1, rng_info=None, **kwargs):
-        """A helper function for testing that regenerates the output.
-
-        Parameters
-        ----------
-        given_args : `dict`, optional
-            A dictionary representing the given arguments for this sample run.
-            This can be used as the JAX PyTree for differentiation.
-        num_samples : `int`
-            A count of the number of samples to compute.
-            Default: 1
-        rng_info : numpy.random._generator.Generator, optional
-            A given numpy random number generator to use for this computation. If not
-            provided, the function uses the node's random number generator.
-        **kwargs : `dict`, optional
-            Additional function arguments.
-        """
-        state = self.sample_parameters(given_args, num_samples, rng_info)
-        return self.compute(state, rng_info, **kwargs)
-
 
 class PDFFunctionWrapper:
     """A class that just wraps a given PDF function.

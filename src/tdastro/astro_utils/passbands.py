@@ -23,6 +23,9 @@ class PassbandGroup:
         The path to the directory containing the passband tables.
     waves : np.ndarray
         The union of all wavelengths in the passbands.
+    _in_band_wave_indices : dict
+        A dictionary mapping the passband name (eg, "LSST_u") to the indices of that specific
+        passband's wavelengths in the full waves list.
     """
 
     def __init__(
@@ -64,6 +67,7 @@ class PassbandGroup:
             Additional keyword arguments to pass to the Passband constructor.
         """
         self.passbands = {}
+        self._in_band_wave_indices = {}
 
         if preset is None and passband_parameters is None and given_passbands is None:
             raise ValueError(
@@ -102,7 +106,6 @@ class PassbandGroup:
 
         # Compute the unique points and bounds for the group.
         self._update_waves()
-        self._calculate_in_band_wave_indices()
 
     def __str__(self) -> str:
         """Return a string representation of the PassbandGroup."""
@@ -145,7 +148,14 @@ class PassbandGroup:
 
     def _update_waves(self, threshold=1e-5) -> None:
         """Update the group's wave attribute to be the union of all wavelengths in
-        the passbands.
+        the passbands and update the group's _in_band_wave_indices attribute, which is
+        the indices of the group's wave grid that are in the passband's wave grid.
+
+        Eg, if a group's waves are [11, 12, 13, 14, 15] and a single band's are [13, 14],
+        we get [2, 3].
+
+        The indices are stored in the passband's _in_band_wave_indices attribute as either
+        a tuple of two ints (lower, upper) or a 1D np.ndarray of ints.
 
         Parameters
         ----------
@@ -166,15 +176,10 @@ class PassbandGroup:
             gap_sizes = np.insert(sorted_waves[1:] - sorted_waves[:-1], 0, 1e8)
             self.waves = sorted_waves[gap_sizes >= threshold]
 
-    def _calculate_in_band_wave_indices(self) -> None:
-        """Calculate the indices of the group's wave grid that are in the passband's wave grid.
-
-        Eg, if a group's waves are [11, 12, 13, 14, 15] and a single band's are [13, 14], we get [2, 3].
-
-        The indices are stored in the passband's _in_band_wave_indices attribute as either a tuple of two ints
-        (lower, upper) or a 1D np.ndarray of ints.
-        """
-        for passband in self.passbands.values():
+        # Update the mapping of each passband's wavelengths to the corresponding indices in the
+        # unioned list of all wavelengths.
+        self._in_band_wave_indices = {}
+        for name, passband in self.passbands.items():
             # We only want the fluxes that are in the passband's wavelength range
             # So, find the indices in the group's wave grid that are in the passband's wave grid
             lower, upper = passband.waves[0], passband.waves[-1]
@@ -187,7 +192,21 @@ class PassbandGroup:
                 indices = slice(lower_index, upper_index + 1)
             else:
                 indices = np.searchsorted(self.waves, passband.waves)
-            passband._in_band_wave_indices = indices
+            self._in_band_wave_indices[name] = indices
+
+    def wave_bounds(self):
+        """Get the minimum and maximum wavelength for this group.
+
+        Returns
+        -------
+        min_wave : float
+            The minimum wavelength.
+        max_wave : float
+            The maximum wavelength.
+        """
+        min_wave = np.min(self.waves)
+        max_wave = np.max(self.waves)
+        return min_wave, max_wave
 
     def process_transmission_tables(
         self, delta_wave: Optional[float] = 5.0, trim_quantile: Optional[float] = 1e-3
@@ -206,7 +225,6 @@ class PassbandGroup:
             passband.process_transmission_table(delta_wave, trim_quantile)
 
         self._update_waves()
-        self._calculate_in_band_wave_indices()
 
     def fluxes_to_bandfluxes(self, flux_density_matrix: np.ndarray) -> np.ndarray:
         """Calculate bandfluxes for all passbands in the group.
@@ -232,12 +250,12 @@ class PassbandGroup:
 
         bandfluxes = {}
         for full_name, passband in self.passbands.items():
-            indices = passband._in_band_wave_indices
+            indices = self._in_band_wave_indices[full_name]
 
             if indices is None:
                 raise ValueError(
                     f"Passband {full_name} does not have _in_band_wave_indices set. "
-                    "This should have been calculated in PassbandGroup._calculate_in_band_wave_indices."
+                    "This should have been calculated in PassbandGroup._update_waves."
                 )
 
             in_band_fluxes = flux_density_matrix[:, indices]
@@ -270,9 +288,6 @@ class Passband:
     processed_transmission_table : np.ndarray
         A 2D array where the first col is wavelengths (Angstrom) and the second col is transmission values.
         This table is both interpolated to the _wave_grid and normalized to calculate phi_b(λ).
-    _in_band_wave_indices : np.ndarray, optional
-        The indices of the full wave grid used in PassbandGroup that correspond to this Passband's wave grid.
-        This is only set when the Passband is part of a PassbandGroup.
     """
 
     def __init__(
@@ -326,7 +341,6 @@ class Passband:
         self.table_path = Path(table_path) if table_path is not None else None
         self.table_url = table_url
         self.units = units
-        self._in_band_wave_indices = None
 
         if table_values is not None:
             if table_values.shape[1] != 2:
@@ -591,16 +605,31 @@ class Passband:
         Parameters
         ----------
         flux_density_matrix : np.ndarray
-            A 2D array of flux densities where rows are times and columns are wavelengths.
+            A 2D or 3D array of flux densities. If the array is 2D it contains a single sample where
+            the rows are the T times and columns are M wavelengths. If the array is 3D it contains S
+            samples and the values are indexed as (sample_num, time, wavelength).
 
         Returns
         -------
-        np.ndarray
-            An array of bandfluxes with length flux_density_matrix, where each element is the bandflux
-            at the corresponding time.
+        bandfluxes : np.ndarray
+            A 1D or 2D array. If the flux_density_matrix contains a single sample (2D input) then
+            the function returns a 1D length T array where each element is the bandflux
+            at the corresponding time. Otherwise the function returns a size S x T array where
+            each entry corresponds to the value for a given sample at a given time.
         """
-        if flux_density_matrix.size == 0 or len(self.waves) != len(flux_density_matrix[0]):
-            flux_density_matrix_num_cols = 0 if flux_density_matrix.size == 0 else len(flux_density_matrix[0])
+        if flux_density_matrix.size == 0:
+            raise ValueError("Empty flux density matrix used.")
+        if len(flux_density_matrix.shape) == 2:
+            w_axis = 1
+            flux_density_matrix_num_cols = flux_density_matrix.shape[1]
+        elif len(flux_density_matrix.shape) == 3:
+            w_axis = 2
+            flux_density_matrix_num_cols = flux_density_matrix.shape[2]
+        else:
+            raise ValueError("Invalid flux density matrix. Must be 2 or 3-dimensional.")
+
+        # Check the number of wavelengths match.
+        if len(self.waves) != flux_density_matrix_num_cols:
             raise ValueError(
                 f"Passband mismatched grids: Flux density matrix has {flux_density_matrix_num_cols} "
                 f"columns, which does not match the {len(self.waves)} rows in band {self.full_name}'s "
@@ -612,6 +641,5 @@ class Passband:
         # Calculate the bandflux as ∫ f(λ)φ_b(λ) dλ,
         # where f(λ) is the flux density and φ_b(λ) is the normalized system response
         integrand = flux_density_matrix * self.processed_transmission_table[:, 1]
-        bandfluxes = scipy.integrate.trapezoid(integrand, x=self.waves)
-
+        bandfluxes = scipy.integrate.trapezoid(integrand, x=self.waves, axis=w_axis)
         return bandfluxes

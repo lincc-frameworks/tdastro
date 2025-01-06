@@ -6,21 +6,31 @@ from tdastro.sources.static_source import StaticSource
 class StepSource(StaticSource):
     """A static source that is on for a fixed amount of time
 
+    Parameterized values include:
+      * brightness - The inherent brightness
+      * dec - The object's declination in degrees. [from PhysicalModel]
+      * distance - The object's luminosity distance in pc. [from PhysicalModel]
+      * ra - The object's right ascension in degrees. [from PhysicalModel]
+      * redshift - The object's redshift. [from PhysicalModel]
+      * t0 - The time the step function starts, in MJD.
+      * t1- The time the step function ends, in MJD.
+
     Parameters
     ----------
     brightness : `float`
         The inherent brightness
     t0 : `float`
-        The time the step function starts
+        The time the step function starts, in MJD.
     t1 : `float`
-        The time the step function ends
+        The time the step function ends, in MJD.
     **kwargs : `dict`, optional
         Any additional keyword arguments.
     """
 
-    def __init__(self, brightness, t0, t1, **kwargs):
+    def __init__(self, brightness, t1, **kwargs):
         super().__init__(brightness, **kwargs)
-        self.add_parameter("t0", t0, **kwargs)
+
+        # t0 is added in the PhysicalModel constructor.
         self.add_parameter("t1", t1, **kwargs)
 
     def compute_flux(self, times, wavelengths, graph_state, **kwargs):

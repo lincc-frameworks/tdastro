@@ -98,6 +98,11 @@ def test_passband_group_init(tmp_path, passbands_dir):
         np.unique(np.concatenate([np.arange(100, 301, 5), np.arange(250, 351, 5), np.arange(400, 601, 5)])),
     )
 
+    # Test that we can retrieve bounds for this passband group.
+    min_w, max_w = toy_passband_group.wave_bounds()
+    assert min_w == 100.0
+    assert max_w == 600.0
+
     # Test that the PassbandGroup class raises an error for an unknown preset
     try:
         _ = PassbandGroup(preset="Unknown")
@@ -289,16 +294,14 @@ def test_passband_group_calculate_in_band_wave_indices(passbands_dir, tmp_path):
 
     # Note that passband_A and passband_B have overlapping wavelength ranges
     # Where passband_A covers 100-300 and passband_B covers 250-350 (and passband_C covers 400-600)
-    np.testing.assert_allclose(
-        passband_A._in_band_wave_indices, np.array([0, 1, 2, 3, 4, 5, 6, 7, 9, 11, 13])
-    )
-    np.testing.assert_allclose(passband_A.waves, toy_passband_group.waves[passband_A._in_band_wave_indices])
+    toy_a_inds = toy_passband_group._in_band_wave_indices["TOY_a"]
+    np.testing.assert_allclose(toy_a_inds, np.array([0, 1, 2, 3, 4, 5, 6, 7, 9, 11, 13]))
+    np.testing.assert_allclose(passband_A.waves, toy_passband_group.waves[toy_a_inds])
 
-    np.testing.assert_allclose(passband_B._in_band_wave_indices, np.array([8, 10, 12, 14, 15, 16]))
-    np.testing.assert_allclose(passband_B.waves, toy_passband_group.waves[passband_B._in_band_wave_indices])
+    toy_b_inds = toy_passband_group._in_band_wave_indices["TOY_b"]
+    np.testing.assert_allclose(toy_b_inds, np.array([8, 10, 12, 14, 15, 16]))
+    np.testing.assert_allclose(passband_B.waves, toy_passband_group.waves[toy_b_inds])
 
-    assert passband_C._in_band_wave_indices == slice(17, 28)
-    np.testing.assert_allclose(
-        passband_C.waves,
-        toy_passband_group.waves[passband_C._in_band_wave_indices],
-    )
+    toy_c_inds = toy_passband_group._in_band_wave_indices["TOY_c"]
+    assert toy_c_inds == slice(17, 28)
+    np.testing.assert_allclose(passband_C.waves, toy_passband_group.waves[toy_c_inds])

@@ -5,15 +5,25 @@ from tdastro.sources.physical_model import PhysicalModel
 
 
 class GaussianGalaxy(PhysicalModel):
-    """A static source.
+    """A galaxy with constant brightness that falls of as a Guassian
+    as the distance from the center increases.
+
+    Parameterized values include:
+      * brightness - The inherent brightness at the center of the galaxy.
+      * dec - The object's declination in degrees. [from PhysicalModel]
+      * distance - The object's luminosity distance in pc. [from PhysicalModel]
+      * galaxy_radius_std - The standard deviation of the brightness in degrees.
+      * ra - The object's right ascension in degrees. [from PhysicalModel]
+      * redshift - The object's redshift. [from PhysicalModel]
+      * t0 - No effect for a GuassianGalaxy [from PhysicalModel]
 
     Parameters
     ----------
-    radius_std : `float`
-        The standard deviation of the brightness as we move away
-        from the galaxy's center (in degrees).
     brightness : `float`
         The inherent brightness at the center of the galaxy.
+    radius : `float`
+        The standard deviation of the brightness as we move away
+        from the galaxy's center (in degrees).
     **kwargs : `dict`, optional
         Any additional keyword arguments.
     """

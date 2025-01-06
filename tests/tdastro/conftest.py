@@ -24,14 +24,20 @@ def grid_data_bad_file(test_data_dir):
 
 @pytest.fixture
 def opsim_small(test_data_dir):
-    """Return the file path for the bad grid input file."""
+    """Return the file path for the small opsim db."""
     return test_data_dir / "opsim_small.db"
 
 
 @pytest.fixture
 def opsim_shorten(test_data_dir):
-    """Return the file path for the bad grid input file."""
+    """Return the file path for the shortened opsim db."""
     return test_data_dir / "opsim_shorten.db"
+
+
+@pytest.fixture
+def test_flow_filename(test_data_dir):
+    """Return the file path for the test flow input file."""
+    return test_data_dir / "test_flow.pkl"
 
 
 @pytest.fixture

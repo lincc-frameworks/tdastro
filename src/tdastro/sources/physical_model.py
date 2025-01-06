@@ -21,6 +21,13 @@ class PhysicalModel(ParameterizedNode):
 
     Physical models also support adding and applying a variety of effects, such as redshift.
 
+    Parameterized values include:
+      * dec - The object's declination in degrees.
+      * distance - The object's luminosity distance in pc.
+      * ra - The object's right ascension in degrees.
+      * redshift - The object's redshift.
+      * t0 - The t0 of the zero phase (if applicable), date.
+
     Attributes
     ----------
     background : `PhysicalModel`
@@ -36,6 +43,8 @@ class PhysicalModel(ParameterizedNode):
         The object's declination (in degrees)
     redshift : `float`
         The object's redshift.
+    t0 : `float`
+        The phase offset in MJD. For non-time-varying phenomena, this has no effect.
     distance : `float`
         The object's luminosity distance (in pc). If no value is provided and
         a ``cosmology`` parameter is given, the model will try to derive from
@@ -46,13 +55,14 @@ class PhysicalModel(ParameterizedNode):
         Any additional keyword arguments.
     """
 
-    def __init__(self, ra=None, dec=None, redshift=None, distance=None, background=None, **kwargs):
+    def __init__(self, ra=None, dec=None, redshift=None, t0=None, distance=None, background=None, **kwargs):
         super().__init__(**kwargs)
 
         # Set RA, dec, and redshift from the parameters.
         self.add_parameter("ra", ra, allow_gradient=False)
         self.add_parameter("dec", dec, allow_gradient=False)
         self.add_parameter("redshift", redshift, allow_gradient=False)
+        self.add_parameter("t0", t0)
 
         # If the luminosity distance is provided, use that. Otherwise try the
         # redshift value using the cosmology (if given). Finally, default to None.
@@ -97,6 +107,25 @@ class PhysicalModel(ParameterizedNode):
         """
         self.apply_redshift = apply_redshift
 
+    def mask_by_time(self, times, graph_state=None):
+        """Compute a mask for whether a given time is of interest for a given object.
+        For example, a user can use this function to generate a mask to include
+        only the observations of interest for a window around the supernova.
+
+        Parameters
+        ----------
+        times : numpy.ndarray
+            A length T array of observer frame timestamps in MJD.
+        graph_state : GraphState, optional
+            An object mapping graph parameters to their values.
+
+        Returns
+        -------
+        time_mask : numpy.ndarray
+            A length T array of Booleans indicating whether the time is of interest.
+        """
+        return np.full(len(times), True)
+
     def compute_flux(self, times, wavelengths, graph_state):
         """Draw effect-free rest frame flux densities.
         The rest-frame flux is defined as F_nu = L_nu / 4*pi*D_L**2,
@@ -105,7 +134,7 @@ class PhysicalModel(ParameterizedNode):
         Parameters
         ----------
         times : `numpy.ndarray`
-            A length T array of rest frame timestamps.
+            A length T array of rest frame timestamps in MJD.
         wavelengths : `numpy.ndarray`, optional
             A length N array of rest frame wavelengths (in angstroms).
         graph_state : `GraphState`
@@ -124,7 +153,7 @@ class PhysicalModel(ParameterizedNode):
         Parameters
         ----------
         times : `numpy.ndarray`
-            A length T array of observer frame timestamps.
+            A length T array of observer frame timestamps in MJD.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths (in angstroms).
         graph_state : `GraphState`, optional
@@ -141,7 +170,9 @@ class PhysicalModel(ParameterizedNode):
         Returns
         -------
         flux_density : `numpy.ndarray`
-            A length T x N matrix of SED values (in nJy).
+            A length S x T x N matrix of SED values (in nJy), where S is the number of samples,
+            T is the number of time steps, and N is the number of wavelengths.
+            If S=1 then the function returns a T x N matrix.
         """
         # Make sure times and wavelengths are numpy arrays.
         times = np.asarray(times)
@@ -152,36 +183,46 @@ class PhysicalModel(ParameterizedNode):
             graph_state = self.sample_parameters(
                 given_args=given_args, num_samples=1, rng_info=rng_info, **kwargs
             )
-        params = self.get_local_params(graph_state)
 
-        # Pre-effects are adjustments done to times and/or wavelengths, before flux density
-        # computation. We skip if redshift is 0.0 since there is nothing to do.
-        if self.apply_redshift and params["redshift"] != 0.0:
-            if params.get("redshift", None) is None:
-                raise ValueError("The 'redshift' parameter is required for redshifted models.")
-            if params.get("t0", None) is None:
-                raise ValueError("The 't0' parameter is required for redshifted models.")
-            times, wavelengths = obs_to_rest_times_waves(times, wavelengths, params["redshift"], params["t0"])
+        results = np.empty((graph_state.num_samples, len(times), len(wavelengths)))
+        for sample_num, state in enumerate(graph_state):
+            params = self.get_local_params(state)
 
-        # Compute the flux density for both the current object and add in anything
-        # behind it, such as a host galaxy.
-        flux_density = self.compute_flux(times, wavelengths, graph_state, **kwargs)
-        if self.background is not None:
-            flux_density += self.background.compute_flux(
-                times,
-                wavelengths,
-                graph_state,
-                ra=params["ra"],
-                dec=params["dec"],
-                **kwargs,
-            )
+            # Pre-effects are adjustments done to times and/or wavelengths, before flux density
+            # computation. We skip if redshift is 0.0 since there is nothing to do.
+            if self.apply_redshift and params["redshift"] != 0.0:
+                if params.get("redshift", None) is None:
+                    raise ValueError("The 'redshift' parameter is required for redshifted models.")
+                if params.get("t0", None) is None:
+                    raise ValueError("The 't0' parameter is required for redshifted models.")
+                times, wavelengths = obs_to_rest_times_waves(
+                    times, wavelengths, params["redshift"], params["t0"]
+                )
 
-        # Post-effects are adjustments done to the flux density after computation.
-        if self.apply_redshift and params["redshift"] != 0.0:
-            # We have alread checked that redshift is not None.
-            flux_density = rest_to_obs_flux(flux_density, params["redshift"])
+            # Compute the flux density for both the current object and add in anything
+            # behind it, such as a host galaxy.
+            flux_density = self.compute_flux(times, wavelengths, state, **kwargs)
+            if self.background is not None:
+                flux_density += self.background.compute_flux(
+                    times,
+                    wavelengths,
+                    state,
+                    ra=params["ra"],
+                    dec=params["dec"],
+                    **kwargs,
+                )
 
-        return flux_density
+            # Post-effects are adjustments done to the flux density after computation.
+            if self.apply_redshift and params["redshift"] != 0.0:
+                # We have alread checked that redshift is not None.
+                flux_density = rest_to_obs_flux(flux_density, params["redshift"])
+
+            # Save the result.
+            results[sample_num, :, :] = flux_density
+
+        if graph_state.num_samples == 1:
+            return results[0, :, :]
+        return results
 
     def sample_parameters(self, given_args=None, num_samples=1, rng_info=None, **kwargs):
         """Sample the model's underlying parameters if they are provided by a function
@@ -233,7 +274,7 @@ class PhysicalModel(ParameterizedNode):
         passband_or_group : `Passband` or `PassbandGroup`
             The passband (or passband group) to use.
         times : `numpy.ndarray`
-            A length T array of observer frame timestamps.
+            A length T array of observer frame timestamps in MJD.
         filters : `numpy.ndarray` or None
             A length T array of filter names. It may be None if
             passband_or_group is a Passband.
@@ -242,17 +283,17 @@ class PhysicalModel(ParameterizedNode):
 
         Returns
         -------
-        band_fluxes : `numpy.ndarray` or `dict
-            A length T array of band fluxes, or a dictionary of band names mapped to fluxes (if a passband
-            group is used).
+        band_fluxes : `numpy.ndarray`
+            A matrix of the band fluxes. If only one sample is provided in the GraphState,
+            then returns a length T array. Otherwise returns a size S x T array where S is the
+            number of samples in the graph state.
         """
         if isinstance(passband_or_group, Passband):
-            if filters is not None and not np.array_equal(
-                filters, np.repeat(passband_or_group.filter_name, len(times))
-            ):
+            if filters is not None and not np.all(filters == passband_or_group.filter_name):
                 raise ValueError(
-                    "If passband_or_group is a Passband, "
-                    "filters must be None or a list of the same filter repeated."
+                    "If passband_or_group is a Passband, filters must either be None "
+                    "or a list where every entry matches the given filter's name: "
+                    f"{passband_or_group.filter_name}."
                 )
             spectral_fluxes = self.evaluate(times, passband_or_group.waves, state)
             return passband_or_group.fluxes_to_bandflux(spectral_fluxes)
@@ -260,10 +301,13 @@ class PhysicalModel(ParameterizedNode):
         if filters is None:
             raise ValueError("If passband_or_group is a PassbandGroup, filters must be provided.")
 
-        band_fluxes = np.empty_like(times)
+        band_fluxes = np.empty((state.num_samples, len(times)))
         for filter_name in np.unique(filters):
             passband = passband_or_group.passbands[filter_name]
             filter_mask = filters == filter_name
             spectral_fluxes = self.evaluate(times[filter_mask], passband.waves, state)
-            band_fluxes[filter_mask] = passband.fluxes_to_bandflux(spectral_fluxes)
+            band_fluxes[:, filter_mask] = passband.fluxes_to_bandflux(spectral_fluxes)
+
+        if state.num_samples == 1:
+            return band_fluxes[0, :]
         return band_fluxes
