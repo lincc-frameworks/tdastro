@@ -135,3 +135,20 @@ def test_sncomso_models_chained() -> None:
     # Each bin should have around 1,000 samples.
     for i in range(10):
         assert 800 < hist[i] < 1200
+
+
+def test_sncosmo_models_mask_by_time():
+    """Test that the mask_by_time function gives the results we expect."""
+    t0 = 55000.0
+
+    # The nugent-sn1a should have a window that goes from t0 to t0 + 90.0.
+    model = SncosmoWrapperModel("nugent-sn1a", amplitude=2.0e10, t0=t0, redshift=0.0)
+    assert model.source.minphase() == 0.0
+    assert model.source.maxphase() == 90.0
+    state = model.sample_parameters()
+
+    query_times = [t0 - 100.0, t0 - 10.0, t0 + 1.0, t0 + 85.0, t0 + 92.0]
+    assert np.array_equal(
+        model.mask_by_time(query_times, state),
+        [False, False, True, True, False],
+    )
