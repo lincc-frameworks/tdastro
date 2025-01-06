@@ -35,7 +35,7 @@ class ConstantDustMap(DustMap):
         return np.full((len(coords)), self.ebv)
 
 
-class TestExtinction:
+class ConstantExtinction:
     """An extinction function that computes the scaling factor
     as a constant times the ebv.
 
@@ -88,18 +88,18 @@ def test_constant_dust_extinction():
 
     # Create DustExtinctionEffect effects with constant ebvs and constant
     # multiplicative extinction functions.
-    dust_effect = DustExtinctionEffect(ConstantDustMap(0.5), TestExtinction(0.1))
+    dust_effect = DustExtinctionEffect(ConstantDustMap(0.5), ConstantExtinction(0.1))
     fluxes = dust_effect.apply(fluxes_clean, wavelengths, ra=0.0, dec=40.0, dist=100.0)
     assert fluxes.shape == (5, 3)
     assert np.all(fluxes == 5.0)
 
-    dust_effect = DustExtinctionEffect(ConstantDustMap(0.5), TestExtinction(0.3))
+    dust_effect = DustExtinctionEffect(ConstantDustMap(0.5), ConstantExtinction(0.3))
     fluxes = dust_effect.apply(fluxes_clean, wavelengths, ra=0.0, dec=40.0, dist=100.0)
     assert fluxes.shape == (5, 3)
     assert np.all(fluxes == 15.0)
 
     # Use a manual ebv, which overrides the dustmap.
-    dust_effect = DustExtinctionEffect(ConstantDustMap(0.5), TestExtinction(0.1))
+    dust_effect = DustExtinctionEffect(ConstantDustMap(0.5), ConstantExtinction(0.1))
     fluxes = dust_effect.apply(fluxes_clean, wavelengths, ebv=1.0, ra=0.0, dec=40.0, dist=100.0)
     assert fluxes.shape == (5, 3)
     assert np.all(fluxes == 10.0)
