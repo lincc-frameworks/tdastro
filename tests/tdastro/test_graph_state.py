@@ -349,6 +349,18 @@ def test_graph_state_to_dict():
         [6.0, 7.0, 8.0],
     )
 
+    # Everything still works if we have only a single value.
+    state2 = GraphState(num_samples=1)
+    state2.set("a", "v1", 1.0)
+    state2.set("a", "v2", 3.0)
+    state2.set("b", "v1", 6.0)
+
+    result2 = state2.to_dict()
+    assert len(result2) == 3
+    assert result2[GraphState.extended_param_name("a", "v1")] == 1.0
+    assert result2[GraphState.extended_param_name("a", "v2")] == 3.0
+    assert result2[GraphState.extended_param_name("b", "v1")] == 6.0
+
 
 def test_graph_state_to_table():
     """Test that we can create an AstroPy Table from a GraphState."""

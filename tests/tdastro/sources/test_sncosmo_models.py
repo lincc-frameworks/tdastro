@@ -72,6 +72,28 @@ def test_sncomso_models_hsiao_t0() -> None:
     assert np.array_equal(mask, expected_mask)
 
 
+def test_sncomso_models_bounds() -> None:
+    """Test that we do not crash if we give wavelengths outside the model bounds."""
+    model = SncosmoWrapperModel("nugent-sn1a", amplitude=2.0e10, t0=0.0)
+    min_w = model.source.minwave()
+    max_w = model.source.maxwave()
+
+    wavelengths = [
+        min_w - 100.0,  # Out of bounds
+        min_w,  # edge of bounds (included)
+        0.5 * min_w + 0.5 * max_w,  # included
+        max_w,  # edge of bounds (included)
+        max_w + 0.1,  # Out of bounds
+        max_w + 100.0,  # Out of bounds
+    ]
+
+    # Check that columns 0, 4, and 5 are all zeros and the other columns are not.
+    fluxes_fnu = model.evaluate([54990.0, 54990.5], wavelengths)
+    assert np.all(fluxes_fnu[:, 0] == 0.0)
+    assert not np.any(fluxes_fnu[:, 1:4] == 0.0)
+    assert np.all(fluxes_fnu[:, 4:6] == 0.0)
+
+
 def test_sncomso_models_set() -> None:
     """Test that we can create and evalue a 'hsiao' model and set parameter."""
     model = SncosmoWrapperModel("hsiao", t0=0.0, redshift=0.5)
