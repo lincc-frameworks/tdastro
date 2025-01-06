@@ -95,7 +95,8 @@ class DustExtinctionEffect:
 
     @staticmethod
     def load_extinction_model(name, **kwargs):
-        """Load the extinction model.
+        """Load the extinction model from the dust_extinction package
+        (https://github.com/karllark/dust_extinction)
 
         Parameters
         ----------
@@ -125,7 +126,7 @@ class DustExtinctionEffect:
         ----------
         flux_density : numpy.ndarray
             An array of flux density values (in nJy).
-        wavelengths : numpy.ndarray, optional
+        wavelengths : numpy.ndarray
             An array of wavelengths (in angstroms).
         ebv : float or np.array
             A given ebv value or array of values. If present then this is used
@@ -162,7 +163,5 @@ class DustExtinctionEffect:
                 ebv = self.ebv_func(dustmap_value, **kwargs)
             else:
                 ebv = dustmap_value
-
-        print(f"Using ebv={ebv}")
 
         return flux_density * self.extinction_model.extinguish(wavelengths * u.angstrom, Ebv=ebv)
