@@ -441,7 +441,10 @@ class GraphState:
         values = {}
         for node_name, node_params in self.states.items():
             for param_name, param_value in node_params.items():
-                values[self.extended_param_name(node_name, param_name)] = list(param_value)
+                if self.num_samples == 1:
+                    values[self.extended_param_name(node_name, param_name)] = param_value
+                else:
+                    values[self.extended_param_name(node_name, param_name)] = list(param_value)
         return values
 
     def save_to_file(self, filename, overwrite=False):
