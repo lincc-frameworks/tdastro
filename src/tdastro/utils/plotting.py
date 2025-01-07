@@ -6,7 +6,7 @@ import numpy as np
 
 def plot_lightcurves(
     fluxes,
-    times=None,
+    times,
     fluxerrs=None,
     filters=None,
     ax=None,
@@ -19,9 +19,9 @@ def plot_lightcurves(
     ----------
     fluxes : numpy.ndarray
         An array of T flux values.
-    times : numpy.ndarray or None, optional
-        A length T matrix of the times, used for setting the x axis. If not
-        provided, uses equal spaced ticks. None by default.
+    times : numpy.ndarray
+        A length T matrix of the times, used for setting the x axis.
+        All times in MJD.
     fluxerrs : numpy.ndarray or None, optional
         A length T matrix of errors on the fluxes for error bars. If not provided
         no error bars are created. None by default.
@@ -44,9 +44,7 @@ def plot_lightcurves(
 
     # Set up the time array if it is not given.
     num_pts = len(fluxes)
-    if times is None:
-        times = np.arange(num_pts)
-    elif len(times) != num_pts:
+    if len(times) != num_pts:
         raise ValueError(f"Mismatched array sizes for fluxes ({num_pts}) and times ({len(times)}).")
 
     # Set up a list of filters to display.
