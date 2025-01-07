@@ -1,3 +1,4 @@
+import warnings
 from pathlib import Path
 from unittest.mock import patch
 
@@ -41,6 +42,17 @@ def test_passband_str(passbands_dir, tmp_path):
     assert str(a_band) == "Passband: TOY_a"
 
 
+def test_passband_eq(passbands_dir, tmp_path):
+    """Test the __str__ method of the Passband class."""
+    a_band = Passband("LSST", "a", table_values=np.array([[1000, 0.5], [1005, 0.6], [1010, 0.7]]))
+    b_band = Passband("LSST", "b", table_values=np.array([[1000, 0.5], [1005, 0.6], [1010, 0.7]]))
+    c_band = Passband("LSST", "c", table_values=np.array([[1000, 0.5], [1005, 0.7], [1010, 0.7]]))
+    d_band = Passband("LSST", "d", table_values=np.array([[1000, 0.5], [1005, 0.6], [1020, 0.7]]))
+    assert a_band == b_band
+    assert a_band != c_band
+    assert a_band != d_band
+
+
 def test_passband_manual_create(tmp_path):
     """Test that we can create a passband from the transmission table."""
     # Test we get a TypeError if we don't provide a survey and filter_name
@@ -55,8 +67,6 @@ def test_passband_manual_create(tmp_path):
     assert test_pb.filter_name == "u"
     assert test_pb.full_name == "test_u"
     assert test_pb.units == "A"
-    assert test_pb.table_url is None
-    assert test_pb.table_path is None
     np.testing.assert_allclose(test_pb._loaded_table, transmission_table)
 
     # We can create an load a table in nm as well. It will auto-convert to Angstroms.
@@ -66,8 +76,6 @@ def test_passband_manual_create(tmp_path):
     assert test_pb2.filter_name == "g"
     assert test_pb2.full_name == "test_g"
     assert test_pb2.units == "A"
-    assert test_pb.table_url is None
-    assert test_pb.table_path is None
     np.testing.assert_allclose(test_pb2._loaded_table, transmission_table)
 
     # We raise an error if the data is not sorted.
@@ -79,7 +87,7 @@ def test_passband_manual_create(tmp_path):
         )
 
     # We raise an error when no data is given or when we given a path AND table.
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(ValueError):
         _ = Passband(survey="test", filter_name="u")
 
     with pytest.raises(ValueError):
@@ -107,24 +115,28 @@ def test_passband_load_transmission_table(passbands_dir, tmp_path):
 
     # Test that we raise an error if the transmission table is blank
     transmission_table = ""
-    with open(a_band.table_path, "w") as f:
+    test_pb_file_name = Path(tmp_path) / "r.dat"
+    with open(test_pb_file_name, "w") as f:
         f.write(transmission_table)
-    with pytest.raises(ValueError):
-        a_band._load_transmission_table()
+    with warnings.catch_warnings():
+        # Ignore the warning that we are loading an empty file.
+        warnings.simplefilter("ignore")
+        with pytest.raises(ValueError):
+            a_band.load_transmission_table(test_pb_file_name)
 
     # Test that we raise an error if the transmission table is not formatted correctly
     transmission_table = "1000\n1005 0.6\n1010 0.7"
-    with open(a_band.table_path, "w") as f:
+    with open(test_pb_file_name, "w") as f:
         f.write(transmission_table)
     with pytest.raises(ValueError):
-        a_band._load_transmission_table()
+        a_band.load_transmission_table(test_pb_file_name)
 
     # Test that we raise an error if the transmission table wavelengths are not sorted
     transmission_table = "1000 0.5\n900 0.6\n1010 0.7"
-    with open(a_band.table_path, "w") as f:
+    with open(test_pb_file_name, "w") as f:
         f.write(transmission_table)
     with pytest.raises(ValueError):
-        a_band._load_transmission_table()
+        a_band.load_transmission_table(test_pb_file_name)
 
 
 def test_passband_download_transmission_table(tmp_path):
