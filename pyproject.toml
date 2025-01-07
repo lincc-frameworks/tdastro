@@ -18,6 +18,7 @@ requires-python = ">=3.9"
 dependencies = [
     "astropy",
     "jax",
+    "matplotlib",
     "nested-pandas",
     "numpy",
     "pandas",
@@ -39,7 +40,6 @@ dev = [
     "pytest",
     "pytest-cov", # Used to report total code coverage
     "ruff", # Used for static linting of files
-    "matplotlib", # Used in example notebooks
 ]
 
 [build-system]
