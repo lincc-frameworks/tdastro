@@ -250,7 +250,7 @@ def run_snia_end2end(
         nsn, _ = num_snia_per_redshift_bin(
             zmin, zmax, znbins=1, solid_angle=solid_angle, H0=H0, Omega_m=Omega_m
         )
-        nsample = int(nsn)
+        nsample = int(nsn[0])  # Since znbins=1 there is only one bin
         print(f"Drawing {nsample} samples from redshift {zmin} to {zmax}.")
 
     source = construct_snia_source(oversampled_observations, zpdf)

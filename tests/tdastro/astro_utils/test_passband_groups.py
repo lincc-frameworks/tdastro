@@ -51,6 +51,54 @@ def create_toy_passband_group(path, delta_wave=5.0, trim_quantile=None):
     return PassbandGroup(passband_parameters=passbands)
 
 
+def test_passband_group_access(tmp_path):
+    """Test that we can create a passband group and access the individual passbands."""
+    table_vals = np.array([[100, 0.5], [200, 0.75], [300, 0.25]])
+    pb_list = [
+        Passband("survey1", "a", table_values=table_vals, trim_quantile=None),
+        Passband("survey1", "b", table_values=table_vals, trim_quantile=None),
+        Passband("survey1", "c", table_values=table_vals, trim_quantile=None),
+        Passband("survey2", "c", table_values=table_vals, trim_quantile=None),
+        Passband("survey2", "d", table_values=table_vals, trim_quantile=None),
+    ]
+
+    pb_group = PassbandGroup(given_passbands=pb_list)
+    assert len(pb_group) == 5
+    assert "survey1_a" in pb_group
+    assert "survey1_b" in pb_group
+    assert "survey1_c" in pb_group
+    assert "survey2_c" in pb_group
+    assert "survey2_d" in pb_group
+
+    # We can access the passbands by their full name.
+    assert pb_group["survey1_a"].filter_name == "a"
+    assert pb_group["survey1_b"].filter_name == "b"
+    assert pb_group["survey1_c"].filter_name == "c"
+    assert pb_group["survey2_c"].filter_name == "c"
+    assert pb_group["survey2_d"].filter_name == "d"
+
+    # If the group only has a single passband for a given filter,
+    # We can use the filter name to access it.
+    assert pb_group["a"].full_name == "survey1_a"
+    assert pb_group["b"].full_name == "survey1_b"
+    assert pb_group["d"].full_name == "survey2_d"
+
+    # But we get an error if we try to look up by a filter name that occurs twice.
+    with pytest.raises(KeyError):
+        _ = pb_group["c"]
+
+    # The contains functionality will work with all filter names.
+    assert "a" in pb_group
+    assert "b" in pb_group
+    assert "c" in pb_group
+    assert "d" in pb_group
+
+    # Check that we can filter a list of filter_names by whether they occur in the passband group.
+    filters = ["a", "b", "e", "f", "c", "1", "2", "d", "a", "a"]
+    expected = [True, True, False, False, True, False, False, True, True, True]
+    assert np.array_equal(pb_group.mask_by_filter(filters), expected)
+
+
 def test_passband_group_init(tmp_path, passbands_dir):
     """Test the initialization of the Passband class, and implicitly, _load_preset."""
     # Test that we cannot create an empty PassbandGroup object
@@ -68,12 +116,19 @@ def test_passband_group_init(tmp_path, passbands_dir):
     # Test that the PassbandGroup class can be initialized with a preset
     lsst_passband_group = create_lsst_passband_group(passbands_dir)
     assert len(lsst_passband_group.passbands) == 6
-    assert "LSST_u" in lsst_passband_group.passbands
-    assert "LSST_g" in lsst_passband_group.passbands
-    assert "LSST_r" in lsst_passband_group.passbands
-    assert "LSST_i" in lsst_passband_group.passbands
-    assert "LSST_z" in lsst_passband_group.passbands
-    assert "LSST_y" in lsst_passband_group.passbands
+    assert len(lsst_passband_group) == 6
+    assert "LSST_u" in lsst_passband_group
+    assert "LSST_g" in lsst_passband_group
+    assert "LSST_r" in lsst_passband_group
+    assert "LSST_i" in lsst_passband_group
+    assert "LSST_z" in lsst_passband_group
+    assert "LSST_y" in lsst_passband_group
+    assert "LSST_purple" not in lsst_passband_group
+
+    # We can access passbands using the [] notation.
+    assert lsst_passband_group["LSST_u"].filter_name == "u"
+    with pytest.raises(KeyError):
+        _ = lsst_passband_group["LSST_purple"]
 
     # Test that the PassbandGroup class can be initialized with a dict of passband parameters
     lsst_gri_passband_parameters = [
@@ -82,21 +137,26 @@ def test_passband_group_init(tmp_path, passbands_dir):
         {"survey": "LSST", "filter_name": "i", "table_path": f"{passbands_dir}/LSST/i.dat"},
     ]
     lsst_gri_passband_group = PassbandGroup(passband_parameters=lsst_gri_passband_parameters)
-    assert len(lsst_gri_passband_group.passbands) == 3
-    assert "LSST_g" in lsst_gri_passband_group.passbands
-    assert "LSST_r" in lsst_gri_passband_group.passbands
-    assert "LSST_i" in lsst_gri_passband_group.passbands
+    assert len(lsst_gri_passband_group) == 3
+    assert "LSST_g" in lsst_gri_passband_group
+    assert "LSST_r" in lsst_gri_passband_group
+    assert "LSST_i" in lsst_gri_passband_group
 
     # Test our toy passband group, which makes a PassbandGroup using a custom passband parameters dictionary
     toy_passband_group = create_toy_passband_group(tmp_path)
-    assert len(toy_passband_group.passbands) == 3
-    assert "TOY_a" in toy_passband_group.passbands
-    assert "TOY_b" in toy_passband_group.passbands
-    assert "TOY_c" in toy_passband_group.passbands
+    assert len(toy_passband_group) == 3
+    assert "TOY_a" in toy_passband_group
+    assert "TOY_b" in toy_passband_group
+    assert "TOY_c" in toy_passband_group
     np.testing.assert_allclose(
         toy_passband_group.waves,
         np.unique(np.concatenate([np.arange(100, 301, 5), np.arange(250, 351, 5), np.arange(400, 601, 5)])),
     )
+
+    # Test that we can retrieve bounds for this passband group.
+    min_w, max_w = toy_passband_group.wave_bounds()
+    assert min_w == 100.0
+    assert max_w == 600.0
 
     # Test that the PassbandGroup class raises an error for an unknown preset
     try:
@@ -105,6 +165,40 @@ def test_passband_group_init(tmp_path, passbands_dir):
         assert str(e) == "Unknown passband preset: Unknown"
     else:
         raise AssertionError("PassbandGroup should raise an error for an unknown preset")
+
+
+def test_passband_group_from_dir(tmp_path):
+    """Test that we can load a PassbandGroup from a directory."""
+    survey = "FAKE"
+
+    # Create a new survey directory and fill it with filter files.
+    table_dir = tmp_path / survey
+    table_dir.mkdir()
+    transmission_tables = {
+        "a": "100 0.5\n150 0.75\n200 0.25\n",
+        "b": "200 0.25\n250 0.5\n300 0.75\n",
+        "c": "300 0.75\n350 0.25\n400 0.5\n",
+        "d": "400 0.75\n450 0.25\n500 0.5\n",
+        "e": "500 0.75\n550 0.25\n600 0.5\n",
+    }
+    for filter_name in transmission_tables:
+        with open(table_dir / f"{filter_name}.dat", "w") as f:
+            f.write(transmission_tables[filter_name])
+
+    # Load four of the filters from the PassbandGroup
+    load_filters = ["a", "b", "c", "e"]
+    pb_group = PassbandGroup.from_dir(table_dir, filters=load_filters)
+    assert len(pb_group) == len(load_filters)
+
+    for filter in load_filters:
+        assert filter in pb_group
+
+        wave_start = int(transmission_tables[filter].split()[0])
+        assert wave_start == pb_group[filter]._loaded_table[0][0]
+
+    # Check that we throw an error if we try to load a filter that does not exist.
+    with pytest.raises(ValueError):
+        _ = PassbandGroup.from_dir(table_dir, filters=["a", "b", "z"])
 
 
 def test_passband_group_from_list(tmp_path):
@@ -130,15 +224,58 @@ def test_passband_group_from_list(tmp_path):
         ),
     ]
     test_passband_group = PassbandGroup(given_passbands=pb_list)
-    assert len(test_passband_group.passbands) == 3
-    assert "my_survey_a" in test_passband_group.passbands
-    assert "my_survey_b" in test_passband_group.passbands
-    assert "my_survey_c" in test_passband_group.passbands
+    assert len(test_passband_group) == 3
+    assert "my_survey_a" in test_passband_group
+    assert "my_survey_b" in test_passband_group
+    assert "my_survey_c" in test_passband_group
 
     assert np.allclose(
         test_passband_group.waves,
         np.unique(np.concatenate([np.arange(100, 301, 5), np.arange(250, 351, 5), np.arange(400, 601, 5)])),
     )
+
+
+def test_passband_load_subset_passbands(tmp_path):
+    """Test that we can load a subset of filters."""
+    pb_list = [
+        Passband(
+            "my_survey",
+            "a",
+            table_values=np.array([[100, 0.5], [200, 0.75], [300, 0.25]]),
+            trim_quantile=None,
+        ),
+        Passband(
+            "my_survey",
+            "b",
+            table_values=np.array([[250, 0.25], [300, 0.5], [350, 0.75]]),
+            trim_quantile=None,
+        ),
+        Passband(
+            "my_survey",
+            "c",
+            table_values=np.array([[400, 0.75], [500, 0.25], [600, 0.5]]),
+            trim_quantile=None,
+        ),
+        Passband(
+            "my_survey",
+            "d",
+            table_values=np.array([[800, 0.75], [850, 0.25], [900, 0.5]]),
+            trim_quantile=None,
+        ),
+    ]
+
+    # Load one filter by full name and the other by filter name.
+    test_passband_group = PassbandGroup(given_passbands=pb_list, filters_to_load=["my_survey_a", "c"])
+    assert len(test_passband_group) == 2
+
+    assert np.allclose(
+        test_passband_group.waves,
+        np.unique(np.concatenate([np.arange(100, 301, 5), np.arange(400, 601, 5)])),
+    )
+
+    # We run into an error if we try to load a filter that does not exist.
+    with pytest.raises(ValueError):
+        _ = PassbandGroup(given_passbands=pb_list, filters_to_load=["my_survey_a", "z"])
 
 
 def test_passband_unique_waves():

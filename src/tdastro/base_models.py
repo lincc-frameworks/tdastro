@@ -243,6 +243,39 @@ class ParameterizedNode:
             if setter_info.dependency is not None and setter_info.dependency is not self:
                 setter_info.dependency.set_graph_positions(seen_nodes)
 
+    def list_params(self):
+        """Return a list of this node's parameterized values.
+
+        Returns
+        -------
+        names : list[str]
+            The name of all of the parameterized values for this node.
+        """
+        return list(self.setters.keys())
+
+    def has_valid_param(self, name):
+        """Check whether the node has a given parameterized value and that it is not
+        always set to None.
+
+        Parameters
+        ----------
+        name : str
+            The name of the parameter.
+
+        Returns
+        -------
+        contains : bool
+            Whether the node contains a given parameter and it is not always None.
+        """
+        if name not in self.setters:
+            return False
+
+        setter = self.setters[name]
+        if setter.source_type == ParameterSource.CONSTANT and setter.value is None:
+            return False
+
+        return True
+
     def get_param(self, graph_state, name, default=None):
         """Get the value of a parameter stored in this node or a default value.
 
@@ -777,17 +810,33 @@ class FunctionNode(ParameterizedNode):
         self._save_results(results, graph_state)
         return results
 
-    def resample_and_compute(self, given_args=None, rng_info=None):
-        """A helper function for JAX gradients that runs the sampling then computation.
+    def generate(self, given_args=None, num_samples=1, rng_info=None, **kwargs):
+        """A helper function that regenerates the parameters for this nodes and the
+        ones above it, then returns the the output or this individual node.
+
+        This is used both for testing and for computing JAX gradients.
 
         Parameters
         ----------
         given_args : `dict`, optional
             A dictionary representing the given arguments for this sample run.
             This can be used as the JAX PyTree for differentiation.
+        num_samples : `int`
+            A count of the number of samples to compute.
+            Default: 1
         rng_info : numpy.random._generator.Generator, optional
             A given numpy random number generator to use for this computation. If not
             provided, the function uses the node's random number generator.
+        **kwargs : `dict`, optional
+            Additional function arguments.
         """
-        graph_state = self.sample_parameters(given_args, 1, rng_info)
-        return self.compute(graph_state, rng_info)
+        state = self.sample_parameters(given_args, num_samples, rng_info)
+
+        # Get the result(s) of compute from the state object.
+        if len(self.outputs) == 1:
+            return self.get_param(state, self.outputs[0])
+
+        results = []
+        for output_name in self.outputs:
+            results.append(self.get_param(state, output_name))
+        return results

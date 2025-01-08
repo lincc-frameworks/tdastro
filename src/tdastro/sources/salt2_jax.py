@@ -28,6 +28,17 @@ class SALT2JaxModel(PhysicalModel):
     The wrapped sncosmo version in sncosmo_models.py is faster and should be used
     when auto-differentiation is not needed.
 
+    Parameterized values include:
+      * c - The SALT2 c parameter.
+      * dec - The object's declination in degrees. [from PhysicalModel]
+      * distance - The object's luminosity distance in pc. [from PhysicalModel]
+      * period - The period of the source, in days.
+      * ra - The object's right ascension in degrees. [from PhysicalModel]
+      * redshift - The object's redshift. [from PhysicalModel]
+      * t0 - The t0 of the zero phase, date. [from PhysicalModel]
+      * x0 - The SALT2 x0 parameter.
+      * x1 - The SALT2 x0 parameter.
+
     Attributes
     ----------
     _m0_model : BicubicInterpolator
@@ -69,6 +80,7 @@ class SALT2JaxModel(PhysicalModel):
         x0=None,
         x1=None,
         c=None,
+        t0=0.0,
         model_dir="",
         m0_filename="salt2_template_0.dat",
         m1_filename="salt2_template_1.dat",
@@ -95,6 +107,38 @@ class SALT2JaxModel(PhysicalModel):
 
         # Use the default color correction values.
         self._colorlaw = SALT2ColorLaw.from_file(model_path / cl_filename)
+
+    def mask_by_time(self, times, graph_state=None):
+        """Compute a mask for whether a given time is of interest for a given object.
+        For example, a user can use this function to generate a mask to include
+        only the observations of interest for a window around the supernova.
+
+        Parameters
+        ----------
+        times : numpy.ndarray
+            A length T array of observer frame timestamps in MJD.
+        graph_state : GraphState, optional
+            An object mapping graph parameters to their values.
+
+        Returns
+        -------
+        time_mask : numpy.ndarray
+            A length T array of Booleans indicating whether the time is of interest.
+        """
+        if graph_state is None:
+            raise ValueError("graph_state needed to compute mask_by_time")
+
+        z = self.get_param(graph_state, "redshift", 0.0)
+        if z is None:
+            z = 0.0
+
+        t0 = self.get_param(graph_state, "t0", 0.0)
+        if t0 is None:
+            t0 = 0.0
+
+        # Compute the mask.
+        good_times = (times > t0 + -20.0 * (1.0 + z)) & (times < t0 + 50.0 * (1.0 + z))
+        return good_times
 
     def compute_flux(self, phase, wavelengths, graph_state, **kwargs):
         """Draw effect-free observations for this object.

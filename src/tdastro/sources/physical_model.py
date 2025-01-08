@@ -21,6 +21,13 @@ class PhysicalModel(ParameterizedNode):
 
     Physical models also support adding and applying a variety of effects, such as redshift.
 
+    Parameterized values include:
+      * dec - The object's declination in degrees.
+      * distance - The object's luminosity distance in pc.
+      * ra - The object's right ascension in degrees.
+      * redshift - The object's redshift.
+      * t0 - The t0 of the zero phase (if applicable), date.
+
     Attributes
     ----------
     background : `PhysicalModel`
@@ -36,6 +43,8 @@ class PhysicalModel(ParameterizedNode):
         The object's declination (in degrees)
     redshift : `float`
         The object's redshift.
+    t0 : `float`
+        The phase offset in MJD. For non-time-varying phenomena, this has no effect.
     distance : `float`
         The object's luminosity distance (in pc). If no value is provided and
         a ``cosmology`` parameter is given, the model will try to derive from
@@ -46,13 +55,14 @@ class PhysicalModel(ParameterizedNode):
         Any additional keyword arguments.
     """
 
-    def __init__(self, ra=None, dec=None, redshift=None, distance=None, background=None, **kwargs):
+    def __init__(self, ra=None, dec=None, redshift=None, t0=None, distance=None, background=None, **kwargs):
         super().__init__(**kwargs)
 
         # Set RA, dec, and redshift from the parameters.
         self.add_parameter("ra", ra, allow_gradient=False)
         self.add_parameter("dec", dec, allow_gradient=False)
         self.add_parameter("redshift", redshift, allow_gradient=False)
+        self.add_parameter("t0", t0)
 
         # If the luminosity distance is provided, use that. Otherwise try the
         # redshift value using the cosmology (if given). Finally, default to None.
@@ -97,6 +107,25 @@ class PhysicalModel(ParameterizedNode):
         """
         self.apply_redshift = apply_redshift
 
+    def mask_by_time(self, times, graph_state=None):
+        """Compute a mask for whether a given time is of interest for a given object.
+        For example, a user can use this function to generate a mask to include
+        only the observations of interest for a window around the supernova.
+
+        Parameters
+        ----------
+        times : numpy.ndarray
+            A length T array of observer frame timestamps in MJD.
+        graph_state : GraphState, optional
+            An object mapping graph parameters to their values.
+
+        Returns
+        -------
+        time_mask : numpy.ndarray
+            A length T array of Booleans indicating whether the time is of interest.
+        """
+        return np.full(len(times), True)
+
     def compute_flux(self, times, wavelengths, graph_state):
         """Draw effect-free rest frame flux densities.
         The rest-frame flux is defined as F_nu = L_nu / 4*pi*D_L**2,
@@ -105,7 +134,7 @@ class PhysicalModel(ParameterizedNode):
         Parameters
         ----------
         times : `numpy.ndarray`
-            A length T array of rest frame timestamps.
+            A length T array of rest frame timestamps in MJD.
         wavelengths : `numpy.ndarray`, optional
             A length N array of rest frame wavelengths (in angstroms).
         graph_state : `GraphState`
@@ -124,7 +153,7 @@ class PhysicalModel(ParameterizedNode):
         Parameters
         ----------
         times : `numpy.ndarray`
-            A length T array of observer frame timestamps.
+            A length T array of observer frame timestamps in MJD.
         wavelengths : `numpy.ndarray`, optional
             A length N array of wavelengths (in angstroms).
         graph_state : `GraphState`, optional
@@ -245,7 +274,7 @@ class PhysicalModel(ParameterizedNode):
         passband_or_group : `Passband` or `PassbandGroup`
             The passband (or passband group) to use.
         times : `numpy.ndarray`
-            A length T array of observer frame timestamps.
+            A length T array of observer frame timestamps in MJD.
         filters : `numpy.ndarray` or None
             A length T array of filter names. It may be None if
             passband_or_group is a Passband.
@@ -274,7 +303,7 @@ class PhysicalModel(ParameterizedNode):
 
         band_fluxes = np.empty((state.num_samples, len(times)))
         for filter_name in np.unique(filters):
-            passband = passband_or_group.passbands[filter_name]
+            passband = passband_or_group[filter_name]
             filter_mask = filters == filter_name
             spectral_fluxes = self.evaluate(times[filter_mask], passband.waves, state)
             band_fluxes[:, filter_mask] = passband.fluxes_to_bandflux(spectral_fluxes)

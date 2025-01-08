@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from astropy.cosmology import Planck18
 from tdastro.astro_utils.passbands import PassbandGroup
-from tdastro.math_nodes.given_sampler import GivenSampler
+from tdastro.math_nodes.given_sampler import GivenValueList
 from tdastro.sources.physical_model import PhysicalModel
 from tdastro.sources.static_source import StaticSource
 
@@ -10,29 +10,33 @@ from tdastro.sources.static_source import StaticSource
 def test_physical_model():
     """Test that we can create a PhysicalModel."""
     # Everything is specified.
-    model1 = PhysicalModel(ra=1.0, dec=2.0, redshift=0.0)
+    model1 = PhysicalModel(ra=1.0, dec=2.0, redshift=0.0, t0=1.0)
     state = model1.sample_parameters()
 
     assert model1.get_param(state, "ra") == 1.0
     assert model1.get_param(state, "dec") == 2.0
     assert model1.get_param(state, "redshift") == 0.0
+    assert model1.get_param(state, "t0") == 1.0
+    assert model1.get_param(state, "distance") is None
+    assert not model1.has_valid_param("distance")
     assert model1.apply_redshift
 
-    # None of the parameters are in the PyTree.
+    # Only the t0 parameter is in the PyTree.
     pytree = model1.build_pytree(state)
-    assert len(pytree["PhysicalModel_0"]) == 0
+    assert len(pytree["PhysicalModel_0"]) == 1
 
     # We can turn off the redshift computation.
     model1.set_apply_redshift(False)
     assert not model1.apply_redshift
 
-    # Derive the distance from the redshift.
+    # Derive the distance from the redshift. t0 is not given.
     model2 = PhysicalModel(ra=1.0, dec=2.0, redshift=1100.0, cosmology=Planck18)
     state = model2.sample_parameters()
     assert model2.get_param(state, "ra") == 1.0
     assert model2.get_param(state, "dec") == 2.0
     assert model2.get_param(state, "redshift") == 1100.0
     assert 13.0 * 1e12 < model2.get_param(state, "distance") < 16.0 * 1e12
+    assert model2.get_param(state, "t0") is None
 
     # Check that the RedshiftDistFunc node has the same computed value.
     # The syntax is a bit ugly because we are checking internal state.
@@ -54,11 +58,20 @@ def test_physical_model():
     assert model4.get_param(state, "distance") is None
 
 
+def test_physical_model_mask_by_time():
+    """Test that we can use the default mask_by_time() function."""
+    model = PhysicalModel(ra=1.0, dec=2.0, redshift=0.0)
+    times = np.arange(-10.0, 10.0, 0.5)
+
+    # By default use all times.
+    assert np.all(model.mask_by_time(times))
+
+
 def test_physical_model_evaluate():
     """Test that we can evaluate a PhysicalModel."""
     times = np.array([0.0, 1.0, 2.0, 3.0, 4.0])
     waves = np.array([4000.0, 5000.0])
-    brightness = GivenSampler([10.0, 20.0, 30.0])
+    brightness = GivenValueList([10.0, 20.0, 30.0])
     static_source = StaticSource(brightness=brightness)
 
     # Providing no state should give a single sample.
@@ -108,7 +121,7 @@ def test_physical_model_get_band_fluxes(passbands_dir):
     # If we use multiple samples, we should get a correctly sized array.
     n_samples = 21
     brightness_list = [1.5 * i for i in range(n_samples)]
-    static_source2 = StaticSource(brightness=GivenSampler(brightness_list))
+    static_source2 = StaticSource(brightness=GivenValueList(brightness_list))
     state2 = static_source2.sample_parameters(num_samples=n_samples)
     band_fluxes2 = static_source2.get_band_fluxes(passbands, times, filters, state2)
     assert band_fluxes2.shape == (n_samples, n_passbands)

@@ -6,21 +6,27 @@ from tdastro.sources.physical_model import PhysicalModel
 class PeriodicSource(PhysicalModel, ABC):
     """A periodic source.
 
+    Parameterized values include:
+      * dec - The object's declination in degrees. [from PhysicalModel]
+      * distance - The object's luminosity distance in pc. [from PhysicalModel]
+      * period - The period of the source, in days.
+      * ra - The object's right ascension in degrees. [from PhysicalModel]
+      * redshift - The object's redshift. [from PhysicalModel]
+      * t0 - The t0 of the zero phase, date. [from PhysicalModel]
+
     Parameters
     ----------
     period : `float`
         The period of the source, in days.
-    t0 : `float`
-        The t0 of the zero phase, date. Could be date of the minimum or maximum light
-        or any other reference time point.
     **kwargs : `dict`, optional
         Any additional keyword arguments.
     """
 
-    def __init__(self, period, t0, **kwargs):
+    def __init__(self, period, **kwargs):
         super().__init__(**kwargs)
+
+        # t0 is added in the PhysicalModel constructor.
         self.add_parameter("period", period, **kwargs)
-        self.add_parameter("t0", t0, **kwargs)
 
     @abstractmethod
     def _evaluate_phases(self, phases, wavelengths, graph_state, **kwargs):

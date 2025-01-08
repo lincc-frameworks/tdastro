@@ -10,6 +10,14 @@ from tdastro.sources.periodic_source import PeriodicSource
 class PeriodicVariableStar(PeriodicSource, ABC):
     """A model for a periodic variable star.
 
+    Parameterized values include:
+      * dec - The object's declination in degrees. [from PhysicalModel]
+      * distance - The object's luminosity distance in pc. [from PhysicalModel]
+      * period - The period of the source, in days. [from PeriodicSource]
+      * ra - The object's right ascension in degrees. [from PhysicalModel]
+      * redshift - The object's redshift. [from PhysicalModel]
+      * t0 - The t0 of the zero phase, date. [from PhysicalModel]
+
     Attributes
     ----------
     period : `float`
@@ -21,9 +29,9 @@ class PeriodicVariableStar(PeriodicSource, ABC):
         The distance to the source, in pc.
     """
 
-    def __init__(self, period, t0, **kwargs):
-        super().__init__(period, t0, **kwargs)
-        if "distance" not in self.setters:
+    def __init__(self, period, **kwargs):
+        super().__init__(period, **kwargs)
+        if not self.has_valid_param("distance"):
             raise ValueError("Distance parameter is required for PeriodicVariableStar")
 
     def _evaluate_phases(self, phases, wavelengths, graph_state, **kwargs):
@@ -87,6 +95,20 @@ class EclipsingBinaryStar(PeriodicVariableStar):
     It is assumed that the stars are spherical, SED is black-body,
     and the orbits are circular. t0 is the epoch of the primary minimum.
     No limb darkening, reflection, or other effects are included.
+
+    Parameterized values include:
+      * dec - The object's declination in degrees. [from PhysicalModel]
+      * distance - The object's luminosity distance in pc. [from PhysicalModel]
+      * inclination - The inclination of the orbit, in degrees.
+      * major_semiaxis - The major semiaxis of the orbit, in AU.
+      * period - The period of the source, in days. [from PeriodicSource]
+      * primary_radius - The radius of the primary star, in solar radii.
+      * primary_temperature - The effective temperature of the primary star, in kelvins.
+      * ra - The object's right ascension in degrees. [from PhysicalModel]
+      * redshift - The object's redshift. [from PhysicalModel]
+      * secondary_radius - The radius of the secondary star, in solar radii.
+      * secondary_temperature - The effective temperature of the secondary star, in kelvins.
+      * t0 - The t0 of the zero phase, date. [from PeriodicSource]
 
     Attributes
     ----------

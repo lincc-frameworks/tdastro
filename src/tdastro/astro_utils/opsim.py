@@ -44,6 +44,9 @@ The value is from
 https://smtn-002.lsst.io/v/OPSIM-1171/index.html
 """
 
+_lsstcam_view_radius = 1.75
+"""The angular radius of the observation field (in degrees)."""
+
 
 # Suppress "no docstring", because we define it via an attribute.
 class OpSim:  # noqa: D101
@@ -77,6 +80,9 @@ class OpSim:  # noqa: D101
         The dark current for the LSST camera in electrons per second per pixel. Defaults to
         the Rubin OpSim value, stored in `_rubin_dark_current`:
         {_lsstcam_dark_current}
+    radius : float or None, optional
+        The angular radius of the observations (in degrees).
+        Defaults to the Rubin value, stored in `_lsstcam_view_radius`: {_lsstcam_view_radius}
 
     Attributes
     ----------
@@ -87,12 +93,20 @@ class OpSim:  # noqa: D101
     _kd_tree : `scipy.spatial.KDTree` or None
         A kd_tree of the OpSim pointings for fast spatial queries. We use the scipy
         kd-tree instead of astropy's functions so we can directly control caching.
-    _pixel_scale : `float` or None, optional
+    pixel_scale : `float` or None, optional
         The pixel scale for the LSST camera in arcseconds per pixel.
-    _read_noise : `float` or None, optional
+    read_noise : `float` or None, optional
         The readout noise for the LSST camera in electrons per pixel.
-    _dark_current : `float` or None, optional
+    dark_current : `float` or None, optional
         The dark current for the LSST camera in electrons per second per pixel.
+    ext_coeff : `dict` or None, optional
+        Mapping of filter names to extinction coefficients. Defaults to
+        the Rubin OpSim values.
+    zp_per_sec : `dict` or None, optional
+        Mapping of filter names to zeropoints at zenith. Defaults to
+        the Rubin OpSim values.
+    radius : float
+        The angular radius of the observations (in degrees).
     """
 
     _required_names = ["ra", "dec", "time"]
@@ -108,6 +122,7 @@ class OpSim:  # noqa: D101
         pixel_scale=None,
         read_noise=None,
         dark_current=None,
+        radius=None,
     ):
         if isinstance(table, dict):
             self.table = pd.DataFrame(table)
@@ -125,6 +140,9 @@ class OpSim:  # noqa: D101
         self.pixel_scale = LSSTCAM_PIXEL_SCALE if pixel_scale is None else pixel_scale
         self.read_noise = _lsstcam_readout_noise if read_noise is None else read_noise
         self.dark_current = _lsstcam_dark_current if dark_current is None else dark_current
+        self.ext_coeff = _lsstcam_extinction_coeff if ext_coeff is None else ext_coeff
+        self.zp_per_sec = _lsstcam_zeropoint_per_sec_zenith if zp_per_sec is None else zp_per_sec
+        self.radius = _lsstcam_view_radius if radius is None else radius
 
         # Build the kd-tree.
         self._kd_tree = None
@@ -133,7 +151,7 @@ class OpSim:  # noqa: D101
         # If we are not given zero point data, try to derive it from the other columns.
         if not self.has_columns("zp"):
             if self.has_columns(["filter", "airmass", "exptime"]):
-                self._assign_zero_points(ext_coeff=ext_coeff, zp_per_sec=zp_per_sec)
+                self._assign_zero_points(ext_coeff=self.ext_coeff, zp_per_sec=self.zp_per_sec)
             else:
                 raise ValueError(
                     "OpSim must include either a zero point column or the columns "
@@ -301,7 +319,60 @@ class OpSim:  # noqa: D101
 
         con.close()
 
-    def range_search(self, query_ra, query_dec, radius):
+    def time_bounds(self):
+        """Returns the min and max times for all observations in the OpSim.
+
+        Returns
+        -------
+        t_min, t_max : float, float
+            The min and max times for all observations in the OpSim.
+        """
+        t_min = self.table[self.colmap["time"]].min()
+        t_max = self.table[self.colmap["time"]].max()
+        return t_min, t_max
+
+    def filter_rows(self, rows):
+        """Filter the rows in the OpSim to only include those indices that are provided
+        in a list of row indices (integers) or marked True in a mask.
+
+        Parameters
+        ----------
+        rows : numpy.ndarray
+            Either a Boolean array of the same length as the table or list of integer
+            row indices to keep.
+
+        Returns
+        -------
+        new_opsim : OpSim
+            A new OpSim object with the reduced rows.
+        """
+        # Check if we are dealing with a mask of a list of indices.
+        rows = np.asarray(rows)
+        if rows.dtype == bool:
+            if len(rows) != len(self.table):
+                raise ValueError(
+                    f"Mask length mismatch. Expected {len(self.table)} rows, but found {len(rows)}."
+                )
+            mask = rows
+        else:
+            mask = np.full((len(self.table),), False)
+            mask[rows] = True
+
+        # Do the actual filtering and generate a new OpSim. This automatically creates
+        # the cached data, such as the KD-tree.
+        new_table = self.table[mask]
+        new_opsim = OpSim(
+            new_table,
+            colmap=self.colmap,
+            ext_coeff=self.ext_coeff,
+            zp_per_sec=self.zp_per_sec,
+            pixel_scale=self.pixel_scale,
+            read_noise=self.read_noise,
+            dark_current=self.dark_current,
+        )
+        return new_opsim
+
+    def range_search(self, query_ra, query_dec, radius=None):
         """Return the indices of the opsim pointings that fall within the field
         of view of the query point(s).
 
@@ -311,8 +382,9 @@ class OpSim:  # noqa: D101
             The query right ascension (in degrees).
         query_dec : `float` or `numpy.ndarray`
             The query declination (in degrees).
-        radius : `float`
-            The angular radius of the observation (in degrees).
+        radius : `float` or None, optional
+            The angular radius of the observation (in degrees). If None
+            uses the default radius for the OpSim.
 
         Returns
         -------
@@ -320,6 +392,8 @@ class OpSim:  # noqa: D101
             Depending on the input, this is either a list of indices for a single query point
             or a list of arrays (of indices) for an array of query points.
         """
+        radius = self.radius if radius is None else radius
+
         # Transform the query point(s) to 3-d Cartesian coordinate(s).
         ra_rad = np.radians(query_ra)
         dec_rad = np.radians(query_dec)
@@ -332,7 +406,7 @@ class OpSim:  # noqa: D101
         adjusted_radius = 2.0 * np.sin(0.5 * np.radians(radius))
         return self._kd_tree.query_ball_point(cart_query, adjusted_radius)
 
-    def get_observations(self, query_ra, query_dec, radius, cols=None):
+    def get_observations(self, query_ra, query_dec, radius=None, cols=None):
         """Return the observation information when the query point falls within
         the field of view of a pointing in the survey.
 
@@ -342,8 +416,9 @@ class OpSim:  # noqa: D101
             The query right ascension (in degrees).
         query_dec : `float`
             The query declination (in degrees).
-        radius : `float`
-            The angular radius of the observation (in degrees).
+        radius : `float` or None, optional
+            The angular radius of the observation (in degrees). If None
+            uses the default radius for the OpSim.
         cols : `list`
             A list of the names of columns to extract. If `None` returns all the
             columns.
@@ -401,6 +476,58 @@ class OpSim:  # noqa: D101
             readout_noise=self.read_noise,
             dark_current=self.dark_current,
         )
+
+
+def create_random_opsim(num_obs, seed=None):
+    """Create a random OpSim pointings drawn uniformly from (RA, dec).
+
+    Parameters
+    ----------
+    num_obs : int
+        The size of the OpSim to generate.
+    seed : int
+        The seed to used for random number generation. If None then
+        uses a default random number generator.
+        Default: None
+
+    Returns
+    -------
+    opsim_data : OpSim
+        The OpSim data structure.
+    seed : int, optional
+        The seed for the random number generator.
+    """
+    if num_obs <= 0:
+        raise ValueError("Number of observations must be greater than zero.")
+
+    rng = np.random.default_rng() if seed is None else np.random.default_rng(seed=seed)
+
+    # Generate the (RA, dec) pairs uniformly on the surface of a sphere.
+    ra = np.degrees(rng.uniform(0.0, 2.0 * np.pi, size=num_obs))
+    dec = np.degrees(np.arccos(2.0 * rng.uniform(0.0, 1.0, size=num_obs) - 1.0) - (np.pi / 2.0))
+
+    # Generate the information needed to compute zeropoint.
+    airmass = rng.uniform(1.3, 1.7, size=num_obs)
+    filter = rng.choice(["u", "g", "r", "i", "z", "y"], size=num_obs)
+
+    input_data = {
+        "observationStartMJD": 0.05 * np.arange(num_obs),
+        "fieldRA": ra,
+        "fieldDec": dec,
+        "airmass": airmass,
+        "filter": filter,
+        "visitExposureTime": 29.0 * np.ones(num_obs),
+    }
+
+    opsim = OpSim(
+        input_data,
+        ext_coeff=_lsstcam_extinction_coeff,
+        zp_per_sec=_lsstcam_zeropoint_per_sec_zenith,
+        pixel_scale=LSSTCAM_PIXEL_SCALE,
+        read_noise=_lsstcam_readout_noise,
+        dark_current=_lsstcam_dark_current,
+    )
+    return opsim
 
 
 def opsim_add_random_data(opsim_data, colname, min_val=0.0, max_val=1.0):
