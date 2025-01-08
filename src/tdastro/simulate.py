@@ -99,5 +99,5 @@ def simulate_lightcurves(source, num_samples, opsim, passbands, rng=None):
     # Create the nested frame.
     results = NestedFrame(data=results_dict, index=[i for i in range(num_samples)])
     nested_frame = pd.DataFrame(data=nested_dict, index=nested_index)
-    results = results.add_nested(nested_frame, "nested")
+    results = results.add_nested(nested_frame, "lightcurves")
     return results

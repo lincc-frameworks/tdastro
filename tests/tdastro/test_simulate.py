@@ -32,4 +32,4 @@ def test_simulate_lightcurves(test_data_dir):
     assert len(results) == 5
     assert np.all(results["count"].values >= 1)
     for idx in range(5):
-        assert len(results.loc[idx]["nested"]["flux"]) == results["count"][idx]
+        assert len(results.loc[idx]["lightcurves"]["flux"]) == results["count"][idx]
