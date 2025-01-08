@@ -19,6 +19,7 @@ dependencies = [
     "astropy",
     "jax",
     "matplotlib",
+    "nested-pandas",
     "numpy",
     "pandas",
     "pzflow",
