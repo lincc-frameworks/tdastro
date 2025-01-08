@@ -30,6 +30,6 @@ def test_simulate_lightcurves(test_data_dir):
 
     results = simulate_lightcurves(source, 5, opsim_db, passband_group)
     assert len(results) == 5
-    assert np.all(results["count"].values >= 1)
+    assert np.all(results["nobs"].values >= 1)
     for idx in range(5):
-        assert len(results.loc[idx]["lightcurve"]["flux"]) == results["count"][idx]
+        assert len(results.loc[idx]["lightcurve"]["flux"]) == results["nobs"][idx]

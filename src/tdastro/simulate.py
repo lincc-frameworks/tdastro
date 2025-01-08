@@ -51,7 +51,7 @@ def simulate_lightcurves(source, num_samples, opsim, passbands, rng=None):
         "id": [],
         "ra": [],
         "dec": [],
-        "count": [],
+        "nobs": [],
         "params": [],
     }
     nested_dict = {
@@ -59,7 +59,7 @@ def simulate_lightcurves(source, num_samples, opsim, passbands, rng=None):
         "filter": [],
         "flux": [],
         "fluxerr": [],
-        "flux_clean": [],
+        "flux_perfect": [],
     }
     nested_index = []
 
@@ -85,13 +85,13 @@ def simulate_lightcurves(source, num_samples, opsim, passbands, rng=None):
         results_dict["id"].append(idx)
         results_dict["ra"].append(ra[idx])
         results_dict["dec"].append(dec[idx])
-        results_dict["count"].append(len(obs_times))
+        results_dict["nobs"].append(len(obs_times))
         results_dict["params"].append(state.to_dict())
 
         # Append the per-observation data to the nested dictionary.
         nested_dict["mjd"].extend(list(obs_times))
         nested_dict["filter"].extend(list(obs_filters))
-        nested_dict["flux_clean"].extend(list(bandfluxes_perfect))
+        nested_dict["flux_perfect"].extend(list(bandfluxes_perfect))
         nested_dict["flux"].extend(list(bandfluxes))
         nested_dict["fluxerr"].extend(list(bandfluxes_error))
         nested_index.extend([idx] * len(obs_times))
