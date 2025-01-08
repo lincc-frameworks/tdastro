@@ -4,8 +4,97 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def plot_lightcurves(bandflux, times=None, ax=None, figure=None, title=None):
+def plot_lightcurves(
+    fluxes,
+    times,
+    fluxerrs=None,
+    filters=None,
+    ax=None,
+    figure=None,
+    title=None,
+):
     """Plot one or more lightcurves.
+
+    Parameters
+    ----------
+    fluxes : numpy.ndarray
+        An array of T flux values.
+    times : numpy.ndarray
+        A length T matrix of the times, used for setting the x axis.
+        All times in MJD.
+    fluxerrs : numpy.ndarray or None, optional
+        A length T matrix of errors on the fluxes for error bars. If not provided
+        no error bars are created. None by default.
+    filters : numpy.ndarray or None, optional
+        A length T matrix of filter names. If not provided all points are
+        treated as coming from the same filter. None by default.
+    ax : matplotlib.pyplot.Axes or None, optional
+        Axes, None by default.
+    figure : matplotlib.pyplot.Figure or None
+        Figure, None by default.
+    title : str or None, optional
+        Title of the plot. None by default.
+    """
+    # If no axes were given create them using either the given figure or
+    # a newly created one (if no figure is given).
+    if ax is None:
+        if figure is None:
+            figure = plt.figure()
+        ax = figure.add_axes([0, 0, 1, 1])
+
+    # Set up the time array if it is not given.
+    num_pts = len(fluxes)
+    if len(times) != num_pts:
+        raise ValueError(f"Mismatched array sizes for fluxes ({num_pts}) and times ({len(times)}).")
+
+    # Set up a list of filters to display.
+    if filters is None:
+        filters = ["none"] * num_pts
+        unique_filters = set(["None"])
+    elif len(filters) == num_pts:
+        filters = np.asarray(filters)
+        unique_filters = np.unique(filters)
+    else:
+        raise ValueError(f"Mismatched array sizes for fluxes ({num_pts}) and filters ({len(filters)}).")
+
+    # Check that if flux errors are given, they are the correct size.
+    if fluxerrs is None and len(fluxerrs) != num_pts:
+        raise ValueError(f"Mismatched array sizes for fluxes ({num_pts}) and fluxerrs ({len(fluxerrs)}).")
+
+    # Plot the data with one line for each filter.
+    for filter in unique_filters:
+        filter_mask = filters == filter
+
+        if fluxerrs is None:
+            ax.plot(
+                times[filter_mask],
+                fluxes[filter_mask],
+                marker="o",
+                label=filter,
+            )
+        else:
+            ax.errorbar(
+                times[filter_mask],
+                fluxes[filter_mask],
+                yerr=fluxerrs[filter_mask],
+                fmt="o",
+                label=filter,
+            )
+
+    # Set the title and axis labels.
+    if title is not None:
+        ax.set_title(title)
+    ax.set_xlabel("Time")
+    ax.set_ylabel("Flux")
+
+    # Only include a legend if there are at least two curves.
+    if len(unique_filters) > 1:
+        ax.legend()
+
+
+def plot_bandflux_lightcurves(bandflux, times=None, ax=None, figure=None, title=None):
+    """Plot one or more lightcurves where each band is observed at each time.
+    This is primarily used for visualizing non-sampled data.
 
     Parameters
     ----------
