@@ -84,8 +84,8 @@ def plot_lightcurves(
     # Set the title and axis labels.
     if title is not None:
         ax.set_title(title)
-    ax.set_xlabel("Time")
-    ax.set_ylabel("Flux")
+    ax.set_xlabel("Time (MJD)")
+    ax.set_ylabel("Flux (nJy)")
 
     # Only include a legend if there are at least two curves.
     if len(unique_filters) > 1:
