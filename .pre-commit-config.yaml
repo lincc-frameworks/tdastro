@@ -1,3 +1,4 @@
+
 repos:
     # Compare the local template version to the latest remote template version
     # This hook should always pass. It will print a message if the local version 
@@ -17,7 +18,7 @@ repos:
         description: Clear output from Jupyter notebooks.
         files: \.ipynb$
         exclude: ^docs/pre_executed
-        stages: [commit]
+        stages: [pre-commit]
         language: system
         entry: jupyter nbconvert --clear-output
     # Prevents committing directly branches named 'main' and 'master'.
@@ -59,6 +60,32 @@ repos:
       - id: ruff-format
         name: Format code using ruff
         types_or: [ python, pyi, jupyter ]
+    # Make sure Sphinx can build the documentation while explicitly omitting 
+    # notebooks from the docs, so users don't have to wait through the execution 
+    # of each notebook or each commit. By default, these will be checked in the 
+    # GitHub workflows.
+  - repo: local
+    hooks:
+      - id: sphinx-build
+        name: Build documentation with Sphinx
+        entry: sphinx-build
+        language: system
+        always_run: true
+        exclude_types: [file, symlink]
+        args:
+          [
+            "-M", # Run sphinx in make mode, so we can use -D flag later
+                  # Note: -M requires next 3 args to be builder, source, output
+            "html", # Specify builder
+            "./docs", # Source directory of documents
+            "./_readthedocs", # Output directory for rendered documents
+            "-T", # Show full trace back on exception
+            "-E", # Don't use saved env; always read all files
+            "-d", # Flag for cached environment and doctrees
+            "./docs/_build/doctrees", # Directory
+            "-D", # Flag to override settings in conf.py
+            "exclude_patterns=notebooks/*", # Exclude our notebooks from pre-commit
+          ]
     # Run unit tests, verify that they pass. Note that coverage is run against
     # the ./src directory here because that is what will be committed. In the
     # github workflow script, the coverage is run against the installed package
