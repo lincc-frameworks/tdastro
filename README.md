@@ -7,15 +7,6 @@
 [![Codecov](https://codecov.io/gh/lincc-frameworks/tdastro/branch/main/graph/badge.svg)](https://codecov.io/gh/lincc-frameworks/tdastro)
 [![Benchmarks](https://img.shields.io/github/actions/workflow/status/lincc-frameworks/tdastro/asv-main.yml?label=benchmarks)](https://lincc-frameworks.github.io/tdastro/)
 
-This project was automatically generated using the LINCC-Frameworks 
-[python-project-template](https://github.com/lincc-frameworks/python-project-template).
-
-A repository badge was added to show that this project uses the python-project-template, however it's up to
-you whether or not you'd like to display it!
-
-For more information about the project template see the 
-[documentation](https://lincc-ppt.readthedocs.io/en/latest/).
-
 ## Dev Guide - Getting Started
 
 Before installing any dependencies or writing code, it's a great idea to create a
