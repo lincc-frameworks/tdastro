@@ -1,16 +1,18 @@
 # Changes here will be overwritten by Copier
-_commit: v2.0.2-19-g0d6a114
+_commit: v2.0.5
 _src_path: gh:lincc-frameworks/python-project-template
-author_email: olynn@andrew.cmu.edu
+author_email: lincc-frameworks-team@lists.lsst.org
 author_name: LINCC Frameworks
 create_example_module: false
 custom_install: true
 enforce_style:
 - ruff_lint
 - ruff_format
-failure_notification: []
+failure_notification:
+- slack
 include_benchmarks: true
-include_docs: false
+include_docs: true
+include_notebooks: true
 mypy_type_checking: none
 package_name: tdastro
 project_license: MIT

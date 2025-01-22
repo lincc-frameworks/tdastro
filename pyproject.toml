@@ -1,9 +1,10 @@
+
 [project]
 name = "tdastro"
 license = {file = "LICENSE"}
 readme = "README.md"
 authors = [
-    { name = "LINCC Frameworks", email = "olynn@andrew.cmu.edu" }
+    { name = "LINCC Frameworks", email = "lincc-frameworks-team@lists.lsst.org" }
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
