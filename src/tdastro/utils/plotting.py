@@ -58,7 +58,7 @@ def plot_lightcurves(
         raise ValueError(f"Mismatched array sizes for fluxes ({num_pts}) and filters ({len(filters)}).")
 
     # Check that if flux errors are given, they are the correct size.
-    if fluxerrs is None and len(fluxerrs) != num_pts:
+    if fluxerrs is not None and len(fluxerrs) != num_pts:
         raise ValueError(f"Mismatched array sizes for fluxes ({num_pts}) and fluxerrs ({len(fluxerrs)}).")
 
     # Plot the data with one line for each filter.
