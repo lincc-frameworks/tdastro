@@ -3,49 +3,59 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to tdastro's documentation!
+TDAstro
 ========================================================================================
 
-Dev Guide - Getting Started
----------------------------
+Time-Domain Forward-Modeling for the Rubin Era
+-------------------------------------------------------------------------------
 
-Before installing any dependencies or writing code, it's a great idea to create a
-virtual environment. LINCC-Frameworks engineers primarily use `conda` to manage virtual
-environments. If you have conda installed locally, you can run the following to
-create and activate a new environment.
+Realistic light curve simulations are essential to many time-domain problems. 
+simulations are needed to evaluate observing strategy, characterize biases, 
+and test pipelines. The need for a flexible, scalable, and user-friendly time-domain
+simulation software has increased as the new survey telescopes get ready for their
+first lights. TDAstro aims to provide such software for the time domain community.
 
-.. code-block:: console
+.. figure:: _static/tdastro-intro.png
+   :class: no-scaled-link
+   :scale: 80 %
+   :align: center
+   :alt: TDAstro simulation components
 
-   >> conda create env -n <env_name> python=3.10
-   >> conda activate <env_name>
+   TDAstro simulation components
 
+The main simulation components in TDAstro include:
 
-Once you have created a new environment, you can install this project for local
-development using the following commands:
+* ``PhysicalModel`` defines the properties of the time-domain source, which can 
+  also include a host-galaxy model.
+* ``PassbandGroup`` contains the filter information of the telescope
+* ``Opsim`` contains the survey information such as survey strategy and observing
+  conditions.
 
-.. code-block:: console
+We can generate random realizations of the ``PhysicalModel`` and produce realistic
+light curves using the above components.
 
-   >> pip install -e .'[dev]'
-   >> pre-commit install
-   >> conda install pandoc
+Getting Started
+-------------------------------------------------------------------------------
 
+.. code-block:: bash
 
-Notes:
+   >> pip install tdastro
 
-1) The single quotes around ``'[dev]'`` may not be required for your operating system.
-2) ``pre-commit install`` will initialize pre-commit for this local repository, so
-   that a set of tests will be run prior to completing a local commit. For more
-   information, see the Python Project Template documentation on
-   `pre-commit <https://lincc-ppt.readthedocs.io/en/latest/practices/precommit.html>`_.
-3) Installing ``pandoc`` allows you to verify that automatic rendering of Jupyter notebooks
-   into documentation for ReadTheDocs works as expected. For more information, see
-   the Python Project Template documentation on
-   `Sphinx and Python Notebooks <https://lincc-ppt.readthedocs.io/en/latest/practices/sphinx.html#python-notebooks>`_.
+See our selection of :doc:`tutorial notebooks <notebooks>` for usage examples.
 
+If you are interested in installing from source, or contributing to the package,
+see the :doc:`contribution guide <contributing>`.
 
 .. toctree::
    :hidden:
 
    Home page <self>
-   API Reference <autoapi/index>
+   Simulations <simulations>
    Notebooks <notebooks>
+   API Reference <autoapi/index>
+   Contribution Guide <contributing>
+
+Acknowledgements
+-------------------------------------------------------------------------------
+
+This project is supported by Schmidt Sciences.
