@@ -30,10 +30,6 @@ class GivenValueList(FunctionNode):
 
         super().__init__(self._non_func, **kwargs)
 
-    def _non_func(self):
-        """This function does nothing. Everything happens in the overloaded compute()."""
-        pass
-
     def reset(self):
         """Reset the next index to use."""
         self.next_ind = 0
