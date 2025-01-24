@@ -15,7 +15,7 @@ and test pipelines.The need for a flexible, scalable, and user-friendly time-dom
 simulation software has increased as the new survey telescopes get ready for their
 first lights. TDAstro aims to provide such software for the time domain community.
 
-.. figure:: _static/tdastro-intro_jlykce.webp
+.. figure:: _static/tdastro-intro.png
    :class: no-scaled-link
    :scale: 80 %
    :align: center
@@ -42,14 +42,16 @@ Getting Started
 
    >> pip install tdastro
 
-If you are interested in installing from source, or contributing to the package,
-see the :doc:`contribution guide <contribution.rst>`
+See our selection of :doc:`tutorial notebooks <notebooks>` for usage examples.
 
+If you are interested in installing from source, or contributing to the package,
+see the :doc:`contribution guide <contributing>`.
 
 .. toctree::
    :hidden:
 
    Home page <self>
+   Simulations <simulations>
    Notebooks <notebooks>
    API Reference <autoapi/index>
    Contribution Guide <contributing>
