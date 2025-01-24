@@ -1,5 +1,7 @@
 """The base PhysicalModel used for all sources."""
 
+from os import urandom
+
 import numpy as np
 
 from tdastro.astro_utils.passbands import Passband
@@ -27,6 +29,7 @@ class PhysicalModel(ParameterizedNode):
       * ra - The object's right ascension in degrees.
       * redshift - The object's redshift.
       * t0 - The t0 of the zero phase (if applicable), date.
+      * white_noise_sigma - The standard deviation of the white noise.
 
     Attributes
     ----------
@@ -49,20 +52,36 @@ class PhysicalModel(ParameterizedNode):
         The object's luminosity distance (in pc). If no value is provided and
         a ``cosmology`` parameter is given, the model will try to derive from
         the redshift and the cosmology.
+    white_noise_sigma : float
+        The standard deviation of the white noise to add to the flux density.
     background : `PhysicalModel`
         A source of background flux such as a host galaxy.
+    seed : int, optional
+        The seed for a random number generator.
     **kwargs : `dict`, optional
         Any additional keyword arguments.
     """
 
-    def __init__(self, ra=None, dec=None, redshift=None, t0=None, distance=None, background=None, **kwargs):
+    def __init__(
+        self,
+        ra=None,
+        dec=None,
+        redshift=None,
+        t0=None,
+        distance=None,
+        background=None,
+        white_noise_sigma=0.0,
+        seed=None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
 
-        # Set RA, dec, and redshift from the parameters.
+        # Set the parameters for the model.
         self.add_parameter("ra", ra, allow_gradient=False)
         self.add_parameter("dec", dec, allow_gradient=False)
         self.add_parameter("redshift", redshift, allow_gradient=False)
         self.add_parameter("t0", t0)
+        self.add_parameter("white_noise_sigma", white_noise_sigma, allow_gradient=False)
 
         # If the luminosity distance is provided, use that. Otherwise try the
         # redshift value using the cosmology (if given). Finally, default to None.
@@ -79,6 +98,12 @@ class PhysicalModel(ParameterizedNode):
 
         # Initialize the effect settings to their default values.
         self.apply_redshift = redshift is not None
+
+        # Get a default random number generator for this object, using the
+        # given seed if one is provided.
+        if seed is None:
+            seed = int.from_bytes(urandom(4), "big")
+        self._rng = np.random.default_rng(seed=seed)
 
     def set_graph_positions(self, seen_nodes=None):
         """Force an update of the graph structure (numbering of each node).
@@ -199,9 +224,20 @@ class PhysicalModel(ParameterizedNode):
                     times, wavelengths, params["redshift"], params["t0"]
                 )
 
-            # Compute the flux density for both the current object and add in anything
-            # behind it, such as a host galaxy.
+            # Compute the flux density for both the current object, add and white noise,
+            # and add in in anything behind it, such as a host galaxy.
             flux_density = self.compute_flux(times, wavelengths, state, **kwargs)
+
+            if params["white_noise_sigma"] != 0.0:
+                if rng_info is None:
+                    flux_density += self._rng.normal(
+                        scale=params["white_noise_sigma"], size=flux_density.shape
+                    )
+                else:
+                    flux_density += rng_info.normal(
+                        scale=params["white_noise_sigma"], size=flux_density.shape
+                    )
+
             if self.background is not None:
                 flux_density += self.background.compute_flux(
                     times,

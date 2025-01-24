@@ -56,6 +56,26 @@ def test_static_source_pytree():
     assert len(pytree) == 1
 
 
+def test_static_source_white_noise() -> None:
+    """Test that we can sample and create a StaticSource object with white noise."""
+    model = StaticSource(
+        brightness=10.0,
+        white_noise_sigma=1.0,
+        node_label="my_static_source",
+        seed=100,
+    )
+    state = model.sample_parameters()
+
+    times = np.array([1, 2, 3, 4, 5, 10])
+    wavelengths = np.array([100.0, 200.0, 300.0])
+    values = model.evaluate(times, wavelengths, state)
+    assert values.shape == (6, 3)
+
+    # We get noisy values around 10.0.
+    assert len(np.unique(values)) > 10
+    assert np.all(np.abs(values - 10.0) < 3.0)
+
+
 def test_static_source_host() -> None:
     """Test that we can sample and create a StaticSource object with properties
     derived from the host object."""
