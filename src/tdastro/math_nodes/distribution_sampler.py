@@ -1,7 +1,6 @@
-"""A class that can be used to sample from a one-dimensional distribution using
-inverse transformation sampling.
-
-Adapted from https://github.com/RickKessler/SNANA/blob/master/src/gensed_AGN.py with authors' permission.
+"""A class that can be used to quickly sample from a one-dimensional distribution provided
+as an empirical PDF (x points and their corrersponding PDF(x) values) and then sampled using
+an interpolation of the inverse CDF function.
 """
 
 from os import urandom
