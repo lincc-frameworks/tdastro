@@ -24,8 +24,7 @@ def bulk_convert_matrix(mat, in_units, out_units):
 
 
 def flam_to_fnu(flux_flam, wavelengths, *, wave_unit, flam_unit, fnu_unit):
-    """
-    Covert flux from f_lambda unit to f_nu unit
+    """Covert flux from f_lambda unit to f_nu unit.
 
     Parameters
     ----------
