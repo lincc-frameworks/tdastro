@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 from tdastro.astro_utils.agn_utils import (
     agn_accretion_rate,
+    agn_blackhole_accretion_rate,
     agn_bolometric_luminosity,
 )
 from tdastro.consts import M_SUN_G
@@ -22,6 +23,27 @@ def test_agn_accretion_rate():
     masses = M_SUN_G * num_suns
     expected = 1.4e18 * num_suns
     assert np.allclose(agn_accretion_rate(masses), expected)
+
+
+def test_agn_black_hole_accretion_rate():
+    """Test that we can compute the black hole's accretion rate."""
+    # This is a change detection test to make sure the results match previous code.
+
+    # No accretion => no blackhole accretion.
+    assert agn_blackhole_accretion_rate(0.0, 0.5) == 0.0
+    assert agn_blackhole_accretion_rate(0.0, 1.0) == 0.0
+    assert agn_blackhole_accretion_rate(0.0, 2.0) == 0.0
+
+    # For a total accretion rate of 1.4e21 g/s and different ratios,
+    # compute the black hole accretion rate.
+    assert agn_blackhole_accretion_rate(1.4e21, 1.0) == pytest.approx(1.4e21)
+    assert agn_blackhole_accretion_rate(1.4e21, 0.5) == pytest.approx(7.0e20)
+    assert agn_blackhole_accretion_rate(1.4e21, 2.0) == pytest.approx(2.8e21)
+
+    # Test that the operation is vectorized.
+    rates = np.array([0.5, 1.0, 10.0, 50.0])
+    ratios = np.array([1.0, 1.0, 2.0, 2.0])
+    assert np.allclose(agn_blackhole_accretion_rate(rates, ratios), rates * ratios)
 
 
 def test_agn_bolometric_luminosity():
