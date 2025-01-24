@@ -16,7 +16,6 @@ The main simulation components in TDAstro include:
 
 * ``PhysicalModel`` defines the properties of the time-domain source, which can 
   also include a host-galaxy model.
-* ``EffectModel`` describes how the SED changes (e.g. redshifting, lensing, dust)
 * ``PassbandGroup`` contains the filter information of the telescope
 * ``Opsim`` contains the survey information such as survey strategy and observing
   conditions.
