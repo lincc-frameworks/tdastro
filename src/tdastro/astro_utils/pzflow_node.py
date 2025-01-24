@@ -28,10 +28,6 @@ class PZFlowNode(FunctionNode):
         self.columns = [x for x in flow_obj.data_columns]
         super().__init__(self._non_func, node_label=node_label, outputs=self.columns, **kwargs)
 
-    def _non_func(self):
-        """This function does nothing. Everything happens in the overloaded compute()."""
-        pass
-
     @classmethod
     def from_file(cls, filename, node_label=None):
         """Create a PZFlowNode from a saved flow file.
