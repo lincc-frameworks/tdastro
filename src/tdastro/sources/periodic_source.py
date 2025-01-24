@@ -13,6 +13,7 @@ class PeriodicSource(PhysicalModel, ABC):
       * ra - The object's right ascension in degrees. [from PhysicalModel]
       * redshift - The object's redshift. [from PhysicalModel]
       * t0 - The t0 of the zero phase, date. [from PhysicalModel]
+      * white_noise_sigma - The standard deviation of the white noise. [from PhysicalModel]
 
     Parameters
     ----------
