@@ -3,8 +3,8 @@ import pytest
 from astropy.cosmology import Planck18
 from tdastro.astro_utils.passbands import PassbandGroup
 from tdastro.math_nodes.given_sampler import GivenValueList
-from tdastro.sources.physical_model import PhysicalModel
 from tdastro.sources.basic_sources import StaticSource
+from tdastro.sources.physical_model import PhysicalModel
 
 
 def test_physical_model():
