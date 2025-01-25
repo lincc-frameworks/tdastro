@@ -37,8 +37,6 @@ class BasicMathNode(FunctionNode):
         The expression to evaluate.
     backend : `str`
         The math libary to use. Must be one of: math, numpy, or jax.
-    var_names : set
-        The set of variable names in the expression.
 
     Parameters
     ----------
@@ -121,7 +119,6 @@ class BasicMathNode(FunctionNode):
         self.backend = backend
 
         # Check the expression is pure math and translate it into the correct backend.
-        self.var_names = set()
         self.expression = expression
         self._prepare(**kwargs)
 
@@ -159,17 +156,13 @@ class BasicMathNode(FunctionNode):
             The converted list of parameters.
         """
         params = {}
-        for name in self.var_names:
-            if name not in kwargs:
-                raise KeyError("Unable to find variable {name} for {self.expression}")
-
-            # Make sure the input is the correct array type.
+        for name, value in kwargs.items():
             if self.backend == "numpy":
-                params[name] = np.array(kwargs[name])
+                params[name] = np.array(value)
             elif self.backend == "jax":
-                params[name] = jnp.array(kwargs[name])
+                params[name] = jnp.array(value)
             else:
-                params[name] = kwargs[name]
+                params[name] = value
         return params
 
     def _prepare(self, **kwargs):
@@ -188,10 +181,6 @@ class BasicMathNode(FunctionNode):
         tree : `ast.*`
             The root node of the parsed syntax tree.
         """
-        # Reset the list of variable names.
-        self.var_names = set()
-
-        # Parse the expression.
         tree = ast.parse(self.expression)
 
         # Walk the tree and confirm that it only contains the basic math.
@@ -206,7 +195,6 @@ class BasicMathNode(FunctionNode):
             elif isinstance(node, ast.Name):
                 if node.id in kwargs:
                     # This is a user supplied variable.
-                    self.var_names.add(node.id)
                     continue
                 elif node.id in self._math_map:
                     # This is a math function or constant. Overwrite
