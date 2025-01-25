@@ -5,8 +5,8 @@ https://github.com/RickKessler/SNANA/blob/master/src/gensed_AGN.py
 
 import numpy as np
 import pytest
-from tdastro.sources.gensed_agn import AGN
 from tdastro.consts import M_SUN_G
+from tdastro.sources.gensed_agn import AGN
 
 
 def test_agn_accretion_rate():
