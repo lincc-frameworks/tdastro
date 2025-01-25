@@ -1,6 +1,7 @@
 """Utility functions for AGN models.function
 
-Adapted from https://github.com/RickKessler/SNANA/blob/master/src/gensed_AGN.py with authors' permission.
+Adapted from https://github.com/RickKessler/SNANA/blob/master/src/gensed_AGN.py
+with the authors' permission.
 """
 
 import numpy as np
@@ -61,6 +62,99 @@ def agn_bolometric_luminosity(edd_ratio, blackhole_mass):
     """
     L_bol = edd_ratio * 1.26e38 * blackhole_mass / M_SUN_G
     return L_bol
+
+
+def agn_compute_mag_i(L_bol):
+    """Compute the i band magnitude from the bolometric luminosity.
+
+    Parameters
+    ----------
+    L_bol : float
+        The bolometric luminosity in erg/s.
+
+    Returns
+    -------
+    mag_i : float
+        The i band magnitude.
+    """
+    # Adpated from Shen et al., 2013: https://adsabs.harvard.edu/full/2013BASI...41...61S
+    return 90 - 2.5 * np.log10(L_bol)
+
+
+def agn_compute_r_0(r_in):
+    """Compute the r_0 radius in a standard disk model given the inner radius.
+
+    Parameters
+    ----------
+    r_in : float
+        The inner radius of the accretion disk.
+
+    Returns
+    -------
+    r0 : float
+        The r_0 radius.
+    """
+    # Adapted from Lipunova, G., Malanchev, K., Shakura, N. (2018). Page 33 for the main equation
+    # DOI https://doi.org/10.1007/978-3-319-93009-1_1
+    return (7 / 6) ** 2 * r_in
+
+
+def agn_structure_function_at_inf(lam, mag_i=-23, blackhole_mass=1e9 * M_SUN_G):
+    """Compute the structure function at infinity in magnitude.
+
+    Parameters
+    ----------
+    lam : float
+        The frequency in Hz.
+    mag_i : float, optional
+        The i band magnitude.
+        Default: -23
+    blackhole_mass : float, optional
+        The black hole mass in g.
+        Default: 1e9 * M_SUN_G
+
+    Returns
+    -------
+    result : float
+        The structure function at infinity in magnitude.
+    """
+    # Equation and parameters for A=-0.51, B=-0.479, C=0.13, and D=0.18
+    #  adopted from Suberlak et al. 2021: DOI 10.3847/1538-4357/abc698
+    return 10 ** (
+        -0.51
+        - 0.479 * np.log10(lam / (4000e-8))
+        + 0.13 * (mag_i + 23)
+        + 0.18 * np.log10(blackhole_mass / (1e9 * M_SUN_G))
+    )
+
+
+def agn_tau_v_drw(lam, mag_i=-23, blackhole_mass=1e9 * M_SUN_G):
+    """Compute the timescale (tau_v) for the DRW model.
+
+    Parameters
+    ----------
+    lam : float
+        The frequency in Hz.
+    mag_i : float, optional
+        The i band magnitude.
+        Default: -23
+    blackhole_mass : float, optional
+        The black hole mass in g.
+        Default: 1e9 * M_SUN_G
+
+    Returns
+    -------
+    tau_v : float
+        The timescale in s.
+    """
+    # Equation and parameters for A=2.4, B=0.17, C=0.03, and D=0.21 adopted
+    # from Suberlak et al. 2021: DOI 10.3847/1538-4357/abc698
+    return 10 ** (
+        2.4
+        + 0.17 * np.log10(lam / (4000e-8))
+        + 0.03 * (mag_i + 23)
+        + 0.21 * np.log10(blackhole_mass / (1e9 * M_SUN_G))
+    )
 
 
 def eddington_ratio_dist_fun(edd_ratio, galaxy_type="Blue", rng=None, num_samples=1):

@@ -1,9 +1,18 @@
+"""Test the utility functions for computing AGN parameters. These are mostly change
+detection tests to make sure the results match the code from SNANA:
+https://github.com/RickKessler/SNANA/blob/master/src/gensed_AGN.py
+"""
+
 import numpy as np
 import pytest
 from tdastro.astro_utils.agn_utils import (
     agn_accretion_rate,
     agn_blackhole_accretion_rate,
     agn_bolometric_luminosity,
+    agn_compute_mag_i,
+    agn_compute_r_0,
+    agn_structure_function_at_inf,
+    agn_tau_v_drw,
     eddington_ratio_dist_fun,
 )
 from tdastro.consts import M_SUN_G
@@ -67,6 +76,56 @@ def test_agn_bolometric_luminosity():
 
     expected = 1.26e38 * num_suns * ratios
     assert np.allclose(agn_bolometric_luminosity(ratios, masses), expected)
+
+
+def test_agn_compute_mag_i():
+    """Test that we can compute the i band magnitude from the bolometric luminosity."""
+    # This is a change detection test to make sure the results match previous code.
+
+    assert agn_compute_mag_i(1.0) == pytest.approx(90.0)
+
+    # Test that the operation is vectorized.
+    l_bol = np.array([0.5, 1.0, 10.0, 50.0])
+    expected = np.array([90.75257499, 90.0, 87.5, 85.75257499])
+    assert np.allclose(agn_compute_mag_i(l_bol), expected)
+
+
+def test_agn_compute_r_0():
+    """Test that we can compute an AGN's r_0 from its r_in."""
+    # This is a change detection test to make sure the results match previous code.
+
+    assert agn_compute_r_0(1.0) == pytest.approx(1.361111111111111)
+
+    # Test that the operation is vectorized.
+    r_in = np.array([0.5, 1.0, 10.0, 50.0])
+    expected = 1.361111111111111 * r_in
+    assert np.allclose(agn_compute_r_0(r_in), expected)
+
+
+def test_agn_structure_function_at_inf():
+    """Test that we can compute the structure function at infinity."""
+    # This is a change detection test to make sure the results match previous code.
+    assert agn_structure_function_at_inf(1.0) == pytest.approx(0.002417612741449265)
+
+    # Test a range of parameters.
+    lam = np.array([10.0, 20.0, 30.0, 40.0])
+    mag_i = np.array([-23.0, -22.5, -23.5, -23.0])
+    blackhole_mass = 1e9 * M_SUN_G * np.array([0.5, 1.0, 1.5, 2.0])
+    expected = np.array([0.00070827, 0.00066864, 0.00043908, 0.00046793])
+    assert np.allclose(agn_structure_function_at_inf(lam, mag_i, blackhole_mass), expected)
+
+
+def test_agn_tau_v_drw():
+    """Test that we can compute the timescale (tau_v) for the DRW model."""
+    # This is a change detection test to make sure the results match previous code.
+    assert agn_tau_v_drw(1.0) == pytest.approx(1404.9141979667831)
+
+    # Test a range of parameters.
+    lam = np.array([10.0, 20.0, 30.0, 40.0])
+    mag_i = np.array([-23.0, -22.5, -23.5, -23.0])
+    blackhole_mass = 1e9 * M_SUN_G * np.array([0.5, 1.0, 1.5, 2.0])
+    expected = np.array([1796.52598149, 2420.05313069, 2634.75100705, 3042.39990673])
+    assert np.allclose(agn_tau_v_drw(lam, mag_i, blackhole_mass), expected)
 
 
 def test_eddington_ratio_dist_fun():
