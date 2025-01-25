@@ -37,6 +37,8 @@ class BasicMathNode(FunctionNode):
         The expression to evaluate.
     backend : `str`
         The math libary to use. Must be one of: math, numpy, or jax.
+    var_names : set
+        The set of variable names in the expression.
 
     Parameters
     ----------
@@ -119,14 +121,16 @@ class BasicMathNode(FunctionNode):
         self.backend = backend
 
         # Check the expression is pure math and translate it into the correct backend.
+        self.var_names = set()
         self.expression = expression
         self._prepare(**kwargs)
 
         # Create a function from the expression. Note the expression has
         # already been sanitized and validated via _prepare().
         def eval_func(**kwargs):
+            params = self.prepare_params(**kwargs)
             try:
-                return eval(self.expression, globals(), kwargs)
+                return eval(self.expression, globals(), params)
             except Exception as problem:
                 # Provide more detailed logging, including the expression and parameters
                 # used, when we encounter a math error like divide by zero.
@@ -137,7 +141,36 @@ class BasicMathNode(FunctionNode):
 
     def eval(self, **kwargs):
         """Evaluate the expression."""
-        return eval(self.expression, globals(), kwargs)
+        params = self.prepare_params(**kwargs)
+        return eval(self.expression, globals(), params)
+
+    def prepare_params(self, **kwargs):
+        """Convert all of the incoming parameters into the correct type,
+        such as numpy arrays.
+
+        Parameters
+        ----------
+        **kwargs : `dict`, optional
+            The keyword arguments, including every variable in the expression.
+
+        Returns
+        -------
+        params : dict
+            The converted list of parameters.
+        """
+        params = {}
+        for name in self.var_names:
+            if name not in kwargs:
+                raise KeyError("Unable to find variable {name} for {self.expression}")
+
+            # Make sure the input is the correct array type.
+            if self.backend == "numpy":
+                params[name] = np.array(kwargs[name])
+            elif self.backend == "jax":
+                params[name] = jnp.array(kwargs[name])
+            else:
+                params[name] = kwargs[name]
+        return params
 
     def _prepare(self, **kwargs):
         """Rewrite a python expression that consists of only basic math to use
@@ -155,6 +188,10 @@ class BasicMathNode(FunctionNode):
         tree : `ast.*`
             The root node of the parsed syntax tree.
         """
+        # Reset the list of variable names.
+        self.var_names = set()
+
+        # Parse the expression.
         tree = ast.parse(self.expression)
 
         # Walk the tree and confirm that it only contains the basic math.
@@ -169,6 +206,7 @@ class BasicMathNode(FunctionNode):
             elif isinstance(node, ast.Name):
                 if node.id in kwargs:
                     # This is a user supplied variable.
+                    self.var_names.add(node.id)
                     continue
                 elif node.id in self._math_map:
                     # This is a math function or constant. Overwrite
