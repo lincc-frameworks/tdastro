@@ -533,7 +533,11 @@ class ParameterizedNode:
 
             # Set the result from the correct source.
             if setter.source_type == ParameterSource.CONSTANT:
-                graph_state.set(self.node_string, name, setter.value)
+                if graph_state.num_samples == 1:
+                    graph_state.set(self.node_string, name, setter.value)
+                else:
+                    repeated_value = [setter.value] * graph_state.num_samples
+                    graph_state.set(self.node_string, name, repeated_value)
             elif setter.source_type == ParameterSource.MODEL_PARAMETER:
                 graph_state.set(
                     self.node_string,

@@ -37,14 +37,36 @@ def test_numpy_random_uniform():
     assert np.abs(np.mean(values) - 15.0) < 0.5
 
 
-def test_numpy_random_uniform_multi():
-    """Test that we can many generate numbers at once from a uniform distribution."""
+def test_numpy_random_uniform_multi_samples():
+    """Test that we can generate many numbers at once from a uniform distribution."""
     np_node = NumpyRandomFunc("uniform", seed=100)
     state = np_node.sample_parameters(num_samples=10_000)
     samples = np_node.get_param(state, "function_node_result")
     assert len(samples) == 10_000
     assert len(np.unique(samples)) > 1_000
     assert np.abs(np.mean(samples) - 0.5) < 0.01
+
+
+def test_numpy_random_uniform_mutli_dim():
+    """Test that we can generate multi-dimensional vectors from a uniform distribution."""
+    # Sample size 2 arrays
+    np_node = NumpyRandomFunc("uniform", seed=100, size=2)
+    state = np_node.sample_parameters(num_samples=10)
+    samples = np_node.get_param(state, "function_node_result")
+    assert samples.shape == (10, 2)
+    assert len(np.unique(samples.flatten())) == 20
+
+    # Sample size (2, 3) arrays.
+    np_node = NumpyRandomFunc("uniform", seed=100, size=(2, 3))
+    state = np_node.sample_parameters(num_samples=10)
+    samples = np_node.get_param(state, "function_node_result")
+    assert samples.shape == (10, 2, 3)
+    assert len(np.unique(samples.flatten())) == 60
+
+    # If we do not specify a size and use a single sample, we get a float.
+    np_node = NumpyRandomFunc("uniform", seed=100)
+    state = np_node.sample_parameters(num_samples=1)
+    assert np.isscalar(np_node.get_param(state, "function_node_result"))
 
 
 def test_numpy_random_normal():
