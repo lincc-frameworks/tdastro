@@ -6,6 +6,7 @@ with the authors' permission.
 
 import numpy as np
 
+from tdastro.base_models import FunctionNode
 from tdastro.consts import M_SUN_G
 from tdastro.sources.physical_model import PhysicalModel
 
@@ -13,20 +14,87 @@ from tdastro.sources.physical_model import PhysicalModel
 class AGN(PhysicalModel):
     """A model for an AGN.
 
+    Parameterized values include:
+      * accretion_rate - The accretion rate (ME_dot) at Eddington luminosity in g/s.
+      * blackhole_accretion_rate - The accretion rate of the black hole in g/s.
+      * blackhole_mass - The black hole mass in g.
+      * edd_ratio - The Eddington ratio.
+      * dec - The object's declination in degrees. [from PhysicalModel]
+      * distance - The object's luminosity distance in pc. [from PhysicalModel]
+      * L_bol - The bolometric luminosity in erg/s.
+      * mag_i - The i band magnitude.
+      * ra - The object's right ascension in degrees. [from PhysicalModel]
+      * redshift - The object's redshift. [from PhysicalModel]
+      * t0 - The t0 of the zero phase, date. [from PhysicalModel]
+
     Parameters
     ----------
-    TODO
+    t0 : float
+        initial time moment in days.
+    blackhole_mass : float
+        The black hole mass in g.
+    lam : np.ndarray
+        The wavelengths
+    edd_ratio: float
+        Eddington ratio
     """
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, t0, blackhole_mass, lam, edd_ratio, **kwargs):
+        super().__init__(t0=t0, **kwargs)
+
+        # Add the parameters for the AGN. t0 already set in PhysicalModel.
+        self.add_parameter("blackhole_mass", blackhole_mass, **kwargs)
+        self.add_parameter("edd_ratio", edd_ratio, **kwargs)
+        self.lam = np.asarray(lam)
+
+        # Add the derived parameters using FunctionNodes built from the object's static methods.
+        # Each of these will be computed for each sample value of the input parameters.
+        self.add_parameter(
+            "accretion_rate",
+            FunctionNode(self.compute_accretion_rate, blackhole_mass=self.blackhole_mass),
+            **kwargs,
+        )
+        self.add_parameter(
+            "blackhole_accretion_rate",
+            FunctionNode(
+                self.compute_blackhole_accretion_rate,
+                accretion_rate=self.accretion_rate,  # Pull from computed accretion rate
+                edd_ratio=self.edd_ratio,  # Pull from sampled ratio
+            ),
+            **kwargs,
+        )
+        self.add_parameter(
+            "bolometric_luminosity",
+            FunctionNode(
+                self.compute_bolometric_luminosity,
+                edd_ratio=self.edd_ratio,  # Pull from sampled ratio
+                blackhole_mass=self.blackhole_mass,  # Pull from the sampled mass
+            ),
+            **kwargs,
+        )
+        self.add_parameter(
+            "mag_i",
+            FunctionNode(
+                self.compute_mag_i,
+                bolometric_luminosity=self.bolometric_luminosity,  # Pull from computed value.
+            ),
+            **kwargs,
+        )
+
+        ## TODO: set self.Fnu_average
+        # self.Fnu_average = 2 * self.find_Fnu_average_standard_disk(self.MBH_dot, self.lam, M_BH)
+        # quick fix to double the baseline Fnu
+        # self.tau = self.find_tau_v(self.lam, self.Mi, M_BH)
+        # self.sf_inf = self.find_sf_inf(self.lam, self.Mi, M_BH)
+        # self.t = t0
+        # self.delta_m = self._random() * self.sf_inf
 
     # ------------------------------------------------------------------------
     # --- Static helper methods for computing the derived parameters. --------
     # ------------------------------------------------------------------------
 
     @staticmethod
-    def accretion_rate(blackhole_mass):
+    def compute_accretion_rate(blackhole_mass):
         """Compute the accretion rate at Eddington luminosity.
 
         Parameters
@@ -43,7 +111,7 @@ class AGN(PhysicalModel):
         return accretion_rate
 
     @staticmethod
-    def blackhole_accretion_rate(accretion_rate, edd_ratio):
+    def compute_blackhole_accretion_rate(accretion_rate, edd_ratio):
         """Compute the accretion rate of the blackhole.
 
         Parameters
@@ -62,7 +130,7 @@ class AGN(PhysicalModel):
         return bh_accretion_rate
 
     @staticmethod
-    def bolometric_luminosity(edd_ratio, blackhole_mass):
+    def compute_bolometric_luminosity(edd_ratio, blackhole_mass):
         """Compute the bolometric luminosity of an AGN.
 
         Parameters
@@ -74,19 +142,19 @@ class AGN(PhysicalModel):
 
         Returns
         -------
-        L_bol : float
+        bolometric_luminosity : float
             The bolometric luminosity in erg/s.
         """
-        L_bol = edd_ratio * 1.26e38 * blackhole_mass / M_SUN_G
-        return L_bol
+        bolometric_luminosity = edd_ratio * 1.26e38 * blackhole_mass / M_SUN_G
+        return bolometric_luminosity
 
     @staticmethod
-    def compute_mag_i(L_bol):
+    def compute_mag_i(bolometric_luminosity):
         """Compute the i band magnitude from the bolometric luminosity.
 
         Parameters
         ----------
-        L_bol : float
+        bolometric_luminosity : float
             The bolometric luminosity in erg/s.
 
         Returns
@@ -95,7 +163,7 @@ class AGN(PhysicalModel):
             The i band magnitude.
         """
         # Adpated from Shen et al., 2013: https://adsabs.harvard.edu/full/2013BASI...41...61S
-        return 90 - 2.5 * np.log10(L_bol)
+        return 90 - 2.5 * np.log10(bolometric_luminosity)
 
     @staticmethod
     def compute_r_0(r_in):

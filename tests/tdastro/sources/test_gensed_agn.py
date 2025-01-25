@@ -6,6 +6,7 @@ https://github.com/RickKessler/SNANA/blob/master/src/gensed_AGN.py
 import numpy as np
 import pytest
 from tdastro.consts import M_SUN_G
+from tdastro.math_nodes.np_random import NumpyRandomFunc
 from tdastro.sources.gensed_agn import AGN
 
 
@@ -14,16 +15,16 @@ def test_agn_accretion_rate():
     # This is a change detection test to make sure the results match previous code.
 
     # No BH = no accretion.
-    assert AGN.accretion_rate(0.0) == 0.0
+    assert AGN.compute_accretion_rate(0.0) == 0.0
 
     # For a 1000 solar mass black hole, the accretion rate should be 1.4e21 g/s.
-    assert AGN.accretion_rate(1000.0 * M_SUN_G) == pytest.approx(1.4e21)
+    assert AGN.compute_accretion_rate(1000.0 * M_SUN_G) == pytest.approx(1.4e21)
 
     # Test that the operation is vectorized.
     num_suns = np.array([0.5, 1.0, 10.0, 50.0])
     masses = M_SUN_G * num_suns
     expected = 1.4e18 * num_suns
-    assert np.allclose(AGN.accretion_rate(masses), expected)
+    assert np.allclose(AGN.compute_accretion_rate(masses), expected)
 
 
 def test_agn_black_hole_accretion_rate():
@@ -31,20 +32,20 @@ def test_agn_black_hole_accretion_rate():
     # This is a change detection test to make sure the results match previous code.
 
     # No accretion => no blackhole accretion.
-    assert AGN.blackhole_accretion_rate(0.0, 0.5) == 0.0
-    assert AGN.blackhole_accretion_rate(0.0, 1.0) == 0.0
-    assert AGN.blackhole_accretion_rate(0.0, 2.0) == 0.0
+    assert AGN.compute_blackhole_accretion_rate(0.0, 0.5) == 0.0
+    assert AGN.compute_blackhole_accretion_rate(0.0, 1.0) == 0.0
+    assert AGN.compute_blackhole_accretion_rate(0.0, 2.0) == 0.0
 
     # For a total accretion rate of 1.4e21 g/s and different ratios,
     # compute the black hole accretion rate.
-    assert AGN.blackhole_accretion_rate(1.4e21, 1.0) == pytest.approx(1.4e21)
-    assert AGN.blackhole_accretion_rate(1.4e21, 0.5) == pytest.approx(7.0e20)
-    assert AGN.blackhole_accretion_rate(1.4e21, 2.0) == pytest.approx(2.8e21)
+    assert AGN.compute_blackhole_accretion_rate(1.4e21, 1.0) == pytest.approx(1.4e21)
+    assert AGN.compute_blackhole_accretion_rate(1.4e21, 0.5) == pytest.approx(7.0e20)
+    assert AGN.compute_blackhole_accretion_rate(1.4e21, 2.0) == pytest.approx(2.8e21)
 
     # Test that the operation is vectorized.
     rates = np.array([0.5, 1.0, 10.0, 50.0])
     ratios = np.array([1.0, 1.0, 2.0, 2.0])
-    assert np.allclose(AGN.blackhole_accretion_rate(rates, ratios), rates * ratios)
+    assert np.allclose(AGN.compute_blackhole_accretion_rate(rates, ratios), rates * ratios)
 
 
 def test_agn_bolometric_luminosity():
@@ -52,13 +53,13 @@ def test_agn_bolometric_luminosity():
     # This is a change detection test to make sure the results match previous code.
 
     # No BH = no luminosity.
-    assert AGN.bolometric_luminosity(1.0, 0.0) == 0.0
+    assert AGN.compute_bolometric_luminosity(1.0, 0.0) == 0.0
 
     # For a 100 solar mass black hole and 1.0 ratio, the bolometric luminosity should be 1.26e40
-    assert AGN.bolometric_luminosity(1.0, 100.0 * M_SUN_G) == pytest.approx(1.26e40)
+    assert AGN.compute_bolometric_luminosity(1.0, 100.0 * M_SUN_G) == pytest.approx(1.26e40)
 
     # For a 100 solar mass black hole and 0.5 ratio, the bolometric luminosity should be 6.3e39
-    assert AGN.bolometric_luminosity(0.5, 100.0 * M_SUN_G) == pytest.approx(6.3e39)
+    assert AGN.compute_bolometric_luminosity(0.5, 100.0 * M_SUN_G) == pytest.approx(6.3e39)
 
     # Test that the operation is vectorized.
     num_suns = np.array([0.5, 1.0, 10.0, 50.0])
@@ -66,7 +67,7 @@ def test_agn_bolometric_luminosity():
     masses = M_SUN_G * num_suns
 
     expected = 1.26e38 * num_suns * ratios
-    assert np.allclose(AGN.bolometric_luminosity(ratios, masses), expected)
+    assert np.allclose(AGN.compute_bolometric_luminosity(ratios, masses), expected)
 
 
 def test_agn_compute_mag_i():
@@ -134,3 +135,30 @@ def test_eddington_ratio_dist_fun():
     # Test that if we draw a single sample it is a float.
     sample = AGN.eddington_ratio_dist_fun(1.0, "blue")
     assert isinstance(sample, float)
+
+
+def test_create_agn():
+    """Test that we can create an AGN object and the derived parameters are correct."""
+    # Select the black hole mass uniformly between 1e9 and 2e9 solar masses.
+    bh_mass_sampler = NumpyRandomFunc("uniform", low=1e9 * M_SUN_G, high=2e9 * M_SUN_G, seed=100)
+    agn_node = AGN(
+        t0=0.0,
+        blackhole_mass=bh_mass_sampler,
+        lam=[np.array([1000.0, 2000.0, 3000.0, 4000.0])],
+        edd_ratio=0.9,
+        node_label="AGN",
+    )
+    state = agn_node.sample_parameters(num_samples=10_000)
+
+    # Check that the parameters are within the expected ranges.
+    bh_masses = state["AGN"]["blackhole_mass"]
+    assert np.all(bh_masses >= 1e9 * M_SUN_G)
+    assert np.all(bh_masses <= 2e9 * M_SUN_G)
+    assert np.unique(bh_masses).size > 1_000
+
+    assert np.allclose(state["AGN"]["accretion_rate"], 1.4e18 * bh_masses / M_SUN_G)
+    assert np.allclose(state["AGN"]["blackhole_accretion_rate"], 0.9 * state["AGN"]["accretion_rate"])
+    assert np.allclose(
+        state["AGN"]["bolometric_luminosity"], AGN.compute_bolometric_luminosity(0.9, bh_masses)
+    )
+    assert np.allclose(state["AGN"]["mag_i"], AGN.compute_mag_i(state["AGN"]["bolometric_luminosity"]))
