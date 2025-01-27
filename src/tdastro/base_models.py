@@ -459,7 +459,7 @@ class ParameterizedNode:
                 f"or class attribute in {self.node_string}"
             )
         if self.setters.get(name, None) is not None:
-            raise KeyError(f"Duplicate parameter set: {name} in {self.node_string}")
+            raise KeyError(f"Duplicate parameter set: '{name}' in {self.node_string}")
 
         # Add an entry for the setter function and fill in the remaining information using
         # set_parameter(). We add an initial (dummy) value here to indicate that this parameter
@@ -527,8 +527,8 @@ class ParameterizedNode:
         if node_str in seen_nodes:
             if seen_nodes[node_str] != self:
                 raise ValueError(
-                    f"Duplicate node label {node_str}. Every node must have a unique label. "
-                    "This most often happen when the node_label parameter is set directly."
+                    f"Duplicate node label '{node_str}'. Every node must have a unique label. "
+                    "This most often happens when the node_label parameter is set directly."
                 )
             return  # Nothing to do
         seen_nodes[node_str] = self
