@@ -29,6 +29,8 @@ def test_create_single_sample_graph_state():
     assert state["b.v1"] == 3.0
     with pytest.raises(KeyError):
         _ = state["c.v1"]
+    with pytest.raises(KeyError):
+        _ = state["a.v1.v2"]
 
     # We can create a human readable string representation of the GraphState.
     debug_str = str(state)
@@ -81,6 +83,16 @@ def test_create_single_sample_graph_state():
         state.set("a.b", "v1", 10.0)
     with pytest.raises(ValueError):
         state.set("b", "v1.v3", 10.0)
+
+    # We faile to create a GraphState with a negative number of samples.
+    with pytest.raises(ValueError):
+        _ = GraphState(-1)
+
+    # We fail if we try to extract a sample that is out of bounds.
+    with pytest.raises(ValueError):
+        _ = state.extract_single_sample(-1)
+    with pytest.raises(ValueError):
+        _ = state.extract_single_sample(5)
 
 
 def test_graph_state_contains():
@@ -241,6 +253,11 @@ def test_graph_state_equal():
     state5.set("a", "v2", 2.5)
     assert state4 != state5
 
+    # Two states are not equal if they have different numbers of samples.
+    state5 = GraphState(num_samples=1)
+    state6 = GraphState(num_samples=2)
+    assert state5 != state6
+
 
 def test_graph_state_fixed():
     """Test that we respected the 'fixed' flag for GraphState."""
@@ -325,6 +342,29 @@ def test_graph_state_from_table():
     np.testing.assert_allclose(state["a"]["v1"], [1.0, 2.0, 3.0])
     np.testing.assert_allclose(state["a"]["v2"], [4.0, 5.0, 6.0])
     np.testing.assert_allclose(state["b"]["v1"], [7.0, 8.0, 9.0])
+
+    # Everything still works if we have only a single value.
+    input2 = Table(
+        {
+            GraphState.extended_param_name("a", "v1"): [1.0],
+            GraphState.extended_param_name("a", "v2"): [4.0],
+            GraphState.extended_param_name("b", "v1"): [7.0],
+        }
+    )
+    state2 = GraphState.from_table(input2)
+    assert state2["a"]["v1"] == 1.0
+    assert state2["a"]["v2"] == 4.0
+    assert state2["b"]["v1"] == 7.0
+
+    # We fail if given invalid parameter names.
+    input3 = Table(
+        {
+            GraphState.extended_param_name("a", "v1.x"): [1.0],
+            GraphState.extended_param_name("a", "v2"): [4.0],
+        }
+    )
+    with pytest.raises(ValueError):
+        _ = GraphState.from_table(input3)
 
 
 def test_graph_state_to_dict():
