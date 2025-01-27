@@ -125,8 +125,9 @@ class BasicMathNode(FunctionNode):
         # Create a function from the expression. Note the expression has
         # already been sanitized and validated via _prepare().
         def eval_func(**kwargs):
+            params = self.prepare_params(**kwargs)
             try:
-                return eval(self.expression, globals(), kwargs)
+                return eval(self.expression, globals(), params)
             except Exception as problem:
                 # Provide more detailed logging, including the expression and parameters
                 # used, when we encounter a math error like divide by zero.
@@ -137,7 +138,32 @@ class BasicMathNode(FunctionNode):
 
     def eval(self, **kwargs):
         """Evaluate the expression."""
-        return eval(self.expression, globals(), kwargs)
+        params = self.prepare_params(**kwargs)
+        return eval(self.expression, globals(), params)
+
+    def prepare_params(self, **kwargs):
+        """Convert all of the incoming parameters into the correct type,
+        such as numpy arrays.
+
+        Parameters
+        ----------
+        **kwargs : `dict`, optional
+            The keyword arguments, including every variable in the expression.
+
+        Returns
+        -------
+        params : dict
+            The converted list of parameters.
+        """
+        params = {}
+        for name, value in kwargs.items():
+            if self.backend == "numpy":
+                params[name] = np.array(value)
+            elif self.backend == "jax":
+                params[name] = jnp.array(value)
+            else:
+                params[name] = value
+        return params
 
     def _prepare(self, **kwargs):
         """Rewrite a python expression that consists of only basic math to use
