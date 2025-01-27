@@ -298,7 +298,8 @@ def test_trim_transmission_table(passbands_dir, tmp_path):
     )
 
     # Test 3: much larger transmission table
-    transmissions = np.random.normal(0.5, 0.1, 1000)
+    rng = np.random.default_rng(100)
+    transmissions = rng.normal(0.5, 0.1, 1000)
     wavelengths = np.arange(100, 1100, 1)
     transmission_table = "\n".join(
         [f"{wavelength} {transmission}" for wavelength, transmission in zip(wavelengths, transmissions)]
