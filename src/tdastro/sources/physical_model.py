@@ -224,8 +224,8 @@ class PhysicalModel(ParameterizedNode):
                     times, wavelengths, params["redshift"], params["t0"]
                 )
 
-            # Compute the flux density for both the current object, add and white noise,
-            # and add in in anything behind it, such as a host galaxy.
+            # Compute the flux density for the current object, then add white noise,
+            # and then add in anything behind the object, such as a host galaxy.
             flux_density = self.compute_flux(times, wavelengths, state, **kwargs)
 
             if params["white_noise_sigma"] != 0.0:
