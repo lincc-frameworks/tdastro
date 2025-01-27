@@ -45,7 +45,7 @@ def test_static_source() -> None:
 
 
 def test_static_source_pytree():
-    """Test tthat the PyTree only contains brightness."""
+    """Test that the PyTree only contains brightness."""
     model = StaticSource(brightness=10.0, node_label="my_static_source")
     state = model.sample_parameters()
 
