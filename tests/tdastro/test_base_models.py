@@ -287,6 +287,20 @@ def test_np_sampler_method():
     assert not np.all(vals == vals[0])
 
 
+def test_function_node_multi_dim():
+    """Test that we can query a FunctionNode with multi-dimensional input."""
+    my_func = FunctionNode(np.sum, a=[1, 2, 3, 4], axis=-1, node_label="sum")
+    state = my_func.sample_parameters()
+    assert state["sum"]["function_node_result"] == 10
+
+    # Test with multiple samples. To make the sum meaningful we need to set which
+    # axis we are summing across. We can do this with the fixed_params attribute.
+    my_func = FunctionNode(np.sum, a=[1, 2, 3, 4, 5], fixed_params={"axis": 1}, node_label="sum")
+    state = my_func.sample_parameters(num_samples=10)
+    assert len(state["sum"]["function_node_result"]) == 10
+    assert np.all(state["sum"]["function_node_result"] == 15)
+
+
 def test_function_node_obj():
     """Test that we can create and query a FunctionNode that depends on
     another ParameterizedNode.
