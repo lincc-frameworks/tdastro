@@ -369,7 +369,9 @@ class ParameterizedNode:
         # Check for parameter has been added and if so, find the index. All parameters must
         # be added first with "add_parameter()".
         if name not in self.setters:
-            raise KeyError(f"Tried to set parameter {name} that has not been added.") from None
+            raise KeyError(
+                f"Tried to set parameter '{name}' that has not been added to node {self.node_string}."
+            ) from None
 
         if value is None and name in kwargs:
             # The value wasn't set, but the name is in kwargs.
@@ -385,7 +387,10 @@ class ParameterizedNode:
                 if method_name in parent.setters:
                     self.setters[name].set_as_parameter(parent, method_name)
                 else:
-                    raise ValueError(f"Trying to set parameter to method {method_name}")
+                    raise ValueError(
+                        f"Trying to set parameter '{name}' to the {type(parent)}.{method_name}, "
+                        f"but unable to find that parameter in class {type(parent)}."
+                    )
             else:
                 # Case 1b: This is a general function or callable method from another object.
                 # We treat it as static (we don't resample the other object) and
@@ -399,9 +404,9 @@ class ParameterizedNode:
             # Case 3: We are trying to access a parameter of a ParameterizedNode
             # with the same name.
             if value == self:
-                raise ValueError(f"Parameter {name} is recursively assigned to self.{name}.")
+                raise ValueError(f"Parameter '{name}' is recursively assigned to self.{name}.")
             if name not in value.setters:
-                raise ValueError(f"Parameter {name} missing from {str(value)}.")
+                raise ValueError(f"Parameter '{name}' missing from {str(value)}.")
             self.setters[name].set_as_parameter(value, name)
         else:
             # Case 4: The value is constant (including None).
@@ -451,9 +456,12 @@ class ParameterizedNode:
         """
         # Check for parameter collision and add a place holder value.
         if hasattr(self, name) and name not in self.setters:
-            raise KeyError(f"Parameter name {name} conflicts with a predefined model parameter.")
+            raise KeyError(
+                f"Parameter name '{name}' conflicts with a predefined model parameter "
+                f"or class attribute in {self.node_string}"
+            )
         if self.setters.get(name, None) is not None:
-            raise KeyError(f"Duplicate parameter set: {name}")
+            raise KeyError(f"Duplicate parameter set: '{name}' in {self.node_string}")
 
         # Add an entry for the setter function and fill in the remaining information using
         # set_parameter(). We add an initial (dummy) value here to indicate that this parameter
@@ -520,7 +528,10 @@ class ParameterizedNode:
         node_str = str(self)
         if node_str in seen_nodes:
             if seen_nodes[node_str] != self:
-                raise ValueError(f"Duplicate node label {node_str}.")
+                raise ValueError(
+                    f"Duplicate node label '{node_str}'. Every node must have a unique label. "
+                    "This most often happens when the node_label parameter is set directly."
+                )
             return  # Nothing to do
         seen_nodes[node_str] = self
 
@@ -821,8 +832,8 @@ class FunctionNode(ParameterizedNode):
         """
         if self.func is None:
             raise ValueError(
-                "func parameter is None for a FunctionNode. You need to either "
-                "set func or override compute()."
+                f"The FunctionNode {self.node_string}'s 'func' parameter is None. "
+                "You need to either set func or override compute()."
             )
 
         # Build a dictionary of arguments for the function, call the function, and save

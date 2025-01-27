@@ -75,6 +75,12 @@ def test_static_source_white_noise() -> None:
     assert len(np.unique(values)) > 10
     assert np.all(np.abs(values - 10.0) < 3.0)
 
+    # Test that if we pass in an rng, we control the randomness.
+    values1 = model.evaluate(times, wavelengths, state, rng_info=np.random.default_rng(100))
+    values2 = model.evaluate(times, wavelengths, state, rng_info=np.random.default_rng(100))
+    assert not np.any(values1 == 10.0)
+    assert np.all(values1 == values2)
+
 
 def test_static_source_host() -> None:
     """Test that we can sample and create a StaticSource object with properties
