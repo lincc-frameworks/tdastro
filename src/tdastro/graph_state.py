@@ -265,20 +265,18 @@ class GraphState:
         if self.num_samples == 1:
             # If this GraphState holds only a single sample, set it from the given value.
             self.states[node_name][var_name] = value
-        elif hasattr(value, "__len__") and hasattr(value, "copy"):
-            # If we are given an array of samples, confirm it is the correct length and use it.
-            if len(value) != self.num_samples:
-                raise ValueError(
-                    f"Incompatible number of samples when setting GraphState for node={node_name}, "
-                    f"variable={var_name}: {self.num_samples} vs {len(value)}."
-                )
-            if force_copy:
-                self.states[node_name][var_name] = value.copy()
-            else:
-                self.states[node_name][var_name] = value
+        elif np.isscalar(value):
+            # If the value is a scalar, expand it to the correct number of samples.
+            self.states[node_name][var_name] = np.full(self.num_samples, value)
+        elif len(value) != self.num_samples:
+            raise ValueError(
+                f"Incompatible number of samples when setting GraphState for node={node_name}, "
+                f"variable={var_name}: {self.num_samples} vs {len(value)}."
+            )
+        elif force_copy:
+            self.states[node_name][var_name] = value.copy()
         else:
-            # If the GraphState holds N samples and we got a single value, make an array of it.
-            self.states[node_name][var_name] = np.full((self.num_samples), value)
+            self.states[node_name][var_name] = value
 
         # Mark the variable as fixed if needed.
         if fixed:

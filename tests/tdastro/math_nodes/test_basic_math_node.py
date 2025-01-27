@@ -1,6 +1,7 @@
 import math
 
 import jax
+import numpy as np
 import pytest
 from tdastro.math_nodes.basic_math_node import BasicMathNode
 from tdastro.math_nodes.single_value_node import SingleVariableNode
@@ -40,6 +41,21 @@ def test_basic_math_node_special_cases():
     node = BasicMathNode("sin(deg2rad(x) + pi / 2.0)", x=node_a.a, node_label="test", backend="math")
     state = node.sample_parameters()
     assert state["test"]["function_node_result"] == pytest.approx(-1.0)
+
+
+def test_basic_math_node_multi_dim():
+    """Test that we can perform multidimensional computations via a BasicMathNode using numpy."""
+    node_a = SingleVariableNode("a", np.array([10.0, 20.0]))
+    node_b = SingleVariableNode("b", np.array([-5.0, 5.0]))
+    node = BasicMathNode("a + b", a=node_a.a, b=node_b.b, node_label="test", backend="numpy")
+    state = node.sample_parameters()
+    assert np.array_equal(state["test"]["function_node_result"], [5.0, 25.0])
+
+    state = node.sample_parameters(num_samples=20)
+    results = state["test"]["function_node_result"]
+    assert results.shape == (20, 2)
+    for row in range(20):
+        assert np.array_equal(results[row], [5.0, 25.0])
 
 
 def test_basic_math_node_fail():

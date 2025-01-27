@@ -50,6 +50,8 @@ graph because they have no dependencies.  Such parameters are set by constants o
 static functions.
 """
 
+from functools import partial
+
 from tdastro.graph_state import GraphState
 
 
@@ -544,7 +546,11 @@ class ParameterizedNode:
 
             # Set the result from the correct source.
             if setter.source_type == ParameterSource.CONSTANT:
-                graph_state.set(self.node_string, name, setter.value)
+                if graph_state.num_samples == 1:
+                    graph_state.set(self.node_string, name, setter.value)
+                else:
+                    repeated_value = [setter.value] * graph_state.num_samples
+                    graph_state.set(self.node_string, name, repeated_value)
             elif setter.source_type == ParameterSource.MODEL_PARAMETER:
                 graph_state.set(
                     self.node_string,
@@ -664,7 +670,7 @@ class FunctionNode(ParameterizedNode):
 
     Attributes
     ----------
-    func : `function` or `method`
+    func : `function` or `method` or `partial`
         The function to call during an evaluation. If this is ``None``
         you must override the ``compute()`` method directly.
     args_names : `list`
@@ -681,6 +687,8 @@ class FunctionNode(ParameterizedNode):
     outputs : `list` of `str`, optional
         The output model parameters of this function. If ``None`` uses
         a single model parameter ``result``.
+    fixed_params : `dict`, optional
+        A dictionary mapping a parameter name in the function to its fixed value.
     **kwargs : `dict`, optional
         Any additional keyword arguments.
 
@@ -702,10 +710,19 @@ class FunctionNode(ParameterizedNode):
     value1 = my_func(b=10.0)
     """
 
-    def __init__(self, func, node_label=None, outputs=None, **kwargs):
+    def __init__(self, func, node_label=None, outputs=None, fixed_params=None, **kwargs):
         # We set the function before calling the parent class so we can use
         # the function's name (if needed).
-        self.func = func
+        if fixed_params is not None and len(fixed_params) > 0:
+            # Create a partial function with some of the parameters fixed.
+            self.func = partial(func, **fixed_params)
+
+            # We need to set the __name__ parameter because it is not preserved by partial.
+            self.func.__name__ = func.__name__
+        else:
+            # Use the function as-is.
+            self.func = func
+
         super().__init__(node_label=node_label, **kwargs)
 
         # Add all of the parameters from default_args or the kwargs.

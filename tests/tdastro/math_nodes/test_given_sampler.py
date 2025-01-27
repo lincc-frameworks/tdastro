@@ -76,6 +76,23 @@ def test_test_given_value_list_compound():
     )
 
 
+def test_given_value_list_of_list():
+    """Test that we can retrieve lists from a GivenValueList."""
+    given_node = GivenValueList([[0, 1], [1, 2], [2, 3], [3, 4], [4, 5]], node_label="node")
+
+    # Check that we generate the correct result and save it in the GraphState.
+    state = given_node.sample_parameters(num_samples=3)
+    assert len(state["node"]["function_node_result"]) == 3
+    assert np.array_equal(state["node"]["function_node_result"][0], [0, 1])
+    assert np.array_equal(state["node"]["function_node_result"][1], [1, 2])
+    assert np.array_equal(state["node"]["function_node_result"][2], [2, 3])
+
+    # When we generate a single sample, we should get a list instead of a list of lists.
+    state2 = given_node.sample_parameters(num_samples=1)
+    assert len(state2["node"]["function_node_result"]) == 2
+    assert np.array_equal(state2["node"]["function_node_result"], [3, 4])
+
+
 def test_given_value_sampler():
     """Test that we can retrieve numbers from a GivenValueSampler."""
     given_node = GivenValueSampler([1, 3, 5, 7])
