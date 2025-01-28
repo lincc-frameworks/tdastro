@@ -5,6 +5,7 @@ with the authors' permission.
 """
 
 import numpy as np
+from astropy import constants
 
 from tdastro.base_models import FunctionNode
 from tdastro.consts import M_SUN_G
@@ -86,7 +87,6 @@ class AGN(PhysicalModel):
         # quick fix to double the baseline Fnu
         # self.tau = self.find_tau_v(self.lam, self.Mi, M_BH)
         # self.sf_inf = self.find_sf_inf(self.lam, self.Mi, M_BH)
-        # self.t = t0
         # self.delta_m = self._random() * self.sf_inf
 
     # ------------------------------------------------------------------------
@@ -107,8 +107,7 @@ class AGN(PhysicalModel):
         accretion_rate : float
             The accretion rate (ME_dot) at Eddington luminosity in g/s.
         """
-        accretion_rate = 1.4e18 * blackhole_mass / M_SUN_G
-        return accretion_rate
+        return 1.4e18 * blackhole_mass / M_SUN_G
 
     @staticmethod
     def compute_blackhole_accretion_rate(accretion_rate, edd_ratio):
@@ -126,8 +125,7 @@ class AGN(PhysicalModel):
         bh_accretion_rate : float
             The accretion rate of the black hole in g/s.
         """
-        bh_accretion_rate = accretion_rate * edd_ratio
-        return bh_accretion_rate
+        return accretion_rate * edd_ratio
 
     @staticmethod
     def compute_bolometric_luminosity(edd_ratio, blackhole_mass):
@@ -145,8 +143,7 @@ class AGN(PhysicalModel):
         bolometric_luminosity : float
             The bolometric luminosity in erg/s.
         """
-        bolometric_luminosity = edd_ratio * 1.26e38 * blackhole_mass / M_SUN_G
-        return bolometric_luminosity
+        return edd_ratio * 1.26e38 * blackhole_mass / M_SUN_G
 
     @staticmethod
     def compute_mag_i(bolometric_luminosity):
@@ -177,11 +174,37 @@ class AGN(PhysicalModel):
         Returns
         -------
         r0 : float
-            The r_0 radius.
+            The initial radius of the ring.
         """
         # Adapted from Lipunova, G., Malanchev, K., Shakura, N. (2018). Page 33 for the main equation
         # DOI https://doi.org/10.1007/978-3-319-93009-1_1
         return (7 / 6) ** 2 * r_in
+
+    @staticmethod
+    def compute_x_fun(nu, T0, r, r0):
+        """Compute the variable of integration x.
+
+        Parameters
+        ----------
+        nu : float
+            The frequency.
+        T0 : float
+            The effective temperature at r0.
+        r : float
+            The radius of the accretion disk.
+        r0 : float
+            The initial radius of the ring.
+
+        Returns
+        -------
+        x : float
+            The variable of integration x.
+        """
+        # Lipunova, G., Malanchev, K., Shakura, N. (2018). Page 33 for the main equation
+        # DOI https://doi.org/10.1007/978-3-319-93009-1_1
+        h = constants.h.cgs.value
+        k_B = constants.k_B.cgs.value
+        return h * nu / (k_B * T0) * (r / r0) ** (3 / 4)
 
     @staticmethod
     def structure_function_at_inf(lam, mag_i=-23, blackhole_mass=1e9 * M_SUN_G):

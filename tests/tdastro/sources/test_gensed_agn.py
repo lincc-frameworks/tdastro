@@ -94,6 +94,13 @@ def test_agn_compute_r_0():
     assert np.allclose(AGN.compute_r_0(r_in), expected)
 
 
+def test_agn_compute_x_fun():
+    """Test that we can compute the variable of integration x."""
+    # This is a change detection test to make sure the results match previous code.
+
+    assert AGN.compute_x_fun(1000.0, 100.0, 5.0, 2.0) == pytest.approx(9.541743841215435e-10)
+
+
 def test_agn_structure_function_at_inf():
     """Test that we can compute the structure function at infinity."""
     # This is a change detection test to make sure the results match previous code.
