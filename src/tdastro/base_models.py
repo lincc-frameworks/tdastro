@@ -52,6 +52,8 @@ static functions.
 
 from functools import partial
 
+import numpy as np
+
 from tdastro.graph_state import GraphState
 
 
@@ -549,7 +551,7 @@ class ParameterizedNode:
                 if graph_state.num_samples == 1:
                     graph_state.set(self.node_string, name, setter.value)
                 else:
-                    repeated_value = [setter.value] * graph_state.num_samples
+                    repeated_value = np.array([setter.value] * graph_state.num_samples)
                     graph_state.set(self.node_string, name, repeated_value)
             elif setter.source_type == ParameterSource.MODEL_PARAMETER:
                 graph_state.set(
