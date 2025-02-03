@@ -24,7 +24,7 @@ class AGN(PhysicalModel):
       * dec - The object's declination in degrees. [from PhysicalModel]
       * distance - The object's luminosity distance in pc. [from PhysicalModel]
       * L_bol - The bolometric luminosity in erg/s.
-      * mag_i - The i band magnitude.
+      * mag_i - The i band absolute magnitude.
       * ra - The object's right ascension in degrees. [from PhysicalModel]
       * redshift - The object's redshift. [from PhysicalModel]
       * t0 - The t0 of the zero phase, date. [from PhysicalModel]
@@ -35,32 +35,29 @@ class AGN(PhysicalModel):
         initial time moment in days.
     blackhole_mass : float
         The black hole mass in g.
-    lam : np.ndarray
-        The wavelengths
     edd_ratio: float
         Eddington ratio
     """
 
-    def __init__(self, t0, blackhole_mass, lam, edd_ratio, **kwargs):
+    def __init__(self, t0, blackhole_mass, edd_ratio, **kwargs):
         super().__init__(t0=t0, **kwargs)
 
         # Add the parameters for the AGN. t0 already set in PhysicalModel.
         self.add_parameter("blackhole_mass", blackhole_mass, **kwargs)
         self.add_parameter("edd_ratio", edd_ratio, **kwargs)
-        self.lam = np.asarray(lam)
 
         # Add the derived parameters using FunctionNodes built from the object's static methods.
         # Each of these will be computed for each sample value of the input parameters.
         self.add_parameter(
-            "accretion_rate",
-            FunctionNode(self.compute_accretion_rate, blackhole_mass=self.blackhole_mass),
+            "critical_accretion_rate",
+            FunctionNode(self.compute_critical_accretion_rate, blackhole_mass=self.blackhole_mass),
             **kwargs,
         )
         self.add_parameter(
             "blackhole_accretion_rate",
             FunctionNode(
                 self.compute_blackhole_accretion_rate,
-                accretion_rate=self.accretion_rate,  # Pull from computed accretion rate
+                accretion_rate=self.critical_accretion_rate,  # Pull from computed accretion rate
                 edd_ratio=self.edd_ratio,  # Pull from sampled ratio
             ),
             **kwargs,
@@ -82,94 +79,16 @@ class AGN(PhysicalModel):
             ),
             **kwargs,
         )
-        self.add_parameter(
-            "tau_v",
-            FunctionNode(
-                self.tau_v_drw,
-                lam=self.lam,
-                mag_i=self.mag_i,
-                blackhole_mass=self.blackhole_mass,
-            ),
-            **kwargs,
-        )
-        self.add_parameter(
-            "sf_inf",
-            FunctionNode(
-                self.structure_function_at_inf,
-                lam=self.lam,
-                mag_i=self.mag_i,
-                blackhole_mass=self.blackhole_mass,
-            ),
-            **kwargs,
-        )
-        self.add_parameter(
-            "fnu_average",
-            FunctionNode(
-                self.twice_fnu_average_standard_disk,
-                bh_accretion_rate=self.blackhole_accretion_rate,
-                lam=self.lam,
-                blackhole_mass=self.blackhole_mass,
-            ),
-            **kwargs,
-        )
 
-        # TODO: Figure out how to sample delta_m
+        # TODO: Figure out how to sample delta_m, fnu_avergae, sf_ind, and tau_v.
 
     # ------------------------------------------------------------------------
     # --- Static helper methods for computing the derived parameters. --------
     # ------------------------------------------------------------------------
 
     @staticmethod
-    def match_size_to_lambda(lam, value):
-        """Since the wavelengths (lam) can be a scalar, 1d array (of samples), or
-        or 2d array (of samples by wavelengths), we need to match the size of the
-        other arrays (value) to the size of lam.
-
-        Parameters
-        ----------
-        lam : scalar or np.ndarray
-            The wavelengths.
-        value : scalar or np.ndarray
-            The values to match the size of lam.
-
-        Returns
-        -------
-        result : np.ndarray
-            The values with the same size as lam.
-        """
-        # Determine the number of samples.
-        num_samples = 1 if np.isscalar(value) else len(value)
-
-        # Handle the case where we only have a single sample in value.
-        if num_samples == 1:
-            if np.isscalar(lam):
-                # Both are scalars.
-                return value
-            else:
-                # value is a scalar and lam is an array.
-                return np.full_like(lam, value)
-
-        # Compute the number of wavelengths.
-        if np.isscalar(lam):
-            raise ValueError("lam is a scalar but value is an array.")
-        elif len(lam.shape) == 1:
-            num_waves = len(lam)
-        else:
-            # Check that both arrays have the same number of samples.
-            if lam.shape[0] != num_samples:
-                raise ValueError(
-                    f"The number of samples in value ({num_samples}) does not "
-                    f"match the number of samples in lam ({lam.shape[0]})."
-                )
-            num_waves = len(lam[0])
-
-        # Tile the value array so each column represents a copy of all the samples.
-        expanded_value = np.tile(value, num_waves).reshape(num_waves, num_samples).T
-        return expanded_value
-
-    @staticmethod
-    def compute_accretion_rate(blackhole_mass):
-        """Compute the accretion rate at Eddington luminosity.
+    def compute_critical_accretion_rate(blackhole_mass):
+        """Compute the critical accretion rate at Eddington luminosity.
 
         Parameters
         ----------
@@ -330,14 +249,6 @@ class AGN(PhysicalModel):
         flux : float
             The flux at the given time step.
         """
-        # We need to match the parameter's shape to that of the nu array (which is the
-        # same as the lam array in other functions).
-        Mdot = AGN.match_size_to_lambda(nu, Mdot)
-        rin = AGN.match_size_to_lambda(nu, rin)
-        i = AGN.match_size_to_lambda(nu, i)
-        d = AGN.match_size_to_lambda(nu, d)
-        M = AGN.match_size_to_lambda(nu, M)
-
         # Compute the initial radius of the ring (r_0) and the effective temperature at r_0 (T_0).
         # Lipunova, G., Malanchev, K., Shakura, N. (2018). Page 33 for the main equation
         # DOI https://doi.org/10.1007/978-3-319-93009-1_1
@@ -415,10 +326,6 @@ class AGN(PhysicalModel):
         result : float
             The structure function at infinity in magnitude.
         """
-        # We need to match the parameter's shape to that of the lam array.
-        mag_i = AGN.match_size_to_lambda(lam, mag_i)
-        blackhole_mass = AGN.match_size_to_lambda(lam, blackhole_mass)
-
         # Equation and parameters for A=-0.51, B=-0.479, C=0.13, and D=0.18
         #  adopted from Suberlak et al. 2021: DOI 10.3847/1538-4357/abc698
         return 10 ** (
@@ -448,10 +355,6 @@ class AGN(PhysicalModel):
         tau_v : float
             The timescale in s.
         """
-        # We need to match the parameter's shape to that of the lam array.
-        mag_i = AGN.match_size_to_lambda(lam, mag_i)
-        blackhole_mass = AGN.match_size_to_lambda(lam, blackhole_mass)
-
         # Equation and parameters for A=2.4, B=0.17, C=0.03, and D=0.21 adopted
         # from Suberlak et al. 2021: DOI 10.3847/1538-4357/abc698
         return 10 ** (
