@@ -392,6 +392,8 @@ class OpSim:  # noqa: D101
             Depending on the input, this is either a list of indices for a single query point
             or a list of arrays (of indices) for an array of query points.
         """
+        if query_ra is None or query_dec is None:
+            raise ValueError("Query RA and dec must be provided for range search, but got None.")
         radius = self.radius if radius is None else radius
 
         # Transform the query point(s) to 3-d Cartesian coordinate(s).

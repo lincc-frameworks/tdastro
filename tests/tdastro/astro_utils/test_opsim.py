@@ -237,6 +237,10 @@ def test_opsim_range_search():
     assert set(neighbors[1]) == set([4, 5])
     assert set(neighbors[2]) == set()
 
+    # Test that we fail if bad query arrays are provided.
+    with pytest.raises(ValueError):
+        _ = ops_data.range_search(None, None, 0.5)
+
 
 def test_opsim_get_observations():
     """Test that we can extract the time, ra, and dec from an opsim data frame."""
