@@ -744,6 +744,11 @@ class FunctionNode(ParameterizedNode):
             self.add_parameter(name, None)
             self.setters[name].set_as_compute_output(param_name=name)
 
+    def _non_func(self):
+        """This function does nothing. This is used for FunctionNodes where the actual computation
+        happens in an overloaded compute() function."""
+        pass
+
     def _update_node_string(self, new_str=None):
         """Update the node's string. A Function node's string includes
         the function name in addition to the class name.
