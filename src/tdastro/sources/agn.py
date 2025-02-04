@@ -1,15 +1,17 @@
-"""A model for a gensed AGN.
+"""A model for an AGN.
 
 Adapted from https://github.com/RickKessler/SNANA/blob/master/src/gensed_AGN.py
 with the authors' permission.
 """
 
+from os import urandom
+
 import numpy as np
-from astropy import constants, units
+from astropy import constants
 from scipy import integrate
 
 from tdastro.base_models import FunctionNode
-from tdastro.consts import M_SUN_G
+from tdastro.consts import M_SUN_G, PARSEC_TO_CM
 from tdastro.sources.physical_model import PhysicalModel
 
 
@@ -37,9 +39,14 @@ class AGN(PhysicalModel):
         The black hole mass in g.
     edd_ratio: float
         Eddington ratio
+    seed : int, optional
+        The seed to use for the random number generator.
+        Default: None
+    **kwargs : dict
+        Additional keyword arguments.
     """
 
-    def __init__(self, t0, blackhole_mass, edd_ratio, **kwargs):
+    def __init__(self, t0, blackhole_mass, edd_ratio, seed=None, **kwargs):
         super().__init__(t0=t0, **kwargs)
 
         # Add the parameters for the AGN. t0 already set in PhysicalModel.
@@ -80,7 +87,10 @@ class AGN(PhysicalModel):
             **kwargs,
         )
 
-        # TODO: Figure out how to sample delta_m, fnu_avergae, sf_ind, and tau_v.
+        # Set the random number generator for this object.
+        if seed is None:
+            seed = int.from_bytes(urandom(4), "big")
+        self._rng = np.random.default_rng(seed=seed)
 
     # ------------------------------------------------------------------------
     # --- Static helper methods for computing the derived parameters. --------
@@ -139,94 +149,7 @@ class AGN(PhysicalModel):
         return edd_ratio * 1.26e38 * blackhole_mass / M_SUN_G
 
     @staticmethod
-    def compute_mag_i(bolometric_luminosity):
-        """Compute the i band magnitude from the bolometric luminosity.
-
-        Parameters
-        ----------
-        bolometric_luminosity : float
-            The bolometric luminosity in erg/s.
-
-        Returns
-        -------
-        mag_i : float
-            The i band magnitude.
-        """
-        # Adpated from Shen et al., 2013: https://adsabs.harvard.edu/full/2013BASI...41...61S
-        return 90 - 2.5 * np.log10(bolometric_luminosity)
-
-    @staticmethod
-    def compute_r_0(r_in):
-        """Compute the initial radius of the ring (r_0) in a standard disk model
-        given the inner radius.
-
-        Parameters
-        ----------
-        r_in : float
-            The inner radius of the accretion disk.
-
-        Returns
-        -------
-        r_0 : float
-            The initial radius of the ring.
-        """
-        # Adapted from Lipunova, G., Malanchev, K., Shakura, N. (2018). Page 33 for the main equation
-        # DOI https://doi.org/10.1007/978-3-319-93009-1_1
-        return (7 / 6) ** 2 * r_in
-
-    @staticmethod
-    def compute_temp_at_r_0(M, Mdot, r_in):
-        """Compute the effective temperature at r0. This is the same as the maximum effective
-        temperature at the disc surface (Tmax).
-
-        Parameters
-        ----------
-        M : float
-            The mass of the gravitating centre.
-        Mdot : float
-            The accretion rate at the previous time step.
-        r_in : float
-            The inner radius of the accretion disk.
-
-        Returns
-        -------
-        T_0 : float
-            The effective temperature at r0.
-        """
-        # Lipunova, G., Malanchev, K., Shakura, N. (2018). Page 33 for the main equation
-        # DOI https://doi.org/10.1007/978-3-319-93009-1_1
-        sigma_sb = constants.sigma_sb.cgs.value
-        G = constants.G.cgs.value
-        return 2 ** (3 / 4) * (3 / 7) ** (7 / 4) * (G * M * Mdot / (np.pi * sigma_sb * r_in**3)) ** (1 / 4)
-
-    @staticmethod
-    def compute_x_fun(nu, T0, r, r0):
-        """Compute the variable of integration x.
-
-        Parameters
-        ----------
-        nu : float
-            The frequency.
-        T0 : float
-            The effective temperature at r0.
-        r : float
-            The radius of the accretion disk.
-        r0 : float
-            The initial radius of the ring.
-
-        Returns
-        -------
-        x : float
-            The variable of integration x.
-        """
-        # Lipunova, G., Malanchev, K., Shakura, N. (2018). Page 33 for the main equation
-        # DOI https://doi.org/10.1007/978-3-319-93009-1_1
-        h = constants.h.cgs.value
-        k_B = constants.k_B.cgs.value
-        return h * nu / (k_B * T0) * (r / r0) ** (3 / 4)
-
-    @staticmethod
-    def flux_standard_disk(Mdot, nu, rin, i, d, M):
+    def compute_flux_standard_disk(Mdot, nu, rin, i, d, M):
         """Compute the flux based on a standard disk model.
 
         Parameters
@@ -279,40 +202,48 @@ class AGN(PhysicalModel):
         )
 
     @staticmethod
-    def twice_fnu_average_standard_disk(bh_accretion_rate, lam, blackhole_mass):
-        """Compute twice the average flux of a standard disk model.
+    def compute_mag_i(bolometric_luminosity):
+        """Compute the i band magnitude from the bolometric luminosity.
 
         Parameters
         ----------
-        bh_accretion_rate : float
-            The accretion rate of the black hole in g/s.
-        lam : np.ndarray
-            The wavelengths
-        blackhole_mass : float
-            The black hole mass in g.
+        bolometric_luminosity : float
+            The bolometric luminosity in erg/s.
 
         Returns
         -------
-        flux : float
-            The flux at the given time step.
+        mag_i : float
+            The i band magnitude.
         """
-        flux_av = AGN.flux_standard_disk(
-            bh_accretion_rate,
-            constants.c.cgs.value / lam,
-            rin=1,
-            i=0,
-            d=10 * (1 * units.pc).to_value(units.cm),
-            M=blackhole_mass,
-        )
-        return 2.0 * flux_av
+        # Adpated from Shen et al., 2013: https://adsabs.harvard.edu/full/2013BASI...41...61S
+        return 90 - 2.5 * np.log10(bolometric_luminosity)
 
     @staticmethod
-    def structure_function_at_inf(lam, mag_i=-23, blackhole_mass=1e9 * M_SUN_G):
+    def compute_r_0(r_in):
+        """Compute the initial radius of the ring (r_0) in a standard disk model
+        given the inner radius.
+
+        Parameters
+        ----------
+        r_in : float
+            The inner radius of the accretion disk.
+
+        Returns
+        -------
+        r_0 : float
+            The initial radius of the ring.
+        """
+        # Adapted from Lipunova, G., Malanchev, K., Shakura, N. (2018). Page 33 for the main equation
+        # DOI https://doi.org/10.1007/978-3-319-93009-1_1
+        return (7 / 6) ** 2 * r_in
+
+    @staticmethod
+    def compute_structure_function_at_inf(wavelength, mag_i=-23, blackhole_mass=1e9 * M_SUN_G):
         """Compute the structure function at infinity in magnitude.
 
         Parameters
         ----------
-        lam : float
+        wavelength : float
             The frequency in Hz.
         mag_i : float, optional
             The i band magnitude.
@@ -330,18 +261,18 @@ class AGN(PhysicalModel):
         #  adopted from Suberlak et al. 2021: DOI 10.3847/1538-4357/abc698
         return 10 ** (
             -0.51
-            - 0.479 * np.log10(lam / (4000e-8))
+            - 0.479 * np.log10(wavelength / (4000e-8))
             + 0.13 * (mag_i + 23)
             + 0.18 * np.log10(blackhole_mass / (1e9 * M_SUN_G))
         )
 
     @staticmethod
-    def tau_v_drw(lam, mag_i=-23, blackhole_mass=1e9 * M_SUN_G):
+    def compute_tau_v_drw(wavelength, mag_i=-23, blackhole_mass=1e9 * M_SUN_G):
         """Compute the timescale (tau_v) for the DRW model.
 
         Parameters
         ----------
-        lam : np.ndarray
+        wavelength : np.ndarray
             The frequenc in Hz.
         mag_i : float, optional
             The i band magnitude.
@@ -359,56 +290,90 @@ class AGN(PhysicalModel):
         # from Suberlak et al. 2021: DOI 10.3847/1538-4357/abc698
         return 10 ** (
             2.4
-            + 0.17 * np.log10(lam / (4000e-8))
+            + 0.17 * np.log10(wavelength / (4000e-8))
             + 0.03 * (mag_i + 23)
             + 0.21 * np.log10(blackhole_mass / (1e9 * M_SUN_G))
         )
 
     @staticmethod
-    def eddington_ratio_dist_fun(edd_ratio, galaxy_type="Blue", rng=None, num_samples=1):
-        """Sample from the Eddington Ratio Distribution Function for a given galaxy type.
-
-        Based on notebook from: https://github.com/burke86/imbh_forecast/blob/master/var.ipynb
-        and the paper: https://ui.adsabs.harvard.edu/abs/2019ApJ...883..139S/abstract
-        with parameters selected from: https://iopscience.iop.org/article/10.3847/1538-4357/aa803b/pdf
+    def compute_temp_at_r_0(M, Mdot, r_in):
+        """Compute the effective temperature at r0. This is the same as the maximum effective
+        temperature at the disc surface (Tmax).
 
         Parameters
         ----------
-        edd_ratio : float
-            The Eddington ratio.
-        galaxy_type : str, optional
-            The type of galaxy, either 'Red' or 'Blue'.
-            Default: 'Blue'
-        rng : np.random.Generator, optional
-            The random number generator.
-            Default: None
-        num_samples : int, optional
-            The number of samples to draw. If 1 returns a float otherwise returns an array.
-            Default: 1
+        M : float
+            The mass of the gravitating centre.
+        Mdot : float
+            The accretion rate at the previous time step.
+        r_in : float
+            The inner radius of the accretion disk.
 
         Returns
         -------
-        result : float or np.array
-            The Eddington ratio distribution.
+        T_0 : float
+            The effective temperature at r0.
         """
-        if rng is None:
-            rng = np.random.default_rng()
+        # Lipunova, G., Malanchev, K., Shakura, N. (2018). Page 33 for the main equation
+        # DOI https://doi.org/10.1007/978-3-319-93009-1_1
+        sigma_sb = constants.sigma_sb.cgs.value
+        G = constants.G.cgs.value
+        return 2 ** (3 / 4) * (3 / 7) ** (7 / 4) * (G * M * Mdot / (np.pi * sigma_sb * r_in**3)) ** (1 / 4)
 
-        if galaxy_type.lower() == "red":
-            xi = 10**-2.13
-            lambda_br = 10 ** rng.normal(-2.81, np.mean([0.22, 0.14]), num_samples)
-            delta1 = rng.normal(0.41 - 0.7, np.mean([0.02, 0.02]), num_samples)  # > -0.45 won't affect LF
-            delta2 = rng.normal(1.22, np.mean([0.19, 0.13]), num_samples)
-        elif galaxy_type.lower() == "blue":
-            xi = 10**-1.65
-            lambda_br = 10 ** rng.normal(-1.84, np.mean([0.30, 0.37]), num_samples)
-            delta1 = rng.normal(0.471 - 0.7, np.mean([0.02, 0.02]), num_samples)  # > -0.45 won't affect LF
-            delta2 = rng.normal(2.53, np.mean([0.68, 0.38]), num_samples)
-        else:
-            raise ValueError("galaxy_type must be either 'Red' or 'Blue'.")
+    def compute_flux(self, times, wavelengths, graph_state, **kwargs):
+        """Draw effect-free observations for this object.
 
-        result = xi * ((edd_ratio / lambda_br) ** delta1 + (edd_ratio / lambda_br) ** delta2)
+        Parameters
+        ----------
+        times : `numpy.ndarray`
+            A length T array of rest frame timestamps.
+        wavelengths : `numpy.ndarray`, optional
+            A length N array of wavelengths (in angstroms).
+        graph_state : `GraphState`
+            An object mapping graph parameters to their values.
+        **kwargs : `dict`, optional
+            Any additional keyword arguments.
 
-        if num_samples == 1:
-            return result[0]
-        return result
+        Returns
+        -------
+        flux_density : `numpy.ndarray`
+            A length T x N matrix of SED values (in nJy).
+        """
+        params = self.get_local_params(graph_state)
+
+        # Compute the parameters for these wavelengths.
+        tau_v = self.compute_tau_v_drw(wavelengths, params["mag_i"], params["blackhole_mass"])
+        sf_inf = self.compute_structure_function_at_inf(
+            wavelengths, params["mag_i"], params["blackhole_mass"]
+        )
+        curr_t = params["t0"]
+        delta_m = self._rng.random() * sf_inf
+
+        # Compute the average flux of a standard disk model. Use a factor of 2 to get the total flux.
+        fnu_average = 2.0 * self.compute_flux_standard_disk(
+            params["blackhole_accretion_rate"],
+            constants.c.cgs.value / wavelengths,  # nu
+            1,  # rin
+            0,  # i
+            10.0 * PARSEC_TO_CM,  # d
+            params["blackhole_mass"],
+        )
+
+        # Allocate the flux density array to be filled in via simulation.
+        num_times = len(times)
+        num_wavelengths = len(wavelengths)
+        flux_density = np.zeros((num_times, num_wavelengths))
+
+        for idx, time in enumerate(times):
+            # Perform a step of the damped random walk.
+            if time <= curr_t:
+                raise ValueError("Times must be monotonically increasing.")
+
+            dt = time - curr_t
+            delta_m = (
+                delta_m * np.exp(-dt / tau_v)
+                + sf_inf * np.sqrt(1 - np.exp(-2 * dt / tau_v)) * self._rng.random()
+            )
+            flux_density[idx, :] = 10 ** (-0.4 * delta_m) * fnu_average
+
+        return flux_density

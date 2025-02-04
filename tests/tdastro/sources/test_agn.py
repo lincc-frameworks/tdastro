@@ -48,7 +48,7 @@ def test_agn_black_hole_accretion_rate():
     assert np.allclose(AGN.compute_blackhole_accretion_rate(rates, ratios), rates * ratios)
 
 
-def test_agn_bolometric_luminosity():
+def test_agn_compute_bolometric_luminosity():
     """Test that we can compute the bolometric luminosity from mass of the black hole."""
     # This is a change detection test to make sure the results match previous code.
 
@@ -101,28 +101,20 @@ def test_agn_compute_temp_at_r_0():
     assert AGN.compute_temp_at_r_0(1000.0, 100.0, 5.0) == pytest.approx(0.28248581706023856)
 
 
-def test_agn_compute_x_fun():
-    """Test that we can compute the variable of integration x."""
+def test_compute_structure_function_at_inf():
+    """Test that we can compute the structure function at infinity."""
     # This is a change detection test to make sure the results match previous code.
+    sf_inf = AGN.compute_structure_function_at_inf(np.array([1000.0, 2000.0, 3000.0, 4000.0]))
+    expected = np.array([8.83866626e-05, 6.34152002e-05, 5.22210566e-05, 4.54988060e-05])
+    assert np.allclose(sf_inf, expected)
 
-    assert AGN.compute_x_fun(1000.0, 100.0, 5.0, 2.0) == pytest.approx(9.541743841215435e-10)
 
-
-def test_eddington_ratio_dist_fun():
-    """Test the eddington_ratio_dist_fun function."""
+def test_compute_tau_v_drw():
+    """Test that we can compute the DRW tau."""
     # This is a change detection test to make sure the results match previous code.
-
-    # Test that we can draw samples and the fall within the expected bounds.
-    rng = np.random.default_rng(100)
-    for type in ["blue", "red"]:
-        for edd_ratio in [0.5, 1.0, 2.0]:
-            samples = AGN.eddington_ratio_dist_fun(edd_ratio, type, rng, 1000)
-            assert len(samples) == 1000
-            assert np.all(samples >= 0.0)
-
-    # Test that if we draw a single sample it is a float.
-    sample = AGN.eddington_ratio_dist_fun(1.0, "blue")
-    assert isinstance(sample, float)
+    tau_v = AGN.compute_tau_v_drw(np.array([1000.0, 2000.0, 3000.0, 4000.0]))
+    expected = np.array([4546.21322992, 5114.75576753, 5479.74582924, 5754.39937337])
+    assert np.allclose(tau_v, expected)
 
 
 def test_create_agn():
@@ -132,7 +124,6 @@ def test_create_agn():
     agn_node = AGN(
         t0=0.0,
         blackhole_mass=bh_mass_sampler,
-        lam=np.array([1000.0, 2000.0, 3000.0, 4000.0]),
         edd_ratio=0.9,
         node_label="AGN",
     )
@@ -152,3 +143,12 @@ def test_create_agn():
         state["AGN"]["bolometric_luminosity"], AGN.compute_bolometric_luminosity(0.9, bh_masses)
     )
     assert np.allclose(state["AGN"]["mag_i"], AGN.compute_mag_i(state["AGN"]["bolometric_luminosity"]))
+
+    # Check that we can sample from the AGN.
+    single_state = agn_node.sample_parameters(num_samples=1)
+    times = np.array([10.0, 20.0, 30.0, 40.0, 50.0])
+    wavelengths = np.array([1000.0, 2000.0, 3000.0, 4000.0])
+
+    fluxes = agn_node.compute_flux(times, wavelengths, single_state)
+    assert fluxes.shape == (5, 4)
+    assert np.all(fluxes >= 0.0)
