@@ -58,6 +58,28 @@ In this example, the parameter ``c`` is drawn from a predefined distribution, wh
 is drawn from a distribution that is itself parameterized by the ``host_mass`` parameter. TDAstro handles
 the sequential processing of the graph so that all parameters are consistently sampled for each object.
 
+See the :doc:`Introduction Demo notebook<notebooks/introduction_demo.ipynb>` for details on how to
+define the parameter DAG.
+
+
+Generating light curves
+-------------------------------------------------------------------------------
+
+Light curves are generated with a multiple step process. First, the object's parameter DAG is sampled
+to get concrete values for each parameter in the model. This combination of parameters is call the graph
+state (and stored in a ``GraphState`` object), because it represents the sampled state of the DAG.
+
+Next, the ``OpSim`` is used to determine at what times and in which bands the object will be evaluated.
+These times and wavelengths are based into the object's ``eval()`` function along with the graph state.
+The ``eval()`` function handles the mechanics of the simulation, such as applying redshifts to both the
+times and wavelengths before calling the ``compute_flux()``.
+
+Additional effects can be applied to the noise-free light curves to produce more realistic light curves.
+
+Finally, the raw flux densities are are converted into the magnitudes observed in each band using the
+``PassbandGroup``.
+
+
 Examples
 -------------------------------------------------------------------------------
 
