@@ -30,8 +30,8 @@ The main simulation components in TDAstro include:
   also include a host-galaxy model, and is used to generate the noise-free light curves.
 * ``Opsim`` contains the survey information such as survey strategy and observing
   conditions. It is used to specify the observing times and bands.
-* A set of predefined effects, such as dust extinction and detector noise, are applied
-   to the noise-free light curves to produce realistic light curves.
+* A set of predefined effects, such as dust extinction and detector noise, are applied to
+  the noise-free light curves to produce realistic light curves.
 * The ``PassbandGroup`` contains the filter information of the telescope and is used
   to calculate the fluxes in each band.
 
