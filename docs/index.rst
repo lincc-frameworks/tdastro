@@ -12,7 +12,7 @@ Time-Domain Forward-Modeling for the Rubin Era
 Realistic light curve simulations are essential to many time-domain problems. 
 Simulations are needed to evaluate observing strategy, characterize biases, 
 and test pipelines. TDAstro aims to provide a flexible, scalable, and user-friendly
-time-domain with realistic effects and survey strategies.
+time-domain simulation software with realistic effects and survey strategies.
 
 .. figure:: _static/tdastro-intro.png
    :class: no-scaled-link
