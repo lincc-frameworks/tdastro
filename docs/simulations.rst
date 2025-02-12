@@ -29,7 +29,7 @@ Defining a parameterized model
 -------------------------------------------------------------------------------
 
 The core idea behind TDAstro is that we want to generate light curves from parameterized models
-of physical objects. The ``PhysicalModel`` class defines the structure for modeling physical object.
+of physical objects. The ``PhysicalModel`` class defines the structure for modeling physical objects.
 New object types are derived from the ``PhysicalModel`` base class and implement a ``compute_flux()``
 function that generates the noise-free flux densities given information about the times, wavelengths,
 and model parameters (called graph_state). 
