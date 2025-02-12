@@ -41,7 +41,7 @@ A user using a particular physical model only needs to understand what parameter
 and how they are set. A user creating a new physical model additionally needs to know how the noise-free
 flux density values are generated from those parameters.
 
-The parameters are defined by a hierarchical model can be visualized by a Directed Acyclic Graph (DAG).
+The parameters that are defined by a hierarchical model can be visualized by a Directed Acyclic Graph (DAG).
 This means that the parameters to our physical model, such as a type Ia supernova, can themselves be sampled
 based on distributions of hyperparameters. For example, a simplified SNIa model with a host component
 can have the following DAG:
