@@ -24,12 +24,12 @@ class NumericalInversePolynomialFunc(FunctionNode):
     _dist : object or class
         An object or class with either a pdf() or logpdf() method that defines
         the distribution from which to sample.
-    _inv_poly: `scipy.stats.sampling.NumericalInversePolynomial`
-        The scipy object to use for sampling. Set to ``None`` if _dist is a class.
-    _vect_sample : `numpy.vectorize`
+    _inv_poly: scipy.stats.sampling.NumericalInversePolynomial
+        The scipy object to use for sampling. Set to None if _dist is a class.
+    _vect_sample : numpy.vectorize
         The vectorized function to create a distribution from a class and sample it.
-        Set to ``None`` if _dist is an object.
-    _rng : `numpy.random._generator.Generator`
+        Set to None if _dist is an object.
+    _rng : numpy.random._generator.Generator
         This object's random number generator.
 
     Parameters
@@ -37,7 +37,7 @@ class NumericalInversePolynomialFunc(FunctionNode):
     dist : object or class
         An object or class with either a pdf() or logpdf() method that defines
         the distribution from which to sample.
-    seed : `int`, optional
+    seed : int, optional
         The seed to use.
     """
 
@@ -75,7 +75,7 @@ class NumericalInversePolynomialFunc(FunctionNode):
 
         Parameters
         ----------
-        new_seed : `int`
+        new_seed : int
             The given seed
         """
         self._rng = np.random.default_rng(seed=new_seed)
@@ -87,14 +87,14 @@ class NumericalInversePolynomialFunc(FunctionNode):
 
         Parameters
         ----------
-        args : `dict`
+        args : dict
             A dictionary mapping argument name to individual values.
-        rng : `numpy.random._generator.Generator`
+        rng : numpy.random._generator.Generator
             The random number generator to use.
 
         Returns
         -------
-        sample : `float`
+        sample : float
             The result of sampling the function.
         """
         dist = self._dist(**args)
@@ -109,13 +109,13 @@ class NumericalInversePolynomialFunc(FunctionNode):
 
         Parameters
         ----------
-        graph_state : `GraphState`
+        graph_state : GraphState
             An object mapping graph parameters to their values. This object is modified
             in place as it is sampled.
         rng_info : numpy.random._generator.Generator, optional
             A given numpy random number generator to use for this computation. If not
             provided, the function uses the node's random number generator.
-        **kwargs : `dict`, optional
+        **kwargs : dict, optional
             Additional function arguments.
 
         Returns

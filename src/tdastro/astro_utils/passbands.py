@@ -212,7 +212,7 @@ class PassbandGroup:
         delta_wave : float or None, optional
             The grid step of the wave grid, in angstroms.
             It is typically used to downsample transmission using linear interpolation.
-            Default is 5 angstroms. If `None` the original grid is used.
+            Default is 5 angstroms. If None the original grid is used.
         trim_quantile : float or None, optional
             The quantile to trim the transmission table by. For example, if trim_quantile is 1e-3, the
             transmission table will be trimmed to include only the central 99.8% of the area under the
@@ -491,7 +491,7 @@ class Passband:
         delta_wave : float or None, optional
             The grid step of the wave grid, in angstroms.
             It is typically used to downsample transmission using linear interpolation.
-            Default is 5 angstroms. If `None` the original grid is used.
+            Default is 5 angstroms. If None the original grid is used.
         trim_quantile : float or None, optional
             The quantile to trim the transmission table by. For example, if trim_quantile is 1e-3, the
             transmission table will be trimmed to include only the central 99.8% of the area under the

@@ -16,7 +16,7 @@ class GivenValueList(FunctionNode):
 
     Attributes
     ----------
-    values : `float`, `list, or `numpy.ndarray`
+    values : float, list, or numpy.ndarray
         The values to return.
     next_ind : int
         The index of the next value.
@@ -39,13 +39,13 @@ class GivenValueList(FunctionNode):
 
         Parameters
         ----------
-        graph_state : `GraphState`
+        graph_state : GraphState
             An object mapping graph parameters to their values. This object is modified
             in place as it is sampled.
         rng_info : numpy.random._generator.Generator, optional
             Unused in this function, but included to provide consistency with other
             compute functions.
-        **kwargs : `dict`, optional
+        **kwargs : dict, optional
             Additional function arguments.
 
         Returns
@@ -98,13 +98,13 @@ class GivenValueSampler(NumpyRandomFunc):
 
         Parameters
         ----------
-        graph_state : `GraphState`
+        graph_state : GraphState
             An object mapping graph parameters to their values. This object is modified
             in place as it is sampled.
         rng_info : numpy.random._generator.Generator, optional
             A given numpy random number generator to use for this computation. If not
             provided, the function uses the node's random number generator.
-        **kwargs : `dict`, optional
+        **kwargs : dict, optional
             Additional function arguments.
 
         Returns
@@ -179,13 +179,13 @@ class TableSampler(NumpyRandomFunc):
 
         Parameters
         ----------
-        graph_state : `GraphState`
+        graph_state : GraphState
             An object mapping graph parameters to their values. This object is modified
             in place as it is sampled.
         rng_info : numpy.random._generator.Generator, optional
             A given numpy random number generator to use for this computation. If not
             provided, the function uses the node's random number generator.
-        **kwargs : `dict`, optional
+        **kwargs : dict, optional
             Additional function arguments.
 
         Returns

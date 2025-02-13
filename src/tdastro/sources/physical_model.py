@@ -33,32 +33,32 @@ class PhysicalModel(ParameterizedNode):
 
     Attributes
     ----------
-    background : `PhysicalModel`
+    background : PhysicalModel
         A source of background flux such as a host galaxy.
-    apply_redshift : `bool`
+    apply_redshift : bool
         Indicates whether to apply the redshift.
 
     Parameters
     ----------
-    ra : `float`
+    ra : float
         The object's right ascension (in degrees)
-    dec : `float`
+    dec : float
         The object's declination (in degrees)
-    redshift : `float`
+    redshift : float
         The object's redshift.
-    t0 : `float`
+    t0 : float
         The phase offset in MJD. For non-time-varying phenomena, this has no effect.
-    distance : `float`
+    distance : float
         The object's luminosity distance (in pc). If no value is provided and
-        a ``cosmology`` parameter is given, the model will try to derive from
+        a cosmology parameter is given, the model will try to derive from
         the redshift and the cosmology.
     white_noise_sigma : float
         The standard deviation of the white noise to add to the flux density.
-    background : `PhysicalModel`
+    background : PhysicalModel
         A source of background flux such as a host galaxy.
     seed : int, optional
         The seed for a random number generator.
-    **kwargs : `dict`, optional
+    **kwargs : dict, optional
         Any additional keyword arguments.
     """
 
@@ -110,7 +110,7 @@ class PhysicalModel(ParameterizedNode):
 
         Parameters
         ----------
-        seen_nodes : `set`, optional
+        seen_nodes : set, optional
             A set of nodes that have already been processed to prevent infinite loops.
             Caller should not set.
         """
@@ -127,7 +127,7 @@ class PhysicalModel(ParameterizedNode):
 
         Parameters
         ----------
-        apply_redshift : `bool`
+        apply_redshift : bool
             The new value for apply_redshift.
         """
         self.apply_redshift = apply_redshift
@@ -158,16 +158,16 @@ class PhysicalModel(ParameterizedNode):
 
         Parameters
         ----------
-        times : `numpy.ndarray`
+        times : numpy.ndarray
             A length T array of rest frame timestamps in MJD.
-        wavelengths : `numpy.ndarray`, optional
+        wavelengths : numpy.ndarray, optional
             A length N array of rest frame wavelengths (in angstroms).
-        graph_state : `GraphState`
+        graph_state : GraphState
             An object mapping graph parameters to their values.
 
         Returns
         -------
-        flux_density : `numpy.ndarray`
+        flux_density : numpy.ndarray
             A length T x N matrix of rest frame SED values (in nJy).
         """
         raise NotImplementedError()
@@ -177,24 +177,24 @@ class PhysicalModel(ParameterizedNode):
 
         Parameters
         ----------
-        times : `numpy.ndarray`
+        times : numpy.ndarray
             A length T array of observer frame timestamps in MJD.
-        wavelengths : `numpy.ndarray`, optional
+        wavelengths : numpy.ndarray, optional
             A length N array of wavelengths (in angstroms).
-        graph_state : `GraphState`, optional
+        graph_state : GraphState, optional
             An object mapping graph parameters to their values.
-        given_args : `dict`, optional
+        given_args : dict, optional
             A dictionary representing the given arguments for this sample run.
             This can be used as the JAX PyTree for differentiation.
         rng_info : numpy.random._generator.Generator, optional
             A given numpy random number generator to use for this computation. If not
             provided, the function uses the node's random number generator.
-        **kwargs : `dict`, optional
+        **kwargs : dict, optional
             All the other keyword arguments.
 
         Returns
         -------
-        flux_density : `numpy.ndarray`
+        flux_density : numpy.ndarray
             A length S x T x N matrix of SED values (in nJy), where S is the number of samples,
             T is the number of time steps, and N is the number of wavelengths.
             If S=1 then the function returns a T x N matrix.
@@ -266,22 +266,22 @@ class PhysicalModel(ParameterizedNode):
 
         Parameters
         ----------
-        given_args : `dict`, optional
+        given_args : dict, optional
             A dictionary representing the given arguments for this sample run.
             This can be used as the JAX PyTree for differentiation.
-        num_samples : `int`
+        num_samples : int
             A count of the number of samples to compute.
             Default: 1
         rng_info : numpy.random._generator.Generator, optional
             A given numpy random number generator to use for this computation. If not
             provided, the function uses the node's random number generator.
-        **kwargs : `dict`, optional
+        **kwargs : dict, optional
             All the keyword arguments, including the values needed to sample
             parameters.
 
         Returns
         -------
-        graph_state : `GraphState`
+        graph_state : GraphState
             An object mapping graph parameters to their values.
         """
         # If the graph has not been sampled ever, update the node positions for
@@ -307,19 +307,19 @@ class PhysicalModel(ParameterizedNode):
 
         Parameters
         ----------
-        passband_or_group : `Passband` or `PassbandGroup`
+        passband_or_group : Passband or PassbandGroup
             The passband (or passband group) to use.
-        times : `numpy.ndarray`
+        times : numpy.ndarray
             A length T array of observer frame timestamps in MJD.
-        filters : `numpy.ndarray` or None
+        filters : numpy.ndarray or None
             A length T array of filter names. It may be None if
             passband_or_group is a Passband.
-        state : `GraphState`
+        state : GraphState
             An object mapping graph parameters to their values.
 
         Returns
         -------
-        band_fluxes : `numpy.ndarray`
+        band_fluxes : numpy.ndarray
             A matrix of the band fluxes. If only one sample is provided in the GraphState,
             then returns a length T array. Otherwise returns a size S x T array where S is the
             number of samples in the graph state.

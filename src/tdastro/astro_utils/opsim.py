@@ -54,55 +54,55 @@ class OpSim:  # noqa: D101
 
     Parameters
     ----------
-    table : `dict` or `pandas.core.frame.DataFrame`
+    table : dict or pandas.core.frame.DataFrame
         The table with all the OpSim information.
-    colmap : `dict`
+    colmap : dict
         A mapping of short column names to their names in the underlying table.
-        Defaults to the Rubin OpSim column names, stored in `_rubin_opsim_colnames`:
+        Defaults to the Rubin OpSim column names, stored in _rubin_opsim_colnames:
         {_rubin_opsim_colnames}
-    ext_coeff : `dict` or None, optional
+    ext_coeff : dict or None, optional
         Mapping of filter names to extinction coefficients. Defaults to
-        the Rubin OpSim values, stored in `_rubin_extinction_coeff`:
+        the Rubin OpSim values, stored in _rubin_extinction_coeff:
         {_lsstcam_extinction_coeff}
-    zp_per_sec : `dict` or None, optional
+    zp_per_sec : dict or None, optional
         Mapping of filter names to zeropoints at zenith. Defaults to
-        the Rubin OpSim values, stored in `_rubin_zeropoint_per_sec_zenith`:
+        the Rubin OpSim values, stored in _rubin_zeropoint_per_sec_zenith:
         {_lsstcam_zeropoint_per_sec_zenith}
-    pixel_scale : `float` or None, optional
+    pixel_scale : float or None, optional
         The pixel scale for the LSST camera in arcseconds per pixel. Defaults to
-        the Rubin OpSim value, see _rubin_pixel_scale, stored in `_rubin_pixel_scale`:
+        the Rubin OpSim value, see _rubin_pixel_scale, stored in _rubin_pixel_scale:
         {LSSTCAM_PIXEL_SCALE}
-    read_noise : `float` or None, optional
+    read_noise : float or None, optional
         The readout noise for the LSST camera in electrons per pixel. Defaults to
-        the Rubin OpSim value, stored in `_rubin_readout_noise`:
+        the Rubin OpSim value, stored in _rubin_readout_noise:
         {_lsstcam_readout_noise}
-    dark_current : `float` or None, optional
+    dark_current : float or None, optional
         The dark current for the LSST camera in electrons per second per pixel. Defaults to
-        the Rubin OpSim value, stored in `_rubin_dark_current`:
+        the Rubin OpSim value, stored in _rubin_dark_current:
         {_lsstcam_dark_current}
     radius : float or None, optional
         The angular radius of the observations (in degrees).
-        Defaults to the Rubin value, stored in `_lsstcam_view_radius`: {_lsstcam_view_radius}
+        Defaults to the Rubin value, stored in _lsstcam_view_radius: {_lsstcam_view_radius}
 
     Attributes
     ----------
-    table : `pandas.core.frame.DataFrame`
+    table : pandas.core.frame.DataFrame
         The table with all the OpSim information.
-    colmap : `dict`
+    colmap : dict
         A mapping of short column names to their names in the underlying table.
-    _kd_tree : `scipy.spatial.KDTree` or None
+    _kd_tree : scipy.spatial.KDTree or None
         A kd_tree of the OpSim pointings for fast spatial queries. We use the scipy
         kd-tree instead of astropy's functions so we can directly control caching.
-    pixel_scale : `float` or None, optional
+    pixel_scale : float or None, optional
         The pixel scale for the LSST camera in arcseconds per pixel.
-    read_noise : `float` or None, optional
+    read_noise : float or None, optional
         The readout noise for the LSST camera in electrons per pixel.
-    dark_current : `float` or None, optional
+    dark_current : float or None, optional
         The dark current for the LSST camera in electrons per second per pixel.
-    ext_coeff : `dict` or None, optional
+    ext_coeff : dict or None, optional
         Mapping of filter names to extinction coefficients. Defaults to
         the Rubin OpSim values.
-    zp_per_sec : `dict` or None, optional
+    zp_per_sec : dict or None, optional
         Mapping of filter names to zeropoints at zenith. Defaults to
         the Rubin OpSim values.
     radius : float
@@ -179,12 +179,12 @@ class OpSim:  # noqa: D101
 
         Parameters
         ----------
-        columns : `str` or iterable
+        columns : str or iterable
             The column name or column names to check.
 
         Returns
         -------
-        `bool`
+        bool
             True if and only if all the columns are contained in the table.
         """
         if isinstance(columns, str):
@@ -235,24 +235,24 @@ class OpSim:  # noqa: D101
 
         Parameters
         ----------
-        filename : `str`
+        filename : str
             The name of the opsim db file.
-        sql_query : `str`
+        sql_query : str
             The SQL query to use when loading the table.
             Default = "SELECT * FROM observations"
-        colmap : `dict`
+        colmap : dict
             A mapping of short column names to their names in the underlying table.
             Defaults to the Rubin opsim column names.
 
         Returns
         -------
-        opsim : `OpSim`
+        opsim : OpSim
             A table with all of the pointing data.
 
         Raise
         -----
-        ``FileNotFoundError`` if the file does not exist.
-        ``ValueError`` if unable to load the table.
+        FileNotFoundError if the file does not exist.
+        ValueError if unable to load the table.
         """
         if not Path(filename).is_file():
             raise FileNotFoundError(f"opsim file {filename} not found.")
@@ -274,11 +274,11 @@ class OpSim:  # noqa: D101
 
         Parameters
         ----------
-        colname : `str`
+        colname : str
             The name of the new column.
-        values : `int`, `float`, `str`, `list`, or `numpy.ndarray`
+        values : int, float, str, list, or numpy.ndarray
             The value(s) to add.
-        overwrite : `bool`
+        overwrite : bool
             Overwrite the column is it already exists.
             Default: False
         """
@@ -296,18 +296,18 @@ class OpSim:  # noqa: D101
 
         Parameters
         ----------
-        filename : `str`
+        filename : str
             The name of the opsim db file.
-        tablename : `str`
+        tablename : str
             The table to which to write.
             Default = "observations"
-        overwrite : `bool`
+        overwrite : bool
             Overwrite the existing DB file.
             Default = False
 
         Raise
         -----
-        ``FileExistsError`` if the file already exists and ``overwrite`` is ``False``.
+        FileExistsError if the file already exists and overwrite is False.
         """
         if_exists = "replace" if overwrite else "fail"
 
@@ -378,17 +378,17 @@ class OpSim:  # noqa: D101
 
         Parameters
         ----------
-        query_ra : `float` or `numpy.ndarray`
+        query_ra : float or numpy.ndarray
             The query right ascension (in degrees).
-        query_dec : `float` or `numpy.ndarray`
+        query_dec : float or numpy.ndarray
             The query declination (in degrees).
-        radius : `float` or None, optional
+        radius : float or None, optional
             The angular radius of the observation (in degrees). If None
             uses the default radius for the OpSim.
 
         Returns
         -------
-        inds : `list[int]` or `list[numpy.ndarray]`
+        inds : list[int] or list[numpy.ndarray]
             Depending on the input, this is either a list of indices for a single query point
             or a list of arrays (of indices) for an array of query points.
         """
@@ -414,20 +414,20 @@ class OpSim:  # noqa: D101
 
         Parameters
         ----------
-        query_ra : `float`
+        query_ra : float
             The query right ascension (in degrees).
-        query_dec : `float`
+        query_dec : float
             The query declination (in degrees).
-        radius : `float` or None, optional
+        radius : float or None, optional
             The angular radius of the observation (in degrees). If None
             uses the default radius for the OpSim.
-        cols : `list`
-            A list of the names of columns to extract. If `None` returns all the
+        cols : list
+            A list of the names of columns to extract. If None returns all the
             columns.
 
         Returns
         -------
-        results : `dict`
+        results : dict
             A dictionary mapping the given column name to a numpy array of values.
         """
         neighbors = self.range_search(query_ra, query_dec, radius)
@@ -539,12 +539,12 @@ def opsim_add_random_data(opsim_data, colname, min_val=0.0, max_val=1.0):
     ----------
     opsim_data : OpSim
         The OpSim data structure to modify.
-    colname : `str`
+    colname : str
         The name of the new column to add.
-    min_val : `float`
+    min_val : float
         The minimum value of the uniform range.
         Default: 0.0
-    max_val : `float`
+    max_val : float
         The maximum value of the uniform range.
         Default: 1.0
     """
@@ -581,7 +581,7 @@ def oversample_opsim(
         The time between observations in days.
     time_range : tuple or floats or Nones, optional
         The start and end times of the observations in MJD.
-        `None` means to use the minimum (maximum) time in
+        None means to use the minimum (maximum) time in
         all the observations found for the given pointing.
         Time is being samples as np.arange(*time_range, delta_t).
     bands : list of str or None, optional

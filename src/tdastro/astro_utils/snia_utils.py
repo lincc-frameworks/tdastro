@@ -17,12 +17,12 @@ def snia_volumetric_rates(redshift):
 
     Parameters
     ----------
-    redshift: `float` or `numpy.ndarray`
+    redshift: float or numpy.ndarray
         The redshift of the supernova
 
     Returns
     -------
-    rate_vol: `float` or `numpy.ndarray`
+    rate_vol: float or numpy.ndarray
         The volumetric rate of the supernova given the redshift
     """
 
@@ -44,24 +44,24 @@ def num_snia_per_redshift_bin(zmin=0.001, zmax=10, znbins=20, solid_angle=None, 
 
     Parameters
     ----------
-    zmin: `float`
+    zmin: float
         Min redshift value for calculation.
-    zmax: `float`
+    zmax: float
         Max redshift value for calculation.
-    znbins: `int`
+    znbins: int
         Number of redshift bins for calculating SNe Ia numbers.
-    solid_angle: `float`
+    solid_angle: float
         Solid angle for calculating the number of SNe (in sr).
-    H0: `float`
+    H0: float
         The Hubble Constant.
-    Omega_m: `float`
+    Omega_m: float
         The matter density.
 
     Returns
     -------
-    num_sn: `numpy.ndarray`
+    num_sn: numpy.ndarray
         Number of SNe Ia in each zbin per year.
-    z_mean: `numpy.ndarray`
+    z_mean: numpy.ndarray
         Mean value for each redshift bin.
     """
 
@@ -92,12 +92,12 @@ class HostmassX1Distr:
 
     Attributes
     ----------
-    hostmass: `float`
+    hostmass: float
         The hostmass value.
 
     Parameters
     ----------
-    hostmass: `float`
+    hostmass: float
         The hostmass value.
     """
 
@@ -110,14 +110,14 @@ class HostmassX1Distr:
 
         Parameters
         ----------
-        x1: `numpy.ndarray`
+        x1: numpy.ndarray
             The x1 value.
-        hostmass: `float`
+        hostmass: float
             The hostmass value.
 
         Returns
         -------
-        p: `numpy.ndarray`
+        p: numpy.ndarray
             The probablity.
         """
 
@@ -133,9 +133,9 @@ class HostmassX1Distr:
 
         Parameters
         ----------
-        x1: `numpy.ndarray`
+        x1: numpy.ndarray
             The x1 value.
-        hostmass: `float`
+        hostmass: float
             The hostmass value.
 
         Returns
@@ -153,22 +153,22 @@ def _x0_from_distmod(distmod, x1, c, alpha, beta, m_abs):
 
     Parameters
     ----------
-    distmod : `float`
+    distmod : float
         The distance modulus value (in mag).
-    x1 : `float`
+    x1 : float
         The SALT3 x1 parameter.
-    c : `float`
+    c : float
         The SALT3 c parameter.
-    alpha : `float`
+    alpha : float
         The alpha parameter in the Tripp relation.
-    beta : `float`
+    beta : float
         The beta parameter in the Tripp relation.
-    m_abs : `float`
+    m_abs : float
         The absolute magnitude of SN Ia.
 
     Returns
     -------
-    x0 : `float`
+    x0 : float
         The x0 parameter
     """
     x0 = np.power(10.0, -0.4 * (distmod - alpha * x1 + beta * c + m_abs - 10.635))
@@ -183,7 +183,7 @@ class HostmassX1Func(NumericalInversePolynomialFunc):
     ----------
     hostmass : function or constant
         The function or constant providing the hostmass value.
-    **kwargs : `dict`, optional
+    **kwargs : dict, optional
         Any additional keyword arguments.
     """
 
@@ -208,13 +208,13 @@ class HostmassX1Func(NumericalInversePolynomialFunc):
 
         Parameters
         ----------
-        graph_state : `GraphState`
+        graph_state : GraphState
             An object mapping graph parameters to their values. This object is modified
             in place as it is sampled.
         rng_info : numpy.random._generator.Generator or None, optional
             A given numpy random number generator to use for this computation. If not
             provided, the function uses the node's random number generator.
-        **kwargs : `dict`, optional
+        **kwargs : dict, optional
             Additional function arguments.
 
         Returns
@@ -262,7 +262,7 @@ class X0FromDistMod(FunctionNode):
         The function or constant providing the beta value.
     m_abs : function or constant
         The function or constant providing the m_abs value.
-    **kwargs : `dict`, optional
+    **kwargs : dict, optional
         Any additional keyword arguments.
     """
 
@@ -291,7 +291,7 @@ class DistModFromRedshift(FunctionNode):
         The Hubble constant.
     Omega_m : constant
         The matter density Omega_m.
-    **kwargs : `dict`, optional
+    **kwargs : dict, optional
         Any additional keyword arguments.
     """
 
@@ -311,12 +311,12 @@ class DistModFromRedshift(FunctionNode):
 
         Parameters
         ----------
-        redshift : `float` or `numpy.ndarray`
+        redshift : float or numpy.ndarray
             The redshift value(s).
 
         Returns
         -------
-        distmod : `float` or `numpy.ndarray`
+        distmod : float or numpy.ndarray
             The distance modulus (in mag)
         """
         return self.cosmo.distmod(redshift).value

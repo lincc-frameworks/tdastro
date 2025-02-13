@@ -10,16 +10,16 @@ def black_body_luminosity_density_per_solid(temperature, radius, wavelengths):
 
     Parameters
     ----------
-    temperature : `float`
+    temperature : float
         The effective temperature of the star, in kelvins.
-    radius : `float`
+    radius : float
         The radius of the star, in cm.
-    wavelengths : `numpy.ndarray`
+    wavelengths : numpy.ndarray
         A length N array of wavelengths, in cm.
 
     Returns
     -------
-    luminosity_density : `numpy.ndarray`
+    luminosity_density : numpy.ndarray
         A length N array of luminosity density values.
         Output is in CGS units of erg/s/Hz/steradian.
 
