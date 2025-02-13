@@ -107,3 +107,10 @@ def test_dist_mod_from_redshift():
         node = DistModFromRedshift(redshift=z, H0=73.0, Omega_m=0.3)
         state = node.sample_parameters(num_samples=1)
         assert node.get_param(state, "function_node_result") == pytest.approx(expected[idx])
+
+    # Both H0 and Omega_m must be constants.
+    rand_node = NumpyRandomFunc("uniform", low=0.0, high=1.0)
+    with pytest.raises(ValueError):
+        DistModFromRedshift(redshift=0.3, H0=rand_node, Omega_m=0.3)
+    with pytest.raises(ValueError):
+        DistModFromRedshift(redshift=0.3, H0=73.0, Omega_m=rand_node)
