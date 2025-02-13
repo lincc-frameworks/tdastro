@@ -35,14 +35,14 @@ class GraphState:
 
     Attributes
     ----------
-    states : `dict`
+    states : dict
         A dictionary of dictionaries mapping node->hash, variable_name to either a
         value or array of values.
-    num_samples : `int`
+    num_samples : int
         A count of the number of samples stored in the GraphState.
-    num_parameters : `int`
+    num_parameters : int
         The total number of parameters stored in a single sample within GraphState.
-    fixed_vars : `dict`
+    fixed_vars : dict
         A dictionary mapping the node name to a set of the variable names that
         are fixed in this GraphState instance.
     """
@@ -204,14 +204,14 @@ class GraphState:
 
         Parameters
         ----------
-        node_name : `str`
+        node_name : str
             The parent node whose variables to extract.
-        sample_num : `int`
+        sample_num : int
             The number of sample to extract.
 
         Returns
         -------
-        values : `dict`
+        values : dict
             A dictionary mapping the parameter name to its value.
         """
         if node_name not in self.states:
@@ -232,19 +232,19 @@ class GraphState:
 
         Parameters
         ----------
-        node_name : `str`
+        node_name : str
             The parent node holding this variable.
-        var_name : `str`
+        var_name : str
             The parameter's name.
         value : any
             The new value of the parameter.
-        force_copy : `bool`
-            Make a copy of data in an array. If set to ``False`` this will link
+        force_copy : bool
+            Make a copy of data in an array. If set to False this will link
             to the array, saving memory and computation time.
-            Default: ``False``
-        fixed : `bool`
+            Default: False
+        fixed : bool
             Treat this parameter as fixed and do not change it during subsequent calls to set.
-            Default: ``False``
+            Default: False
         """
         # Check that the names do not use the separator value.
         if "." in node_name or "." in var_name:
@@ -293,15 +293,15 @@ class GraphState:
 
         Parameters
         ----------
-        inputs : `GraphState` or `dict`
+        inputs : GraphState or dict
             Values to copy.
-        force_copy : `bool`
-            Make a copy of data in an array. If set to ``False`` this will link
+        force_copy : bool
+            Make a copy of data in an array. If set to False this will link
             to the array, saving memory and computation time.
-            Default: ``False``
-        all_fixed : `bool`
+            Default: False
+        all_fixed : bool
             Treat all the parameters in inputs as fixed.
-            Default: ``False``
+            Default: False
 
         Raises
         ------
@@ -329,7 +329,7 @@ class GraphState:
 
         Parameters
         ----------
-        sample_num : `int`
+        sample_num : int
             The number of sample to extract.
         """
         if self.num_samples <= 0:
@@ -473,20 +473,20 @@ def transpose_dict_of_list(input_dict, num_elem):
 
     Parameters
     ----------
-    input_dict : `dict`
+    input_dict : dict
         A dictionary of iterables, each of which is length num_elem.
-    num_elem : `int`
+    num_elem : int
         The length of the iterables.
 
     Returns
     -------
-    output_list : `list`
+    output_list : list
         A length num_elem list of dictionaries, each with the same keys mapping
         to a single value.
 
     Raises
     ------
-    ``ValueError`` if any of the iterables have different lengths.
+    ValueError if any of the iterables have different lengths.
     """
     if num_elem < 1:
         raise ValueError(f"Trying to transpose a dictionary with {num_elem} elements")

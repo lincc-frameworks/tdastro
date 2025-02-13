@@ -34,7 +34,7 @@ def construct_snia_source(oversampled_observations, zpdf):
 
     Returns
     -------
-    source : `PhysicalModel`
+    source : PhysicalModel
         The PhysicalModel to sample.
     """
     logger.info("Creating the source model.")

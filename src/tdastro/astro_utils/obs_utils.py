@@ -7,12 +7,12 @@ def phot_eff_function(snr):
 
     Parameters
     ----------
-    snr: `list` or `numpy.ndarray`
+    snr: list or numpy.ndarray
         Signal to noise ratio of a list of observations.
 
     Returns
     -------
-    eff: `list` or `numpy.ndarray`
+    eff: list or numpy.ndarray
         The photometric detection efficiency given snr.
     """
 
@@ -28,12 +28,12 @@ def spec_eff_function(peak_imag):
 
     Parameters
     ----------
-    peak_imag: `list` or `numpy.ndarray`
+    peak_imag: list or numpy.ndarray
         Peak magnitude in i band.
 
     Returns
     -------
-    eff: `list` or `numpy.ndarray`
+    eff: list or numpy.ndarray
         The spectroscopic efficiency given peak i band magnitude.
         Based on Equation (17) in Kessler et al. 2019
         s0, s1, s2 are fitted using data from Figure 4 in Kessler et al. 2019
