@@ -349,7 +349,7 @@ class AGN(PhysicalModel):
         curr_t = params["t0"]
         delta_m = self._rng.random() * sf_inf
 
-        # Compute the average flux of a standard disk model. Use a factor of 2 to get the total flux.
+        # Compute the average flux of a standard disk model. Use a factor of 2 (two sides of the disk) to get the total flux.
         fnu_average = 2.0 * self.compute_flux_standard_disk(
             params["blackhole_accretion_rate"],
             constants.c.cgs.value / wavelengths,  # nu
