@@ -52,6 +52,12 @@ def test_passband_eq(passbands_dir, tmp_path):
     assert a_band != c_band
     assert a_band != d_band
 
+    # Passbands with different units are not equal.
+    a2_band = Passband(
+        "LSST", "a", table_values=np.array([[1000, 0.5], [1005, 0.6], [1010, 0.7]]), units="nm"
+    )
+    assert a_band != a2_band
+
 
 def test_passband_manual_create(tmp_path):
     """Test that we can create a passband from the transmission table."""
@@ -86,6 +92,14 @@ def test_passband_manual_create(tmp_path):
             table_values=np.array([[1000, 0.5], [900, 0.2], [1100, 0.7]]),
         )
 
+    # We raise an error if the data is not the right shape.
+    with pytest.raises(ValueError):
+        _ = Passband(
+            survey="test",
+            filter_name="u",
+            table_values=np.full((10, 3), 1.0),
+        )
+
     # We raise an error when no data is given or when we given a path AND table.
     with pytest.raises(ValueError):
         _ = Passband(survey="test", filter_name="u")
@@ -96,6 +110,15 @@ def test_passband_manual_create(tmp_path):
             filter_name="u",
             table_path="./",
             table_values=transmission_table,
+        )
+
+    # We raise an error with an invalid unit.
+    with pytest.raises(ValueError):
+        _ = Passband(
+            survey="test",
+            filter_name="u",
+            table_values=transmission_table,
+            units="invalid",
         )
 
 
@@ -395,6 +418,8 @@ def test_passband_fluxes_to_bandflux(passbands_dir, tmp_path):
     # Test we raise an error if the fluxes are not the right shape
     with pytest.raises(ValueError):
         a_band.fluxes_to_bandflux(np.array([[1.0, 2.0], [3.0, 4.0]]))
+    with pytest.raises(ValueError):
+        a_band.fluxes_to_bandflux(np.full((7, 5, 2, 2), 1.0))
 
     # Test we raise an error if the fluxes are empty
     with pytest.raises(ValueError):
