@@ -239,7 +239,7 @@ class AGN(PhysicalModel):
 
     @staticmethod
     def compute_structure_function_at_inf(wavelength, mag_i=-23, blackhole_mass=1e9 * M_SUN_G):
-        """Compute the structure function at infinity in magnitude.
+        """Compute the structure function at infinity time in magnitude.
 
         Parameters
         ----------
@@ -255,7 +255,7 @@ class AGN(PhysicalModel):
         Returns
         -------
         result : float
-            The structure function at infinity in magnitude.
+            The structure function at infinity time in magnitude.
         """
         # Equation and parameters for A=-0.51, B=-0.479, C=0.13, and D=0.18
         #  adopted from Suberlak et al. 2021: DOI 10.3847/1538-4357/abc698
@@ -349,7 +349,8 @@ class AGN(PhysicalModel):
         curr_t = params["t0"]
         delta_m = self._rng.random() * sf_inf
 
-        # Compute the average flux of a standard disk model. Use a factor of 2 (two sides of the disk) to get the total flux.
+        # Compute the average flux of a standard disk model. Use a factor of 2 (two sides
+        # of the disk) to get the total flux.
         fnu_average = 2.0 * self.compute_flux_standard_disk(
             params["blackhole_accretion_rate"],
             constants.c.cgs.value / wavelengths,  # nu
