@@ -52,6 +52,11 @@ def test_create_opsim():
     assert np.allclose(ops_data2["fieldDec"], values["fieldDec"])
     assert np.allclose(ops_data2["observationStartMJD"], values["observationStartMJD"])
 
+    # We raise an error if we are missing a required row.
+    del values["fieldDec"]
+    with pytest.raises(KeyError):
+        _ = OpSim(values)
+
 
 def test_create_opsim_custom_names():
     """Create a minimal OpSim object from alternate column names."""
@@ -160,6 +165,11 @@ def test_opsim_filter_rows():
 
     # Check that the size of the internal KD-tree has changed (again).
     assert ops_data._kd_tree.n == 4
+
+    # We throw an error if the mask is the wrong size.
+    bad_mask = [True] * (len(ops_data) - 1)
+    with pytest.raises(ValueError):
+        _ = ops_data.filter_rows(bad_mask)
 
 
 def test_read_small_opsim(opsim_small):
@@ -347,6 +357,28 @@ def test_oversample_opsim(opsim_shorten):
             oversampled["skyBrightness"].unique().size >= oversampled["filter"].unique().size
         ), "there should be at least as many skyBrightness values as bands"
         assert oversampled["skyBrightness"].isna().sum() == 0, "skyBrightness has NaN values"
+
+    # Oversampling fails if there are no observations in the time range.
+    with pytest.raises(ValueError):
+        _ = oversample_opsim(
+            opsim,
+            pointing=(5.0, 67.0),
+            time_range=(0.0, 1.0),
+            delta_t=delta_t,
+            bands=bands,
+            strategy=strategy,
+        )
+
+    # Oversampling fails with an invalid strategy.
+    with pytest.raises(ValueError):
+        _ = oversample_opsim(
+            opsim,
+            pointing=(ra, dec),
+            time_range=(0.0, 1.0),
+            delta_t=delta_t,
+            bands=bands,
+            strategy="invalid",
+        )
 
 
 def test_fixture_oversampled_observations(oversampled_observations):

@@ -90,3 +90,13 @@ def test_flam_to_fnu_to_flam():
         fnu_unit=u.nJy,
     )
     np.testing.assert_allclose(flam0, flam1)
+
+    # We throw an error on mismatched dimensions.
+    with pytest.raises(ValueError):
+        _ = fnu_to_flam(
+            fnu,
+            waves[1:],
+            wave_unit=u.AA,
+            flam_unit=u.erg / u.second / u.cm**2 / u.AA,
+            fnu_unit=u.nJy,
+        )
