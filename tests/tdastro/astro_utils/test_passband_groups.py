@@ -352,6 +352,10 @@ def test_passband_group_fluxes_to_bandfluxes(passbands_dir):
         assert band_name in bandfluxes
         assert bandfluxes[band_name].shape == (5,)
 
+        # Check that we get the same result with fluxes_to_bandflux.
+        bandflux = lsst_passband_group.fluxes_to_bandflux(flux, band_name)
+        np.testing.assert_allclose(bandflux, bandfluxes[band_name])
+
 
 def test_passband_group_wrapped_from_physical_source(passbands_dir, tmp_path):
     """Test get_band_fluxes, PhysicalModel's wrapped version of PassbandGroup's fluxes_to_bandfluxes."""
