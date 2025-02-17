@@ -1,3 +1,7 @@
+"""A wrapper for applying extinction functions using the dust_extinction library.
+Gordon 2024, JOSS, 9(100), 7023. https://github.com/karllark/dust_extinction
+"""
+
 import importlib
 from pkgutil import iter_modules
 
@@ -31,20 +35,46 @@ class ExtinctionEffect(EffectModel):
         self.extinction_model = extinction_model
 
     @staticmethod
+    def list_extinction_models():
+        """List the extinction models from the dust_extinction package
+        (https://github.com/karllark/dust_extinction)
+
+        Returns
+        -------
+        list of str
+            A list of the names of the extinction models.
+        """
+        model_names = []
+
+        # We scan all of the submodules in the dust_extinction package,
+        # looking for classes with extinguish() functions.
+        for submodule in iter_modules(dust_extinction.__path__):
+            ext_module = importlib.import_module(f"dust_extinction.{submodule.name}")
+            for entry_name in dir(ext_module):
+                entry_obj = getattr(ext_module, entry_name)
+                if hasattr(entry_obj, "extinguish"):
+                    model_names.append(entry_name)
+        return model_names
+
+    @staticmethod
     def load_extinction_model(name, **kwargs):
         """Load the extinction model from the dust_extinction package
         (https://github.com/karllark/dust_extinction)
+
         Parameters
         ----------
         name : str
             The name of the extinction model to use.
         **kwargs : dict
             Any additional keyword arguments needed to create that argument.
+
         Returns
         -------
         ext_obj
             A extinction object.
         """
+        # We scan all of the submodules in the dust_extinction package,
+        # looking for a matching name.
         for submodule in iter_modules(dust_extinction.__path__):
             ext_module = importlib.import_module(f"dust_extinction.{submodule.name}")
             if ext_module is not None and name in dir(ext_module):

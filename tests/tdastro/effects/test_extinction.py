@@ -1,7 +1,16 @@
 import numpy as np
+import pytest
 from tdastro.effects.extinction import ExtinctionEffect
 from tdastro.math_nodes.given_sampler import GivenValueList
 from tdastro.sources.basic_sources import StaticSource
+
+
+def test_list_extinction_models():
+    """List the available extinction models."""
+    model_names = ExtinctionEffect.list_extinction_models()
+    assert len(model_names) > 10
+    assert "G23" in model_names
+    assert "CCM89" in model_names
 
 
 def test_load_extinction_model():
@@ -9,6 +18,26 @@ def test_load_extinction_model():
     g23_model = ExtinctionEffect.load_extinction_model("G23", Rv=3.1)
     assert g23_model is not None
     assert hasattr(g23_model, "extinguish")
+
+    # We fail if we try to load a model that does not exist.
+    with pytest.raises(KeyError):
+        ExtinctionEffect.load_extinction_model("InvalidModel")
+
+    # We can manually load the g23_model into an ExtinctionEffect node.
+    dust_effect = ExtinctionEffect(g23_model, ebv=0.1)
+
+    # We can apply the extinction effect to a set of fluxes.
+    fluxes = np.full((10, 3), 1.0)
+    wavelengths = np.array([7000.0, 5200.0, 4800.0])
+    new_fluxes = dust_effect.apply(fluxes, wavelengths=wavelengths, ebv=0.1)
+    assert new_fluxes.shape == (10, 3)
+    assert np.all(new_fluxes < fluxes)
+
+    # We fail if we are missing a required parameter.
+    with pytest.raises(ValueError):
+        _ = dust_effect.apply(fluxes, wavelengths=wavelengths)
+    with pytest.raises(ValueError):
+        _ = dust_effect.apply(fluxes, ebv=0.1)
 
 
 def test_constant_dust_extinction():
