@@ -37,13 +37,17 @@ class EffectModel:
         """
         self.parameters[name] = setter
 
-    def apply(self, flux_density, rng_info=None, **kwargs):
+    def apply(self, flux_density, times=None, wavelengths=None, rng_info=None, **kwargs):
         """Apply the effect to observations (flux_density values).
 
         Parameters
         ----------
         flux_density : numpy.ndarray
             A length T X N matrix of flux density values (in nJy).
+        times : numpy.ndarray, optional
+            A length T array of times (in MJD).
+        wavelengths : numpy.ndarray, optional
+            A length N array of wavelengths (in angstroms).
         rng_info : numpy.random._generator.Generator, optional
             A given numpy random number generator to use for this computation. If not
             provided, the function uses the node's random number generator.
