@@ -108,7 +108,7 @@ def test_physical_model_evaluate():
 
 
 def test_physical_model_evaluate_redshift():
-    """Test that is we apply redshift to a model we get different flux values."""
+    """Test that if we apply redshift to a model we get different flux values."""
     times = np.array([0.0, 1.0, 2.0, 3.0, 4.0])
     waves = np.array([4000.0, 5000.0])
     static_source = StaticSource(brightness=10.0, redshift=0.5, t0=0.0)
