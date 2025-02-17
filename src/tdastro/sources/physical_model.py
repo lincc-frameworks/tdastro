@@ -29,7 +29,6 @@ class PhysicalModel(ParameterizedNode):
       * ra - The object's right ascension in degrees.
       * redshift - The object's redshift.
       * t0 - The t0 of the zero phase (if applicable), date.
-      * white_noise_sigma - The standard deviation of the white noise.
 
     Attributes
     ----------
@@ -37,6 +36,10 @@ class PhysicalModel(ParameterizedNode):
         A source of background flux such as a host galaxy.
     apply_redshift : bool
         Indicates whether to apply the redshift.
+    rest_frame_effects : list of EffectModel
+        A list of effects to apply in the rest frame.
+    obs_frame_effects : list of EffectModel
+        A list of effects to apply in the observer frame.
 
     Parameters
     ----------
@@ -52,10 +55,10 @@ class PhysicalModel(ParameterizedNode):
         The object's luminosity distance (in pc). If no value is provided and
         a cosmology parameter is given, the model will try to derive from
         the redshift and the cosmology.
-    white_noise_sigma : float
-        The standard deviation of the white noise to add to the flux density.
     background : PhysicalModel
         A source of background flux such as a host galaxy.
+    effects : list of EffectModel, optional
+        A list of effects to apply to the flux density.
     seed : int, optional
         The seed for a random number generator.
     **kwargs : dict, optional
@@ -70,7 +73,7 @@ class PhysicalModel(ParameterizedNode):
         t0=None,
         distance=None,
         background=None,
-        white_noise_sigma=0.0,
+        effects=None,
         seed=None,
         **kwargs,
     ):
@@ -81,7 +84,6 @@ class PhysicalModel(ParameterizedNode):
         self.add_parameter("dec", dec, allow_gradient=False)
         self.add_parameter("redshift", redshift, allow_gradient=False)
         self.add_parameter("t0", t0)
-        self.add_parameter("white_noise_sigma", white_noise_sigma, allow_gradient=False)
 
         # If the luminosity distance is provided, use that. Otherwise try the
         # redshift value using the cosmology (if given). Finally, default to None.
@@ -98,6 +100,22 @@ class PhysicalModel(ParameterizedNode):
 
         # Initialize the effect settings to their default values.
         self.apply_redshift = redshift is not None
+
+        # Process the effects.
+        self.rest_frame_effects = []
+        self.obs_frame_effects = []
+        if effects is not None and len(effects) > 0:
+            for effect in effects:
+                # Add any effect parameters that are not already in the model.
+                for param_name, setter in effect.parameters.items():
+                    if param_name not in self.setters:
+                        self.add_parameter(param_name, setter, allow_gradient=False)
+
+                # Add the effect to the appropriate list.
+                if effect.rest_frame:
+                    self.rest_frame_effects.append(effect)
+                else:
+                    self.obs_frame_effects.append(effect)
 
         # Get a default random number generator for this object, using the
         # given seed if one is provided.
@@ -220,38 +238,48 @@ class PhysicalModel(ParameterizedNode):
                     raise ValueError("The 'redshift' parameter is required for redshifted models.")
                 if params.get("t0", None) is None:
                     raise ValueError("The 't0' parameter is required for redshifted models.")
-                times, wavelengths = obs_to_rest_times_waves(
+                rest_times, rest_wavelengths = obs_to_rest_times_waves(
                     times, wavelengths, params["redshift"], params["t0"]
                 )
+            else:
+                rest_times = times
+                rest_wavelengths = wavelengths
 
-            # Compute the flux density for the current object, then add white noise,
-            # and then add in anything behind the object, such as a host galaxy.
-            flux_density = self.compute_flux(times, wavelengths, state, **kwargs)
-
-            if params["white_noise_sigma"] != 0.0:
-                if rng_info is None:
-                    flux_density += self._rng.normal(
-                        scale=params["white_noise_sigma"], size=flux_density.shape
-                    )
-                else:
-                    flux_density += rng_info.normal(
-                        scale=params["white_noise_sigma"], size=flux_density.shape
-                    )
-
+            # Compute the flux density for the current object, add in anything behind
+            # the object, such as a host galaxy, and then apply rest frame effects.
+            flux_density = self.compute_flux(rest_times, rest_wavelengths, state, **kwargs)
             if self.background is not None:
                 flux_density += self.background.compute_flux(
-                    times,
-                    wavelengths,
+                    rest_times,
+                    rest_wavelengths,
                     state,
                     ra=params["ra"],
                     dec=params["dec"],
                     **kwargs,
+                )
+            for effect in self.rest_frame_effects:
+                flux_density = effect.apply(
+                    flux_density,
+                    times=rest_times,
+                    wavelengths=rest_wavelengths,
+                    rng_info=rng_info,
+                    **params,
                 )
 
             # Post-effects are adjustments done to the flux density after computation.
             if self.apply_redshift and params["redshift"] != 0.0:
                 # We have alread checked that redshift is not None.
                 flux_density = rest_to_obs_flux(flux_density, params["redshift"])
+
+            # Apply observer frame effects (in the observer's frame).
+            for effect in self.obs_frame_effects:
+                flux_density = effect.apply(
+                    flux_density,
+                    times=times,
+                    wavelengths=wavelengths,
+                    rng_info=rng_info,
+                    **params,
+                )
 
             # Save the result.
             results[sample_num, :, :] = flux_density
