@@ -28,10 +28,6 @@ class PZFlowNode(FunctionNode):
         self.columns = [x for x in flow_obj.data_columns]
         super().__init__(self._non_func, node_label=node_label, outputs=self.columns, **kwargs)
 
-    def _non_func(self):
-        """This function does nothing. Everything happens in the overloaded compute()."""
-        pass
-
     @classmethod
     def from_file(cls, filename, node_label=None):
         """Create a PZFlowNode from a saved flow file.
@@ -40,7 +36,7 @@ class PZFlowNode(FunctionNode):
         ----------
         filename : str or Path
             The location of the saved flow.
-        node_label : `str`
+        node_label : str
             An optional human readable identifier (name) for the current node.
         """
         flow_to_use = Flow(file=filename)
@@ -51,13 +47,13 @@ class PZFlowNode(FunctionNode):
 
         Parameters
         ----------
-        graph_state : `GraphState`
+        graph_state : GraphState
             An object mapping graph parameters to their values. This object is modified
             in place as it is sampled.
         rng_info : numpy.random._generator.Generator, optional
             Unused in this function, but included to provide consistency with other
             compute functions.
-        **kwargs : `dict`, optional
+        **kwargs : dict, optional
             Additional function arguments.
 
         Returns

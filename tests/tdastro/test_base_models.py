@@ -161,6 +161,16 @@ def test_parameterized_node():
     assert model4.get_param(new_state, "value_sum") == pytest.approx(0.5 + rand_val)
     assert model4.get_param(state, "value_sum") != model4.get_param(new_state, "value_sum")
 
+    # Test that we give the default if the parameter is not found.
+    assert model1.get_param(state, "no_such_param") is None
+    assert model1.get_param(state, "no_such_param", 2.0) == 2.0
+
+    # Check that we fail if we give an invalid GraphState.
+    with pytest.raises(ValueError):
+        _ = model1.get_param(None, "value_sum")
+    with pytest.raises(ValueError):
+        _ = model1.get_local_params(None)
+
 
 def test_parameterized_node_label_collision():
     """Test that throw an error when two nodes use the same label."""
@@ -196,6 +206,59 @@ def test_parameterized_node_modify():
     # We cannot set a value that hasn't been added.
     with pytest.raises(KeyError):
         model.set_parameter("brightness", 5.0)
+
+
+def test_parameterized_node_self_parameter():
+    """Test that we fail if we try to use the same node as a dependency."""
+
+    class SelfDepNode(ParameterizedNode):
+        """A class with a loop in its dependencies."""
+
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            self.add_parameter("value1", self, **kwargs)
+
+    with pytest.raises(ValueError):
+        _ = SelfDepNode()
+
+
+def test_parameterized_node_from_node():
+    """Test that we can set the values of a parameterized node directly
+    from the values of another parameterized node.
+    """
+    model1 = PairModel(value1=0.5, value2=1.5, node_label="A")
+    model2 = PairModel(value1=model1, value2=model1, node_label="B")
+
+    # The "value1" and "value2" of model2 should be the same as model1.
+    state = model2.sample_parameters()
+    assert state["B"]["value1"] == 0.5
+    assert state["B"]["value2"] == 1.5
+
+    # We fail if we try to reference a parameter in a node that does not have it.
+    model3 = SingleVariableNode("value1", 0.5, node_label="C")
+    with pytest.raises(ValueError):
+        _ = PairModel(value1=model3, value2=model3)
+
+
+def test_parameterized_node_overwrite_fun():
+    """Test that we fail if we try to set a parameter that conflicts with
+    something predefined in the class.  This prevents us overwriting functions
+    by accident.
+    """
+
+    class OverwriteFunNode(ParameterizedNode):
+        """A class with a function that conflicts with a parameter."""
+
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            self.add_parameter("sum", 1.0, **kwargs)
+
+        def sum(self):
+            """Return the sum."""
+            return 2.0
+
+    with pytest.raises(KeyError):
+        _ = OverwriteFunNode()
 
 
 def test_parameterized_node_build_pytree():
@@ -285,6 +348,20 @@ def test_np_sampler_method():
         vals.append(my_func.get_param(state, "val"))
     assert abs(np.mean(vals) - 10.0) < 1.0
     assert not np.all(vals == vals[0])
+
+
+def test_function_node_multi_dim():
+    """Test that we can query a FunctionNode with multi-dimensional input."""
+    my_func = FunctionNode(np.sum, a=[1, 2, 3, 4], axis=-1, node_label="sum")
+    state = my_func.sample_parameters()
+    assert state["sum"]["function_node_result"] == 10
+
+    # Test with multiple samples. To make the sum meaningful we need to set which
+    # axis we are summing across. We can do this with the fixed_params attribute.
+    my_func = FunctionNode(np.sum, a=[1, 2, 3, 4, 5], fixed_params={"axis": 1}, node_label="sum")
+    state = my_func.sample_parameters(num_samples=10)
+    assert len(state["sum"]["function_node_result"]) == 10
+    assert np.all(state["sum"]["function_node_result"] == 15)
 
 
 def test_function_node_obj():

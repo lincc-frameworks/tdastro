@@ -202,7 +202,7 @@ class BicubicInterpolator:
 
         Returns
         -------
-        results : `jaxlib.xla_extension.ArrayImpl`
+        results : jaxlib.xla_extension.ArrayImpl
             An N x M array of interpolated values for each (x, y) pair.
         """
         x_q = jnp.asarray(x_q)

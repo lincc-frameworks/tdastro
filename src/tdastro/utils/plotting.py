@@ -58,7 +58,7 @@ def plot_lightcurves(
         raise ValueError(f"Mismatched array sizes for fluxes ({num_pts}) and filters ({len(filters)}).")
 
     # Check that if flux errors are given, they are the correct size.
-    if fluxerrs is None and len(fluxerrs) != num_pts:
+    if fluxerrs is not None and len(fluxerrs) != num_pts:
         raise ValueError(f"Mismatched array sizes for fluxes ({num_pts}) and fluxerrs ({len(fluxerrs)}).")
 
     # Plot the data with one line for each filter.
@@ -84,8 +84,8 @@ def plot_lightcurves(
     # Set the title and axis labels.
     if title is not None:
         ax.set_title(title)
-    ax.set_xlabel("Time")
-    ax.set_ylabel("Flux")
+    ax.set_xlabel("Time (MJD)")
+    ax.set_ylabel("Flux (nJy)")
 
     # Only include a legend if there are at least two curves.
     if len(unique_filters) > 1:

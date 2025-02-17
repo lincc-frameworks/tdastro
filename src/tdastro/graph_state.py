@@ -35,21 +35,23 @@ class GraphState:
 
     Attributes
     ----------
-    states : `dict`
+    states : dict
         A dictionary of dictionaries mapping node->hash, variable_name to either a
         value or array of values.
-    num_samples : `int`
+    num_samples : int
         A count of the number of samples stored in the GraphState.
-    num_parameters : `int`
+    num_parameters : int
         The total number of parameters stored in a single sample within GraphState.
-    fixed_vars : `dict`
+    fixed_vars : dict
         A dictionary mapping the node name to a set of the variable names that
         are fixed in this GraphState instance.
     """
 
     def __init__(self, num_samples=1):
         if num_samples < 1:
-            raise ValueError(f"Invalid number of samples {num_samples}")
+            raise ValueError(
+                f"Invalid number of samples for GraphState ({num_samples}). Must be a positive integer."
+            )
         self.num_samples = num_samples
         self.num_parameters = 0
         self.states = {}
@@ -174,7 +176,7 @@ class GraphState:
             components = col.split(".")
             if len(components) != 2:
                 raise ValueError(
-                    f"Invalid name for entry {col}. Entries should be of the form " f"'node_name.param_name'."
+                    f"Invalid name for entry '{col}'. Entries should be of the form 'node_name.param_name'."
                 )
 
             # If we only have a single value then store that value instead of the np array.
@@ -202,18 +204,18 @@ class GraphState:
 
         Parameters
         ----------
-        node_name : `str`
+        node_name : str
             The parent node whose variables to extract.
-        sample_num : `int`
+        sample_num : int
             The number of sample to extract.
 
         Returns
         -------
-        values : `dict`
+        values : dict
             A dictionary mapping the parameter name to its value.
         """
         if node_name not in self.states:
-            raise KeyError(f"Node name {node_name} not found.")
+            raise KeyError(f"Node name '{node_name}' not found in GraphState.")
         if sample_num < 0 or sample_num >= self.num_samples:
             raise ValueError(f"Invalid index {sample_num} in GraphState with {self.num_samples} entries.")
         if self.num_samples == 1:
@@ -230,23 +232,23 @@ class GraphState:
 
         Parameters
         ----------
-        node_name : `str`
+        node_name : str
             The parent node holding this variable.
-        var_name : `str`
+        var_name : str
             The parameter's name.
         value : any
             The new value of the parameter.
-        force_copy : `bool`
-            Make a copy of data in an array. If set to ``False`` this will link
+        force_copy : bool
+            Make a copy of data in an array. If set to False this will link
             to the array, saving memory and computation time.
-            Default: ``False``
-        fixed : `bool`
+            Default: False
+        fixed : bool
             Treat this parameter as fixed and do not change it during subsequent calls to set.
-            Default: ``False``
+            Default: False
         """
         # Check that the names do not use the separator value.
         if "." in node_name or "." in var_name:
-            raise ValueError("Names cannot contain the character '.'")
+            raise ValueError("GraphState names (node or variable) cannot contain the character '.'")
 
         # Update the meta data.
         if node_name not in self.states:
@@ -263,17 +265,18 @@ class GraphState:
         if self.num_samples == 1:
             # If this GraphState holds only a single sample, set it from the given value.
             self.states[node_name][var_name] = value
-        elif hasattr(value, "__len__") and hasattr(value, "copy"):
-            # If we are given an array of samples, confirm it is the correct length and use it.
-            if len(value) != self.num_samples:
-                raise ValueError(f"Incompatible number of samples {self.num_samples} vs {len(value)}.")
-            if force_copy:
-                self.states[node_name][var_name] = value.copy()
-            else:
-                self.states[node_name][var_name] = value
+        elif np.isscalar(value):
+            # If the value is a scalar, expand it to the correct number of samples.
+            self.states[node_name][var_name] = np.full(self.num_samples, value)
+        elif len(value) != self.num_samples:
+            raise ValueError(
+                f"Incompatible number of samples when setting GraphState for node={node_name}, "
+                f"variable={var_name}: {self.num_samples} vs {len(value)}."
+            )
+        elif force_copy:
+            self.states[node_name][var_name] = np.array(value.copy())
         else:
-            # If the GraphState holds N samples and we got a single value, make an array of it.
-            self.states[node_name][var_name] = np.full((self.num_samples), value)
+            self.states[node_name][var_name] = np.asarray(value)
 
         # Mark the variable as fixed if needed.
         if fixed:
@@ -290,15 +293,15 @@ class GraphState:
 
         Parameters
         ----------
-        inputs : `GraphState` or `dict`
+        inputs : GraphState or dict
             Values to copy.
-        force_copy : `bool`
-            Make a copy of data in an array. If set to ``False`` this will link
+        force_copy : bool
+            Make a copy of data in an array. If set to False this will link
             to the array, saving memory and computation time.
-            Default: ``False``
-        all_fixed : `bool`
+            Default: False
+        all_fixed : bool
             Treat all the parameters in inputs as fixed.
-            Default: ``False``
+            Default: False
 
         Raises
         ------
@@ -306,7 +309,10 @@ class GraphState:
         """
         if isinstance(inputs, GraphState):
             if self.num_samples != inputs.num_samples and inputs.num_samples != 1:
-                raise ValueError("GraphSates must have the same number of samples.")
+                raise ValueError(
+                    f"GraphStates must have the same number of samples. "
+                    f"Received {self.num_samples} and {inputs.num_samples}."
+                )
             new_states = inputs.states
         else:
             new_states = inputs
@@ -323,7 +329,7 @@ class GraphState:
 
         Parameters
         ----------
-        sample_num : `int`
+        sample_num : int
             The number of sample to extract.
         """
         if self.num_samples <= 0:
@@ -373,7 +379,7 @@ class GraphState:
                 if node_name in self.states and param_name in self.states[node_name]:
                     results[current] = self.states[node_name][param_name]
                 else:
-                    raise KeyError(f"Parameter {current} not found in GraphState.")
+                    raise KeyError(f"Parameter '{current}' not found in GraphState.")
             else:
                 single_params.add(current)
 
@@ -408,7 +414,7 @@ class GraphState:
         # Check that we found a match for all the short parameter names.
         for param_name in single_params:
             if param_name not in first_seen_node:
-                raise KeyError(f"Parameter {param_name} not found in GraphState.")
+                raise KeyError(f"Parameter '{param_name}' not found in GraphState.")
 
         return results
 
@@ -467,20 +473,20 @@ def transpose_dict_of_list(input_dict, num_elem):
 
     Parameters
     ----------
-    input_dict : `dict`
+    input_dict : dict
         A dictionary of iterables, each of which is length num_elem.
-    num_elem : `int`
+    num_elem : int
         The length of the iterables.
 
     Returns
     -------
-    output_list : `list`
+    output_list : list
         A length num_elem list of dictionaries, each with the same keys mapping
         to a single value.
 
     Raises
     ------
-    ``ValueError`` if any of the iterables have different lengths.
+    ValueError if any of the iterables have different lengths.
     """
     if num_elem < 1:
         raise ValueError(f"Trying to transpose a dictionary with {num_elem} elements")
@@ -488,7 +494,7 @@ def transpose_dict_of_list(input_dict, num_elem):
     output_list = [{} for _ in range(num_elem)]
     for key, values in input_dict.items():
         if len(values) != num_elem:
-            raise ValueError(f"Entry {key} has length {len(values)}. Expected {num_elem}.")
+            raise ValueError(f"Entry '{key}' has length {len(values)}. Expected {num_elem}.")
         for i in range(num_elem):
             output_list[i][key] = values[i]
     return output_list

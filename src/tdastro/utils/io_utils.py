@@ -14,29 +14,29 @@ def read_grid_data(input_file, format="ascii", validate=False):
 
     Parameters
     ----------
-    input_file : `str` or file-like object
+    input_file : str or file-like object
         The input data file.
-    format : `str`
+    format : str
         The file format. Should be one of the formats supported by
         astropy Tables such as 'ascii', 'ascii.ecsv', or 'fits'.
         Default = 'ascii'
-    validate : `bool`
+    validate : bool
         Perform additional validation on the input data.
         Default = False
 
     Returns
     -------
-    x0 : `numpy.ndarray`
+    x0 : numpy.ndarray
         A 1-d array with the values along the x-axis of the grid.
-    x1 : `numpy.ndarray`
+    x1 : numpy.ndarray
         A 1-d array with the values along the y-axis of the grid.
-    values : `numpy.ndarray`
+    values : numpy.ndarray
         A 2-d array with the values at each point in the grid with
         shape (len(x0), len(x1)).
 
     Raises
     ------
-    ``ValueError`` if any data validation fails.
+    ValueError if any data validation fails.
     """
     logging.debug(f"Loading file {input_file} (format={format})")
     if not Path(input_file).is_file():
