@@ -15,7 +15,6 @@ class StaticSource(PhysicalModel):
       * ra - The object's right ascension in degrees. [from PhysicalModel]
       * redshift - The object's redshift. [from PhysicalModel]
       * t0 - No effect for static model. [from PhysicalModel]
-      * white_noise_sigma - The standard deviation of the white noise. [from PhysicalModel]
 
     Parameters
     ----------
@@ -63,7 +62,6 @@ class StepSource(StaticSource):
       * redshift - The object's redshift. [from PhysicalModel]
       * t0 - The time the step function starts, in MJD.
       * t1- The time the step function ends, in MJD.
-      * white_noise_sigma - The standard deviation of the white noise. [from PhysicalModel]
 
     Parameters
     ----------
@@ -123,7 +121,6 @@ class SinWaveSource(PhysicalModel):
       * ra - The object's right ascension in degrees. [from PhysicalModel]
       * redshift - The object's redshift. [from PhysicalModel]
       * t0 - The start of the sine wave's period. [from PhysicalModel]
-      * white_noise_sigma - The standard deviation of the white noise. [from PhysicalModel]
 
     Parameters
     ----------
