@@ -21,12 +21,12 @@ class PeriodicVariableStar(PeriodicSource, ABC):
 
     Attributes
     ----------
-    period : `float`
+    period : float
         The period of the source, in days.
-    t0 : `float`
+    t0 : float
         The t0 of the zero phase, date. Could be date of the minimum or maximum light
         or any other reference time point.
-    distance : `float`
+    distance : float
         The distance to the source, in pc.
     """
 
@@ -40,18 +40,18 @@ class PeriodicVariableStar(PeriodicSource, ABC):
 
         Parameters
         ----------
-        phases : `numpy.ndarray`
+        phases : numpy.ndarray
             A length T array of phases, in the range [0, 1].
-        wavelengths : `numpy.ndarray`, optional
+        wavelengths : numpy.ndarray, optional
             A length N array of wavelengths, in angstroms.
-        graph_state : `dict`, optional
+        graph_state : dict, optional
             A given setting of all the parameters and their values.
-        **kwargs : `dict`, optional
+        **kwargs : dict, optional
               Any additional keyword arguments.
 
         Returns
         -------
-        flux_density : `numpy.ndarray`
+        flux_density : numpy.ndarray
             A length T x N matrix of SED values, in nJy.
         """
         distance_cm = self.get_param(graph_state, "distance") * PARSEC_TO_CM
@@ -72,18 +72,18 @@ class PeriodicVariableStar(PeriodicSource, ABC):
 
         Parameters
         ----------
-        phases : `numpy.ndarray`
+        phases : numpy.ndarray
             A length T array of phases, in the range [0, 1].
-        wavelengths_cm : `numpy.ndarray`, optional
+        wavelengths_cm : numpy.ndarray, optional
             A length N array of wavelengths in cm.
-        graph_state : `dict`, optional
+        graph_state : dict, optional
             A given setting of all the parameters and their values.
-        **kwargs : `dict`, optional
+        **kwargs : dict, optional
               Any additional keyword arguments.
 
         Returns
         -------
-        luminosity_density_per_solid_angle : `numpy.ndarray`
+        luminosity_density_per_solid_angle : numpy.ndarray
             A length T x N matrix of luminosity density per unit solid angle values.
             Units are CGS, erg/s/Hz/steradian.
         """
@@ -113,19 +113,19 @@ class EclipsingBinaryStar(PeriodicVariableStar):
 
     Attributes
     ----------
-    period : `float`
+    period : float
         The period of the source, in days.
-    major_semiaxis : `float`
+    major_semiaxis : float
         The major semiaxis of the orbit, in AU.
-    inclination : `float`
+    inclination : float
         The inclination of the orbit, in degrees.
-    primary_radius : `float`
+    primary_radius : float
         The radius of the primary star, in solar radii.
-    secondary_radius : `float`
+    secondary_radius : float
         The radius of the secondary star, in solar radii.
-    primary_temperature : `float`
+    primary_temperature : float
         The effective temperature of the primary star, in kelvins.
-    secondary_temperature : `float`
+    secondary_temperature : float
         The effective temperature of the secondary star, in kelvins.
     """
 
@@ -143,18 +143,18 @@ class EclipsingBinaryStar(PeriodicVariableStar):
 
         Parameters
         ----------
-        phases : `numpy.ndarray`
+        phases : numpy.ndarray
             A length T array of phases, in the range [0, 1].
-        wavelengths_cm : `numpy.ndarray`, optional
+        wavelengths_cm : numpy.ndarray, optional
             A length N array of wavelengths, in cm.
-        graph_state : `GraphState`
+        graph_state : GraphState
             An object mapping graph parameters to their values.
-        **kwargs : `dict`, optional
+        **kwargs : dict, optional
               Any additional keyword arguments.
 
         Returns
         -------
-        luminosity_density : `numpy.ndarray`
+        luminosity_density : numpy.ndarray
             A length T x N matrix of luminosity density values.
             Output is in CGS units of erg/s/Hz/steradian.
         """
@@ -206,14 +206,14 @@ class EclipsingBinaryStar(PeriodicVariableStar):
 
         Parameters
         ----------
-        phase_fraction : `np.ndarray`
+        phase_fraction : np.ndarray
             The phase of the orbit, in the range [0, 1].
-        inclination_degree : `float`
+        inclination_degree : float
             The inclination of the orbit, in degrees.
 
         Returns
         -------
-        distance : `np.ndarray`
+        distance : np.ndarray
             The distance between the centers of the stars on the plane of the sky,
             normalized by the major semiaxis.
         """
@@ -227,16 +227,16 @@ class EclipsingBinaryStar(PeriodicVariableStar):
 
         Parameters
         ----------
-        d : `np.ndarray`
+        d : np.ndarray
             The distance between the centers of the circles.
-        r1 : `float`
+        r1 : float
             The radius of the first circle.
-        r2 : `float`
+        r2 : float
             The radius of the second circle.
 
         Returns
         -------
-        overlap_area : `np.ndarray`
+        overlap_area : np.ndarray
             The area of overlap between the two circles.
         """
 
