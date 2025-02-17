@@ -1,13 +1,12 @@
 """The base EffectModel class used for all effects."""
 
-import numpy as np
-
 
 class EffectModel:
     """A physical or systematic effect to apply to an observation.
 
-    Effects are not ParameterizedNodes, but rather get their arguments
-    from the PhysicalObject's parameters via the kwargs in apply().
+    Effects are not ParameterizedNodes by can have arguments that are
+    ParameterizedNodes. All settable parameters of the EffectModel
+    must be passed as keyword arguments to the apply() method.
 
     Attributes
     ----------
@@ -37,33 +36,6 @@ class EffectModel:
             A function that sets the parameter value.
         """
         self.parameters[name] = setter
-
-        # If we are just setting a scalar, set the attribute directly.
-        if np.isscalar(setter):
-            setattr(self, name, setter)
-
-    def lookup_effect_parameter(self, name, **kwargs):
-        """Look up a parameter value from either the keyword arguments
-        or the effect's attributes.
-
-        Parameters
-        ----------
-        name : str
-            The name of the parameter.
-        **kwargs : dict
-            Additional keyword arguments to search for the parameter.
-
-        Returns
-        -------
-        value : object
-            The value of the parameter.
-        """
-        if name in kwargs:
-            return kwargs[name]
-        elif hasattr(self, name):
-            return getattr(self, name)
-        else:
-            raise ValueError(f"{self.__class__.__name__} effect requires {name} parameter.")
 
     def apply(self, flux_density, rng_info=None, **kwargs):
         """Apply the effect to observations (flux_density values)

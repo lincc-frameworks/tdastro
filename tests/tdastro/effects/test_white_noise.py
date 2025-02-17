@@ -1,7 +1,6 @@
 import numpy as np
 import pytest
 from tdastro.effects.white_noise import WhiteNoise
-from tdastro.math_nodes.single_value_node import SingleVariableNode
 from tdastro.sources.basic_sources import StaticSource
 
 
@@ -9,9 +8,9 @@ def test_white_noise() -> None:
     """Test that we can sample and create a WhiteNoise object."""
     values = np.full((5, 3), 100.0)
 
-    # We can apply noise using the default value.
+    # We can apply noise the noise.
     white_noise = WhiteNoise(white_noise_sigma=0.1)
-    values = white_noise.apply(values)
+    values = white_noise.apply(values, white_noise_sigma=0.1)
     assert not np.all(values == 100.0)
     assert np.all(np.abs(values - 100.0) <= 1.0)
 
@@ -20,10 +19,7 @@ def test_white_noise() -> None:
     assert not np.all(values == 100.0)
     assert not np.all(np.abs(values - 100.0) <= 1.0)
 
-    # We fail if we do not pass in the correct parameters. Here we use
-    # a non-constant setter and not override of the default value.
-    wn_sigma = SingleVariableNode("white_noise_sigma", 0.1)
-    white_noise = WhiteNoise(white_noise_sigma=wn_sigma)
+    # We fail if we do not pass in the expected parameters.
     with pytest.raises(ValueError):
         _ = white_noise.apply(values)
 
