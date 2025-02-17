@@ -4,7 +4,7 @@
 class EffectModel:
     """A physical or systematic effect to apply to an observation.
 
-    Effects are not ParameterizedNodes by can have arguments that are
+    Effects are not ParameterizedNodes but can have arguments that are
     ParameterizedNodes. All settable parameters of the EffectModel
     must be passed as keyword arguments to the apply() method.
 
@@ -14,7 +14,7 @@ class EffectModel:
         Whether the effect is applied in the rest frame of the observation (True)
         or in the observed frame (False).
     parameters : dict
-        A dictionary of parameters for the effect. Mapps parameter names to
+        A dictionary of parameters for the effect. Maps the parameter names to
         their setters.
     """
 
@@ -38,7 +38,7 @@ class EffectModel:
         self.parameters[name] = setter
 
     def apply(self, flux_density, rng_info=None, **kwargs):
-        """Apply the effect to observations (flux_density values)
+        """Apply the effect to observations (flux_density values).
 
         Parameters
         ----------

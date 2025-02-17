@@ -17,7 +17,7 @@ class WhiteNoise(EffectModel):
         self.add_effect_parameter("white_noise_sigma", white_noise_sigma)
 
     def apply(self, flux_density, white_noise_sigma=None, rng_info=None, **kwargs):
-        """Apply the effect to observations (flux_density values)
+        """Apply the effect to observations (flux_density values).
 
         Parameters
         ----------
