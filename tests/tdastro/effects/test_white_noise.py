@@ -33,8 +33,10 @@ def test_static_source_white_noise() -> None:
         effects=[white_noise],
         seed=100,
     )
-    state = model.sample_parameters()
+    assert len(model.rest_frame_effects) == 1
+    assert len(model.obs_frame_effects) == 0
 
+    state = model.sample_parameters()
     times = np.array([1, 2, 3, 4, 5, 10])
     wavelengths = np.array([100.0, 200.0, 300.0])
     values = model.evaluate(times, wavelengths, state)
@@ -49,3 +51,28 @@ def test_static_source_white_noise() -> None:
     values2 = model.evaluate(times, wavelengths, state, rng_info=np.random.default_rng(100))
     assert not np.any(values1 == 10.0)
     assert np.all(values1 == values2)
+
+
+def test_static_source_white_noise_obs_frame() -> None:
+    """Test that we can make the WhiteNoise an observer frame effect.
+    While this does not make physical sense, it allows us to test that code path.
+    """
+    white_noise = WhiteNoise(rest_frame=False, white_noise_sigma=0.1)
+    model = StaticSource(
+        brightness=10.0,
+        node_label="my_static_source",
+        effects=[white_noise],
+        seed=100,
+    )
+    assert len(model.rest_frame_effects) == 0
+    assert len(model.obs_frame_effects) == 1
+
+    state = model.sample_parameters()
+    times = np.array([1, 2, 3, 4, 5, 10])
+    wavelengths = np.array([100.0, 200.0, 300.0])
+    values = model.evaluate(times, wavelengths, state)
+    assert values.shape == (6, 3)
+
+    # We get noisy values around 10.0.
+    assert len(np.unique(values)) > 10
+    assert np.all(np.abs(values - 10.0) < 3.0)
