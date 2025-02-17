@@ -58,6 +58,18 @@ def test_physical_model():
     assert model4.get_param(state, "distance") is None
 
 
+def test_physical_mode_multi_samples():
+    """Test that we generate multiple samples from a PhysicalModel."""
+    # Everything is specified.
+    model1 = PhysicalModel(ra=1.0, dec=2.0, redshift=0.5, t0=1.0)
+    state = model1.sample_parameters(num_samples=10)
+
+    assert np.all(model1.get_param(state, "ra") == 1.0)
+    assert np.all(model1.get_param(state, "dec") == 2.0)
+    assert np.all(model1.get_param(state, "redshift") == 0.5)
+    assert np.all(model1.get_param(state, "t0") == 1.0)
+
+
 def test_physical_model_mask_by_time():
     """Test that we can use the default mask_by_time() function."""
     model = PhysicalModel(ra=1.0, dec=2.0, redshift=0.0)
@@ -93,6 +105,21 @@ def test_physical_model_evaluate():
     assert np.all(flux[0, :, :] == 10.0)
     assert np.all(flux[1, :, :] == 20.0)
     assert np.all(flux[2, :, :] == 30.0)
+
+
+def test_physical_model_evaluate_redshift():
+    """Test that if we apply redshift to a model we get different flux values."""
+    times = np.array([0.0, 1.0, 2.0, 3.0, 4.0])
+    waves = np.array([4000.0, 5000.0])
+    static_source = StaticSource(brightness=10.0, redshift=0.5, t0=0.0)
+
+    state = static_source.sample_parameters(num_samples=3)
+    flux = static_source.evaluate(times, waves, graph_state=state)
+    assert flux.shape == (3, 5, 2)
+    assert not np.any(flux[:, :, :] == 10.0)
+
+    # The flux should be the same for all samples (not double applying redshift).
+    assert len(np.unique(flux)) == 1
 
 
 def test_physical_model_get_band_fluxes(passbands_dir):

@@ -41,14 +41,14 @@ def rest_to_obs_flux(flux_density, redshift):
 
     Parameters
     ----------
-    flux_density : `numpy.ndarray`
+    flux_density : numpy.ndarray
         A length T X N matrix of flux density values (in nJy).
     redshift : float
         The redshift of the object associated with given flux densities.
 
     Returns
     -------
-    flux_density : `numpy.ndarray`
+    flux_density : numpy.ndarray
         The observer frame flux (in nJy).
     """
     return flux_density * (1 + redshift)
@@ -60,14 +60,14 @@ def redshift_to_distance(redshift, cosmology):
 
     Parameters
     ----------
-    redshift : `float`
+    redshift : float
         The redshift value.
-    cosmology : `astropy.cosmology`
+    cosmology : astropy.cosmology
         The cosmology specification.
 
     Returns
     -------
-    distance : `float`
+    distance : float
         The luminosity distance (in pc)
     """
     z = redshift * cu.redshift
@@ -80,16 +80,16 @@ class RedshiftDistFunc(FunctionNode):
 
     Attributes
     ----------
-    cosmology : `astropy.cosmology`
+    cosmology : astropy.cosmology
         The cosmology specification.
 
     Parameters
     ----------
     redshift : function or constant
         The function or constant providing the redshift value.
-    cosmology : `astropy.cosmology`
+    cosmology : astropy.cosmology
         The cosmology specification.
-    **kwargs : `dict`, optional
+    **kwargs : dict, optional
         Any additional keyword arguments.
     """
 

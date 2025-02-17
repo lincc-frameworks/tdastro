@@ -36,7 +36,7 @@ class PZFlowNode(FunctionNode):
         ----------
         filename : str or Path
             The location of the saved flow.
-        node_label : `str`
+        node_label : str
             An optional human readable identifier (name) for the current node.
         """
         flow_to_use = Flow(file=filename)
@@ -47,13 +47,13 @@ class PZFlowNode(FunctionNode):
 
         Parameters
         ----------
-        graph_state : `GraphState`
+        graph_state : GraphState
             An object mapping graph parameters to their values. This object is modified
             in place as it is sampled.
         rng_info : numpy.random._generator.Generator, optional
             Unused in this function, but included to provide consistency with other
             compute functions.
-        **kwargs : `dict`, optional
+        **kwargs : dict, optional
             Additional function arguments.
 
         Returns

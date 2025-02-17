@@ -16,16 +16,15 @@ class GaussianGalaxy(PhysicalModel):
       * ra - The object's right ascension in degrees. [from PhysicalModel]
       * redshift - The object's redshift. [from PhysicalModel]
       * t0 - No effect for a GuassianGalaxy [from PhysicalModel]
-      * white_noise_sigma - The standard deviation of the white noise. [from PhysicalModel]
 
     Parameters
     ----------
-    brightness : `float`
+    brightness : float
         The inherent brightness at the center of the galaxy.
-    radius : `float`
+    radius : float
         The standard deviation of the brightness as we move away
         from the galaxy's center (in degrees).
-    **kwargs : `dict`, optional
+    **kwargs : dict, optional
         Any additional keyword arguments.
     """
 
@@ -39,22 +38,22 @@ class GaussianGalaxy(PhysicalModel):
 
         Parameters
         ----------
-        times : `numpy.ndarray`
+        times : numpy.ndarray
             A length T array of rest frame timestamps.
-        wavelengths : `numpy.ndarray`, optional
+        wavelengths : numpy.ndarray, optional
             A length N array of wavelengths (in angstroms).
-        graph_state : `GraphState`
+        graph_state : GraphState
             An object mapping graph parameters to their values.
-        ra : `float`, optional
+        ra : float, optional
             The right ascension of the observations in degrees.
-        dec : `float`, optional
+        dec : float, optional
             The declination of the observations in degrees.
-        **kwargs : `dict`, optional
+        **kwargs : dict, optional
            Any additional keyword arguments.
 
         Returns
         -------
-        flux_density : `numpy.ndarray`
+        flux_density : numpy.ndarray
             A length T x N matrix of SED values (in nJy).
         """
         params = self.get_local_params(graph_state)

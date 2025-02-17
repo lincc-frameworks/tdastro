@@ -22,39 +22,38 @@ class SplineModel(PhysicalModel):
       * ra - The object's right ascension in degrees. [from PhysicalModel]
       * redshift - The object's redshift. [from PhysicalModel]
       * t0 - The t0 of the zero phase, date. [from PhysicalModel]
-      * white_noise_sigma - The standard deviation of the white noise. [from PhysicalModel]
 
     Attributes
     ----------
-    _times : `numpy.ndarray`
+    _times : numpy.ndarray
         A length T array containing the times at which the data was sampled.
-    _wavelengths : `numpy.ndarray`
+    _wavelengths : numpy.ndarray
         A length W array containing the wavelengths at which the data was sampled
         (in angstroms).
-    _spline : `RectBivariateSpline`
+    _spline : RectBivariateSpline
         The spline object for predicting the flux from a given (time, wavelength).
-    name : `str`
+    name : str
         The name of the model being used.
 
     Parameters
     ----------
-    times : `numpy.ndarray`
+    times : numpy.ndarray
         A length T array containing the times at which the data was sampled.
-    wavelengths : `numpy.ndarray`
+    wavelengths : numpy.ndarray
         A length W array containing the wavelengths at which the data was sampled
         (in angstroms).
-    flux : `numpy.ndarray`
+    flux : numpy.ndarray
         A shape (T, W) matrix with flux values for each pair of time and wavelength.
         Fluxes provided in erg / s / cm^2 / Angstrom.
-    amplitude : `float`, `function`, `ParameterizedModel`, or `None`
+    amplitude : float, function, ParameterizedModel, or None
         A unitless scaling parameter for the flux density values. Default = 1.0
-    time_degree : `int`
+    time_degree : int
         The polynomial degree to use in the time dimension.
-    wave_degree : `int`
+    wave_degree : int
         The polynomial degree to use in the wavelength dimension.
-    name : `str`, optional
+    name : str, optional
         The name of the model.
-    **kwargs : `dict`, optional
+    **kwargs : dict, optional
         Any additional keyword arguments.
     """
 
@@ -85,18 +84,18 @@ class SplineModel(PhysicalModel):
 
         Parameters
         ----------
-        times : `numpy.ndarray`
+        times : numpy.ndarray
             A length T array of rest frame timestamps.
-        wavelengths : `numpy.ndarray`, optional
+        wavelengths : numpy.ndarray, optional
             A length N array of wavelengths (in angstroms).
-        graph_state : `GraphState`
+        graph_state : GraphState
             An object mapping graph parameters to their values.
-        **kwargs : `dict`, optional
+        **kwargs : dict, optional
            Any additional keyword arguments.
 
         Returns
         -------
-        flux_density : `numpy.ndarray`
+        flux_density : numpy.ndarray
             A length T x N matrix of SED values (in nJy).
         """
         params = self.get_local_params(graph_state)
