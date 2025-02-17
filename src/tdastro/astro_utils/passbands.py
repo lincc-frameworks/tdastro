@@ -387,13 +387,49 @@ class PassbandGroup:
 
         self._update_internal_data()
 
+    def fluxes_to_bandflux(self, flux_density_matrix: np.ndarray, filter: str) -> np.ndarray:
+        """Calculate bandfluxes for a single passband in the group.
+
+        Parameters
+        ----------
+        flux_density_matrix : np.ndarray
+            A 2D array of flux densities where of shape T x W where the rows are times and
+            columns are wavelengths.
+        filter : str
+            The name of the filter to evaluate.
+
+        Returns
+        -------
+        bandflux : np.ndarray
+            A length T array of bandfluxes for the given passband.
+        """
+        if filter not in self.passbands:
+            if filter in self._filter_to_name:
+                filter = self._filter_to_name[filter][0]
+            else:
+                raise ValueError(f"Filter {filter} not found in passband group.")
+        passband = self.passbands[filter]
+
+        # Evaluate the bandflux using only the wavelengths for this passband.
+        wave_indices = self._in_band_wave_indices[filter]
+        if wave_indices is None:
+            raise ValueError(
+                f"Passband {filter} does not have _in_band_wave_indices set. "
+                "This should have been calculated in PassbandGroup._update_internal_data."
+            )
+        in_band_fluxes = flux_density_matrix[:, wave_indices]
+        bandflux = passband.fluxes_to_bandflux(in_band_fluxes)
+
+        return bandflux
+
     def fluxes_to_bandfluxes(self, flux_density_matrix: np.ndarray) -> np.ndarray:
         """Calculate bandfluxes for all passbands in the group.
 
         Parameters
         ----------
         flux_density_matrix : np.ndarray
-            A 2D array of flux densities where rows are times and columns are wavelengths.
+            A 2D array of flux densities where of shape T x W where the rows are times and
+            columns are wavelengths.
 
         Returns
         -------
@@ -410,19 +446,10 @@ class PassbandGroup:
                 f"be accessed via the Passband's or PassbandGroup's waves attribute."
             )
 
+        # Compute the bandfluxes for each passband.
         bandfluxes = {}
-        for full_name, passband in self.passbands.items():
-            indices = self._in_band_wave_indices[full_name]
-
-            if indices is None:
-                raise ValueError(
-                    f"Passband {full_name} does not have _in_band_wave_indices set. "
-                    "This should have been calculated in PassbandGroup._update_internal_data."
-                )
-
-            in_band_fluxes = flux_density_matrix[:, indices]
-
-            bandfluxes[full_name] = passband.fluxes_to_bandflux(in_band_fluxes)
+        for full_name in self.passbands:
+            bandfluxes[full_name] = self.fluxes_to_bandflux(flux_density_matrix, full_name)
         return bandfluxes
 
     def plot(self, ax=None, figure=None):
