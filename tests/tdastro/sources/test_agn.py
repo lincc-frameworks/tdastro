@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 from tdastro.consts import M_SUN_G
 from tdastro.math_nodes.np_random import NumpyRandomFunc
-from tdastro.sources.agn import AGN
+from tdastro.sources.agn import AGN, sample_damped_random_walk
 
 
 def test_agn_compute_critical_accretion_rate():
@@ -115,6 +115,28 @@ def test_compute_tau_v_drw():
     tau_v = AGN.compute_tau_v_drw(np.array([1000.0, 2000.0, 3000.0, 4000.0]))
     expected = np.array([4546.21322992, 5114.75576753, 5479.74582924, 5754.39937337])
     assert np.allclose(tau_v, expected)
+
+
+def test_sample_damped_random_walk():
+    """Test that we can sample from a damped random walk."""
+    rng = np.random.default_rng(100)
+
+    tau_v = np.array([1.0, 1.0, 10.0, 10.0, 100.0])
+    sf_inf = np.array([0.1, 0.2, 0.1, 0.2, 0.1])
+    times = np.arange(0.0, 20.0, 1.0)
+    delta_m = sample_damped_random_walk(times, tau_v, sf_inf, 0.0, rng=rng)
+    assert delta_m.shape == (20, 5)
+
+    # The mean of delta_m for each wavelength should be around sf_inf.
+    assert np.allclose(np.mean(delta_m, axis=0), sf_inf, atol=0.1)
+
+    # We fail with non-monotonically increasing times.
+    with pytest.raises(ValueError):
+        _ = sample_damped_random_walk(np.array([0.0, 1.0, 0.0]), tau_v, sf_inf, 0.0)
+
+    # We fail with mismatched tau_v and sf_inf.
+    with pytest.raises(ValueError):
+        _ = sample_damped_random_walk(times, tau_v[:3], sf_inf, 0.0)
 
 
 def test_create_agn():

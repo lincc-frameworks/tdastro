@@ -38,14 +38,14 @@ def eddington_ratio_dist_fun(edd_ratio, galaxy_type="Blue", rng=None, num_sample
 
     if galaxy_type.lower() == "red":
         xi = 10**-2.13
-        lambda_br = 10 ** rng.normal(-2.81, np.mean([0.22, 0.14]), num_samples)
-        delta1 = rng.normal(0.41 - 0.7, np.mean([0.02, 0.02]), num_samples)  # > -0.45 won't affect LF
-        delta2 = rng.normal(1.22, np.mean([0.19, 0.13]), num_samples)
+        lambda_br = 10 ** rng.normal(-2.81, 0.18, num_samples)
+        delta1 = rng.normal(0.41 - 0.7, 0.02, num_samples)  # > -0.45 won't affect LF
+        delta2 = rng.normal(1.22, 0.16, num_samples)
     elif galaxy_type.lower() == "blue":
         xi = 10**-1.65
-        lambda_br = 10 ** rng.normal(-1.84, np.mean([0.30, 0.37]), num_samples)
-        delta1 = rng.normal(0.471 - 0.7, np.mean([0.02, 0.02]), num_samples)  # > -0.45 won't affect LF
-        delta2 = rng.normal(2.53, np.mean([0.68, 0.38]), num_samples)
+        lambda_br = 10 ** rng.normal(-1.84, 0.335, num_samples)
+        delta1 = rng.normal(0.471 - 0.7, 0.02, num_samples)  # > -0.45 won't affect LF
+        delta2 = rng.normal(2.53, 0.53, num_samples)
     else:
         raise ValueError("galaxy_type must be either 'Red' or 'Blue'.")
 

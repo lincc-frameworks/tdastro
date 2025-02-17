@@ -15,6 +15,55 @@ from tdastro.consts import M_SUN_G, PARSEC_TO_CM
 from tdastro.sources.physical_model import PhysicalModel
 
 
+def sample_damped_random_walk(times, tau_v, sf_inf, t0, rng=None):
+    """Sample a damped random walk.
+
+    Parameters
+    ----------
+    times : np.ndarray
+        A length T array with the times at which to sample the damped random
+        walk (in MJD).
+    tau_v : np.ndarray
+        A length W array with timescale of the damped random walk (in s).
+    sf_inf : np.ndarray
+        A length W array with structure function at infinity time in magnitude.
+    t0 : float
+        The initial time moment (in MJD).
+    rng : np.random.Generator, optional
+        The random number generator to use.
+        Default: None
+
+    Returns
+    -------
+    samples : float
+        The sampled value of the damped random walk.
+    """
+    if rng is None:
+        rng = np.random.default_rng()
+
+    if len(sf_inf) != len(tau_v):
+        raise ValueError(
+            "The arrays sf_inf and tau_v must have the same length. "
+            f"Received lengths: sf_inf={len(sf_inf)}, tau_v={len(tau_v)}"
+        )
+    samples = np.zeros((len(times), len(tau_v)))
+
+    # Set the initial values.
+    curr_t = t0
+    delta_m = rng.random() * sf_inf
+
+    # Iterate over each time step.
+    for idx, time in enumerate(times):
+        if time <= curr_t and idx != 0:
+            raise ValueError("Times must be monotonically increasing.")
+
+        dt = time - curr_t
+        delta_m = delta_m * np.exp(-dt / tau_v) + sf_inf * np.sqrt(1 - np.exp(-2 * dt / tau_v)) * rng.random()
+        samples[idx, :] = delta_m
+
+    return samples
+
+
 class AGN(PhysicalModel):
     """A model for an AGN.
 
@@ -243,8 +292,8 @@ class AGN(PhysicalModel):
 
         Parameters
         ----------
-        wavelength : float
-            The frequency in Hz.
+        wavelength : np.ndarray
+            A length W array with the frequencies in Hz.
         mag_i : float, optional
             The i band magnitude.
             Default: -23
@@ -254,8 +303,8 @@ class AGN(PhysicalModel):
 
         Returns
         -------
-        result : float
-            The structure function at infinity time in magnitude.
+        result : np.ndarray
+            A length W array with structure function at infinity time in magnitude.
         """
         # Equation and parameters for A=-0.51, B=-0.479, C=0.13, and D=0.18
         #  adopted from Suberlak et al. 2021: DOI 10.3847/1538-4357/abc698
@@ -273,7 +322,7 @@ class AGN(PhysicalModel):
         Parameters
         ----------
         wavelength : np.ndarray
-            The frequenc in Hz.
+            A length W array with the frequenc in Hz.
         mag_i : float, optional
             The i band magnitude.
             Default: -23
@@ -283,8 +332,8 @@ class AGN(PhysicalModel):
 
         Returns
         -------
-        tau_v : float
-            The timescale in s.
+        tau_v : np.ndarray
+            A length W array with the timescale in s for each wavelength.
         """
         # Equation and parameters for A=2.4, B=0.17, C=0.03, and D=0.21 adopted
         # from Suberlak et al. 2021: DOI 10.3847/1538-4357/abc698
@@ -346,8 +395,6 @@ class AGN(PhysicalModel):
         sf_inf = self.compute_structure_function_at_inf(
             wavelengths, params["mag_i"], params["blackhole_mass"]
         )
-        curr_t = params["t0"]
-        delta_m = self._rng.random() * sf_inf
 
         # Compute the average flux of a standard disk model. Use a factor of 2 (two sides
         # of the disk) to get the total flux.
@@ -360,21 +407,14 @@ class AGN(PhysicalModel):
             params["blackhole_mass"],
         )
 
-        # Allocate the flux density array to be filled in via simulation.
-        num_times = len(times)
-        num_wavelengths = len(wavelengths)
-        flux_density = np.zeros((num_times, num_wavelengths))
+        # Run the damped random walk.
+        delta_m = sample_damped_random_walk(
+            times,
+            tau_v,
+            sf_inf,
+            params["t0"],
+            rng=self._rng,
+        )
 
-        for idx, time in enumerate(times):
-            # Perform a step of the damped random walk.
-            if time <= curr_t:
-                raise ValueError("Times must be monotonically increasing.")
-
-            dt = time - curr_t
-            delta_m = (
-                delta_m * np.exp(-dt / tau_v)
-                + sf_inf * np.sqrt(1 - np.exp(-2 * dt / tau_v)) * self._rng.random()
-            )
-            flux_density[idx, :] = 10 ** (-0.4 * delta_m) * fnu_average
-
+        flux_density = 10 ** (-0.4 * delta_m) * fnu_average
         return flux_density
