@@ -8,33 +8,34 @@ class WhiteNoise(EffectModel):
 
     Attributes
     ----------
-    scale : `float`
+    white_noise_sigma : parameter
         The scale of the noise.
     """
 
-    def __init__(self, scale, **kwargs):
+    def __init__(self, white_noise_sigma, **kwargs):
         super().__init__(**kwargs)
-        self.scale = scale
+        self.add_effect_parameter("white_noise_sigma", white_noise_sigma)
 
-    def apply(self, flux_density, rng=None, **kwargs):
+    def apply(self, flux_density, rng_info=None, **kwargs):
         """Apply the effect to observations (flux_density values)
 
         Parameters
         ----------
         flux_density : numpy.ndarray
             A length T X N matrix of flux density values (in nJy).
-        rng : numpy.random._generator.Generator, optional
-            A random number generator to use for this evaluation. Override
-            only for testing purposes.
-            Default: None.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
         **kwargs : `dict`, optional
-           Any additional keyword arguments.
+           Any additional keyword arguments. This includes all of the
+           parameters needed to apply the effect.
 
         Returns
         -------
         flux_density : numpy.ndarray
             A length T x N matrix of flux densities after the effect is applied (in nJy).
         """
-        if rng is None:
-            rng = np.random.default_rng()
-        return rng.normal(loc=flux_density, scale=self.scale)
+        scale = self.lookup_effect_parameter("white_noise_sigma", **kwargs)
+        if rng_info is None:
+            rng_info = np.random.default_rng()
+        return rng_info.normal(loc=flux_density, scale=scale)
