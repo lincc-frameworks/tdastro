@@ -238,33 +238,48 @@ class PhysicalModel(ParameterizedNode):
                     raise ValueError("The 'redshift' parameter is required for redshifted models.")
                 if params.get("t0", None) is None:
                     raise ValueError("The 't0' parameter is required for redshifted models.")
-                times, wavelengths = obs_to_rest_times_waves(
+                rest_times, rest_wavelengths = obs_to_rest_times_waves(
                     times, wavelengths, params["redshift"], params["t0"]
                 )
+            else:
+                rest_times = times
+                rest_wavelengths = wavelengths
 
             # Compute the flux density for the current object, add in anything behind
             # the object, such as a host galaxy, and then apply rest frame effects.
-            flux_density = self.compute_flux(times, wavelengths, state, **kwargs)
+            flux_density = self.compute_flux(rest_times, rest_wavelengths, state, **kwargs)
             if self.background is not None:
                 flux_density += self.background.compute_flux(
-                    times,
-                    wavelengths,
+                    rest_times,
+                    rest_wavelengths,
                     state,
                     ra=params["ra"],
                     dec=params["dec"],
                     **kwargs,
                 )
             for effect in self.rest_frame_effects:
-                flux_density = effect.apply(flux_density, rng_info=rng_info, **params)
+                flux_density = effect.apply(
+                    flux_density,
+                    times=rest_times,
+                    wavelengths=rest_wavelengths,
+                    rng_info=rng_info,
+                    **params,
+                )
 
             # Post-effects are adjustments done to the flux density after computation.
             if self.apply_redshift and params["redshift"] != 0.0:
                 # We have alread checked that redshift is not None.
                 flux_density = rest_to_obs_flux(flux_density, params["redshift"])
 
-            # Apply observer frame effects.
+            # Apply observer frame effects (in the observer's frame).
             for effect in self.obs_frame_effects:
-                flux_density = effect.apply(flux_density, rng_info=rng_info, **params)
+                flux_density = effect.apply(
+                    flux_density,
+                    times=times,
+                    wavelengths=wavelengths,
+                    rng_info=rng_info,
+                    **params,
+                )
 
             # Save the result.
             results[sample_num, :, :] = flux_density

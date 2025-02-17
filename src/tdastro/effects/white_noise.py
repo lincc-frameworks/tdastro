@@ -16,13 +16,25 @@ class WhiteNoise(EffectModel):
         super().__init__(**kwargs)
         self.add_effect_parameter("white_noise_sigma", white_noise_sigma)
 
-    def apply(self, flux_density, white_noise_sigma=None, rng_info=None, **kwargs):
+    def apply(
+        self,
+        flux_density,
+        times=None,
+        wavelengths=None,
+        white_noise_sigma=None,
+        rng_info=None,
+        **kwargs,
+    ):
         """Apply the effect to observations (flux_density values).
 
         Parameters
         ----------
         flux_density : numpy.ndarray
             A length T X N matrix of flux density values (in nJy).
+        times : numpy.ndarray, optional
+            A length T array of times (in MJD). Not used for this effect.
+        wavelengths : numpy.ndarray, optional
+            A length N array of wavelengths (in angstroms). Not used for this effect.
         white_noise_sigma : float, optional
             The scale of the noise. Raises an error if None is provided.
         rng_info : numpy.random._generator.Generator, optional
