@@ -36,7 +36,6 @@ class SALT2JaxModel(PhysicalModel):
       * ra - The object's right ascension in degrees. [from PhysicalModel]
       * redshift - The object's redshift. [from PhysicalModel]
       * t0 - The t0 of the zero phase, date. [from PhysicalModel]
-      * white_noise_sigma - The standard deviation of the white noise. [from PhysicalModel]
       * x0 - The SALT2 x0 parameter.
       * x1 - The SALT2 x0 parameter.
 
@@ -57,19 +56,19 @@ class SALT2JaxModel(PhysicalModel):
         The SALT2 x1 parameter.
     c : parameter
         The SALT2 c parameter.
-    model_dir : `str`
+    model_dir : str
         The path for the model file directory.
         Default: ""
-    m0_filename : `str`
+    m0_filename : str
         The file name for the m0 model component.
         Default: "salt2_template_0.dat"
-    m1_filename : `str`
+    m1_filename : str
         The file name for the m1 model component.
         Default: "salt2_template_1.dat"
-    cl_filename : `str`
+    cl_filename : str
         The file name of the color law correction coefficients.
         Default: "salt2_color_correction.dat",
-    **kwargs : `dict`, optional
+    **kwargs : dict, optional
         Any additional keyword arguments.
     """
 
@@ -146,19 +145,19 @@ class SALT2JaxModel(PhysicalModel):
 
         Parameters
         ----------
-        phase : `numpy.ndarray`
+        phase : numpy.ndarray
             A length T array of rest frame timestamps.
-        wavelengths : `numpy.ndarray`, optional
+        wavelengths : numpy.ndarray, optional
             A length N array of wavelengths (in angstroms).
-        graph_state : `GraphState`
+        graph_state : GraphState
             An object mapping graph parameters to their values.
 
-        **kwargs : `dict`, optional
+        **kwargs : dict, optional
            Any additional keyword arguments.
 
         Returns
         -------
-        flux_density : `numpy.ndarray`
+        flux_density : numpy.ndarray
             A length T x N matrix of SED values (in nJy).
         """
         m0_vals = self._m0_model(phase, wavelengths)

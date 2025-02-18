@@ -13,13 +13,11 @@ Time-Domain Forward-Modeling for the Rubin Era
 ## Dev Guide - Getting Started
 
 Before installing any dependencies or writing code, it's a great idea to create a
-virtual environment. LINCC-Frameworks engineers primarily use `conda` to manage virtual
-environments. If you have conda installed locally, you can run the following to
-create and activate a new environment.
+virtual environment such as `venv`
 
 ```
->> conda create env -n <env_name> python=3.10
->> conda activate <env_name>
+>> python3 -m venv ~/envs/tdastro
+>> source ~/envs/tdastro/bin/activate
 ```
 
 Once you have created a new environment, you can install this project for local
@@ -28,7 +26,6 @@ development using the following commands:
 ```
 >> pip install -e .'[dev]'
 >> pre-commit install
->> conda install pandoc
 ```
 
 Notes:

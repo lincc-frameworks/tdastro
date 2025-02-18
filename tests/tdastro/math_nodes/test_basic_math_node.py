@@ -35,6 +35,12 @@ def test_basic_math_node():
     assert state["test"]["function_node_result"] == pytest.approx(math.pow(5.0, 2.5))
 
 
+def test_basic_math_node_list_functions():
+    """Test that we can list the functions available for a BasicMathNode."""
+    funcs = BasicMathNode.list_functions()
+    assert len(funcs) > 20
+
+
 def test_basic_math_node_special_cases():
     """Test that we can handle some of the special cases for a BasicMathNode."""
     node_a = SingleVariableNode("a", 180.0)

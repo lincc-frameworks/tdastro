@@ -21,25 +21,24 @@ class SncosmoWrapperModel(PhysicalModel):
       * ra - The object's right ascension in degrees. [from PhysicalModel]
       * redshift - The object's redshift. [from PhysicalModel]
       * t0 - The t0 of the zero phase, date. [from PhysicalModel]
-      * white_noise_sigma - The standard deviation of the white noise. [from PhysicalModel]
     Additional parameterized values are used for specific sncosmo models.
 
     Attributes
     ----------
-    source : `sncosmo.Source`
+    source : sncosmo.Source
         The underlying source model.
-    source_name : `str`
+    source_name : str
         The name used to set the source.
-    source_param_names : `list`
+    source_param_names : list
         A list of the source model's parameters that we need to set.
 
     Parameters
     ----------
-    source_name : `str`
+    source_name : str
         The name used to set the source.
-    node_label : `str`, optional
+    node_label : str, optional
         An identifier (or name) for the current node.
-    **kwargs : `dict`, optional
+    **kwargs : dict, optional
         Any additional keyword arguments.
     """
 
@@ -82,7 +81,7 @@ class SncosmoWrapperModel(PhysicalModel):
 
         Parameters
         ----------
-        name : `str`
+        name : str
             The name of the parameter.
 
         Returns
@@ -98,7 +97,7 @@ class SncosmoWrapperModel(PhysicalModel):
 
         Parameters
         ----------
-        **kwargs : `dict`
+        **kwargs : dict
             The parameters to set and their values.
         """
         for key, value in kwargs.items():
@@ -119,13 +118,13 @@ class SncosmoWrapperModel(PhysicalModel):
 
         Parameters
         ----------
-        graph_state : `GraphState`
+        graph_state : GraphState
             An object mapping graph parameters to their values. This object is modified
             in place as it is sampled.
-        seen_nodes : `dict`
+        seen_nodes : dict
             A dictionary mapping nodes seen during this sampling run to their ID.
             Used to avoid sampling nodes multiple times and to validity check the graph.
-        num_samples : `int`
+        num_samples : int
             A count of the number of samples to compute.
             Default: 1
         rng_info : numpy.random._generator.Generator, optional
@@ -134,7 +133,7 @@ class SncosmoWrapperModel(PhysicalModel):
 
         Raises
         ------
-        Raise a ``ValueError`` the sampling encounters a problem with the order of dependencies.
+        Raise a ValueError the sampling encounters a problem with the order of dependencies.
         """
         super()._sample_helper(graph_state, seen_nodes, rng_info)
         self._update_sncosmo_model_parameters(graph_state)
@@ -178,18 +177,18 @@ class SncosmoWrapperModel(PhysicalModel):
 
         Parameters
         ----------
-        times : `numpy.ndarray`
+        times : numpy.ndarray
             A length T array of rest frame timestamps.
-        wavelengths : `numpy.ndarray`, optional
+        wavelengths : numpy.ndarray, optional
             A length N array of wavelengths (in angstroms).
-        graph_state : `GraphState`
+        graph_state : GraphState
             An object mapping graph parameters to their values.
-        **kwargs : `dict`, optional
+        **kwargs : dict, optional
            Any additional keyword arguments.
 
         Returns
         -------
-        flux_density : `numpy.ndarray`
+        flux_density : numpy.ndarray
             A length T x N matrix of SED values (in nJy).
         """
         params = self.get_local_params(graph_state)

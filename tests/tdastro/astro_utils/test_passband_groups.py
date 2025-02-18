@@ -196,6 +196,10 @@ def test_passband_group_from_dir(tmp_path):
         wave_start = int(transmission_tables[filter].split()[0])
         assert wave_start == pb_group[filter]._loaded_table[0][0]
 
+    # Check that we throw an error if we try to access an invalid directory.
+    with pytest.raises(ValueError):
+        _ = PassbandGroup.from_dir("./no_such_directory", filters=["a", "b"])
+
     # Check that we throw an error if we try to load a filter that does not exist.
     with pytest.raises(ValueError):
         _ = PassbandGroup.from_dir(table_dir, filters=["a", "b", "z"])
@@ -347,6 +351,10 @@ def test_passband_group_fluxes_to_bandfluxes(passbands_dir):
     for band_name in lsst_passband_group.passbands:
         assert band_name in bandfluxes
         assert bandfluxes[band_name].shape == (5,)
+
+        # Check that we get the same result with fluxes_to_bandflux.
+        bandflux = lsst_passband_group.fluxes_to_bandflux(flux, band_name)
+        np.testing.assert_allclose(bandflux, bandfluxes[band_name])
 
 
 def test_passband_group_wrapped_from_physical_source(passbands_dir, tmp_path):

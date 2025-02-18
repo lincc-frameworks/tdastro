@@ -15,13 +15,12 @@ class StaticSource(PhysicalModel):
       * ra - The object's right ascension in degrees. [from PhysicalModel]
       * redshift - The object's redshift. [from PhysicalModel]
       * t0 - No effect for static model. [from PhysicalModel]
-      * white_noise_sigma - The standard deviation of the white noise. [from PhysicalModel]
 
     Parameters
     ----------
-    brightness : `float`
+    brightness : float
         The inherent brightness
-    **kwargs : `dict`, optional
+    **kwargs : dict, optional
         Any additional keyword arguments.
     """
 
@@ -34,18 +33,18 @@ class StaticSource(PhysicalModel):
 
         Parameters
         ----------
-        times : `numpy.ndarray`
+        times : numpy.ndarray
             A length T array of rest frame timestamps.
-        wavelengths : `numpy.ndarray`, optional
+        wavelengths : numpy.ndarray, optional
             A length N array of wavelengths (in angstroms).
-        graph_state : `GraphState`
+        graph_state : GraphState
             An object mapping graph parameters to their values.
-        **kwargs : `dict`, optional
+        **kwargs : dict, optional
             Any additional keyword arguments.
 
         Returns
         -------
-        flux_density : `numpy.ndarray`
+        flux_density : numpy.ndarray
             A length T x N matrix of SED values (in nJy).
         """
         params = self.get_local_params(graph_state)
@@ -63,17 +62,16 @@ class StepSource(StaticSource):
       * redshift - The object's redshift. [from PhysicalModel]
       * t0 - The time the step function starts, in MJD.
       * t1- The time the step function ends, in MJD.
-      * white_noise_sigma - The standard deviation of the white noise. [from PhysicalModel]
 
     Parameters
     ----------
-    brightness : `float`
+    brightness : float
         The inherent brightness
-    t0 : `float`
+    t0 : float
         The time the step function starts, in MJD.
-    t1 : `float`
+    t1 : float
         The time the step function ends, in MJD.
-    **kwargs : `dict`, optional
+    **kwargs : dict, optional
         Any additional keyword arguments.
     """
 
@@ -88,18 +86,18 @@ class StepSource(StaticSource):
 
         Parameters
         ----------
-        times : `numpy.ndarray`
+        times : numpy.ndarray
             A length T array of rest frame timestamps.
-        wavelengths : `numpy.ndarray`, optional
+        wavelengths : numpy.ndarray, optional
             A length N array of wavelengths (in angstroms).
-        graph_state : `GraphState`
+        graph_state : GraphState
             An object mapping graph parameters to their values.
-        **kwargs : `dict`, optional
+        **kwargs : dict, optional
            Any additional keyword arguments.
 
         Returns
         -------
-        flux_density : `numpy.ndarray`
+        flux_density : numpy.ndarray
             A length T x N matrix of SED values (in nJy).
         """
         flux_density = np.zeros((len(times), len(wavelengths)))
@@ -123,15 +121,14 @@ class SinWaveSource(PhysicalModel):
       * ra - The object's right ascension in degrees. [from PhysicalModel]
       * redshift - The object's redshift. [from PhysicalModel]
       * t0 - The start of the sine wave's period. [from PhysicalModel]
-      * white_noise_sigma - The standard deviation of the white noise. [from PhysicalModel]
 
     Parameters
     ----------
-    brightness : `float`
+    brightness : float
         The inherent brightness
-    frequency : `float`
+    frequency : float
         The frequence of the sine wave.
-    **kwargs : `dict`, optional
+    **kwargs : dict, optional
         Any additional keyword arguments.
     """
 
@@ -145,18 +142,18 @@ class SinWaveSource(PhysicalModel):
 
         Parameters
         ----------
-        times : `numpy.ndarray`
+        times : numpy.ndarray
             A length T array of rest frame timestamps.
-        wavelengths : `numpy.ndarray`, optional
+        wavelengths : numpy.ndarray, optional
             A length N array of wavelengths (in angstroms).
-        graph_state : `GraphState`
+        graph_state : GraphState
             An object mapping graph parameters to their values.
-        **kwargs : `dict`, optional
+        **kwargs : dict, optional
             Any additional keyword arguments.
 
         Returns
         -------
-        flux_density : `numpy.ndarray`
+        flux_density : numpy.ndarray
             A length T x N matrix of SED values (in nJy).
         """
         params = self.get_local_params(graph_state)

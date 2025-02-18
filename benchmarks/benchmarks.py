@@ -12,6 +12,7 @@ from tdastro.astro_utils.passbands import PassbandGroup
 from tdastro.astro_utils.snia_utils import DistModFromRedshift, HostmassX1Func, X0FromDistMod
 from tdastro.astro_utils.unit_utils import fnu_to_flam
 from tdastro.base_models import FunctionNode
+from tdastro.effects.white_noise import WhiteNoise
 from tdastro.math_nodes.np_random import NumpyRandomFunc
 from tdastro.sources.sncomso_models import SncosmoWrapperModel
 
@@ -80,6 +81,8 @@ class TimeSuite:
         self.graph_state = self.salt3_model.sample_parameters()
         self.fluxes = self.salt3_model.evaluate(self.times, self.wavelengths, graph_state=self.graph_state)
 
+        self.white_noise = WhiteNoise(white_noise_sigma=0.1)
+
     def time_chained_evaluate(self):
         """Time the generation of random numbers with an numpy generation node."""
 
@@ -95,6 +98,10 @@ class TimeSuite:
 
         # Generate 100,000 samples.
         _ = val_node.sample_parameters(num_samples=100_000)
+
+    def time_apply_white_noise(self):
+        """Time the application of white noise to a sample."""
+        _ = self.white_noise.apply(self.fluxes, white_noise_sigma=0.1)
 
     def time_make_x1_from_hostmass(self):
         """Time the creation of the X1 function."""

@@ -10,10 +10,9 @@ Time-Domain Forward-Modeling for the Rubin Era
 -------------------------------------------------------------------------------
 
 Realistic light curve simulations are essential to many time-domain problems. 
-simulations are needed to evaluate observing strategy, characterize biases, 
-and test pipelines. The need for a flexible, scalable, and user-friendly time-domain
-simulation software has increased as the new survey telescopes get ready for their
-first lights. TDAstro aims to provide such software for the time domain community.
+Simulations are needed to evaluate observing strategy, characterize biases, 
+and test pipelines. TDAstro aims to provide a flexible, scalable, and user-friendly
+time-domain simulation software with realistic effects and survey strategies.
 
 .. figure:: _static/tdastro-intro.png
    :class: no-scaled-link
@@ -25,14 +24,21 @@ first lights. TDAstro aims to provide such software for the time domain communit
 
 The main simulation components in TDAstro include:
 
+* A statistical simulation step where the hyperparameters of the model are drawn
+  from one or more prior distributions.
 * ``PhysicalModel`` defines the properties of the time-domain source, which can 
-  also include a host-galaxy model.
-* ``PassbandGroup`` contains the filter information of the telescope
+  also include a host-galaxy model, and is used to generate the noise-free light curves.
 * ``Opsim`` contains the survey information such as survey strategy and observing
-  conditions.
+  conditions. It is used to specify the observing times and bands.
+* A set of predefined effects, such as dust extinction and detector noise, are applied to
+  the noise-free light curves to produce realistic light curves.
+* The ``PassbandGroup`` contains the filter information of the telescope and is used
+  to calculate the fluxes in each band.
 
-We can generate random realizations of the ``PhysicalModel`` and produce realistic
-light curves using the above components.
+TDAstro can generate numerous random realizations of the parameters for the ``PhysicalModel``
+to produce realistic light curves using the above components.  See the 
+:doc:`simulations <simulations>` page for a more detailed description of the process.
+
 
 Getting Started
 -------------------------------------------------------------------------------

@@ -33,20 +33,20 @@ class BasicMathNode(FunctionNode):
 
     Attributes
     ----------
-    expression : `str`
+    expression : str
         The expression to evaluate.
-    backend : `str`
+    backend : str
         The math libary to use. Must be one of: math, numpy, or jax.
 
     Parameters
     ----------
-    expression : `str`
+    expression : str
         The expression to evaluate.
-    backend : `str`
+    backend : str
         The math libary to use. Must be one of: math, numpy, or jax.
-    node_label : `str`, optional
+    node_label : str, optional
         An identifier (or name) for the current node.
-    **kwargs : `dict`, optional
+    **kwargs : dict, optional
         Any additional keyword arguments. Every variable in the expression
         must be included as a kwarg.
     """
@@ -141,13 +141,24 @@ class BasicMathNode(FunctionNode):
         params = self.prepare_params(**kwargs)
         return eval(self.expression, globals(), params)
 
+    @staticmethod
+    def list_functions():
+        """Return a list of the support functions.
+
+        Returns
+        -------
+        list
+            A list of the supported functions.
+        """
+        return list(BasicMathNode._math_map.keys())
+
     def prepare_params(self, **kwargs):
         """Convert all of the incoming parameters into the correct type,
         such as numpy arrays.
 
         Parameters
         ----------
-        **kwargs : `dict`, optional
+        **kwargs : dict, optional
             The keyword arguments, including every variable in the expression.
 
         Returns
@@ -172,13 +183,13 @@ class BasicMathNode(FunctionNode):
 
         Parameters
         ----------
-        **kwargs : `dict`, optional
+        **kwargs : dict, optional
             Any additional keyword arguments, including the variable
             assignments.
 
         Returns
         -------
-        tree : `ast.*`
+        tree : ast.*
             The root node of the parsed syntax tree.
         """
         tree = ast.parse(self.expression)

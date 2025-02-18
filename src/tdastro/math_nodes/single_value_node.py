@@ -12,11 +12,11 @@ class SingleVariableNode(ParameterizedNode):
 
     Parameters
     ----------
-    name : `str`
+    name : str
         The parameter name.
     value : any
         The parameter value.
-    **kwargs : `dict`, optional
+    **kwargs : dict, optional
         Any additional keyword arguments.
     """
 
