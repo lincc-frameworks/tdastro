@@ -141,6 +141,17 @@ class BasicMathNode(FunctionNode):
         params = self.prepare_params(**kwargs)
         return eval(self.expression, globals(), params)
 
+    @staticmethod
+    def list_functions():
+        """Return a list of the support functions.
+
+        Returns
+        -------
+        list
+            A list of the supported functions.
+        """
+        return list(BasicMathNode._math_map.keys())
+
     def prepare_params(self, **kwargs):
         """Convert all of the incoming parameters into the correct type,
         such as numpy arrays.
