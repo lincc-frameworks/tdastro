@@ -394,6 +394,14 @@ class OpSim:  # noqa: D101
         """
         if query_ra is None or query_dec is None:
             raise ValueError("Query RA and dec must be provided for range search, but got None.")
+        if not np.isscalar(query_ra):
+            if np.isscalar(query_dec) or len(query_ra) != len(query_dec):
+                raise ValueError("Query RA and dec must have the same length.")
+
+            query_dec = np.asarray(query_dec)
+            query_ra = np.asarray(query_ra)
+            if np.any(query_ra is None) or np.any(query_dec is None):
+                raise ValueError("Query RA and dec cannot contain None.")
         radius = self.radius if radius is None else radius
 
         # Transform the query point(s) to 3-d Cartesian coordinate(s).
