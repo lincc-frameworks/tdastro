@@ -400,7 +400,7 @@ class OpSim:  # noqa: D101
 
             query_dec = np.asarray(query_dec)
             query_ra = np.asarray(query_ra)
-            if np.any(query_ra is None) or np.any(query_dec is None):
+            if np.any(query_ra == None) or np.any(query_dec == None):  # noqa: E711
                 raise ValueError("Query RA and dec cannot contain None.")
         radius = self.radius if radius is None else radius
 
