@@ -82,7 +82,8 @@ class DustmapWrapper(DustEBV):
 
 
 class ConstantHemisphereDustMap(DustEBV):
-    """A DustMap with a constant value in each hemisphere.
+    """A DustMap with a constant value in each hemisphere for testing
+    and debugging purposes.
 
     Attributes
     ----------
