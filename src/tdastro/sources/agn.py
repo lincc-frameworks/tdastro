@@ -403,7 +403,7 @@ class AGN(PhysicalModel):
             constants.c.cgs.value / wavelengths,  # nu
             1,  # rin
             0,  # i
-            10.0 * PARSEC_TO_CM,  # d
+            1.0,  # d
             params["blackhole_mass"],
         )
 
