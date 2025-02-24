@@ -11,7 +11,7 @@ from astropy import constants
 from scipy import integrate
 
 from tdastro.base_models import FunctionNode
-from tdastro.consts import M_SUN_G, PARSEC_TO_CM
+from tdastro.consts import M_SUN_G
 from tdastro.sources.physical_model import PhysicalModel
 
 
