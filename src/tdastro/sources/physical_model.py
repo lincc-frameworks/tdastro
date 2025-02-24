@@ -7,7 +7,6 @@ import numpy as np
 from tdastro.astro_utils.passbands import Passband
 from tdastro.astro_utils.redshift import RedshiftDistFunc, obs_to_rest_times_waves, rest_to_obs_flux
 from tdastro.base_models import ParameterizedNode
-from tdastro.effects.extinction import ExtinctionEffect
 from tdastro.graph_state import GraphState
 
 
@@ -58,8 +57,6 @@ class PhysicalModel(ParameterizedNode):
         the redshift and the cosmology.
     background : PhysicalModel
         A source of background flux such as a host galaxy.
-    effects : list of EffectModel, optional
-        A list of effects to apply to the flux density.
     seed : int, optional
         The seed for a random number generator.
     **kwargs : dict, optional
@@ -74,7 +71,6 @@ class PhysicalModel(ParameterizedNode):
         t0=None,
         distance=None,
         background=None,
-        effects=None,
         seed=None,
         **kwargs,
     ):
@@ -102,21 +98,9 @@ class PhysicalModel(ParameterizedNode):
         # Initialize the effect settings to their default values.
         self.apply_redshift = redshift is not None
 
-        # Process the effects.
+        # Set the default effects.
         self.rest_frame_effects = []
         self.obs_frame_effects = []
-        if effects is not None and len(effects) > 0:
-            for effect in effects:
-                # Add any effect parameters that are not already in the model.
-                for param_name, setter in effect.parameters.items():
-                    if param_name not in self.setters:
-                        self.add_parameter(param_name, setter, allow_gradient=False)
-
-                # Add the effect to the appropriate list.
-                if effect.rest_frame:
-                    self.rest_frame_effects.append(effect)
-                else:
-                    self.obs_frame_effects.append(effect)
 
         # Get a default random number generator for this object, using the
         # given seed if one is provided.
@@ -151,25 +135,24 @@ class PhysicalModel(ParameterizedNode):
         """
         self.apply_redshift = apply_redshift
 
-    def add_dust_extinction(self, dust_model, extinction_model="F99", **kwargs):
-        """Add a dust extinction effect to the model.
+    def add_effect(self, effect):
+        """Add an effect to the model.
 
         Parameters
         ----------
-        dust_model : DustEBV
-            The dust extinction model to use.
-        extinction_model : str
-            The extinction effect to add.
-        **kwargs : dict, optional
-            Any additional keyword arguments to pass to the extinction effect.
+        effect : EffectModel
+            The effect to add.
         """
-        # Generate the ebv value from the dust model.
-        if not self.has_valid_param("ebv"):
-            self.add_parameter("ebv", dust_model)
+        # Add any effect parameters that are not already in the model.
+        for param_name, setter in effect.parameters.items():
+            if param_name not in self.setters:
+                self.add_parameter(param_name, setter, allow_gradient=False)
 
-        # Create an extinction effect and add it to the model.
-        ext_effect = ExtinctionEffect(extinction_model, self.ebv, **kwargs)
-        self.rest_frame_effects.append(ext_effect)
+        # Add the effect to the appropriate list.
+        if effect.rest_frame:
+            self.rest_frame_effects.append(effect)
+        else:
+            self.obs_frame_effects.append(effect)
 
     def mask_by_time(self, times, graph_state=None):
         """Compute a mask for whether a given time is of interest for a given object.

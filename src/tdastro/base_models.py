@@ -401,6 +401,7 @@ class ParameterizedNode:
                 self.setters[name].set_as_function(func_node)
         elif isinstance(value, FunctionNode):
             # Case 2: We are using the result of a computation of the function node.
+            # If the FunctionNode has names outputs that match the variable, use that.
             output_name = name if name in value.outputs else "function_node_result"
             self.setters[name].set_as_function(value, output_name)
         elif isinstance(value, ParameterizedNode):

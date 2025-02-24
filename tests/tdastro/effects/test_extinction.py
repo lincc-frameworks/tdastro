@@ -58,8 +58,8 @@ def test_constant_dust_extinction():
         ra=0.0,
         dec=40.0,
         redshift=0.0,
-        effects=[dust_effect],
     )
+    model.add_effect(dust_effect)
 
     times = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
     wavelengths = np.array([7000.0, 5200.0, 4800.0])  # Red, green, blue
@@ -82,7 +82,7 @@ def test_dustmap_chain():
         node_label="source",
     )
 
-    # Create a constant dust map for testing and add an extinction effect.
+    # Create a constant dust map for testing.
     dust_map_node = ConstantHemisphereDustMap(
         north_ebv=0.8,
         south_ebv=0.5,
@@ -90,7 +90,10 @@ def test_dustmap_chain():
         dec=model.dec,
         node_label="dust_map",
     )
-    model.add_dust_extinction(dust_map_node, extinction_model="CCM89", Rv=3.1)
+
+    # Create an extinction effect using the EBVs from that dust map.
+    ext_effect = ExtinctionEffect(extinction_model="CCM89", ebv=dust_map_node, Rv=3.1)
+    model.add_effect(ext_effect)
 
     # Sample the model.
     times = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
