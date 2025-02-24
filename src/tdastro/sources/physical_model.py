@@ -7,6 +7,7 @@ import numpy as np
 from tdastro.astro_utils.passbands import Passband
 from tdastro.astro_utils.redshift import RedshiftDistFunc, obs_to_rest_times_waves, rest_to_obs_flux
 from tdastro.base_models import ParameterizedNode
+from tdastro.effects.extinction import ExtinctionEffect
 from tdastro.graph_state import GraphState
 
 
@@ -149,6 +150,26 @@ class PhysicalModel(ParameterizedNode):
             The new value for apply_redshift.
         """
         self.apply_redshift = apply_redshift
+
+    def add_dust_extinction(self, dust_model, extinction_model="F99", **kwargs):
+        """Add a dust extinction effect to the model.
+
+        Parameters
+        ----------
+        dust_model : DustEBV
+            The dust extinction model to use.
+        extinction_model : str
+            The extinction effect to add.
+        **kwargs : dict, optional
+            Any additional keyword arguments to pass to the extinction effect.
+        """
+        # Generate the ebv value from the dust model.
+        if not self.has_valid_param("ebv"):
+            self.add_parameter("ebv", dust_model)
+
+        # Create an extinction effect and add it to the model.
+        ext_effect = ExtinctionEffect(extinction_model, self.ebv, **kwargs)
+        self.rest_frame_effects.append(ext_effect)
 
     def mask_by_time(self, times, graph_state=None):
         """Compute a mask for whether a given time is of interest for a given object.
