@@ -115,8 +115,7 @@ class ConstantHemisphereDustMap(DustEBV):
         if np.isscalar(ra):
             return self.north_ebv if dec >= 0 else self.south_ebv
 
-        ebv = np.full_like(ra, self.north_ebv)
-        ebv[np.asarray(dec) < 0] = self.south_ebv
+        ebv = np.where(np.asarray(dec) < 0, self.south_ebv, self.north_ebv)
         return ebv
 
     def query(self, coords):
