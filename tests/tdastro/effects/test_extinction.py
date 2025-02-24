@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+from tdastro.astro_utils.dustmap import ConstantHemisphereDustMap
 from tdastro.effects.extinction import ExtinctionEffect
 from tdastro.math_nodes.given_sampler import GivenValueList
 from tdastro.sources.basic_sources import StaticSource
@@ -57,8 +58,8 @@ def test_constant_dust_extinction():
         ra=0.0,
         dec=40.0,
         redshift=0.0,
-        effects=[dust_effect],
     )
+    model.add_effect(dust_effect)
 
     times = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
     wavelengths = np.array([7000.0, 5200.0, 4800.0])  # Red, green, blue
@@ -69,3 +70,38 @@ def test_constant_dust_extinction():
     assert np.all(fluxes < 100.0)
     assert np.all(fluxes[0, :, :] > fluxes[1, :, :])
     assert np.all(fluxes[1, :, :] > fluxes[2, :, :])
+
+
+def test_dustmap_chain():
+    """Test that we can chain the dustmap computation and extinction effect."""
+    model = StaticSource(
+        brightness=100.0,
+        ra=GivenValueList([45.0, 45.0, 45.0]),
+        dec=GivenValueList([20.0, -20.0, 10.0]),
+        redshift=0.0,
+        node_label="source",
+    )
+
+    # Create a constant dust map for testing.
+    dust_map_node = ConstantHemisphereDustMap(
+        north_ebv=0.8,
+        south_ebv=0.5,
+        ra=model.ra,
+        dec=model.dec,
+        node_label="dust_map",
+    )
+
+    # Create an extinction effect using the EBVs from that dust map.
+    ext_effect = ExtinctionEffect(extinction_model="CCM89", ebv=dust_map_node, Rv=3.1)
+    model.add_effect(ext_effect)
+
+    # Sample the model.
+    times = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+    wavelengths = np.array([7000.0, 5200.0])
+    states = model.sample_parameters(num_samples=3)
+    fluxes = model.evaluate(times, wavelengths, states)
+
+    assert fluxes.shape == (3, 5, 2)
+    assert np.all(fluxes < 100.0)
+    assert np.allclose(fluxes[0, :, :], fluxes[2, :, :])
+    assert np.all(fluxes[1, :, :] > fluxes[0, :, :])
