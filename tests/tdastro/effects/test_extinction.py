@@ -39,6 +39,9 @@ def test_load_extinction_model():
     with pytest.raises(ValueError):
         _ = dust_effect.apply(fluxes, ebv=0.1)
 
+    # We can load a default model.
+    _ = ExtinctionEffect()
+
 
 def test_constant_dust_extinction():
     """Test that we can create and sample a ExtinctionEffect object."""

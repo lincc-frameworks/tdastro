@@ -26,7 +26,7 @@ class ExtinctionEffect(EffectModel):
         Any additional keyword arguments.
     """
 
-    def __init__(self, extinction_model, ebv=None, **kwargs):
+    def __init__(self, extinction_model="F99", ebv=None, **kwargs):
         super().__init__(**kwargs)
         self.add_effect_parameter("ebv", ebv)
 
