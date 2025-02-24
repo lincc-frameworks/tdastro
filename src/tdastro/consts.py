@@ -1,5 +1,9 @@
 import numpy as np
+from astropy import constants
 from astropy import units as u
+
+# Mass of the sun in grams
+M_SUN_G = constants.M_sun.cgs.value
 
 PARSEC_TO_CM = (1 * u.pc).to_value(u.cm)
 
