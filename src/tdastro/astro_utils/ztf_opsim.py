@@ -70,18 +70,18 @@ def calculate_ztf_zero_points(
     maglim : float or ndarray
         Five-sigma magnitude limit.
     sky : float or ndarry
-        Sky background.
+        Sky background in ADU/pixel.
     fwhm : float or ndarray
-        PSF.
+        PSF in pixels.
     gain : float or ndarray; default is _ztfcam_ccd_gain
         CCD gain.
     readnoise : float or ndarray; default is _ztfcam_readout_noise
-        Read noise.
+        Read noise (in e-/pixel).
     darkcurrent : float or ndarray; default is _ztfcam_dark_current
-        Dark current.
+        Dark current (in e-/pixel/second).
     exptime : float or ndarray
-        Exposure time.
-    nexposure : float or ndarray
+        Exposure time (in seconds).
+    nexposure : int or ndarray
         Number of exposure.
 
     Returns
