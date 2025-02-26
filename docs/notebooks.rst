@@ -4,7 +4,8 @@ Notebooks
 .. toctree::
     :maxdepth: 1
 
-    Building Simple Models <notebooks/introduction_demo>
+    Introduction <notebooks/introduction>
+    Building Simple Models <notebooks/technical_overview>
     Sampling Model Parameters <notebooks/sampling>
     Using Rubin OpSims in Simulations <notebooks/opsim_notebook>
     Passband Demo <notebooks/passband-demo>

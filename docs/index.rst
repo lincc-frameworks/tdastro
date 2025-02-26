@@ -39,6 +39,8 @@ TDAstro can generate numerous random realizations of the parameters for the ``Ph
 to produce realistic light curves using the above components.  See the 
 :doc:`simulations <simulations>` page for a more detailed description of the process.
 
+For an overview of the package, we recommend starting with the :doc:`introduction notebook <notebooks/introduction>`.
+
 
 Getting Started
 -------------------------------------------------------------------------------
@@ -48,6 +50,8 @@ Getting Started
    >> pip install tdastro
 
 See our selection of :doc:`tutorial notebooks <notebooks>` for usage examples.
+We recommend starting with the :doc:`introduction notebook <notebooks/introduction>`
+to get a high level overview.
 
 If you are interested in installing from source, or contributing to the package,
 see the :doc:`contribution guide <contributing>`.
