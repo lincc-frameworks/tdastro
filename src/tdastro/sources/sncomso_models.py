@@ -6,13 +6,14 @@ https://sncosmo.readthedocs.io/en/stable/models.html
 
 import numpy as np
 from astropy import units as u
+from citation_compass import CiteClass
 from sncosmo.models import get_source
 
 from tdastro.astro_utils.unit_utils import flam_to_fnu
 from tdastro.sources.physical_model import PhysicalModel
 
 
-class SncosmoWrapperModel(PhysicalModel):
+class SncosmoWrapperModel(PhysicalModel, CiteClass):
     """A wrapper for sncosmo models.
 
     Parameterized values include:
@@ -22,6 +23,10 @@ class SncosmoWrapperModel(PhysicalModel):
       * redshift - The object's redshift. [from PhysicalModel]
       * t0 - The t0 of the zero phase, date. [from PhysicalModel]
     Additional parameterized values are used for specific sncosmo models.
+
+    Citation:
+    * sncosmo - https://zenodo.org/records/14714968
+    * Individual models might require citation. See references in the sncosmo documentation.
 
     Attributes
     ----------

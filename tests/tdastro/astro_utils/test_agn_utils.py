@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+from citation_compass import get_all_citations
 from tdastro.astro_utils.agn_utils import eddington_ratio_dist_fun
 
 
@@ -22,3 +23,18 @@ def test_eddington_ratio_dist_fun():
     # Test that we fail if we use an incorrect galaxy type.
     with pytest.raises(ValueError):
         eddington_ratio_dist_fun(1.0, "green")
+
+
+def test_eddington_ratio_dist_fun_citations():
+    """Test the citations for the eddington_ratio_dist_fun function."""
+    citations = get_all_citations()
+
+    # Confirm we find both citations.
+    found1 = False
+    found2 = False
+    for citation in citations:
+        if "Sartori et. al. 2019" in citation:
+            found1 = True
+        if "Weigel et. al. 2017" in citation:
+            found2 = True
+    assert found1 and found2

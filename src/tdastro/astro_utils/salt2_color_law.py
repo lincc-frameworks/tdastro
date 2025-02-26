@@ -6,6 +6,7 @@ https://github.com/sncosmo/sncosmo/blob/v2.10.1/sncosmo/salt2utils.pyx
 
 import jax.numpy as jnp
 import numpy as np
+from citation_compass import CiteClass
 
 # Constants used in SALT2ColorLaw computations (from:
 # https://github.com/sncosmo/sncosmo/blob/v2.10.1/sncosmo/salt2utils.pyx)
@@ -14,8 +15,10 @@ _SALT2CL_V = 5428.55  # V-band-ish wavelength
 _WAVESCALE = 1.0 / (_SALT2CL_V - _SALT2CL_B)
 
 
-class SALT2ColorLaw:
+class SALT2ColorLaw(CiteClass):
     """An object that applies the color law to the given wavelengths.
+
+    Citation: sncosmo - https://zenodo.org/records/14714968
 
     Parameters
     ----------

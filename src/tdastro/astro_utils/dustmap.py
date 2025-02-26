@@ -7,6 +7,7 @@ https://github.com/gregreen/dustmaps
 
 import numpy as np
 from astropy.coordinates import SkyCoord
+from citation_compass import CiteClass
 
 from tdastro.base_models import FunctionNode
 
@@ -31,11 +32,13 @@ class DustEBV(FunctionNode):
         super().__init__(query_fn, outputs=["ebv"], **kwargs)
 
 
-class DustmapWrapper(DustEBV):
+class DustmapWrapper(DustEBV, CiteClass):
     """A convenience wrapper for the dustmap package
     https://github.com/gregreen/dustmaps
 
-    Citation: Green 2018, JOSS, 3(26), 695.
+    Citation:
+    Green 2018, JOSS, 3(26), 695.
+    https://github.com/gregreen/dustmaps
 
     Parameters
     ----------

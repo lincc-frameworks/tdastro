@@ -92,8 +92,7 @@ magnitude_electron_zeropoint.__doc__ = f"""Photometric zeropoint (magnitude that
     which would produce 1 count in a 1 second exposure -
     here we use *electron* counts, not ADU counts.
 
-    Authored by Lynne Jones:
-    https://community.lsst.org/t/release-of-v3-4-simulations/8548/12
+    Citation: Lynne Jones - https://community.lsst.org/t/release-of-v3-4-simulations/8548/12
     """
 
 

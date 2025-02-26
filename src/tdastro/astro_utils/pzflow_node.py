@@ -5,13 +5,18 @@ https://github.com/jfcrenshaw/pzflow
 """
 
 import numpy as np
+from citation_compass import CiteClass
 from pzflow import Flow
 
 from tdastro.base_models import FunctionNode
 
 
-class PZFlowNode(FunctionNode):
+class PZFlowNode(FunctionNode, CiteClass):
     """A node that wraps sampling from pzflow.
+
+    Citation:
+    * Paper: Crenshaw et. al. 2024 - https://ui.adsabs.harvard.edu/abs/2024AJ....168...80C
+    * Zenodo: Crenshaw et. al. 2024 - https://doi.org/10.5281/zenodo.10710271
 
     Attributes
     ----------
