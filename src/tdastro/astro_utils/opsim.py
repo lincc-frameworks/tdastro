@@ -372,6 +372,32 @@ class OpSim:  # noqa: D101
         )
         return new_opsim
 
+    def is_observed(self, query_ra, query_dec, radius=None):
+        """Check if the query point(s) fall within the field of view of any
+        pointing in the survey.
+
+        Parameters
+        ----------
+        query_ra : float or numpy.ndarray
+            The query right ascension (in degrees).
+        query_dec : float or numpy.ndarray
+            The query declination (in degrees).
+        radius : float or None, optional
+            The angular radius of the observation (in degrees). If None
+            uses the default radius for the OpSim.
+
+        Returns
+        -------
+        seen : bool or list[bool]
+            Depending on the input, this is either a single bool to indicate
+            whether the query point is observed or a list of bools for an array
+            of query points.
+        """
+        inds = self.range_search(query_ra, query_dec, radius)
+        if np.isscalar(query_ra):
+            return len(inds) > 0
+        return [len(entry) > 0 for entry in inds]
+
     def range_search(self, query_ra, query_dec, radius=None):
         """Return the indices of the opsim pointings that fall within the field
         of view of the query point(s).

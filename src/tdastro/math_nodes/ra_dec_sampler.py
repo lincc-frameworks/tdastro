@@ -140,3 +140,101 @@ class OpSimRADECSampler(TableSampler):
             self._save_results(results, graph_state)
 
         return results
+
+
+class OpSimUniformRADECSampler(NumpyRandomFunc):
+    """A FunctionNode that samples RA and dec uniformly from the area covered
+    by an OpSim.  RA and dec are returned in degrees.
+
+    TODO: Implement a more efficient sampling method that precompiles the
+    opsim coverage and samples from that.
+
+    Note
+    ----
+    * This is a place holder class until we can implement a more efficient
+      sampling method (with precomputation of the opsim coverage).
+    * This uses rejection sampling and can be quite slow for small coverage.
+    * The sample will terminate after a maximum number of iterations to
+      prevent infinite loops. Some out of coverage samples may be returned.
+
+    Attributes
+    ----------
+    data : OpSim
+        The OpSim object to use for sampling.
+    radius : float
+        The radius of the observations in degrees. Must be > 0.0.
+        Default: 1.0
+    max_iteraions : int
+        The maximum number of iterations to perform. Default: 1000
+    """
+
+    def __init__(self, data, radius=1.0, outputs=None, seed=None, max_iteraions=1000, **kwargs):
+        if radius <= 0.0:
+            raise ValueError("Invalid radius: {radius}")
+        self.radius = radius
+
+        if len(data) == 0:
+            raise ValueError("OpSim data cannot be empty.")
+        self.data = data
+
+        if max_iteraions <= 0:
+            raise ValueError("Invalid max_iteraions: {max_iteraions}")
+        self.max_iteraions = max_iteraions
+
+        # Override key arguments. We create a uniform sampler function, but
+        # won't need it because the subclass overloads compute().
+        func_name = "uniform"
+        outputs = ["ra", "dec"]
+        super().__init__(func_name, outputs=outputs, seed=seed, **kwargs)
+
+    def compute(self, graph_state, rng_info=None, **kwargs):
+        """Return the given values.
+
+        Parameters
+        ----------
+        graph_state : GraphState
+            An object mapping graph parameters to their values. This object is modified
+            in place as it is sampled.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
+        **kwargs : dict, optional
+            Additional function arguments.
+
+        Returns
+        -------
+        results : any
+            The result of the computation. This return value is provided so that testing
+            functions can easily access the results.
+        """
+        rng = rng_info if rng_info is not None else self._rng
+
+        # Generate the random (RA, dec) lists and see how many are not covered.
+        ra = np.degrees(rng.uniform(0.0, 2.0 * np.pi, size=graph_state.num_samples))
+        dec = np.degrees(np.arcsin(rng.uniform(-1.0, 1.0, size=graph_state.num_samples)))
+        mask = np.asarray(self.data.is_observed(ra, dec, self.radius))
+        num_missing = np.sum(~mask)
+
+        # Rejection sampling to ensure the samples are within the OpSim coverage.
+        # This can take many iterations if the coverage is small.
+        iter_num = 1
+        while num_missing > 0 and iter_num < 1000:
+            # Generate new samples for the missing ones.
+            ra[~mask] = np.degrees(rng.uniform(0.0, 2.0 * np.pi, size=num_missing))
+            dec[~mask] = np.degrees(np.arcsin(rng.uniform(-1.0, 1.0, size=num_missing)))
+
+            # Check if the samples are within the OpSim coverage.
+            mask = np.asarray(self.data.is_observed(ra, dec, self.radius))
+            num_missing = np.sum(~mask)
+            iter_num += 1
+
+        # If we are generating a single sample, return floats.
+        if graph_state.num_samples == 1:
+            ra = ra[0]
+            dec = dec[0]
+
+        # Set the outputs and return the results. This takes the place of
+        # function node's _save_results() function because we know the outputs.
+        graph_state.set(self.node_string, "ra", ra)
+        graph_state.set(self.node_string, "dec", dec)
+        return [ra, dec]
