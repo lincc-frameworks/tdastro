@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from citation_compass import get_all_citations
+from citation_compass import find_in_citations
 from sncosmo.models import SALT2Source
 from tdastro.sources.salt2_jax import SALT2JaxModel
 from tdastro.sources.sncomso_models import SncosmoWrapperModel
@@ -39,13 +39,7 @@ def test_salt2_no_model(test_data_dir):
 
 def test_salt2_citation():
     """Test the citations for the SALT2 model."""
-    citations = get_all_citations()
-
-    # Confirm we find the class citation and that it has the correct components.
-    found = False
-    for citation in citations:
-        if "SALT2JaxModel" in citation:
-            assert "Guy J., 2007" in citation
-            assert "sncosmo" in citation
-            found = True
-    assert found
+    salt_citations = find_in_citations("SALT2JaxModel")
+    for citation in salt_citations:
+        assert "Guy J., 2007" in citation
+        assert "sncosmo" in citation

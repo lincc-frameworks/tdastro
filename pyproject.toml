@@ -18,7 +18,7 @@ dynamic = ["version"]
 requires-python = ">=3.9"
 dependencies = [
     "astropy",
-    "citation-compass",
+    "citation-compass>=0.0.3",
     "dust_extinction",
     "jax",
     "matplotlib",

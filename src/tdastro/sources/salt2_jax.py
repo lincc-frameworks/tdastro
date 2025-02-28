@@ -40,7 +40,8 @@ class SALT2JaxModel(PhysicalModel, CiteClass):
       * x0 - The SALT2 x0 parameter.
       * x1 - The SALT2 x0 parameter.
 
-    Citation:
+    Citations
+    ---------
     * SALT2: Guy J., 2007 - https://doi.org/10.48550/arXiv.astro-ph/0701828
     * sncosmo - https://zenodo.org/records/14714968
 

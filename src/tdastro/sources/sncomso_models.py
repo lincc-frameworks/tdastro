@@ -24,7 +24,8 @@ class SncosmoWrapperModel(PhysicalModel, CiteClass):
       * t0 - The t0 of the zero phase, date. [from PhysicalModel]
     Additional parameterized values are used for specific sncosmo models.
 
-    Citation:
+    Citations
+    ---------
     * sncosmo - https://zenodo.org/records/14714968
     * Individual models might require citation. See references in the sncosmo documentation.
 

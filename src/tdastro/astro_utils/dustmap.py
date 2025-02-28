@@ -36,10 +36,6 @@ class DustmapWrapper(DustEBV, CiteClass):
     """A convenience wrapper for the dustmap package
     https://github.com/gregreen/dustmaps
 
-    Citation:
-    Green 2018, JOSS, 3(26), 695.
-    https://github.com/gregreen/dustmaps
-
     Parameters
     ----------
     dust_map : DustMap object
@@ -50,6 +46,11 @@ class DustmapWrapper(DustEBV, CiteClass):
         A function to translate the result of the dustmap query into an ebv.
     **kwargs : `dict`, optional
         Any additional keyword arguments.
+
+    Citation
+    --------
+    Green 2018, JOSS, 3(26), 695.
+    https://github.com/gregreen/dustmaps
     """
 
     def __init__(self, dust_map, ebv_func=None, **kwargs):
