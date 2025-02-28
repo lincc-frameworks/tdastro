@@ -1,6 +1,12 @@
 import numpy as np
+import pandas as pd
 from scipy.optimize import fsolve
-from tdastro.opsim.ztf_opsim import ZTFOpsim, calculate_ztf_zero_points, create_random_ztf_opsim
+from tdastro.opsim.ztf_opsim import (
+    ZTFOpsim,
+    calculate_ztf_zero_points,
+    convert_ztf_zp_mag_to_njy,
+    create_random_ztf_opsim,
+)
 
 
 def fluxeq(flux, sky=None, gain=None, readnoise=None, nexposure=1, fwhm=None, darkcurrent=None, exptime=None):
@@ -33,7 +39,7 @@ def test_calculate_ztf_zero_points():
         ),
         [100],
     )
-    zp_expected = 2.5 * np.log10(root / gain) + maglim
+    zp_expected = 2.5 * np.log10(root) + maglim
 
     zp_cal = calculate_ztf_zero_points(
         maglim=maglim,
@@ -54,4 +60,42 @@ def test_ztf_opsim_init():
     opsim_table = create_random_ztf_opsim(100).table
     opsim = ZTFOpsim(table=opsim_table)
 
-    assert opsim.has_columns(["zp", "obsmjd"])
+    assert opsim.has_columns(["zp_nJy", "obsmjd"])
+
+
+def test_zp_conversion():
+    """Test the zero point conversion"""
+    flux_ADU = 100.0
+    zp_mag = 20.0
+    mag = -2.5 * np.log10(flux_ADU) + zp_mag
+    expected_flux_nJy = np.power(10.0, -0.4 * (mag - 31.4))
+    zp_nJy = convert_ztf_zp_mag_to_njy(zp_mag)
+    flux_nJy = flux_ADU * zp_nJy
+
+    assert np.isclose(flux_nJy, expected_flux_nJy)
+
+
+def test_noise_calculation():
+    """Test that the noise calculation is in the right range."""
+    mag = np.array([19.0])
+    expected_magerr = np.array([0.1])
+
+    flux_nJy = np.power(10.0, -0.4 * (mag - 31.4))
+    opsim = ZTFOpsim(
+        table=pd.DataFrame(
+            {
+                "ra": 0.0,
+                "dec": 0.0,
+                "scibckgnd": 200.0,
+                "maglim": 20.0,
+                "fwhm": 2.3,
+                "exptime": 30.0,
+                "obsdate": "2020-01-01 12:00:00.000",
+            },
+            index=[0],
+        )
+    )
+    fluxerr_nJy = opsim.bandflux_error_point_source(flux_nJy, 0)
+    magerr = 1.086 * fluxerr_nJy / flux_nJy
+
+    np.testing.assert_allclose(magerr, expected_magerr, rtol=0.2)

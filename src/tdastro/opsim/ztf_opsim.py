@@ -18,7 +18,7 @@ _ztf_opsim_colnames = {
     "filter": "filter",
     "ra": "ra",
     "time": "obsmjd",
-    "zp": "zp",  # We add this column to the table
+    "zp": "zp_nJy",  # We add this column to the table
 }
 """Default mapping of short column names to Rubin OpSim column names."""
 
@@ -87,7 +87,7 @@ def calculate_ztf_zero_points(
     Returns
     -------
     zp: float or ndarray
-        Instrument zero point.
+        Instrument zero point (that converts 1 e- to magnitude).
     """
 
     npix = 2.266 * fwhm**2  # =4*pi*sigma**2=pi/2/ln2 * FWHM**2
@@ -96,9 +96,28 @@ def calculate_ztf_zero_points(
         + 4.0
         * (sky * npix * gain + readnoise**2 * nexposure * npix + darkcurrent * npix * exptime * nexposure)
     )
-    zp = 2.5 * np.log10(flux_at_5sigma_limit / gain) + maglim
+    zp = 2.5 * np.log10(flux_at_5sigma_limit) + maglim
 
     return zp
+
+
+def convert_ztf_zp_mag_to_njy(zp_mag):
+    """Convert the zero point in magnitude to zero point in nJy
+
+    Parameters
+    ----------
+    zp_mag: float or ndarray
+        Zero point that converts ADU (or electrons) to magnitude.
+
+    Returns
+    -------
+    zp_nJy: float or ndarry
+        Zero point that converts ADU (or electrons) to nJy.
+    """
+
+    zp_nJy = np.power(10.0, -0.4 * (zp_mag - 31.4))
+
+    return zp_nJy
 
 
 class ZTFOpsim(OpSim):
@@ -177,7 +196,8 @@ class ZTFOpsim(OpSim):
             fwhm=self.table[self.colmap.get("fwhm", "fwhm")],
             exptime=self.table[self.colmap.get("exptime", "exptime")],
         )
-        self.add_column(self.colmap.get("zp", "zp"), zp_values, overwrite=True)
+        zp_nJy = convert_ztf_zp_mag_to_njy(zp_values)
+        self.add_column(self.colmap.get("zp", "zp_nJy"), zp_nJy, overwrite=True)
 
     @classmethod
     def from_db(cls, filename, sql_query="SELECT * from exposures", colmap=_ztf_opsim_colnames):
@@ -242,13 +262,12 @@ class ZTFOpsim(OpSim):
         footprint = GAUSS_EFF_AREA2FWHM_SQ * observations["fwhm"] ** 2  # in pixels
 
         return poisson_bandflux_std(
-            bandflux,  # ADU
-            pixel_scale=1.0,
+            bandflux,  # nJy
             total_exposure_time=observations["exptime"],
             exposure_count=1,
             footprint=footprint,
-            sky=observations["scibckgnd"],  # ADU/pixel
-            zp=observations["zp"],  # ADU
+            sky=observations["scibckgnd"] * self.gain,  # e-/pixel
+            zp=observations["zp_nJy"],  # nJy
             readout_noise=self.read_noise,  # e-/pixel
             dark_current=self.dark_current,  # e-/second/pixel
         )
