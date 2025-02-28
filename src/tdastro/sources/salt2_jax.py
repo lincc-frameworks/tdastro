@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from astropy import units as u
+from citation_compass import CiteClass
 
 from tdastro.astro_utils.salt2_color_law import SALT2ColorLaw
 from tdastro.astro_utils.unit_utils import flam_to_fnu
@@ -8,7 +9,7 @@ from tdastro.sources.physical_model import PhysicalModel
 from tdastro.utils.bicubic_interp import BicubicInterpolator
 
 
-class SALT2JaxModel(PhysicalModel):
+class SALT2JaxModel(PhysicalModel, CiteClass):
     """A SALT2 model implemented with JAX for it can use auto-differentiation.
 
     The model is defined in (Guy J., 2007) as:
@@ -38,6 +39,11 @@ class SALT2JaxModel(PhysicalModel):
       * t0 - The t0 of the zero phase, date. [from PhysicalModel]
       * x0 - The SALT2 x0 parameter.
       * x1 - The SALT2 x0 parameter.
+
+    References
+    ----------
+    * SALT2: Guy J., 2007 - https://doi.org/10.48550/arXiv.astro-ph/0701828
+    * sncosmo - https://zenodo.org/records/14714968
 
     Attributes
     ----------

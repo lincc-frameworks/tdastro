@@ -1,5 +1,8 @@
 """A wrapper for applying extinction functions using the dust_extinction library.
-Gordon 2024, JOSS, 9(100), 7023. https://github.com/karllark/dust_extinction
+
+Citation:
+Gordon 2024, JOSS, 9(100), 7023.
+https://github.com/karllark/dust_extinction
 """
 
 import importlib
@@ -7,12 +10,18 @@ from pkgutil import iter_modules
 
 import astropy.units as u
 import dust_extinction
+from citation_compass import CiteClass
 
 from tdastro.effects.effect_model import EffectModel
 
 
-class ExtinctionEffect(EffectModel):
+class ExtinctionEffect(EffectModel, CiteClass):
     """A general dust extinction effect model.
+
+    References
+    ----------
+    Gordon 2024, JOSS, 9(100), 7023.
+    https://github.com/karllark/dust_extinction
 
     Attributes
     ----------
