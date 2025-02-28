@@ -496,19 +496,23 @@ class OpSim:  # noqa: D101
 
         # By the effective FWHM definition, see
         # https://smtn-002.lsst.io/v/OPSIM-1171/index.html
-        footprint = GAUSS_EFF_AREA2FWHM_SQ * observations["seeingFwhmEff"] ** 2
+        # We need it in pixel^2
+        footprint = GAUSS_EFF_AREA2FWHM_SQ * (observations["seeingFwhmEff"] / self.pixel_scale) ** 2
 
-        # table value is in mag/arcsec^2
-        sky_njy = mag2flux(observations["skyBrightness"])
+        zp = observations["zp_nJy"]
+
+        # Table value is in mag/arcsec^2
+        sky_njy_angular = mag2flux(observations["skyBrightness"])
+        # We need electrons per pixel^2
+        sky = sky_njy_angular * self.pixel_scale**2 / zp
 
         return poisson_bandflux_std(
             bandflux,
-            pixel_scale=self.pixel_scale,
             total_exposure_time=observations["visitExposureTime"],
             exposure_count=observations["numExposures"],
             footprint=footprint,
-            sky=sky_njy,
-            zp=observations["zp_nJy"],
+            sky=sky,
+            zp=zp,
             readout_noise=self.read_noise,
             dark_current=self.dark_current,
         )
