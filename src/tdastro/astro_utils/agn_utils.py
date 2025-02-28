@@ -16,7 +16,8 @@ def eddington_ratio_dist_fun(edd_ratio, galaxy_type="Blue", rng=None, num_sample
     and the paper: https://ui.adsabs.harvard.edu/abs/2019ApJ...883..139S/abstract
     with parameters selected from: https://iopscience.iop.org/article/10.3847/1538-4357/aa803b/pdf
 
-    Citations:
+    References
+    ----------
     * Approach: Sartori et. al. 2019 - https://ui.adsabs.harvard.edu/abs/2019ApJ...883..139S/abstract
     * Parameters: Weigel et. al. 2017 - https://iopscience.iop.org/article/10.3847/1538-4357/aa803b/pdf
 
