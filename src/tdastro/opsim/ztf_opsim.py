@@ -6,8 +6,8 @@ import pandas as pd
 from astropy.time import Time
 
 from tdastro.astro_utils.noise_model import poisson_bandflux_std
-from tdastro.astro_utils.opsim import OpSim
 from tdastro.consts import GAUSS_EFF_AREA2FWHM_SQ
+from tdastro.opsim.opsim import OpSim
 
 _ztf_opsim_colnames = {
     "maglim": "maglim",

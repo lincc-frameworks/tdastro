@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.optimize import fsolve
-from tdastro.astro_utils.ztf_opsim import ZTFOpsim, calculate_ztf_zero_points, create_random_ztf_opsim
+from tdastro.opsim.ztf_opsim import ZTFOpsim, calculate_ztf_zero_points, create_random_ztf_opsim
 
 
 def fluxeq(flux, sky=None, gain=None, readnoise=None, nexposure=1, fwhm=None, darkcurrent=None, exptime=None):

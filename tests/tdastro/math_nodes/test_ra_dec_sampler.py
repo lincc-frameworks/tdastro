@@ -1,10 +1,10 @@
 import numpy as np
-from tdastro.astro_utils.opsim import OpSim
 from tdastro.math_nodes.ra_dec_sampler import (
     OpSimRADECSampler,
     OpSimUniformRADECSampler,
     UniformRADEC,
 )
+from tdastro.opsim.opsim import OpSim
 
 
 def test_uniform_ra_dec():
