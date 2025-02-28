@@ -238,6 +238,10 @@ def test_opsim_range_search():
     assert set(ops_data.range_search(15.0, 10.0)) == set([1, 2, 3])
     assert set(ops_data.range_search(25.0, 10.0)) == set([4, 5])
 
+    # Test is_observed() with single queries.
+    assert ops_data.is_observed(15.0, 10.0, 0.5)
+    assert not ops_data.is_observed(15.02, 10.0, 1e-6)
+
     # Test a batched query.
     query_ra = np.array([15.0, 25.0, 15.0])
     query_dec = np.array([10.0, 10.0, 5.0])
@@ -246,6 +250,12 @@ def test_opsim_range_search():
     assert set(neighbors[0]) == set([1, 2, 3])
     assert set(neighbors[1]) == set([4, 5])
     assert set(neighbors[2]) == set()
+
+    # Test is_observed() with batched queries.
+    assert np.array_equal(
+        ops_data.is_observed(query_ra, query_dec, 0.5),
+        np.array([True, True, False]),
+    )
 
     # Test that we fail if bad query arrays are provided.
     with pytest.raises(ValueError):
