@@ -14,8 +14,8 @@ from tdastro.base_models import FunctionNode
 class PZFlowNode(FunctionNode, CiteClass):
     """A node that wraps sampling from pzflow.
 
-    Citations
-    ---------
+    References
+    ----------
     * Paper: Crenshaw et. al. 2024 - https://ui.adsabs.harvard.edu/abs/2024AJ....168...80C
     * Zenodo: Crenshaw et. al. 2024 - https://doi.org/10.5281/zenodo.10710271
 

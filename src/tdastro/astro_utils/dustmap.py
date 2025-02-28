@@ -47,8 +47,8 @@ class DustmapWrapper(DustEBV, CiteClass):
     **kwargs : `dict`, optional
         Any additional keyword arguments.
 
-    Citation
-    --------
+    References
+    ----------
     Green 2018, JOSS, 3(26), 695.
     https://github.com/gregreen/dustmaps
     """

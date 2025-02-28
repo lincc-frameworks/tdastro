@@ -18,7 +18,8 @@ from tdastro.effects.effect_model import EffectModel
 class ExtinctionEffect(EffectModel, CiteClass):
     """A general dust extinction effect model.
 
-    Citation:
+    References
+    ----------
     Gordon 2024, JOSS, 9(100), 7023.
     https://github.com/karllark/dust_extinction
 

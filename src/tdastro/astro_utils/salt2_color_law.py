@@ -18,8 +18,8 @@ _WAVESCALE = 1.0 / (_SALT2CL_V - _SALT2CL_B)
 class SALT2ColorLaw(CiteClass):
     """An object that applies the color law to the given wavelengths.
 
-    Citation
-    --------
+    References
+    ----------
     sncosmo - https://zenodo.org/records/14714968
 
     Parameters
