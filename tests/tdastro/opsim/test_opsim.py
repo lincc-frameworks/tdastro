@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from tdastro.astro_utils.mag_flux import mag2flux
-from tdastro.astro_utils.opsim import (
+from tdastro.opsim.opsim import (
     OpSim,
     create_random_opsim,
     opsim_add_random_data,
