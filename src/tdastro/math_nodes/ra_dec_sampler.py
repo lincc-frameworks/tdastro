@@ -203,17 +203,16 @@ class OpSimUniformRADECSampler(NumpyRandomFunc):
 
         Returns
         -------
-        results : any
-            The result of the computation. This return value is provided so that testing
-            functions can easily access the results.
+        (ra, dec) : tuple of floats or np.ndarray
+            If a single sample is generated, returns a tuple of floats. Otherwise,
+            returns a tuple of np.ndarrays.
         """
         rng = rng_info if rng_info is not None else self._rng
 
-        # Generate the random (RA, dec) lists and see how many are not covered.
-        ra = np.degrees(rng.uniform(0.0, 2.0 * np.pi, size=graph_state.num_samples))
-        dec = np.degrees(np.arcsin(rng.uniform(-1.0, 1.0, size=graph_state.num_samples)))
-        mask = np.asarray(self.data.is_observed(ra, dec, self.radius))
-        num_missing = np.sum(~mask)
+        ra = np.zeros(graph_state.num_samples)
+        dec = np.zeros(graph_state.num_samples)
+        mask = np.full(graph_state.num_samples, False)
+        num_missing = graph_state.num_samples
 
         # Rejection sampling to ensure the samples are within the OpSim coverage.
         # This can take many iterations if the coverage is small.
@@ -237,4 +236,4 @@ class OpSimUniformRADECSampler(NumpyRandomFunc):
         # function node's _save_results() function because we know the outputs.
         graph_state.set(self.node_string, "ra", ra)
         graph_state.set(self.node_string, "dec", dec)
-        return [ra, dec]
+        return (ra, dec)
