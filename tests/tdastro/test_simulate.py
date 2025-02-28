@@ -1,7 +1,7 @@
 import numpy as np
-from tdastro.astro_utils.opsim import OpSim
 from tdastro.astro_utils.passbands import PassbandGroup
 from tdastro.math_nodes.given_sampler import GivenValueList
+from tdastro.opsim.opsim import OpSim
 from tdastro.simulate import simulate_lightcurves
 from tdastro.sources.basic_sources import StaticSource
 

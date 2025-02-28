@@ -43,7 +43,7 @@ def test_flow_filename(test_data_dir):
 @pytest.fixture
 def oversampled_observations(opsim_shorten):
     """Return an OpSim object with 0.01 day cadence spanning year 2027."""
-    from tdastro.astro_utils.opsim import OpSim, oversample_opsim
+    from tdastro.opsim.opsim import OpSim, oversample_opsim
 
     base_opsim = OpSim.from_db(opsim_shorten)
     return oversample_opsim(

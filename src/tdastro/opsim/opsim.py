@@ -372,6 +372,32 @@ class OpSim:  # noqa: D101
         )
         return new_opsim
 
+    def is_observed(self, query_ra, query_dec, radius=None):
+        """Check if the query point(s) fall within the field of view of any
+        pointing in the survey.
+
+        Parameters
+        ----------
+        query_ra : float or numpy.ndarray
+            The query right ascension (in degrees).
+        query_dec : float or numpy.ndarray
+            The query declination (in degrees).
+        radius : float or None, optional
+            The angular radius of the observation (in degrees). If None
+            uses the default radius for the OpSim.
+
+        Returns
+        -------
+        seen : bool or list[bool]
+            Depending on the input, this is either a single bool to indicate
+            whether the query point is observed or a list of bools for an array
+            of query points.
+        """
+        inds = self.range_search(query_ra, query_dec, radius)
+        if np.isscalar(query_ra):
+            return len(inds) > 0
+        return [len(entry) > 0 for entry in inds]
+
     def range_search(self, query_ra, query_dec, radius=None):
         """Return the indices of the opsim pointings that fall within the field
         of view of the query point(s).
@@ -470,19 +496,23 @@ class OpSim:  # noqa: D101
 
         # By the effective FWHM definition, see
         # https://smtn-002.lsst.io/v/OPSIM-1171/index.html
-        footprint = GAUSS_EFF_AREA2FWHM_SQ * observations["seeingFwhmEff"] ** 2
+        # We need it in pixel^2
+        footprint = GAUSS_EFF_AREA2FWHM_SQ * (observations["seeingFwhmEff"] / self.pixel_scale) ** 2
 
-        # table value is in mag/arcsec^2
-        sky_njy = mag2flux(observations["skyBrightness"])
+        zp = observations["zp_nJy"]
+
+        # Table value is in mag/arcsec^2
+        sky_njy_angular = mag2flux(observations["skyBrightness"])
+        # We need electrons per pixel^2
+        sky = sky_njy_angular * self.pixel_scale**2 / zp
 
         return poisson_bandflux_std(
             bandflux,
-            pixel_scale=self.pixel_scale,
             total_exposure_time=observations["visitExposureTime"],
             exposure_count=observations["numExposures"],
             footprint=footprint,
-            sky=sky_njy,
-            zp=observations["zp_nJy"],
+            sky=sky,
+            zp=zp,
             readout_noise=self.read_noise,
             dark_current=self.dark_current,
         )
