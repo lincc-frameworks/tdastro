@@ -97,6 +97,27 @@ def test_create_opsim_override():
     assert ops_data.zp_per_sec == {"u": 25.0, "g": 26.0, "r": 27.0, "i": 28.0, "z": 29.0, "y": 30.0}
 
 
+def test_create_opsim_no_zp():
+    """Create an opsim without a zeropoint column."""
+    values = {
+        "observationStartMJD": np.array([0.0, 1.0, 2.0, 3.0, 4.0]),
+        "fieldRA": np.array([15.0, 30.0, 15.0, 0.0, 60.0]),
+        "fieldDec": np.array([-10.0, -5.0, 0.0, 5.0, 10.0]),
+    }
+
+    # We fail if we do not have the other columns needed: filter, airmass, exptime.
+    with pytest.raises(ValueError):
+        _ = OpSim(values)
+
+    values["filter"] = np.array(["r", "g", "r", "i", "z"])
+    values["airmass"] = 0.01 * np.ones(5)
+    values["visitExposureTime"] = 0.1 * np.ones(5)
+    opsim = OpSim(values)
+
+    assert opsim.has_columns("zp_nJy")
+    assert np.all(opsim["zp_nJy"] >= 0.0)
+
+
 def test_create_opsim_custom_names():
     """Create a minimal OpSim object from alternate column names."""
     values = {

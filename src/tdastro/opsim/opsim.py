@@ -40,7 +40,6 @@ _lsstcam_view_radius = 1.75
 """The angular radius of the observation field (in degrees)."""
 
 
-# Suppress "no docstring", because we define it via an attribute.
 class OpSim:
     """A wrapper class around the opsim table with cached data for efficiency.
 
