@@ -1,3 +1,8 @@
+"""The top-level module for survey related data, such as pointing and noise
+information. By default the module uses the Rubin OpSim data, but it can be
+extended to other survey data as well.
+"""
+
 from __future__ import annotations  # "type1 | type2" syntax in Python <3.10
 
 import sqlite3
@@ -16,32 +21,19 @@ from tdastro.astro_utils.zeropoint import (
 )
 from tdastro.consts import GAUSS_EFF_AREA2FWHM_SQ
 
-_rubin_opsim_colnames = {
-    "airmass": "airmass",
-    "dec": "fieldDec",
-    "exptime": "visitExposureTime",
-    "filter": "filter",
-    "ra": "fieldRA",
-    "time": "observationStartMJD",
-    "zp": "zp_nJy",  # We add this column to the table
-}
-"""Default mapping of short column names to Rubin OpSim column names."""
-
 LSSTCAM_PIXEL_SCALE = 0.2
 """The pixel scale for the LSST camera in arcseconds per pixel."""
 
 _lsstcam_readout_noise = 8.8
 """The standard deviation of the count of readout electrons per pixel for the LSST camera.
 
-The value is from
-https://smtn-002.lsst.io/v/OPSIM-1171/index.html
+The value is from https://smtn-002.lsst.io/v/OPSIM-1171/index.html
 """
 
 _lsstcam_dark_current = 0.2
 """The dark current for the LSST camera in electrons per second per pixel.
 
-The value is from
-https://smtn-002.lsst.io/v/OPSIM-1171/index.html
+The value is from https://smtn-002.lsst.io/v/OPSIM-1171/index.html
 """
 
 _lsstcam_view_radius = 1.75
@@ -49,8 +41,8 @@ _lsstcam_view_radius = 1.75
 
 
 # Suppress "no docstring", because we define it via an attribute.
-class OpSim:  # noqa: D101
-    __doc__ = f"""A wrapper class around the opsim table with cached data for efficiency.
+class OpSim:
+    """A wrapper class around the opsim table with cached data for efficiency.
 
     Parameters
     ----------
@@ -58,31 +50,17 @@ class OpSim:  # noqa: D101
         The table with all the OpSim information.
     colmap : dict
         A mapping of short column names to their names in the underlying table.
-        Defaults to the Rubin OpSim column names, stored in _rubin_opsim_colnames:
-        {_rubin_opsim_colnames}
-    ext_coeff : dict or None, optional
-        Mapping of filter names to extinction coefficients. Defaults to
-        the Rubin OpSim values, stored in _rubin_extinction_coeff:
-        {_lsstcam_extinction_coeff}
-    zp_per_sec : dict or None, optional
-        Mapping of filter names to zeropoints at zenith. Defaults to
-        the Rubin OpSim values, stored in _rubin_zeropoint_per_sec_zenith:
-        {_lsstcam_zeropoint_per_sec_zenith}
-    pixel_scale : float or None, optional
-        The pixel scale for the LSST camera in arcseconds per pixel. Defaults to
-        the Rubin OpSim value, see _rubin_pixel_scale, stored in _rubin_pixel_scale:
-        {LSSTCAM_PIXEL_SCALE}
-    read_noise : float or None, optional
-        The readout noise for the LSST camera in electrons per pixel. Defaults to
-        the Rubin OpSim value, stored in _rubin_readout_noise:
-        {_lsstcam_readout_noise}
-    dark_current : float or None, optional
-        The dark current for the LSST camera in electrons per second per pixel. Defaults to
-        the Rubin OpSim value, stored in _rubin_dark_current:
-        {_lsstcam_dark_current}
-    radius : float or None, optional
-        The angular radius of the observations (in degrees).
-        Defaults to the Rubin value, stored in _lsstcam_view_radius: {_lsstcam_view_radius}
+        Defaults to the Rubin OpSim column names, stored in the class variable
+        _opsim_colnames.
+    **kwargs : dict
+        Additional keyword arguments to pass to the constructor. This includes overrides
+        for survey parameters such as:
+        - dark_current : The dark current for the LSST camera in electrons per second per pixel.
+        - ext_coeff: Mapping of filter names to extinction coefficients.
+        - pixel_scale: The pixel scale for the LSST camera in arcseconds per pixel.
+        - radius: The angular radius of the observations (in degrees).
+        - read_noise: The readout noise for the LSST camera in electrons per pixel.
+        - zp_per_sec: Mapping of filter names to zeropoints at zenith.
 
     Attributes
     ----------
@@ -93,11 +71,11 @@ class OpSim:  # noqa: D101
     _kd_tree : scipy.spatial.KDTree or None
         A kd_tree of the OpSim pointings for fast spatial queries. We use the scipy
         kd-tree instead of astropy's functions so we can directly control caching.
-    pixel_scale : float or None, optional
+    pixel_scale : float
         The pixel scale for the LSST camera in arcseconds per pixel.
-    read_noise : float or None, optional
+    read_noise : float
         The readout noise for the LSST camera in electrons per pixel.
-    dark_current : float or None, optional
+    dark_current : float
         The dark current for the LSST camera in electrons per second per pixel.
     ext_coeff : dict or None, optional
         Mapping of filter names to extinction coefficients. Defaults to
@@ -111,18 +89,33 @@ class OpSim:  # noqa: D101
 
     _required_names = ["ra", "dec", "time"]
 
+    # Default column names for the Rubin OpSim.
+    _default_colnames = {
+        "airmass": "airmass",
+        "dec": "fieldDec",
+        "exptime": "visitExposureTime",
+        "filter": "filter",
+        "ra": "fieldRA",
+        "time": "observationStartMJD",
+        "zp": "zp_nJy",  # We add this column to the table
+    }
+
+    # Default survey values.
+    _default_survey_values = {
+        "dark_current": _lsstcam_dark_current,
+        "ext_coeff": _lsstcam_extinction_coeff,
+        "pixel_scale": LSSTCAM_PIXEL_SCALE,
+        "radius": _lsstcam_view_radius,
+        "read_noise": _lsstcam_readout_noise,
+        "zp_per_sec": _lsstcam_zeropoint_per_sec_zenith,
+    }
+
     # Class constants for the column names.
     def __init__(
         self,
         table,
         colmap=None,
-        *,
-        ext_coeff=None,
-        zp_per_sec=None,
-        pixel_scale=None,
-        read_noise=None,
-        dark_current=None,
-        radius=None,
+        **kwargs,
     ):
         if isinstance(table, dict):
             self.table = pd.DataFrame(table)
@@ -130,19 +123,19 @@ class OpSim:  # noqa: D101
             self.table = table
 
         # Basic validity checking on the column map names.
-        self.colmap = _rubin_opsim_colnames.copy() if colmap is None else colmap
+        self.colmap = self._default_colnames.copy() if colmap is None else colmap
         if "zp" not in self.colmap:
             self.colmap["zp"] = "zp_nJy"
         for name in self._required_names:
             if name not in self.colmap:
                 raise KeyError(f"The column name map is missing key={name}")
 
-        self.pixel_scale = LSSTCAM_PIXEL_SCALE if pixel_scale is None else pixel_scale
-        self.read_noise = _lsstcam_readout_noise if read_noise is None else read_noise
-        self.dark_current = _lsstcam_dark_current if dark_current is None else dark_current
-        self.ext_coeff = _lsstcam_extinction_coeff if ext_coeff is None else ext_coeff
-        self.zp_per_sec = _lsstcam_zeropoint_per_sec_zenith if zp_per_sec is None else zp_per_sec
-        self.radius = _lsstcam_view_radius if radius is None else radius
+        # Set the survey-specific parameters using values from either the input or the defaults.
+        for key, value in self._default_survey_values.items():
+            if key in kwargs:
+                setattr(self, key, kwargs[key])
+            else:
+                setattr(self, key, value)
 
         # Build the kd-tree.
         self._kd_tree = None
@@ -150,13 +143,7 @@ class OpSim:  # noqa: D101
 
         # If we are not given zero point data, try to derive it from the other columns.
         if not self.has_columns("zp"):
-            if self.has_columns(["filter", "airmass", "exptime"]):
-                self._assign_zero_points(ext_coeff=self.ext_coeff, zp_per_sec=self.zp_per_sec)
-            else:
-                raise ValueError(
-                    "OpSim must include either a zero point column or the columns "
-                    "needed to derive it (filter, airmass, and exposure time)."
-                )
+            self._assign_zero_points()
 
     def __len__(self):
         return len(self.table)
@@ -205,24 +192,17 @@ class OpSim:  # noqa: D101
         # Construct the kd-tree.
         self._kd_tree = KDTree(cart_coords)
 
-    def _assign_zero_points(self, *, ext_coeff: dict[str, float] | None, zp_per_sec: dict[str, float] | None):
-        """Assign instrumental zero points in nJy to the OpSim tables.
+    def _assign_zero_points(self):
+        """Assign instrumental zero points in nJy to the OpSim tables."""
+        if not self.has_columns(["filter", "airmass", "exptime"]):
+            raise ValueError(
+                "OpSim does not include the columns needed to derive zero point "
+                "information. Required columns: filter, airmass, and exptime."
+            )
 
-        Parameters
-        ----------
-        ext_coeff : dict[str, float], optional
-            Atmospheric extinction coefficient for each bandpass.
-            Keys are the bandpass names, values are the coefficients.
-            If None, the LSST coefficients are used.
-        zp_per_sec : dict[str, float], optional
-             The instrumental zeropoint for each bandpass in AB magnitudes,
-             i.e. the magnitude that produces 1 electron in a 1-second exposure.
-             Keys are the bandpass names, values are the zeropoints.
-             If None, the LSST zeropoints are used.
-        """
         zp_values = flux_electron_zeropoint(
-            ext_coeff=ext_coeff,
-            instr_zp_mag=zp_per_sec,
+            ext_coeff=self.ext_coeff,
+            instr_zp_mag=self.zp_per_sec,
             band=self.table[self.colmap.get("filter", "filter")],
             airmass=self.table[self.colmap.get("airmass", "airmass")],
             exptime=self.table[self.colmap.get("exptime", "visitExposureTime")],
@@ -230,7 +210,7 @@ class OpSim:  # noqa: D101
         self.add_column(self.colmap.get("zp", "zp"), zp_values, overwrite=True)
 
     @classmethod
-    def from_db(cls, filename, sql_query="SELECT * FROM observations", colmap=_rubin_opsim_colnames):
+    def from_db(cls, filename, sql_query="SELECT * FROM observations", colmap=None):
         """Create an OpSim object from the data in an opsim db file.
 
         Parameters
@@ -240,9 +220,9 @@ class OpSim:  # noqa: D101
         sql_query : str
             The SQL query to use when loading the table.
             Default = "SELECT * FROM observations"
-        colmap : dict
+        colmap : dict, optional
             A mapping of short column names to their names in the underlying table.
-            Defaults to the Rubin opsim column names.
+            If None, uses the default column names for the Rubin OpSim.
 
         Returns
         -------
@@ -254,6 +234,9 @@ class OpSim:  # noqa: D101
         FileNotFoundError if the file does not exist.
         ValueError if unable to load the table.
         """
+        if colmap is None:
+            colmap = cls._default_colnames
+
         if not Path(filename).is_file():
             raise FileNotFoundError(f"opsim file {filename} not found.")
         con = sqlite3.connect(f"file:{filename}?mode=ro", uri=True)
@@ -559,14 +542,7 @@ def create_random_opsim(num_obs, seed=None):
         "visitExposureTime": 29.0 * np.ones(num_obs),
     }
 
-    opsim = OpSim(
-        input_data,
-        ext_coeff=_lsstcam_extinction_coeff,
-        zp_per_sec=_lsstcam_zeropoint_per_sec_zenith,
-        pixel_scale=LSSTCAM_PIXEL_SCALE,
-        read_noise=_lsstcam_readout_noise,
-        dark_current=_lsstcam_dark_current,
-    )
+    opsim = OpSim(input_data)
     return opsim
 
 

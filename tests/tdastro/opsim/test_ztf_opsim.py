@@ -62,6 +62,34 @@ def test_ztf_opsim_init():
 
     assert opsim.has_columns(["zp_nJy", "obsmjd"])
 
+    # We have all the attributes set at their default values.
+    assert opsim.dark_current == 0.0
+    assert opsim.gain == 6.2
+    assert opsim.pixel_scale == 1.01
+    assert opsim.radius == 2.735
+    assert opsim.read_noise == 8
+
+
+def test_create_opsim_override():
+    """Test that we can override the default survey values."""
+    opsim_table = create_random_ztf_opsim(100).table
+
+    opsim = ZTFOpsim(
+        table=opsim_table,
+        dark_current=0.1,
+        gain=7.1,
+        pixel_scale=0.1,
+        radius=1.0,
+        read_noise=5.0,
+    )
+
+    # We have all the attributes set at their default values.
+    assert opsim.dark_current == 0.1
+    assert opsim.gain == 7.1
+    assert opsim.pixel_scale == 0.1
+    assert opsim.radius == 1.0
+    assert opsim.read_noise == 5.0
+
 
 def test_zp_conversion():
     """Test the zero point conversion"""

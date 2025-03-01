@@ -5,6 +5,10 @@ import numpy as np
 import pandas as pd
 import pytest
 from tdastro.astro_utils.mag_flux import mag2flux
+from tdastro.astro_utils.zeropoint import (
+    _lsstcam_extinction_coeff,
+    _lsstcam_zeropoint_per_sec_zenith,
+)
 from tdastro.opsim.opsim import (
     OpSim,
     create_random_opsim,
@@ -26,6 +30,14 @@ def test_create_opsim():
     ops_data = OpSim(pdf)
     assert len(ops_data) == 5
     assert len(ops_data.columns) == 4
+
+    # We have all the attributes set at their default values.
+    assert ops_data.dark_current == 0.2
+    assert ops_data.ext_coeff == _lsstcam_extinction_coeff
+    assert ops_data.pixel_scale == 0.2
+    assert ops_data.radius == 1.75
+    assert ops_data.read_noise == 8.8
+    assert ops_data.zp_per_sec == _lsstcam_zeropoint_per_sec_zenith
 
     # Check that we can extract the time bounds.
     t_min, t_max = ops_data.time_bounds()
@@ -56,6 +68,33 @@ def test_create_opsim():
     del values["fieldDec"]
     with pytest.raises(KeyError):
         _ = OpSim(values)
+
+
+def test_create_opsim_override():
+    """Test that we can override the default survey values."""
+    values = {
+        "observationStartMJD": np.array([0.0, 1.0, 2.0, 3.0, 4.0]),
+        "fieldRA": np.array([15.0, 30.0, 15.0, 0.0, 60.0]),
+        "fieldDec": np.array([-10.0, -5.0, 0.0, 5.0, 10.0]),
+        "zp_nJy": np.ones(5),
+    }
+    ops_data = OpSim(
+        values,
+        dark_current=0.1,
+        ext_coeff={"u": 0.1, "g": 0.2, "r": 0.3, "i": 0.4, "z": 0.5, "y": 0.6},
+        pixel_scale=0.1,
+        radius=1.0,
+        read_noise=5.0,
+        zp_per_sec={"u": 25.0, "g": 26.0, "r": 27.0, "i": 28.0, "z": 29.0, "y": 30.0},
+    )
+
+    # We have loaded the non-default values.
+    assert ops_data.dark_current == 0.1
+    assert ops_data.ext_coeff == {"u": 0.1, "g": 0.2, "r": 0.3, "i": 0.4, "z": 0.5, "y": 0.6}
+    assert ops_data.pixel_scale == 0.1
+    assert ops_data.radius == 1.0
+    assert ops_data.read_noise == 5.0
+    assert ops_data.zp_per_sec == {"u": 25.0, "g": 26.0, "r": 27.0, "i": 28.0, "z": 29.0, "y": 30.0}
 
 
 def test_create_opsim_custom_names():
