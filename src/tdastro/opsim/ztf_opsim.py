@@ -116,8 +116,15 @@ class ZTFOpsim(OpSim):
         The table with all the OpSim information.
     colmap : dict
         A mapping of short column names to their names in the underlying table.
-        Defaults to the Rubin OpSim column names, stored in _rubin_opsim_colnames:
-        {_ztf_opsim_colnames}
+        Defaults to the Rubin OpSim column names, stored in _default_colnames.
+    **kwargs : dict
+        Additional keyword arguments to pass to the OpSim constructor. This includes overrides
+        for survey parameters such as:
+        - dark_current : The dark current for the camera in electrons per second per pixel.
+        - gain: The CCD gain (in e-/ADU).
+        - pixel_scale: The pixel scale for the camera in arcseconds per pixel.
+        - radius: The angular radius of the observations (in degrees).
+        - read_noise: The standard deviation of the count of readout electrons per pixel.
 
     Attributes
     ----------

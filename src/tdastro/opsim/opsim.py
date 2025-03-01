@@ -54,11 +54,11 @@ class OpSim:
     **kwargs : dict
         Additional keyword arguments to pass to the constructor. This includes overrides
         for survey parameters such as:
-        - dark_current : The dark current for the LSST camera in electrons per second per pixel.
+        - dark_current : The dark current for the camera in electrons per second per pixel.
         - ext_coeff: Mapping of filter names to extinction coefficients.
-        - pixel_scale: The pixel scale for the LSST camera in arcseconds per pixel.
+        - pixel_scale: The pixel scale for the camera in arcseconds per pixel.
         - radius: The angular radius of the observations (in degrees).
-        - read_noise: The readout noise for the LSST camera in electrons per pixel.
+        - read_noise: The readout noise for the camera in electrons per pixel.
         - zp_per_sec: Mapping of filter names to zeropoints at zenith.
 
     Attributes
