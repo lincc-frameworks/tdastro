@@ -8,6 +8,7 @@ from os import urandom
 
 import numpy as np
 from astropy import constants
+from citation_compass import cite_function
 from scipy import integrate
 
 from tdastro.base_models import FunctionNode
@@ -198,8 +199,14 @@ class AGN(PhysicalModel):
         return edd_ratio * 1.26e38 * blackhole_mass / M_SUN_G
 
     @staticmethod
+    @cite_function
     def compute_flux_standard_disk(Mdot, nu, rin, i, d, M):
         """Compute the flux based on a standard disk model.
+
+        References
+        ----------
+        Lipunova, G., Malanchev, K., Shakura, N. (2018)
+        https://doi.org/10.1007/978-3-319-93009-1_1
 
         Parameters
         ----------
@@ -251,8 +258,13 @@ class AGN(PhysicalModel):
         )
 
     @staticmethod
+    @cite_function
     def compute_mag_i(bolometric_luminosity):
         """Compute the i band magnitude from the bolometric luminosity.
+
+        References
+        ----------
+        Shen et al., 2013 - https://adsabs.harvard.edu/full/2013BASI...41...61S
 
         Parameters
         ----------
@@ -268,9 +280,15 @@ class AGN(PhysicalModel):
         return 90 - 2.5 * np.log10(bolometric_luminosity)
 
     @staticmethod
+    @cite_function
     def compute_r_0(r_in):
         """Compute the initial radius of the ring (r_0) in a standard disk model
         given the inner radius.
+
+        References
+        ----------
+        Lipunova, G., Malanchev, K., Shakura, N. (2018)
+        https://doi.org/10.1007/978-3-319-93009-1_1
 
         Parameters
         ----------
@@ -287,8 +305,13 @@ class AGN(PhysicalModel):
         return (7 / 6) ** 2 * r_in
 
     @staticmethod
+    @cite_function
     def compute_structure_function_at_inf(wavelength, mag_i=-23, blackhole_mass=1e9 * M_SUN_G):
         """Compute the structure function at infinity time in magnitude.
+
+        References
+        ----------
+        Suberlak et al. 2021 - DOI 10.3847/1538-4357/abc698
 
         Parameters
         ----------
@@ -316,8 +339,13 @@ class AGN(PhysicalModel):
         )
 
     @staticmethod
+    @cite_function
     def compute_tau_v_drw(wavelength, mag_i=-23, blackhole_mass=1e9 * M_SUN_G):
         """Compute the timescale (tau_v) for the DRW model.
+
+        References
+        ----------
+        Suberlak et al. 2021 - DOI 10.3847/1538-4357/abc698
 
         Parameters
         ----------
@@ -345,9 +373,15 @@ class AGN(PhysicalModel):
         )
 
     @staticmethod
+    @cite_function
     def compute_temp_at_r_0(M, Mdot, r_in):
         """Compute the effective temperature at r0. This is the same as the maximum effective
         temperature at the disc surface (Tmax).
+
+        References
+        ----------
+        Lipunova, G., Malanchev, K., Shakura, N. (2018)
+        https://doi.org/10.1007/978-3-319-93009-1_1
 
         Parameters
         ----------

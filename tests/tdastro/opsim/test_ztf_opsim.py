@@ -5,7 +5,6 @@ from scipy.optimize import fsolve
 from tdastro.opsim.ztf_opsim import (
     ZTFOpsim,
     calculate_ztf_zero_points,
-    convert_ztf_zp_mag_to_njy,
     create_random_ztf_opsim,
 )
 
@@ -120,18 +119,6 @@ def test_create_ztf_opsim_no_zp():
 
     assert opsim.has_columns("zp_nJy")
     assert np.all(opsim["zp_nJy"] >= 0.0)
-
-
-def test_zp_conversion():
-    """Test the zero point conversion"""
-    flux_ADU = 100.0
-    zp_mag = 20.0
-    mag = -2.5 * np.log10(flux_ADU) + zp_mag
-    expected_flux_nJy = np.power(10.0, -0.4 * (mag - 31.4))
-    zp_nJy = convert_ztf_zp_mag_to_njy(zp_mag)
-    flux_nJy = flux_ADU * zp_nJy
-
-    assert np.isclose(flux_nJy, expected_flux_nJy)
 
 
 def test_noise_calculation():

@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
+from citation_compass import find_in_citations
 from pzflow import Flow
 from pzflow.bijectors import Reverse
 from tdastro.astro_utils.pzflow_node import PZFlowNode
@@ -90,3 +91,11 @@ def test_pzflow_node_from_file(test_flow_filename):
     assert len(state["loaded_node"]) == 2
     assert len(state["loaded_node"]["redshift"]) == 100
     assert len(state["loaded_node"]["brightness"]) == 100
+
+
+def test_pzflow_node_citation(test_flow_filename):
+    """Test that we can recover the citations for pzflow."""
+    _ = PZFlowNode.from_file(test_flow_filename, node_label="loaded_node")
+    citations = find_in_citations("PZFlowNode")
+    for citation in citations:
+        assert "Crenshaw et. al. 2024" in citation

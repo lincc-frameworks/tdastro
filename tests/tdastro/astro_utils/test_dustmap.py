@@ -1,4 +1,5 @@
 import numpy as np
+from citation_compass import find_in_citations
 from tdastro.astro_utils.dustmap import ConstantHemisphereDustMap, DustmapWrapper
 from tdastro.math_nodes.given_sampler import GivenValueList
 
@@ -53,3 +54,14 @@ def test_dust_map_wrapper():
     samples = dust_node2.sample_parameters(num_samples=len(dec_vals))
     assert np.all(samples["dust"]["ebv"][dec_vals >= 0] == 0.9)
     assert np.all(samples["dust"]["ebv"][dec_vals < 0] == 0.2)
+
+
+def test_dustmap_citation():
+    """Test the citations for the DustMapWrapper model."""
+    fake_dust_map = ConstantHemisphereDustMap(north_ebv=0.8, south_ebv=0.1)
+    _ = DustmapWrapper(dust_map=fake_dust_map, ra=0.0, dec=0.0)
+
+    citations = find_in_citations("DustmapWrapper")
+    for citation in citations:
+        assert "Green 2018, JOSS, 3(26), 695" in citation
+        assert "https://github.com/gregreen/dustmaps" in citation
