@@ -266,7 +266,7 @@ class ZTFOpsim(OpSim):
             total_exposure_time=observations["exptime"],
             exposure_count=1,
             footprint=footprint,
-            sky=observations["scibckgnd"] * self.gain,  # e-/pixel
+            sky=observations["scibckgnd"] * self.gain,  # e-/pixel^2
             zp=observations["zp_nJy"],  # nJy
             readout_noise=self.read_noise,  # e-/pixel
             dark_current=self.dark_current,  # e-/second/pixel
