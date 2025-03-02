@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from astropy.time import Time
 
-from tdastro.astro_utils import mag2flux
+from tdastro.astro_utils.mag_flux import mag2flux
 from tdastro.astro_utils.noise_model import poisson_bandflux_std
 from tdastro.consts import GAUSS_EFF_AREA2FWHM_SQ
 from tdastro.opsim.opsim import OpSim
