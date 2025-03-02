@@ -20,6 +20,8 @@ dependencies = [
     "astropy",
     "citation-compass>=0.0.3",
     "dust_extinction",
+    "healpy",
+    "healsparse",
     "jax",
     "matplotlib",
     "nested-pandas",

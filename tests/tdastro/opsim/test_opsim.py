@@ -1,9 +1,11 @@
 import tempfile
 from pathlib import Path
 
+import healpy as hp
 import numpy as np
 import pandas as pd
 import pytest
+from astropy.coordinates import angular_separation
 from tdastro.astro_utils.mag_flux import mag2flux
 from tdastro.opsim.opsim import (
     OpSim,
@@ -334,6 +336,36 @@ def test_opsim_flux_err_point_source(opsim_shorten):
 
     # Tolerance is very high, we should investigate why the values are so different.
     np.testing.assert_allclose(flux_err, expected_flux_err, rtol=0.2)
+
+
+def test_opsim_make_coverage_map():
+    """Create a sky coverage map from an OpSim file."""
+    values = {
+        "observationStartMJD": np.array([0.0, 1.0]),
+        "fieldRA": np.array([15.0, 30.0]),
+        "fieldDec": np.array([-10.0, 15.0]),
+        "zp_nJy": np.ones(2),
+    }
+    opsim = OpSim(values, radius=1.0)
+
+    nside = 2**15
+    ra_1 = np.radians(15.0)
+    dec_1 = np.radians(-10.0)
+    ra_2 = np.radians(30.0)
+    dec_2 = np.radians(15.0)
+    radius = np.radians(1.0)
+
+    cov_map = opsim.make_coverage_map(nside)
+    for ra in np.linspace(0.0, 45.0, 100):
+        for dec in np.linspace(-30.0, 30.0, 100):
+            ra_q = np.radians(ra)
+            dec_q = np.radians(dec)
+
+            dist1 = angular_separation(ra_q, dec_q, ra_1, dec_1)
+            dist2 = angular_separation(ra_q, dec_q, ra_2, dec_2)
+            is_covered = cov_map[hp.ang2pix(nside, ra, dec, nest=True, lonlat=True)]
+
+            assert is_covered == (dist1 <= radius or dist2 <= radius)
 
 
 def test_create_random_opsim():

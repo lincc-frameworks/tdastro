@@ -3,8 +3,10 @@ from __future__ import annotations  # "type1 | type2" syntax in Python <3.10
 import sqlite3
 from pathlib import Path
 
+import healsparse as hsp
 import numpy as np
 import pandas as pd
+from citation_compass import cite_function
 from scipy.spatial import KDTree
 
 from tdastro.astro_utils.mag_flux import mag2flux
@@ -476,6 +478,41 @@ class OpSim:  # noqa: D101
                 raise KeyError(f"Unrecognized column name {table_col}")
             results[col] = self.table[table_col][neighbors].to_numpy()
         return results
+
+    @cite_function
+    def make_coverage_map(self, nside=2**15, radius=None):
+        """Create a HEALSparse coverage map from the OpSim table.
+
+        Citation
+        --------
+        HealSparse by Eli Rykoff and Javier Sanchez
+        https://github.com/LSSTDESC/healsparse
+
+        Parameters
+        ----------
+        nside : int
+            The nside of the HEALPix grid.
+            Default: 2**15
+        radius : float or None, optional
+            The angular radius of the observation (in degrees). If None
+            uses the default radius for the OpSim.
+
+        Returns
+        -------
+        cov_map : healsparse.HealSparseMap
+            The coverage map.
+        """
+        radius = self.radius if radius is None else radius
+
+        cov_map = hsp.HealSparseMap.make_empty(
+            128,  # nside_coverage
+            nside,  # nside_sparse
+            bool,  # dtype
+            bit_packed=True,
+        )
+        for ra, dec in zip(self.table[self.colmap["ra"]], self.table[self.colmap["dec"]]):
+            cov_map |= hsp.Circle(ra=ra, dec=dec, radius=radius, value=1)
+        return cov_map
 
     def bandflux_error_point_source(self, bandflux, index):
         """Compute observational bandflux error for a point source
