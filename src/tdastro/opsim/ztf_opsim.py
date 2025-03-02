@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from astropy.time import Time
 
+from tdastro.astro_utils import mag2flux
 from tdastro.astro_utils.noise_model import poisson_bandflux_std
 from tdastro.consts import GAUSS_EFF_AREA2FWHM_SQ
 from tdastro.opsim.opsim import OpSim
@@ -101,25 +102,6 @@ def calculate_ztf_zero_points(
     return zp
 
 
-def convert_ztf_zp_mag_to_njy(zp_mag):
-    """Convert the zero point in magnitude to zero point in nJy
-
-    Parameters
-    ----------
-    zp_mag: float or ndarray
-        Zero point that converts ADU (or electrons) to magnitude.
-
-    Returns
-    -------
-    zp_nJy: float or ndarry
-        Zero point that converts ADU (or electrons) to nJy.
-    """
-
-    zp_nJy = np.power(10.0, -0.4 * (zp_mag - 31.4))
-
-    return zp_nJy
-
-
 class ZTFOpsim(OpSim):
     """A subclass for ZTF exposure table.
 
@@ -196,7 +178,7 @@ class ZTFOpsim(OpSim):
             fwhm=self.table[self.colmap.get("fwhm", "fwhm")],
             exptime=self.table[self.colmap.get("exptime", "exptime")],
         )
-        zp_nJy = convert_ztf_zp_mag_to_njy(zp_values)
+        zp_nJy = mag2flux(zp_values)
         self.add_column(self.colmap.get("zp", "zp_nJy"), zp_nJy, overwrite=True)
 
     @classmethod
