@@ -2,6 +2,7 @@
 
 import healsparse as hsp
 import numpy as np
+from citation_compass import CiteClass
 
 from tdastro.math_nodes.given_sampler import TableSampler
 from tdastro.math_nodes.np_random import NumpyRandomFunc
@@ -237,7 +238,7 @@ class OpSimUniformRADECSampler(NumpyRandomFunc):
         return (ra, dec)
 
 
-class CoverageMapRADECSampler(NumpyRandomFunc):
+class CoverageMapRADECSampler(NumpyRandomFunc, CiteClass):
     """A FunctionNode that samples RA and dec uniformly from the area covered
     by a survey as provided by either a opsim of a healsparse coverage map.
 
@@ -247,6 +248,10 @@ class CoverageMapRADECSampler(NumpyRandomFunc):
     at a given depth. A few points may be generated that fall outside the actual
     coverage of the survey. A higher healpix nside can be used to reduce this
     effect at the cost of more computation.
+
+    Citation
+    --------
+    HealSparse by Eli Rykoff and Javier Sanchez - https://github.com/LSSTDESC/healsparse
 
     Attributes
     ----------
