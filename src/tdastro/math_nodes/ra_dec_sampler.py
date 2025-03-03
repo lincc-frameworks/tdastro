@@ -240,7 +240,7 @@ class OpSimUniformRADECSampler(NumpyRandomFunc):
 
 class CoverageMapRADECSampler(NumpyRandomFunc, CiteClass):
     """A FunctionNode that samples RA and dec uniformly from the area covered
-    by a survey as provided by either a opsim of a healsparse coverage map.
+    by a survey as provided by either an opsim or a healsparse coverage map.
 
     Note
     ----
