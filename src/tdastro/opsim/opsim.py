@@ -480,7 +480,7 @@ class OpSim:  # noqa: D101
         return results
 
     @cite_function
-    def make_coverage_map(self, nside=2**15, radius=None):
+    def make_coverage_map(self, nside=2**12, radius=None):
         """Create a HEALSparse coverage map from the OpSim table.
 
         Citation
@@ -503,15 +503,21 @@ class OpSim:  # noqa: D101
             The coverage map.
         """
         radius = self.radius if radius is None else radius
+        nside_coverage = 64
 
-        cov_map = hsp.HealSparseMap.make_empty(
-            128,  # nside_coverage
-            nside,  # nside_sparse
-            bool,  # dtype
-            bit_packed=True,
-        )
+        view_maps = []
         for ra, dec in zip(self.table[self.colmap["ra"]], self.table[self.colmap["dec"]]):
-            cov_map |= hsp.Circle(ra=ra, dec=dec, radius=radius, value=1)
+            circ = hsp.Circle(ra=ra, dec=dec, radius=radius, value=True)
+
+            # Generating a map to union is more expensive than `cov_map |= circ`
+            # but this later approach is failing in some cases. TODO: Investigate.
+            current_view = circ.get_map(
+                nside_coverage=nside_coverage,  # nside_coverage
+                nside_sparse=nside,  # nside_sparse
+                dtype=bool,  # dtype
+            )
+            view_maps.append(current_view)
+        cov_map = hsp.or_union(view_maps)
         return cov_map
 
     def bandflux_error_point_source(self, bandflux, index):
