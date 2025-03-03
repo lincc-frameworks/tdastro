@@ -251,7 +251,9 @@ class CoverageMapRADECSampler(NumpyRandomFunc, CiteClass):
 
     Citation
     --------
-    HealSparse by Eli Rykoff and Javier Sanchez - https://github.com/LSSTDESC/healsparse
+        HealSparse by Eli Rykoff and Javier Sanchez
+        https://healsparse.readthedocs.io/en/stable/
+        https://github.com/LSSTDESC/healsparse
 
     Attributes
     ----------
