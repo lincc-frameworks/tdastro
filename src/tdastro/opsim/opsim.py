@@ -71,11 +71,11 @@ class OpSim:
         A kd_tree of the OpSim pointings for fast spatial queries. We use the scipy
         kd-tree instead of astropy's functions so we can directly control caching.
     pixel_scale : float
-        The pixel scale for the LSST camera in arcseconds per pixel.
+        The pixel scale for the camera in arcseconds per pixel.
     read_noise : float
-        The readout noise for the LSST camera in electrons per pixel.
+        The readout noise for the camera in electrons per pixel.
     dark_current : float
-        The dark current for the LSST camera in electrons per second per pixel.
+        The dark current for the camera in electrons per second per pixel.
     ext_coeff : dict or None, optional
         Mapping of filter names to extinction coefficients. Defaults to
         the Rubin OpSim values.
