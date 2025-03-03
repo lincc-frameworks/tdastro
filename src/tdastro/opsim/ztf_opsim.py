@@ -10,19 +10,6 @@ from tdastro.astro_utils.noise_model import poisson_bandflux_std
 from tdastro.consts import GAUSS_EFF_AREA2FWHM_SQ
 from tdastro.opsim.opsim import OpSim
 
-_ztf_opsim_colnames = {
-    "maglim": "maglim",
-    "sky": "scibckgnd",
-    "fwhm": "fwhm",
-    "dec": "dec",
-    "exptime": "exptime",
-    "filter": "filter",
-    "ra": "ra",
-    "time": "obsmjd",
-    "zp": "zp_nJy",  # We add this column to the table
-}
-"""Default mapping of short column names to Rubin OpSim column names."""
-
 ZTFCAM_PIXEL_SCALE = 1.01
 """The pixel scale for the ZTF camera in arcseconds per pixel."""
 
@@ -111,8 +98,15 @@ class ZTFOpsim(OpSim):
         The table with all the OpSim information.
     colmap : dict
         A mapping of short column names to their names in the underlying table.
-        Defaults to the Rubin OpSim column names, stored in _rubin_opsim_colnames:
-        {_ztf_opsim_colnames}
+        Defaults to the Rubin OpSim column names, stored in _default_colnames.
+    **kwargs : dict
+        Additional keyword arguments to pass to the OpSim constructor. This includes overrides
+        for survey parameters such as:
+        - dark_current : The dark current for the camera in electrons per second per pixel.
+        - gain: The CCD gain (in e-/ADU).
+        - pixel_scale: The pixel scale for the camera in arcseconds per pixel.
+        - radius: The angular radius of the observations (in degrees).
+        - read_noise: The standard deviation of the count of readout electrons per pixel.
 
     Attributes
     ----------
@@ -133,36 +127,35 @@ class ZTFOpsim(OpSim):
         The angular radius of the observations (in degrees).
     """
 
-    def __init__(self, table, colmap=_ztf_opsim_colnames):
-        if isinstance(table, dict):
-            self.table = pd.DataFrame(table)
-        else:
-            self.table = table
+    # Default column names for the ZTF survey data.
+    _default_colnames = {
+        "maglim": "maglim",
+        "sky": "scibckgnd",
+        "fwhm": "fwhm",
+        "dec": "dec",
+        "exptime": "exptime",
+        "filter": "filter",
+        "ra": "ra",
+        "time": "obsmjd",
+        "zp": "zp_nJy",  # We add this column to the table
+    }
+
+    # Default survey values.
+    _default_survey_values = {
+        "dark_current": _ztfcam_dark_current,
+        "gain": _ztfcam_ccd_gain,
+        "pixel_scale": ZTFCAM_PIXEL_SCALE,
+        "radius": _ztfcam_view_radius,
+        "read_noise": _ztfcam_readout_noise,
+    }
+
+    def __init__(self, table, **kwargs):
+        super().__init__(table, colmap=self._default_colnames, **kwargs)
 
         # replace invalid values in table
         self.table = self.table.replace("", np.nan)
         self.table = self.table.dropna(subset=["fwhm"])
 
-        self.colmap = colmap
-        self.radius = _ztfcam_view_radius
-        self.pixel_scale = ZTFCAM_PIXEL_SCALE
-        self.dark_current = _ztfcam_dark_current
-        self.read_noise = _ztfcam_readout_noise
-        self.gain = _ztfcam_ccd_gain
-
-        # Build the kd-tree.
-        self._kd_tree = None
-        self._build_kd_tree()
-
-        # If we are not given zero point data, try to derive it from the other columns.
-        if not self.has_columns("zp"):
-            if self.has_columns(["maglim", "sky", "fwhm", "exptime"]):
-                self._assign_zero_points()
-            else:
-                raise ValueError(
-                    "OpSim must include either a zero point column or the columns "
-                    "needed to derive it (maglim, sky, fwhm and exptime)."
-                )
         # Convert obsdate to mjd and add column
         obsdate = self.table[self.colmap.get("obsdate", "obsdate")].tolist()
         t = Time(obsdate, format="iso", scale="utc")
@@ -171,6 +164,11 @@ class ZTFOpsim(OpSim):
 
     def _assign_zero_points(self):
         """Assign instrumental zero points in ADU to the OpSim tables."""
+        if not self.has_columns(["maglim", "sky", "fwhm", "exptime"]):
+            raise ValueError(
+                "OpSim does not include the columns needed to derive zero point "
+                "information. Required columns: maglim, sky, fwhm and exptime."
+            )
 
         zp_values = calculate_ztf_zero_points(
             maglim=self.table[self.colmap.get("maglim", "maglim")],
@@ -182,7 +180,7 @@ class ZTFOpsim(OpSim):
         self.add_column(self.colmap.get("zp", "zp_nJy"), zp_nJy, overwrite=True)
 
     @classmethod
-    def from_db(cls, filename, sql_query="SELECT * from exposures", colmap=_ztf_opsim_colnames):
+    def from_db(cls, filename, sql_query="SELECT * from exposures", colmap=None):
         """Create an OpSim object from the data in an opsim db file.
 
         Parameters
@@ -192,9 +190,9 @@ class ZTFOpsim(OpSim):
         sql_query : str
             The SQL query to use when loading the table.
             Default = "SELECT * FROM observations"
-        colmap : dict
+        colmap : dict, optional
             A mapping of short column names to their names in the underlying table.
-            Defaults to the Rubin opsim column names.
+            If None then defaults to the ZTF column names.
 
         Returns
         -------
@@ -206,6 +204,8 @@ class ZTFOpsim(OpSim):
         FileNotFoundError if the file does not exist.
         ValueError if unable to load the table.
         """
+        if colmap is None:
+            colmap = cls._default_colnames
 
         if not Path(filename).is_file():
             raise FileNotFoundError(f"opsim file {filename} not found.")
@@ -300,6 +300,6 @@ def create_random_ztf_opsim(num_obs, seed=None):
         "exptime": 30.0 * np.ones(num_obs),
     }
 
-    opsim = ZTFOpsim(input_data, colmap=_ztf_opsim_colnames)
+    opsim = ZTFOpsim(input_data)
 
     return opsim
