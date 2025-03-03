@@ -53,6 +53,8 @@ class DropEffect(EffectModel):
         if rng_info is None:
             rng_info = np.random.default_rng()
 
-        # Generate a random number for each observation
-        samples = rng_info.uniform(size=flux_density.shape)
-        return np.where(samples < self.drop_probability, 0.0, flux_density)
+        # Generate a random number for each observed time and drop the observation (all)
+        # wavelengths for that time) if the random number is less than the drop probability.
+        drop_mask1d = rng_info.uniform(size=flux_density.shape[0]) < self.drop_probability
+        drop_mask2d = np.repeat(drop_mask1d[:, np.newaxis], flux_density.shape[1], axis=1)
+        return np.where(drop_mask2d, 0.0, flux_density)

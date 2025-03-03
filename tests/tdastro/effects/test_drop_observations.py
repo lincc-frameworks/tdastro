@@ -5,8 +5,8 @@ from tdastro.effects.drop_observations import DropEffect
 
 def test_drop_effect() -> None:
     """Test that we can create and sample a DropEffect object."""
-    num_times = 500
-    num_wavelengths = 400
+    num_times = 1000
+    num_wavelengths = 500
     times = np.linspace(0, 100, num_times)
     wavelengths = np.linspace(1000, 200, num_wavelengths)
     fluxes = np.full((num_times, num_wavelengths), 100.0)
@@ -19,6 +19,12 @@ def test_drop_effect() -> None:
     assert np.sum(values == 0.0) < 0.15 * num_times * num_wavelengths
     assert len(np.unique(values)) == 2
 
+    # Check that we either dropped or preserved values for all wavelengths at each time.
+    unique_values = np.unique(values, axis=1)
+    for time in range(num_times):
+        assert len(unique_values[time]) == 1
+
+    # Check that we fail with invalid probabilities.
     with pytest.raises(ValueError):
         DropEffect(drop_probability=-0.1)
     with pytest.raises(ValueError):
