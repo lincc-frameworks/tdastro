@@ -8,6 +8,7 @@ https://github.com/gregreen/dustmaps
 import numpy as np
 from astropy.coordinates import SkyCoord
 from citation_compass import CiteClass
+from sfdmap2 import sfdmap
 
 from tdastro.base_models import FunctionNode
 
@@ -132,6 +133,53 @@ class ConstantHemisphereDustMap(DustEBV):
         ----
         This shouldn't be used in production code. Use the compute_ebv()
         function directly.
+
+        Parameters
+        ----------
+        coords : SkyCoord
+            The object's coordinates.
+
+        Returns
+        -------
+        ebv : float or np.array
+            The E(B-V) value or array of values.
+        """
+        return self.compute_ebv(coords.ra.deg, coords.dec.deg)
+
+
+class SFDMap(DustEBV):
+    """
+    A dustmap using the sfdmap2 package (https://github.com/AmpelAstro/sfdmap2)
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(self.compute_ebv, **kwargs)
+
+    def compute_ebv(self, ra, dec):
+        """Compute the E(B-V) value for a given location.
+
+        Parameters
+        ----------
+        ra : float or np.array
+            The object's right ascension (in degrees).
+        dec : float or np.array
+            The object's declination (in degrees).
+
+        Returns
+        -------
+        ebv : float or np.array
+            The E(B-V) value or array of values.
+        """
+
+        dustmap = sfdmap.SFDMap()
+        ebv = dustmap.ebv(ra, dec)
+        return ebv
+
+    def query(self, coords):
+        """A query function to match the DustMap interface so that
+        we can pass SFDMap into DustmapWrapper.
+        Note
+        ----
 
         Parameters
         ----------
