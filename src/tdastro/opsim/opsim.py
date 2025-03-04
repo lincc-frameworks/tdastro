@@ -8,8 +8,10 @@ from __future__ import annotations  # "type1 | type2" syntax in Python <3.10
 import sqlite3
 from pathlib import Path
 
+import healsparse as hsp
 import numpy as np
 import pandas as pd
+from citation_compass import cite_function
 from scipy.spatial import KDTree
 
 from tdastro.astro_utils.mag_flux import mag2flux
@@ -458,6 +460,48 @@ class OpSim:
                 raise KeyError(f"Unrecognized column name {table_col}")
             results[col] = self.table[table_col][neighbors].to_numpy()
         return results
+
+    @cite_function
+    def make_coverage_map(self, nside=2**12, radius=None):
+        """Create a HEALSparse coverage map from the OpSim table.
+
+        Citation
+        --------
+        HealSparse by Eli Rykoff and Javier Sanchez
+        https://healsparse.readthedocs.io/en/stable/
+        https://github.com/LSSTDESC/healsparse
+
+        Parameters
+        ----------
+        nside : int
+            The nside of the HEALPix grid.
+            Default: 2**15
+        radius : float or None, optional
+            The angular radius of the observation (in degrees). If None
+            uses the default radius for the OpSim.
+
+        Returns
+        -------
+        cov_map : healsparse.HealSparseMap
+            The coverage map.
+        """
+        radius = self.radius if radius is None else radius
+        nside_coverage = 64
+
+        view_maps = []
+        for ra, dec in zip(self.table[self.colmap["ra"]], self.table[self.colmap["dec"]]):
+            circ = hsp.Circle(ra=ra, dec=dec, radius=radius, value=True)
+
+            # Generating a map to union is more expensive than `cov_map |= circ`
+            # but this later approach is failing in some cases. TODO: Investigate.
+            current_view = circ.get_map(
+                nside_coverage=nside_coverage,  # nside_coverage
+                nside_sparse=nside,  # nside_sparse
+                dtype=bool,  # dtype
+            )
+            view_maps.append(current_view)
+        cov_map = hsp.or_union(view_maps)
+        return cov_map
 
     def bandflux_error_point_source(self, bandflux, index):
         """Compute observational bandflux error for a point source

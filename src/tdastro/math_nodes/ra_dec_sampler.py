@@ -1,9 +1,12 @@
 """Samplers used for generating (RA, dec) coordinates."""
 
+import healsparse as hsp
 import numpy as np
+from citation_compass import CiteClass
 
 from tdastro.math_nodes.given_sampler import TableSampler
 from tdastro.math_nodes.np_random import NumpyRandomFunc
+from tdastro.opsim.opsim import OpSim
 
 
 class UniformRADEC(NumpyRandomFunc):
@@ -146,16 +149,12 @@ class OpSimUniformRADECSampler(NumpyRandomFunc):
     """A FunctionNode that samples RA and dec uniformly from the area covered
     by an OpSim.  RA and dec are returned in degrees.
 
-    TODO: Implement a more efficient sampling method that precompiles the
-    opsim coverage and samples from that.
-
     Note
     ----
-    * This is a place holder class until we can implement a more efficient
-      sampling method (with precomputation of the opsim coverage).
-    * This uses rejection sampling and can be quite slow for small coverage.
-    * The sample will terminate after a maximum number of iterations to
-      prevent infinite loops. Some out of coverage samples may be returned.
+    This uses rejection sampling and can be quite slow for small coverage. For
+    moderate to large number of samples, most users will want to use the
+    CoverageMapRADECSampler node instead. That node precomputes a coverage map
+    and samples uniformly from it.
 
     Attributes
     ----------
@@ -226,6 +225,99 @@ class OpSimUniformRADECSampler(NumpyRandomFunc):
             mask = np.asarray(self.data.is_observed(ra, dec, self.radius))
             num_missing = np.sum(~mask)
             iter_num += 1
+
+        # If we are generating a single sample, return floats.
+        if graph_state.num_samples == 1:
+            ra = ra[0]
+            dec = dec[0]
+
+        # Set the outputs and return the results. This takes the place of
+        # function node's _save_results() function because we know the outputs.
+        graph_state.set(self.node_string, "ra", ra)
+        graph_state.set(self.node_string, "dec", dec)
+        return (ra, dec)
+
+
+class CoverageMapRADECSampler(NumpyRandomFunc, CiteClass):
+    """A FunctionNode that samples RA and dec uniformly from the area covered
+    by a survey as provided by either an opsim or a healsparse coverage map.
+
+    Note
+    ----
+    This is approximate since the coverage map is only generated from healpixels
+    at a given depth. A few points may be generated that fall outside the actual
+    coverage of the survey. A higher healpix nside can be used to reduce this
+    effect at the cost of more computation.
+
+    Citation
+    --------
+        HealSparse by Eli Rykoff and Javier Sanchez
+        https://healsparse.readthedocs.io/en/stable/
+        https://github.com/LSSTDESC/healsparse
+
+    Attributes
+    ----------
+    cov_map : healsparse.HealSparseMap
+        The coverage map used for sampling.
+    radius : float, optional
+        The radius of the observations in degrees.
+
+    Parameters
+    ----------
+    data : OpSim or healsparse.HealSparseMap
+        The OpSim object or coverage map to use for sampling.
+    radius : float, optional
+        The radius of the observations in degrees. If not provided and an OpSim
+        is provided, use the default radius of the OpSim.
+        Default: None
+    """
+
+    def __init__(self, data, radius=1.0, outputs=None, seed=None, **kwargs):
+        if isinstance(data, OpSim):
+            if len(data) == 0:
+                raise ValueError("OpSim data cannot be empty.")
+            if radius is None:
+                radius = data.radius
+            self.cov_map = data.make_coverage_map(radius=radius)
+        elif isinstance(data, hsp.HealSparseMap):
+            self.cov_map = data
+        else:
+            raise ValueError("Invalid data type: {type(data)}")
+
+        if radius is None or radius <= 0.0:
+            raise ValueError("Invalid radius: {radius}")
+        self.radius = radius
+
+        # Override key arguments. We create a uniform sampler function, but
+        # won't need it because the subclass overloads compute().
+        func_name = "uniform"
+        outputs = ["ra", "dec"]
+        super().__init__(func_name, outputs=outputs, seed=seed, **kwargs)
+
+    def compute(self, graph_state, rng_info=None, **kwargs):
+        """Return the given values.
+
+        Parameters
+        ----------
+        graph_state : GraphState
+            An object mapping graph parameters to their values. This object is modified
+            in place as it is sampled.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
+        **kwargs : dict, optional
+            Additional function arguments.
+
+        Returns
+        -------
+        (ra, dec) : tuple of floats or np.ndarray
+            If a single sample is generated, returns a tuple of floats. Otherwise,
+            returns a tuple of np.ndarrays.
+        """
+        rng = rng_info if rng_info is not None else self._rng
+
+        # Generate the random (RA, dec) lists.
+        ra, dec = hsp.make_uniform_randoms(self.cov_map, graph_state.num_samples, rng=rng)
 
         # If we are generating a single sample, return floats.
         if graph_state.num_samples == 1:
