@@ -18,9 +18,9 @@ dynamic = ["version"]
 requires-python = ">=3.9"
 dependencies = [
     "astropy",
+    "cdshealpix",
     "citation-compass>=0.0.3",
     "dust_extinction",
-    "healpy",
     "healsparse",
     "jax",
     "matplotlib",

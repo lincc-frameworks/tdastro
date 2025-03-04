@@ -1,11 +1,11 @@
 import tempfile
 from pathlib import Path
 
-import healpy as hp
+import cdshealpix as cdshp
 import numpy as np
 import pandas as pd
 import pytest
-from astropy.coordinates import angular_separation
+from astropy.coordinates import SkyCoord, angular_separation
 from tdastro.astro_utils.mag_flux import mag2flux
 from tdastro.astro_utils.zeropoint import (
     _lsstcam_extinction_coeff,
@@ -408,7 +408,8 @@ def test_opsim_make_coverage_map():
     }
     opsim = OpSim(values, radius=1.0)
 
-    nside = 2**15
+    depth = 15
+    nside = 2**depth
     ra_1 = np.radians(15.0)
     dec_1 = np.radians(-10.0)
     ra_2 = np.radians(30.0)
@@ -423,9 +424,12 @@ def test_opsim_make_coverage_map():
 
             dist1 = angular_separation(ra_q, dec_q, ra_1, dec_1)
             dist2 = angular_separation(ra_q, dec_q, ra_2, dec_2)
-            is_covered = cov_map[hp.ang2pix(nside, ra, dec, nest=True, lonlat=True)]
 
-            assert is_covered == (dist1 <= radius or dist2 <= radius)
+            coord = SkyCoord(ra=ra, dec=dec, unit="deg")
+            healpix = cdshp.nested.skycoord_to_healpix(coord, np.array([depth]))
+            hp_index = int(healpix[0])
+
+            assert cov_map[hp_index] == (dist1 <= radius or dist2 <= radius)
 
 
 def test_create_random_opsim():
