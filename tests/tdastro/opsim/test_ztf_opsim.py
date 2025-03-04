@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pytest
 from scipy.optimize import fsolve
 from tdastro.opsim.ztf_opsim import (
     ZTFOpsim,
@@ -60,6 +61,64 @@ def test_ztf_opsim_init():
     opsim = ZTFOpsim(table=opsim_table)
 
     assert opsim.has_columns(["zp_nJy", "obsmjd"])
+
+    # We have all the attributes set at their default values.
+    assert opsim.dark_current == 0.0
+    assert opsim.gain == 6.2
+    assert opsim.pixel_scale == 1.01
+    assert opsim.radius == 2.735
+    assert opsim.read_noise == 8
+
+
+def test_create_ztf_opsim_override():
+    """Test that we can override the default survey values."""
+    opsim_table = create_random_ztf_opsim(100).table
+
+    opsim = ZTFOpsim(
+        table=opsim_table,
+        dark_current=0.1,
+        gain=7.1,
+        pixel_scale=0.1,
+        radius=1.0,
+        read_noise=5.0,
+    )
+
+    # We have all the attributes set at their default values.
+    assert opsim.dark_current == 0.1
+    assert opsim.gain == 7.1
+    assert opsim.pixel_scale == 0.1
+    assert opsim.radius == 1.0
+    assert opsim.read_noise == 5.0
+
+
+def test_create_ztf_opsim_no_zp():
+    """Create an opsim without a zeropoint column."""
+    dates = [
+        "2020-01-01 12:00:00.000",
+        "2020-01-02 12:00:00.000",
+        "2020-01-03 12:00:00.000",
+        "2020-01-04 12:00:00.000",
+        "2020-01-05 12:00:00.000",
+    ]
+    values = {
+        "obsdate": dates,
+        "ra": np.array([15.0, 30.0, 15.0, 0.0, 60.0]),
+        "dec": np.array([-10.0, -5.0, 0.0, 5.0, 10.0]),
+    }
+
+    # We fail if we do not have the other columns needed:
+    # "maglim", "sky", "fwhm", "exptime"
+    with pytest.raises(ValueError):
+        _ = ZTFOpsim(values)
+
+    values["exptime"] = 0.005 * np.ones(5)
+    values["maglim"] = 20.0 * np.ones(5)
+    values["scibckgnd"] = np.ones(5)
+    values["fwhm"] = 2.3 * np.ones(5)
+    opsim = ZTFOpsim(values)
+
+    assert opsim.has_columns("zp_nJy")
+    assert np.all(opsim["zp_nJy"] >= 0.0)
 
 
 def test_noise_calculation():
