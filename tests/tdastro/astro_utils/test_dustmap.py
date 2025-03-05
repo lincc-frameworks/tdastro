@@ -66,6 +66,9 @@ def test_sfdmap():
     assert dust.compute_ebv(125.0, 60.0) == pytest.approx(0.0, abs=0.001)
     assert dust.compute_ebv(-45.0, -30.0) == pytest.approx(86.0, abs=0.001)
 
+    ebvs = dust.compute_ebv(np.array([125.0, -45.0, -10.0]), np.array([60.0, -30.0, 70.0]))
+    assert np.allclose(ebvs, [0.0, 86.0, 0.0], atol=0.001)
+
 
 def test_dustmap_citation():
     """Test the citations for the DustMapWrapper model."""

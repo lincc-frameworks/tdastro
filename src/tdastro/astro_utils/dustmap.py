@@ -5,7 +5,11 @@ was primarily designed to work with the dustmaps package:
 https://github.com/gregreen/dustmaps
 """
 
+import logging
+from pathlib import Path
+
 import numpy as np
+import pooch
 from astropy.coordinates import SkyCoord
 from citation_compass import CiteClass
 from sfdmap2 import sfdmap
@@ -180,9 +184,62 @@ class SFDMap(DustEBV):
 
     def __init__(self, data_dir=None, **kwargs):
         super().__init__(self.compute_ebv, **kwargs)
+        self.dustmap = self._load_data(data_dir)
 
-        self.data_dir = self._default_map_dir if data_dir is None else data_dir
-        self.dustmap = sfdmap.SFDMap(self.data_dir)
+    def _data_files_exist(self, data_dir):
+        """Check that the necessary data files exist in the given directory."""
+        if not data_dir.exists() or not data_dir.is_dir():
+            return False
+        elif (data_dir / "SFD_dust_4096_ngp.fits").exists() is False:
+            return False
+        elif (data_dir / "SFD_dust_4096_sgp.fits").exists() is False:
+            return False
+        return True
+
+    def _load_data(self, data_dir=None):
+        """Load the dust map data files.
+
+        Parameters
+        ----------
+        data_dir : `str`, optional
+            The directory containing the dust map data files.
+            If None, the default directory will be used.
+
+        Returns
+        -------
+        dustmap : sfdmap.SFDMap
+            The dust map object.
+        """
+        logger = logging.getLogger(__name__)
+
+        data_dir = Path(data_dir) if data_dir is not None else self._default_map_dir
+        logger.debug(f"Loading SFD dust map data from {data_dir}")
+
+        if not self._data_files_exist(data_dir):
+            data_url = ("https://github.com/kbarbary/sfddata/archive/master.tar.gz",)
+            logger.info(
+                "SFD dust map data files not found.\n"
+                f"Attempting to download from: {data_url}\n"
+                f"to the directory {data_dir}"
+            )
+
+            # Create the data directory if it doesn't exist.
+            if not data_dir.exists():
+                data_dir.mkdir(parents=True)
+
+            # Use pooch to download the data files and extract them to the data directory.
+            pooch.retrieve(
+                url="https://github.com/kbarbary/sfddata/archive/master.tar.gz",
+                known_hash="95e8645dcdcbd4ad48398d44307741f550bdde95e8f438b2a3be0021723a4d7e",
+                processor=pooch.Untar(extract_dir=data_dir),
+            )
+            data_dir = data_dir / "sfddata-master"
+
+        # Check that the files were downloaded and extracted.
+        if not self._data_files_exist(data_dir):
+            raise ValueError(f"The SFD dust map data files are missing from {data_dir}.")
+
+        return sfdmap.SFDMap(data_dir)
 
     def compute_ebv(self, ra, dec):
         """Compute the E(B-V) value for a given location.
