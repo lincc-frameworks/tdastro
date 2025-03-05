@@ -27,8 +27,10 @@ dependencies = [
     "nested-pandas",
     "numpy",
     "pandas",
+    "pooch",
     "pzflow",
     "scipy",
+    "sfdmap2",
     "sncosmo",
 ]
 

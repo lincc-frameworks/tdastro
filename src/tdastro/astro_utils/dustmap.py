@@ -5,10 +5,16 @@ was primarily designed to work with the dustmaps package:
 https://github.com/gregreen/dustmaps
 """
 
+import logging
+from pathlib import Path
+
 import numpy as np
+import pooch
 from astropy.coordinates import SkyCoord
 from citation_compass import CiteClass
+from sfdmap2 import sfdmap
 
+from tdastro import _TDASTRO_BASE_DATA_DIR
 from tdastro.base_models import FunctionNode
 
 
@@ -144,3 +150,111 @@ class ConstantHemisphereDustMap(DustEBV):
             The E(B-V) value or array of values.
         """
         return self.compute_ebv(coords.ra.deg, coords.dec.deg)
+
+
+class SFDMap(DustEBV):
+    """A dustmap using the sfdmap2 package.
+
+    Note
+    ----
+    Before using this, you must manually download the data files
+    and put them in "data/dustmaps/sfdmap2" in the root directory.
+
+    Citations
+    ---------
+    Software https://github.com/AmpelAstro/sfdmap2
+    Forked from https://github.com/kbarbary/sfdmap
+    Dust map data from Schlegel, Finkbeiner and Davis (1998).
+
+    Attributes
+    ----------
+    dustmap : sfdmap.SFDMap
+        The dust map object.
+
+    Parameters
+    ----------
+    data_dir : `str`, optional
+        The directory containing the dust map data files.
+        If None, the default directory will be used.
+    **kwargs : `dict`, optional
+        Any additional keyword arguments.
+    """
+
+    _default_map_dir = _TDASTRO_BASE_DATA_DIR / "dustmaps" / "sfdmap2"
+
+    def __init__(self, data_dir=None, **kwargs):
+        super().__init__(self.compute_ebv, **kwargs)
+        self.dustmap = self._load_data(data_dir)
+
+    def _data_files_exist(self, data_dir):
+        """Check that the necessary data files exist in the given directory."""
+        if not data_dir.exists() or not data_dir.is_dir():
+            return False
+        elif (data_dir / "SFD_dust_4096_ngp.fits").exists() is False:
+            return False
+        elif (data_dir / "SFD_dust_4096_sgp.fits").exists() is False:
+            return False
+        return True
+
+    def _load_data(self, data_dir=None):
+        """Load the dust map data files.
+
+        Parameters
+        ----------
+        data_dir : `str`, optional
+            The directory containing the dust map data files.
+            If None, the default directory will be used.
+
+        Returns
+        -------
+        dustmap : sfdmap.SFDMap
+            The dust map object.
+        """
+        logger = logging.getLogger(__name__)
+
+        data_dir = Path(data_dir) if data_dir is not None else self._default_map_dir
+        logger.debug(f"Loading SFD dust map data from {data_dir}")
+
+        if not self._data_files_exist(data_dir):
+            data_url = ("https://github.com/kbarbary/sfddata/archive/master.tar.gz",)
+            logger.info(
+                "SFD dust map data files not found.\n"
+                f"Attempting to download from: {data_url}\n"
+                f"to the directory {data_dir}"
+            )
+
+            # Create the data directory if it doesn't exist.
+            if not data_dir.exists():
+                data_dir.mkdir(parents=True)
+
+            # Use pooch to download the data files and extract them to the data directory.
+            pooch.retrieve(
+                url="https://github.com/kbarbary/sfddata/archive/master.tar.gz",
+                known_hash="95e8645dcdcbd4ad48398d44307741f550bdde95e8f438b2a3be0021723a4d7e",
+                processor=pooch.Untar(extract_dir=data_dir),
+            )
+            data_dir = data_dir / "sfddata-master"
+
+        # Check that the files were downloaded and extracted.
+        if not self._data_files_exist(data_dir):
+            raise ValueError(f"The SFD dust map data files are missing from {data_dir}.")
+
+        return sfdmap.SFDMap(data_dir)
+
+    def compute_ebv(self, ra, dec):
+        """Compute the E(B-V) value for a given location.
+
+        Parameters
+        ----------
+        ra : float or np.array
+            The object's right ascension (in degrees).
+        dec : float or np.array
+            The object's declination (in degrees).
+
+        Returns
+        -------
+        ebv : float or np.array
+            The E(B-V) value or array of values.
+        """
+        ebv = self.dustmap.ebv(ra, dec)
+        return ebv

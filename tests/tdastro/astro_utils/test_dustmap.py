@@ -1,6 +1,8 @@
 import numpy as np
+import pytest
 from citation_compass import find_in_citations
-from tdastro.astro_utils.dustmap import ConstantHemisphereDustMap, DustmapWrapper
+from tdastro import _TDASTRO_TEST_DATA_DIR
+from tdastro.astro_utils.dustmap import ConstantHemisphereDustMap, DustmapWrapper, SFDMap
 from tdastro.math_nodes.given_sampler import GivenValueList
 
 
@@ -54,6 +56,18 @@ def test_dust_map_wrapper():
     samples = dust_node2.sample_parameters(num_samples=len(dec_vals))
     assert np.all(samples["dust"]["ebv"][dec_vals >= 0] == 0.9)
     assert np.all(samples["dust"]["ebv"][dec_vals < 0] == 0.2)
+
+
+def test_sfdmap():
+    """Test that we can create and sample an SFDObject."""
+    # Use data from a fake map with zero dust in the high North latitudes
+    # and high dust in the South.
+    dust = SFDMap(_TDASTRO_TEST_DATA_DIR / "dustmaps" / "sfdmap2")
+    assert dust.compute_ebv(125.0, 60.0) == pytest.approx(0.0, abs=0.001)
+    assert dust.compute_ebv(-45.0, -30.0) == pytest.approx(86.0, abs=0.001)
+
+    ebvs = dust.compute_ebv(np.array([125.0, -45.0, -10.0]), np.array([60.0, -30.0, 70.0]))
+    assert np.allclose(ebvs, [0.0, 86.0, 0.0], atol=0.001)
 
 
 def test_dustmap_citation():
