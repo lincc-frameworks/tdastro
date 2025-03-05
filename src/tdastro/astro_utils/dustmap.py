@@ -10,6 +10,7 @@ from astropy.coordinates import SkyCoord
 from citation_compass import CiteClass
 from sfdmap2 import sfdmap
 
+from tdastro import _TDASTRO_BASE_DATA_DIR
 from tdastro.base_models import FunctionNode
 
 
@@ -148,12 +149,40 @@ class ConstantHemisphereDustMap(DustEBV):
 
 
 class SFDMap(DustEBV):
-    """
-    A dustmap using the sfdmap2 package (https://github.com/AmpelAstro/sfdmap2)
+    """A dustmap using the sfdmap2 package.
+
+    Note
+    ----
+    Before using this, you must manually download the data files
+    and put them in "data/dustmaps/sfdmap2" in the root directory.
+
+    Citations
+    ---------
+    Software https://github.com/AmpelAstro/sfdmap2
+    Forked from https://github.com/kbarbary/sfdmap
+    Dust map data from Schlegel, Finkbeiner and Davis (1998).
+
+    Attributes
+    ----------
+    dustmap : sfdmap.SFDMap
+        The dust map object.
+
+    Parameters
+    ----------
+    data_dir : `str`, optional
+        The directory containing the dust map data files.
+        If None, the default directory will be used.
+    **kwargs : `dict`, optional
+        Any additional keyword arguments.
     """
 
-    def __init__(self, **kwargs):
+    _default_map_dir = _TDASTRO_BASE_DATA_DIR / "dustmaps" / "sfdmap2"
+
+    def __init__(self, data_dir=None, **kwargs):
         super().__init__(self.compute_ebv, **kwargs)
+
+        self.data_dir = self._default_map_dir if data_dir is None else data_dir
+        self.dustmap = sfdmap.SFDMap(self.data_dir)
 
     def compute_ebv(self, ra, dec):
         """Compute the E(B-V) value for a given location.
@@ -170,25 +199,5 @@ class SFDMap(DustEBV):
         ebv : float or np.array
             The E(B-V) value or array of values.
         """
-
-        dustmap = sfdmap.SFDMap()
-        ebv = dustmap.ebv(ra, dec)
+        ebv = self.dustmap.ebv(ra, dec)
         return ebv
-
-    def query(self, coords):
-        """A query function to match the DustMap interface so that
-        we can pass SFDMap into DustmapWrapper.
-        Note
-        ----
-
-        Parameters
-        ----------
-        coords : SkyCoord
-            The object's coordinates.
-
-        Returns
-        -------
-        ebv : float or np.array
-            The E(B-V) value or array of values.
-        """
-        return self.compute_ebv(coords.ra.deg, coords.dec.deg)
