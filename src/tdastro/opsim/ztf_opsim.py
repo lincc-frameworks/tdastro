@@ -152,10 +152,6 @@ class ZTFOpsim(OpSim):
     def __init__(self, table, colmap=None, **kwargs):
         super().__init__(table, colmap=colmap, **kwargs)
 
-        # replace invalid values in table
-        self.table = self.table.replace("", np.nan)
-        self.table = self.table.dropna(subset=["fwhm"])
-
         # Convert obsdate to mjd and add column
         obsdate = self.table[self.colmap.get("obsdate", "obsdate")].tolist()
         t = Time(obsdate, format="iso", scale="utc")
@@ -169,6 +165,10 @@ class ZTFOpsim(OpSim):
                 "OpSim does not include the columns needed to derive zero point "
                 "information. Required columns: maglim, sky, fwhm and exptime."
             )
+
+        # replace invalid values in table
+        self.table = self.table.replace("", np.nan)
+        self.table = self.table.dropna(subset=["fwhm"])
 
         zp_values = calculate_ztf_zero_points(
             maglim=self.table[self.colmap.get("maglim", "maglim")],
