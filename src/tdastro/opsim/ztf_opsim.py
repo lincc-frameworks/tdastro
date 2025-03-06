@@ -149,8 +149,8 @@ class ZTFOpsim(OpSim):
         "read_noise": _ztfcam_readout_noise,
     }
 
-    def __init__(self, table, **kwargs):
-        super().__init__(table, colmap=self._default_colnames, **kwargs)
+    def __init__(self, table, colmap=None, **kwargs):
+        super().__init__(table, colmap=colmap, **kwargs)
 
         # replace invalid values in table
         self.table = self.table.replace("", np.nan)
