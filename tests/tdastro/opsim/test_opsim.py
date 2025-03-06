@@ -126,7 +126,7 @@ def test_create_opsim_custom_names():
         "custom_time": np.array([0.0, 1.0, 2.0, 3.0, 4.0]),
         "custom_ra": np.array([15.0, 30.0, 15.0, 0.0, 60.0]),
         "custom_dec": np.array([-10.0, -5.0, 0.0, 5.0, 10.0]),
-        "custom_zp": np.ones(5),
+        "zp_nJy": np.ones(5),
     }
 
     # Load fails if we use the default colmap.
@@ -134,7 +134,7 @@ def test_create_opsim_custom_names():
         _ = OpSim(values)
 
     # Load succeeds if we pass in a customer dictionary.
-    colmap = {"ra": "custom_ra", "dec": "custom_dec", "time": "custom_time", "zp": "custom_zp"}
+    colmap = {"ra": "custom_ra", "dec": "custom_dec", "time": "custom_time"}
     ops_data = OpSim(values, colmap)
     assert len(ops_data) == 5
 
