@@ -157,8 +157,9 @@ class SFDMap(DustEBV):
 
     Note
     ----
-    Before using this, you must manually download the data files
-    and put them in "data/dustmaps/sfdmap2" in the root directory.
+    If the dustmap data is not present in "data/dustmaps/sfdmap2",
+    it will automatically be downloaded there when the class is
+    instantiated.
 
     Citations
     ---------
