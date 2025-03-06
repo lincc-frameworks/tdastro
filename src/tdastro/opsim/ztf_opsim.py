@@ -149,12 +149,8 @@ class ZTFOpsim(OpSim):
         "read_noise": _ztfcam_readout_noise,
     }
 
-    def __init__(self, table, **kwargs):
-        super().__init__(table, colmap=self._default_colnames, **kwargs)
-
-        # replace invalid values in table
-        self.table = self.table.replace("", np.nan)
-        self.table = self.table.dropna(subset=["fwhm"])
+    def __init__(self, table, colmap=None, **kwargs):
+        super().__init__(table, colmap=colmap, **kwargs)
 
         # Convert obsdate to mjd and add column
         obsdate = self.table[self.colmap.get("obsdate", "obsdate")].tolist()
@@ -169,6 +165,10 @@ class ZTFOpsim(OpSim):
                 "OpSim does not include the columns needed to derive zero point "
                 "information. Required columns: maglim, sky, fwhm and exptime."
             )
+
+        # replace invalid values in table
+        self.table = self.table.replace("", np.nan)
+        self.table = self.table.dropna(subset=["fwhm"])
 
         zp_values = calculate_ztf_zero_points(
             maglim=self.table[self.colmap.get("maglim", "maglim")],
