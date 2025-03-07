@@ -138,13 +138,13 @@ class OpSim:
             else:
                 setattr(self, key, value)
 
-        # Build the kd-tree.
-        self._kd_tree = None
-        self._build_kd_tree()
-
         # If we are not given zero point data, try to derive it from the other columns.
         if not self.has_columns("zp"):
             self._assign_zero_points()
+
+        # Build the kd-tree.
+        self._kd_tree = None
+        self._build_kd_tree()
 
     def __len__(self):
         return len(self.table)
