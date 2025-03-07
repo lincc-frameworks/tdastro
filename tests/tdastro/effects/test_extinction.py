@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from tdastro.astro_utils.dustmap import ConstantHemisphereDustMap
+from tdastro.astro_utils.dustmap import ConstantHemisphereDustMap, DustmapWrapper
 from tdastro.effects.extinction import ExtinctionEffect
 from tdastro.math_nodes.given_sampler import GivenValueList
 from tdastro.sources.basic_sources import StaticSource
@@ -83,13 +83,8 @@ def test_dustmap_chain():
     )
 
     # Create a constant dust map for testing.
-    dust_map_node = ConstantHemisphereDustMap(
-        north_ebv=0.8,
-        south_ebv=0.5,
-        ra=model.ra,
-        dec=model.dec,
-        node_label="dust_map",
-    )
+    dust_map = ConstantHemisphereDustMap(north_ebv=0.8, south_ebv=0.5)
+    dust_map_node = DustmapWrapper(dust_map, ra=model.ra, dec=model.dec, node_label="dust_map")
 
     # Create an extinction effect using the EBVs from that dust map.
     ext_effect = ExtinctionEffect(extinction_model="CCM89", ebv=dust_map_node, Rv=3.1)

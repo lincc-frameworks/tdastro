@@ -21,6 +21,9 @@ from tdastro.base_models import FunctionNode
 class DustEBV(FunctionNode):
     """A wrapper that queries a dust map and returns the ebv for each location.
 
+    This wrapper is designed to work with multiple dust map implementtions
+    by providing a stadard interface.
+
     Attributes
     ----------
     query_fn : function
@@ -30,17 +33,28 @@ class DustEBV(FunctionNode):
     ----------
     query_fn : function
         The function to query the dust map ebv value given (RA, dec).
+    RA : parameter
+        The object's right ascension (in degrees).
+    dec : parameter
+        The object's declination (in degrees).
     **kwargs : `dict`, optional
         Any additional keyword arguments.
     """
 
-    def __init__(self, query_fn, **kwargs):
-        super().__init__(query_fn, outputs=["ebv"], **kwargs)
+    def __init__(self, query_fn, ra=None, dec=None, **kwargs):
+        # RA and dec are required, but must be passed through as keyword
+        # arguments to be used in the sampling function (hence the None default).
+        if ra is None or dec is None:
+            raise ValueError("RA and dec must be provided to query the dust map.")
+        super().__init__(query_fn, ra=ra, dec=dec, outputs=["ebv"], **kwargs)
 
 
 class DustmapWrapper(DustEBV, CiteClass):
     """A convenience wrapper for the dustmap package
     https://github.com/gregreen/dustmaps
+
+    The DustmapWrapper is designed to take dust map objects from the dustmaps package,
+    but can be used with any object that has a query(coords: SkyCoord) method.
 
     Parameters
     ----------
@@ -50,6 +64,10 @@ class DustmapWrapper(DustEBV, CiteClass):
         into ebv if needed.
     ebv_func : function, optional
         A function to translate the result of the dustmap query into an ebv.
+    RA : parameter
+        The object's right ascension (in degrees).
+    dec : parameter
+        The object's declination (in degrees).
     **kwargs : `dict`, optional
         Any additional keyword arguments.
 
@@ -59,8 +77,9 @@ class DustmapWrapper(DustEBV, CiteClass):
     https://github.com/gregreen/dustmaps
     """
 
-    def __init__(self, dust_map, ebv_func=None, **kwargs):
-        super().__init__(self.compute_ebv, **kwargs)
+    def __init__(self, dust_map, ra=None, dec=None, ebv_func=None, **kwargs):
+        # RA and dec setters are passed through to the DustEBV init method.
+        super().__init__(self.compute_ebv, ra=ra, dec=dec, **kwargs)
         self._ebv_func = ebv_func
         self._dust_map = dust_map
 
@@ -82,7 +101,7 @@ class DustmapWrapper(DustEBV, CiteClass):
         if self._dust_map is None:
             raise ValueError("A dust map must be provided to compute E(B-V) values.")
 
-        # Wrap the RA and dec in a SkyCoord object
+        # Wrap the RA and dec in a SkyCoord object and call the dust map's query method.
         coord = SkyCoord(ra, dec, frame="icrs", unit="deg")
         dustmap_value = self._dust_map.query(coord)
 
@@ -91,9 +110,12 @@ class DustmapWrapper(DustEBV, CiteClass):
         return dustmap_value
 
 
-class ConstantHemisphereDustMap(DustEBV):
+class ConstantHemisphereDustMap:
     """A DustMap with a constant value in each hemisphere for testing
     and debugging purposes.
+
+    This class is designed to look like a DustMap object from the dustmaps package,
+    so that it can be used to test DustmapWrapper.
 
     Attributes
     ----------
@@ -103,8 +125,7 @@ class ConstantHemisphereDustMap(DustEBV):
         The DustMap's ebv value at all points in the Southern Hemisphere.
     """
 
-    def __init__(self, north_ebv, south_ebv, **kwargs):
-        super().__init__(self.compute_ebv, **kwargs)
+    def __init__(self, north_ebv, south_ebv):
         self.north_ebv = north_ebv
         self.south_ebv = south_ebv
 
@@ -130,9 +151,8 @@ class ConstantHemisphereDustMap(DustEBV):
         return ebv
 
     def query(self, coords):
-        """A query function to match the DustMap interface so that
-        we can pass ConstantHemisphereDustMap into DustmapWrapper
-        for testing purposes.
+        """A query function to match the DustMap interface so that we can
+        pass ConstantHemisphereDustMap into DustmapWrapper for testing purposes.
 
         Note
         ----
@@ -154,6 +174,9 @@ class ConstantHemisphereDustMap(DustEBV):
 
 class SFDMap(DustEBV):
     """A dustmap using the sfdmap2 package.
+
+    This does not need to be used with DustmapWrapper, but rather is
+    a standalone ParameterizedNode.
 
     Note
     ----
@@ -177,14 +200,19 @@ class SFDMap(DustEBV):
     data_dir : `str`, optional
         The directory containing the dust map data files.
         If None, the default directory will be used.
+    RA : parameter
+        The object's right ascension (in degrees).
+    dec : parameter
+        The object's declination (in degrees).
     **kwargs : `dict`, optional
         Any additional keyword arguments.
     """
 
     _default_map_dir = _TDASTRO_BASE_DATA_DIR / "dustmaps" / "sfdmap2"
 
-    def __init__(self, data_dir=None, **kwargs):
-        super().__init__(self.compute_ebv, **kwargs)
+    def __init__(self, data_dir=None, ra=None, dec=None, **kwargs):
+        # Pass RA and dec through to DustEBV's init method.
+        super().__init__(self.compute_ebv, ra=ra, dec=dec, **kwargs)
         self.dustmap = self._load_data(data_dir)
 
     def _data_files_exist(self, data_dir):

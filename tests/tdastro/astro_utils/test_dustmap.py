@@ -62,12 +62,30 @@ def test_sfdmap():
     """Test that we can create and sample an SFDObject."""
     # Use data from a fake map with zero dust in the high North latitudes
     # and high dust in the South.
-    dust = SFDMap(_TDASTRO_TEST_DATA_DIR / "dustmaps" / "sfdmap2")
+    dust = SFDMap(
+        _TDASTRO_TEST_DATA_DIR / "dustmaps" / "sfdmap2",
+        ra=GivenValueList([125.0, -45.0, 10.0]),
+        dec=GivenValueList([60.0, -30.0, -45.0]),
+        node_label="dust",
+    )
+
+    # Test that we can call the compute_ebv function directly with specific coordinates
+    # (scalar and array) without sampling RA and dec.
     assert dust.compute_ebv(125.0, 60.0) == pytest.approx(0.0, abs=0.001)
     assert dust.compute_ebv(-45.0, -30.0) == pytest.approx(86.0, abs=0.001)
 
     ebvs = dust.compute_ebv(np.array([125.0, -45.0, -10.0]), np.array([60.0, -30.0, 70.0]))
     assert np.allclose(ebvs, [0.0, 86.0, 0.0], atol=0.001)
+
+    # Test that we can sample SFDMap as a ParameterNode, this will pull
+    # RA and Dec values from the given lists.
+
+    samples = dust.sample_parameters(num_samples=3)
+    assert np.allclose(samples["dust"]["ebv"], [0.0, 86.0, 86.0], atol=0.01)
+
+    # We fail if we try to create a SFDMap without RA and dec setters.
+    with pytest.raises(ValueError):
+        _ = SFDMap(_TDASTRO_TEST_DATA_DIR / "dustmaps" / "sfdmap2")
 
 
 def test_dustmap_citation():
