@@ -26,13 +26,17 @@ def test_white_noise() -> None:
 
 def test_static_source_white_noise() -> None:
     """Test that we can sample and create a StaticSource object with white noise."""
-    white_noise = WhiteNoise(white_noise_sigma=0.1)
     model = StaticSource(
         brightness=10.0,
         node_label="my_static_source",
-        effects=[white_noise],
         seed=100,
     )
+    assert len(model.rest_frame_effects) == 0
+    assert len(model.obs_frame_effects) == 0
+
+    # We can add the white noise effect.
+    white_noise = WhiteNoise(white_noise_sigma=0.1)
+    model.add_effect(white_noise)
     assert len(model.rest_frame_effects) == 1
     assert len(model.obs_frame_effects) == 0
 
@@ -57,13 +61,16 @@ def test_static_source_white_noise_obs_frame() -> None:
     """Test that we can make the WhiteNoise an observer frame effect.
     While this does not make physical sense, it allows us to test that code path.
     """
-    white_noise = WhiteNoise(rest_frame=False, white_noise_sigma=0.1)
     model = StaticSource(
         brightness=10.0,
         node_label="my_static_source",
-        effects=[white_noise],
         seed=100,
     )
+    assert len(model.rest_frame_effects) == 0
+    assert len(model.obs_frame_effects) == 0
+
+    white_noise = WhiteNoise(rest_frame=False, white_noise_sigma=0.1)
+    model.add_effect(white_noise)
     assert len(model.rest_frame_effects) == 0
     assert len(model.obs_frame_effects) == 1
 

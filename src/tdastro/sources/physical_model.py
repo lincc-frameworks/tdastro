@@ -57,8 +57,6 @@ class PhysicalModel(ParameterizedNode):
         the redshift and the cosmology.
     background : PhysicalModel
         A source of background flux such as a host galaxy.
-    effects : list of EffectModel, optional
-        A list of effects to apply to the flux density.
     seed : int, optional
         The seed for a random number generator.
     **kwargs : dict, optional
@@ -73,7 +71,6 @@ class PhysicalModel(ParameterizedNode):
         t0=None,
         distance=None,
         background=None,
-        effects=None,
         seed=None,
         **kwargs,
     ):
@@ -101,21 +98,9 @@ class PhysicalModel(ParameterizedNode):
         # Initialize the effect settings to their default values.
         self.apply_redshift = redshift is not None
 
-        # Process the effects.
+        # Set the default effects.
         self.rest_frame_effects = []
         self.obs_frame_effects = []
-        if effects is not None and len(effects) > 0:
-            for effect in effects:
-                # Add any effect parameters that are not already in the model.
-                for param_name, setter in effect.parameters.items():
-                    if param_name not in self.setters:
-                        self.add_parameter(param_name, setter, allow_gradient=False)
-
-                # Add the effect to the appropriate list.
-                if effect.rest_frame:
-                    self.rest_frame_effects.append(effect)
-                else:
-                    self.obs_frame_effects.append(effect)
 
         # Get a default random number generator for this object, using the
         # given seed if one is provided.
@@ -149,6 +134,25 @@ class PhysicalModel(ParameterizedNode):
             The new value for apply_redshift.
         """
         self.apply_redshift = apply_redshift
+
+    def add_effect(self, effect):
+        """Add an effect to the model.
+
+        Parameters
+        ----------
+        effect : EffectModel
+            The effect to add.
+        """
+        # Add any effect parameters that are not already in the model.
+        for param_name, setter in effect.parameters.items():
+            if param_name not in self.setters:
+                self.add_parameter(param_name, setter, allow_gradient=False)
+
+        # Add the effect to the appropriate list.
+        if effect.rest_frame:
+            self.rest_frame_effects.append(effect)
+        else:
+            self.obs_frame_effects.append(effect)
 
     def mask_by_time(self, times, graph_state=None):
         """Compute a mask for whether a given time is of interest for a given object.

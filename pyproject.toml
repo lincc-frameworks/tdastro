@@ -18,13 +18,19 @@ dynamic = ["version"]
 requires-python = ">=3.9"
 dependencies = [
     "astropy",
+    "cdshealpix",
+    "citation-compass>=0.0.3",
+    "dust_extinction",
+    "healsparse",
     "jax",
     "matplotlib",
     "nested-pandas",
     "numpy",
     "pandas",
+    "pooch",
     "pzflow",
     "scipy",
+    "sfdmap2",
     "sncosmo",
 ]
 
@@ -111,6 +117,7 @@ ignore = [
     "E721", # Allow direct type comparison
     "N803", # Allow arguments to start with a capital letter
     "N806", # Allow variables to use non-lowercase letter
+    "SIM108" # Allow if-else blocks that could be ternary expressions
 ]
 
 [tool.coverage.run]

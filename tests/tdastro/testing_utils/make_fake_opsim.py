@@ -1,7 +1,7 @@
 import argparse
 
 import numpy as np
-from tdastro.astro_utils.opsim import OpSim
+from tdastro.opsim.opsim import OpSim
 
 _all_columns = [
     "observationId",

@@ -1,11 +1,17 @@
 import tempfile
 from pathlib import Path
 
+import cdshealpix as cdshp
 import numpy as np
 import pandas as pd
 import pytest
+from astropy.coordinates import SkyCoord, angular_separation
 from tdastro.astro_utils.mag_flux import mag2flux
-from tdastro.astro_utils.opsim import (
+from tdastro.astro_utils.zeropoint import (
+    _lsstcam_extinction_coeff,
+    _lsstcam_zeropoint_per_sec_zenith,
+)
+from tdastro.opsim.opsim import (
     OpSim,
     create_random_opsim,
     opsim_add_random_data,
@@ -26,6 +32,14 @@ def test_create_opsim():
     ops_data = OpSim(pdf)
     assert len(ops_data) == 5
     assert len(ops_data.columns) == 4
+
+    # We have all the attributes set at their default values.
+    assert ops_data.dark_current == 0.2
+    assert ops_data.ext_coeff == _lsstcam_extinction_coeff
+    assert ops_data.pixel_scale == 0.2
+    assert ops_data.radius == 1.75
+    assert ops_data.read_noise == 8.8
+    assert ops_data.zp_per_sec == _lsstcam_zeropoint_per_sec_zenith
 
     # Check that we can extract the time bounds.
     t_min, t_max = ops_data.time_bounds()
@@ -58,13 +72,61 @@ def test_create_opsim():
         _ = OpSim(values)
 
 
+def test_create_opsim_override():
+    """Test that we can override the default survey values."""
+    values = {
+        "observationStartMJD": np.array([0.0, 1.0, 2.0, 3.0, 4.0]),
+        "fieldRA": np.array([15.0, 30.0, 15.0, 0.0, 60.0]),
+        "fieldDec": np.array([-10.0, -5.0, 0.0, 5.0, 10.0]),
+        "zp_nJy": np.ones(5),
+    }
+    ops_data = OpSim(
+        values,
+        dark_current=0.1,
+        ext_coeff={"u": 0.1, "g": 0.2, "r": 0.3, "i": 0.4, "z": 0.5, "y": 0.6},
+        pixel_scale=0.1,
+        radius=1.0,
+        read_noise=5.0,
+        zp_per_sec={"u": 25.0, "g": 26.0, "r": 27.0, "i": 28.0, "z": 29.0, "y": 30.0},
+    )
+
+    # We have loaded the non-default values.
+    assert ops_data.dark_current == 0.1
+    assert ops_data.ext_coeff == {"u": 0.1, "g": 0.2, "r": 0.3, "i": 0.4, "z": 0.5, "y": 0.6}
+    assert ops_data.pixel_scale == 0.1
+    assert ops_data.radius == 1.0
+    assert ops_data.read_noise == 5.0
+    assert ops_data.zp_per_sec == {"u": 25.0, "g": 26.0, "r": 27.0, "i": 28.0, "z": 29.0, "y": 30.0}
+
+
+def test_create_opsim_no_zp():
+    """Create an opsim without a zeropoint column."""
+    values = {
+        "observationStartMJD": np.array([0.0, 1.0, 2.0, 3.0, 4.0]),
+        "fieldRA": np.array([15.0, 30.0, 15.0, 0.0, 60.0]),
+        "fieldDec": np.array([-10.0, -5.0, 0.0, 5.0, 10.0]),
+    }
+
+    # We fail if we do not have the other columns needed: filter, airmass, exptime.
+    with pytest.raises(ValueError):
+        _ = OpSim(values)
+
+    values["filter"] = np.array(["r", "g", "r", "i", "z"])
+    values["airmass"] = 0.01 * np.ones(5)
+    values["visitExposureTime"] = 0.1 * np.ones(5)
+    opsim = OpSim(values)
+
+    assert opsim.has_columns("zp_nJy")
+    assert np.all(opsim["zp_nJy"] >= 0.0)
+
+
 def test_create_opsim_custom_names():
     """Create a minimal OpSim object from alternate column names."""
     values = {
         "custom_time": np.array([0.0, 1.0, 2.0, 3.0, 4.0]),
         "custom_ra": np.array([15.0, 30.0, 15.0, 0.0, 60.0]),
         "custom_dec": np.array([-10.0, -5.0, 0.0, 5.0, 10.0]),
-        "custom_zp": np.ones(5),
+        "zp_nJy": np.ones(5),
     }
 
     # Load fails if we use the default colmap.
@@ -72,7 +134,7 @@ def test_create_opsim_custom_names():
         _ = OpSim(values)
 
     # Load succeeds if we pass in a customer dictionary.
-    colmap = {"ra": "custom_ra", "dec": "custom_dec", "time": "custom_time", "zp": "custom_zp"}
+    colmap = {"ra": "custom_ra", "dec": "custom_dec", "time": "custom_time"}
     ops_data = OpSim(values, colmap)
     assert len(ops_data) == 5
 
@@ -238,6 +300,10 @@ def test_opsim_range_search():
     assert set(ops_data.range_search(15.0, 10.0)) == set([1, 2, 3])
     assert set(ops_data.range_search(25.0, 10.0)) == set([4, 5])
 
+    # Test is_observed() with single queries.
+    assert ops_data.is_observed(15.0, 10.0, 0.5)
+    assert not ops_data.is_observed(15.02, 10.0, 1e-6)
+
     # Test a batched query.
     query_ra = np.array([15.0, 25.0, 15.0])
     query_dec = np.array([10.0, 10.0, 5.0])
@@ -247,9 +313,21 @@ def test_opsim_range_search():
     assert set(neighbors[1]) == set([4, 5])
     assert set(neighbors[2]) == set()
 
+    # Test is_observed() with batched queries.
+    assert np.array_equal(
+        ops_data.is_observed(query_ra, query_dec, 0.5),
+        np.array([True, True, False]),
+    )
+
     # Test that we fail if bad query arrays are provided.
     with pytest.raises(ValueError):
         _ = ops_data.range_search(None, None, 0.5)
+    with pytest.raises(ValueError):
+        _ = ops_data.range_search([1.0, 2.3], 4.5, 0.5)
+    with pytest.raises(ValueError):
+        _ = ops_data.range_search([1.0, 2.3], [4.5, 6.7, 8.9], 0.5)
+    with pytest.raises(ValueError):
+        _ = ops_data.range_search([1.0, 2.3], [4.5, None], 0.5)
 
 
 def test_opsim_get_observations():
@@ -318,6 +396,40 @@ def test_opsim_flux_err_point_source(opsim_shorten):
 
     # Tolerance is very high, we should investigate why the values are so different.
     np.testing.assert_allclose(flux_err, expected_flux_err, rtol=0.2)
+
+
+def test_opsim_make_coverage_map():
+    """Create a sky coverage map from an OpSim file."""
+    values = {
+        "observationStartMJD": np.array([0.0, 1.0]),
+        "fieldRA": np.array([15.0, 30.0]),
+        "fieldDec": np.array([-10.0, 15.0]),
+        "zp_nJy": np.ones(2),
+    }
+    opsim = OpSim(values, radius=1.0)
+
+    depth = 15
+    nside = 2**depth
+    ra_1 = np.radians(15.0)
+    dec_1 = np.radians(-10.0)
+    ra_2 = np.radians(30.0)
+    dec_2 = np.radians(15.0)
+    radius = np.radians(1.0)
+
+    cov_map = opsim.make_coverage_map(nside)
+    for ra in np.linspace(0.0, 45.0, 100):
+        for dec in np.linspace(-30.0, 30.0, 100):
+            ra_q = np.radians(ra)
+            dec_q = np.radians(dec)
+
+            dist1 = angular_separation(ra_q, dec_q, ra_1, dec_1)
+            dist2 = angular_separation(ra_q, dec_q, ra_2, dec_2)
+
+            coord = SkyCoord(ra=ra, dec=dec, unit="deg")
+            healpix = cdshp.nested.skycoord_to_healpix(coord, np.array([depth]))
+            hp_index = int(healpix[0])
+
+            assert cov_map[hp_index] == (dist1 <= radius or dist2 <= radius)
 
 
 def test_create_random_opsim():

@@ -66,15 +66,19 @@ def simulate_lightcurves(source, num_samples, opsim, passbands, rng=None):
     for idx, state in enumerate(sample_states):
         # Find the indices and times where the current source is seen.
         obs_index = np.asarray(all_obs_matches[idx])
-        obs_times = all_times[obs_index]
+        if len(obs_index) == 0:
+            obs_times = []
+            obs_filters = []
+        else:
+            obs_times = all_times[obs_index]
 
-        # Filter to only the "interesting" indices / times for this object.
-        obs_mask = source.mask_by_time(obs_times, state)
-        obs_index = obs_index[obs_mask]
-        obs_times = obs_times[obs_mask]
+            # Filter to only the "interesting" indices / times for this object.
+            obs_mask = source.mask_by_time(obs_times, state)
+            obs_index = obs_index[obs_mask]
+            obs_times = obs_times[obs_mask]
 
-        # Extract the filters for this observation.
-        obs_filters = all_filters[obs_index]
+            # Extract the filters for this observation.
+            obs_filters = all_filters[obs_index]
 
         # Compute the band_fluxes and errors over just the given filters.
         bandfluxes_perfect = source.get_band_fluxes(passbands, obs_times, obs_filters, state)

@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+from citation_compass import find_in_citations
 from sncosmo.models import SALT2Source
 from tdastro.sources.salt2_jax import SALT2JaxModel
 from tdastro.sources.sncomso_models import SncosmoWrapperModel
@@ -34,3 +35,11 @@ def test_salt2_no_model(test_data_dir):
     dir_name = test_data_dir / "no_such_salt2_model_dir"
     with pytest.raises(FileNotFoundError):
         _ = SALT2JaxModel(x0=0.5, x1=0.2, c=1.0, t0=0.0, model_dir=dir_name)
+
+
+def test_salt2_citation():
+    """Test the citations for the SALT2 model."""
+    salt_citations = find_in_citations("SALT2JaxModel")
+    for citation in salt_citations:
+        assert "Guy J., 2007" in citation
+        assert "sncosmo" in citation

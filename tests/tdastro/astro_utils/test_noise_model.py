@@ -13,7 +13,6 @@ def test_poisson_flux_std_flux():
 
     flux_err = poisson_bandflux_std(
         bandflux=flux,
-        pixel_scale=rng.uniform(),
         total_exposure_time=rng.uniform(),
         exposure_count=rng.integers(1, 100),
         footprint=rng.uniform(),
@@ -33,18 +32,18 @@ def test_poisson_flux_std_sky():
 
     n = 100
 
+    zp = 10.0
     sky = 10 ** rng.uniform(-2.0, 2.0, n)
     footprint = 10 ** rng.uniform(0.0, 2.0, n)
-    expected_flux_err = np.sqrt(sky * footprint)
+    expected_flux_err = np.sqrt(sky * footprint) * zp
 
     flux_err = poisson_bandflux_std(
         bandflux=0.0,
-        pixel_scale=rng.uniform(),
         total_exposure_time=rng.uniform(),
         exposure_count=rng.integers(1, 100),
         footprint=footprint,
         sky=sky,
-        zp=1.0,
+        zp=zp,
         readout_noise=0.0,
         dark_current=0.0,
     )
@@ -60,14 +59,12 @@ def test_poisson_flux_std_readout():
     n = 100
 
     readout_noise = 10 ** rng.uniform(-2.0, 2.0, n)
-    pixel_scale = 10 ** rng.uniform(-1.0, 1.0, n)
     footprint = 10 ** rng.uniform(0.0, 2.0, n)
     exposure_count = rng.integers(1, 100, n)
-    expected_flux_err = readout_noise * np.sqrt(footprint / pixel_scale**2) * np.sqrt(exposure_count)
+    expected_flux_err = readout_noise * np.sqrt(footprint) * np.sqrt(exposure_count)
 
     flux_err = poisson_bandflux_std(
         bandflux=0.0,
-        pixel_scale=pixel_scale,
         total_exposure_time=rng.uniform(),
         exposure_count=exposure_count,
         footprint=footprint,
@@ -89,15 +86,13 @@ def test_poisson_flux_std_dark():
 
     dark_current = 10 ** rng.uniform(-2.0, 2.0, n)
     total_exposure_time = rng.uniform(1.0, 3.0, n)
-    pixel_scale = 10 ** rng.uniform(-1.0, 1.0, n)
     footprint = 10 ** rng.uniform(0.0, 2.0, n)
 
-    dark_current_total = dark_current * total_exposure_time * footprint / pixel_scale**2
+    dark_current_total = dark_current * total_exposure_time * footprint
     expected_flux_err = np.sqrt(dark_current_total)
 
     flux_err = poisson_bandflux_std(
         bandflux=0.0,
-        pixel_scale=pixel_scale,
         total_exposure_time=total_exposure_time,
         exposure_count=rng.integers(1, 100, n),
         footprint=footprint,
