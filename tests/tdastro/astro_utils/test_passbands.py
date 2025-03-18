@@ -171,17 +171,23 @@ def test_passband_download_transmission_table(tmp_path):
     table_url = f"http://example.com/{survey}/{filter_name}.dat"
     transmission_table = "1000 0.5\n1005 0.6\n1010 0.7\n"
 
-    def mock_urlretrieve(url, filename, *args, **kwargs):  # Urlretrieve saves contents directly to filename
-        with open(filename, "w") as f:
+    def mock_urlretrieve(url, known_hash, fname, path):
+        full_name = path / fname
+        with open(full_name, "w") as f:
             f.write(transmission_table)
-        return filename, None
+        return full_name
 
     # Mock the urlretrieve portion of the download method
-    with patch("urllib.request.urlretrieve", side_effect=mock_urlretrieve) as mocked_urlretrieve:
+    with patch("pooch.retrieve", side_effect=mock_urlretrieve) as mocked_urlretrieve:
         a_band = Passband(survey, filter_name, table_path=table_path, table_url=table_url)
 
         # Check that the transmission table was downloaded
-        mocked_urlretrieve.assert_called_once_with(table_url, table_path)
+        mocked_urlretrieve.assert_called_once_with(
+            url=table_url,
+            known_hash=None,
+            fname=table_path.name,
+            path=table_path.parent,
+        )
 
         # Check that the transmission table was loaded correctly
         np.testing.assert_allclose(a_band._loaded_table, np.array([[1000, 0.5], [1005, 0.6], [1010, 0.7]]))
