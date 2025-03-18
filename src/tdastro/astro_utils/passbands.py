@@ -1,13 +1,10 @@
 import logging
-import socket
-import urllib.parse
-import urllib.request
 from pathlib import Path
 from typing import Literal, Optional, Union
-from urllib.error import HTTPError, URLError
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pooch
 import scipy.integrate
 
 import tdastro
@@ -691,22 +688,17 @@ class Passband:
         table_path = Path(table_path)
         table_path.parent.mkdir(parents=True, exist_ok=True)
 
-        try:
-            socket.setdefaulttimeout(10)
-            logger.info(f"Retrieving {table_url}")
-            urllib.request.urlretrieve(table_url, table_path)
-            if table_path.stat().st_size == 0:
-                logger.error(f"Transmission table downloaded from {table_url} is empty.")
-                return False
-            else:
-                logger.info(f"Downloaded transmission table {table_url}.")
-                return True
-        except HTTPError as e:
-            logger.error(f"HTTP error occurred when downloading table {table_url}: {e}")
+        # Use pooch to download the data files and extract them to the data directory.
+        full_path = pooch.retrieve(
+            url=table_url,
+            known_hash=None,
+            fname=table_path.name,
+            path=table_path.parent,
+        )
+        if full_path is None or not Path(full_path).exists():
+            logger.error(f"Transmission table not downloaded from {table_url}.")
             return False
-        except URLError as e:
-            logger.error(f"URL error occurred when downloading table {table_url}: {e}")
-            return False
+        return True
 
     def process_transmission_table(
         self, delta_wave: Optional[float] = 5.0, trim_quantile: Optional[float] = 1e-3
