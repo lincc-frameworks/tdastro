@@ -262,9 +262,8 @@ class PassbandGroup:
         preset : str
             The name of the pre-defined set of passbands to load.
         table_dir : str, optional
-            The path to the directory containing the passband tables. If no table_path has been specified in
-            the PassbandGroup's passband_parameters and table_dir is not None, table paths will be set to
-            table_dir/{survey}/{filter_name}.dat.
+            The path to the base directory containing the passband tables. The full path to the tables
+            will be {table_dir}/{survey}/{filter_name}.dat.
         **kwargs
             Additional keyword arguments to pass to the Passband constructor.
         """
@@ -272,6 +271,9 @@ class PassbandGroup:
         if preset == "LSST":
             if table_dir is None:
                 table_dir = Path(_TDASTRO_BASE_DATA_DIR, "passbands", "LSST")
+            else:
+                table_dir = Path(table_dir) / "LSST"
+
             for filter_name in ["u", "g", "r", "i", "z", "y"]:
                 url = (
                     f"https://github.com/lsst/throughputs/blob/main/baseline/total_{filter_name}.dat?raw=true"
@@ -281,12 +283,13 @@ class PassbandGroup:
                     filter_name,
                     table_path=Path(table_dir, f"{filter_name}.dat"),
                     table_url=url,
+                    **kwargs,
                 )
                 self.passbands[pb.full_name] = pb
         elif preset == "ZTF":
             for filter_name in ["g", "r", "i"]:
                 sn_pb = get_bandpass(f"ztf{filter_name}")
-                pb = Passband.from_sncosmo("ZTF", filter_name, sn_pb)
+                pb = Passband.from_sncosmo("ZTF", filter_name, sn_pb, **kwargs)
                 self.passbands[pb.full_name] = pb
         else:
             raise ValueError(f"Unknown passband preset: {preset}")

@@ -10,9 +10,8 @@ from tdastro.sources.spline_model import SplineModel
 def create_lsst_passband_group(passbands_dir, delta_wave=5.0, trim_quantile=None):
     """Helper function to create a PassbandGroup object for LSST passbands, using transmission tables
     included in the test data directory."""
-    table_dir = passbands_dir / "LSST"
     return PassbandGroup(
-        preset="LSST", table_dir=table_dir, delta_wave=delta_wave, trim_quantile=trim_quantile
+        preset="LSST", table_dir=passbands_dir, delta_wave=delta_wave, trim_quantile=trim_quantile
     )
 
 
