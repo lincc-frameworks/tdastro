@@ -55,11 +55,11 @@ def test_passband_group_access(tmp_path):
     """Test that we can create a passband group and access the individual passbands."""
     table_vals = np.array([[100, 0.5], [200, 0.75], [300, 0.25]])
     pb_list = [
-        Passband("survey1", "a", table_values=table_vals, trim_quantile=None),
-        Passband("survey1", "b", table_values=table_vals, trim_quantile=None),
-        Passband("survey1", "c", table_values=table_vals, trim_quantile=None),
-        Passband("survey2", "c", table_values=table_vals, trim_quantile=None),
-        Passband("survey2", "d", table_values=table_vals, trim_quantile=None),
+        Passband(table_vals, "survey1", "a", trim_quantile=None),
+        Passband(table_vals, "survey1", "b", trim_quantile=None),
+        Passband(table_vals, "survey1", "c", trim_quantile=None),
+        Passband(table_vals, "survey2", "c", trim_quantile=None),
+        Passband(table_vals, "survey2", "d", trim_quantile=None),
     ]
 
     pb_group = PassbandGroup(given_passbands=pb_list)
@@ -209,21 +209,21 @@ def test_passband_group_from_list(tmp_path):
     """Test that we can create a PassbandGroup from a pre-specified list."""
     pb_list = [
         Passband(
+            np.array([[100, 0.5], [200, 0.75], [300, 0.25]]),
             "my_survey",
             "a",
-            table_values=np.array([[100, 0.5], [200, 0.75], [300, 0.25]]),
             trim_quantile=None,
         ),
         Passband(
+            np.array([[250, 0.25], [300, 0.5], [350, 0.75]]),
             "my_survey",
             "b",
-            table_values=np.array([[250, 0.25], [300, 0.5], [350, 0.75]]),
             trim_quantile=None,
         ),
         Passband(
+            np.array([[400, 0.75], [500, 0.25], [600, 0.5]]),
             "my_survey",
             "c",
-            table_values=np.array([[400, 0.75], [500, 0.25], [600, 0.5]]),
             trim_quantile=None,
         ),
     ]
@@ -243,27 +243,27 @@ def test_passband_load_subset_passbands(tmp_path):
     """Test that we can load a subset of filters."""
     pb_list = [
         Passband(
+            np.array([[100, 0.5], [200, 0.75], [300, 0.25]]),
             "my_survey",
             "a",
-            table_values=np.array([[100, 0.5], [200, 0.75], [300, 0.25]]),
             trim_quantile=None,
         ),
         Passband(
+            np.array([[250, 0.25], [300, 0.5], [350, 0.75]]),
             "my_survey",
             "b",
-            table_values=np.array([[250, 0.25], [300, 0.5], [350, 0.75]]),
             trim_quantile=None,
         ),
         Passband(
+            np.array([[400, 0.75], [500, 0.25], [600, 0.5]]),
             "my_survey",
             "c",
-            table_values=np.array([[400, 0.75], [500, 0.25], [600, 0.5]]),
             trim_quantile=None,
         ),
         Passband(
+            np.array([[800, 0.75], [850, 0.25], [900, 0.5]]),
             "my_survey",
             "d",
-            table_values=np.array([[800, 0.75], [850, 0.25], [900, 0.5]]),
             trim_quantile=None,
         ),
     ]
@@ -286,15 +286,15 @@ def test_passband_unique_waves():
     """Test that if we create two passbands with very similar wavelengths, they get merged."""
     pb_list = [
         Passband(
+            np.array([[100, 0.5], [250, 0.25]]),
             "my_survey",
             "a",
-            table_values=np.array([[100, 0.5], [250, 0.25]]),
             trim_quantile=None,
         ),
         Passband(
+            np.array([[200.000001, 0.25], [300.000001, 0.5]]),
             "my_survey",
             "b",
-            table_values=np.array([[200.000001, 0.25], [300.000001, 0.5]]),
             trim_quantile=None,
         ),
     ]
@@ -307,15 +307,15 @@ def test_passband_unique_waves():
     # Larger gaps won't register.
     pb_list = [
         Passband(
+            np.array([[100, 0.5], [250, 0.25]]),
             "my_survey",
             "a",
-            table_values=np.array([[100, 0.5], [250, 0.25]]),
             trim_quantile=None,
         ),
         Passband(
+            np.array([[200.5, 0.25], [300.5, 0.5]]),
             "my_survey",
             "b",
-            table_values=np.array([[200.5, 0.25], [300.5, 0.5]]),
             trim_quantile=None,
         ),
     ]
