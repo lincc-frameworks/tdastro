@@ -1,5 +1,8 @@
+from unittest.mock import patch
+
 import numpy as np
 import pytest
+from sncosmo import Bandpass
 from tdastro.astro_utils.passbands import Passband, PassbandGroup
 from tdastro.sources.spline_model import SplineModel
 
@@ -7,8 +10,9 @@ from tdastro.sources.spline_model import SplineModel
 def create_lsst_passband_group(passbands_dir, delta_wave=5.0, trim_quantile=None):
     """Helper function to create a PassbandGroup object for LSST passbands, using transmission tables
     included in the test data directory."""
+    table_dir = passbands_dir / "LSST"
     return PassbandGroup(
-        preset="LSST", table_dir=passbands_dir, delta_wave=delta_wave, trim_quantile=trim_quantile
+        preset="LSST", table_dir=table_dir, delta_wave=delta_wave, trim_quantile=trim_quantile
     )
 
 
@@ -233,10 +237,26 @@ def test_passband_group_from_list(tmp_path):
     assert "my_survey_b" in test_passband_group
     assert "my_survey_c" in test_passband_group
 
-    assert np.allclose(
-        test_passband_group.waves,
-        np.unique(np.concatenate([np.arange(100, 301, 5), np.arange(250, 351, 5), np.arange(400, 601, 5)])),
+    all_waves = np.concatenate([np.arange(100, 301, 5), np.arange(250, 351, 5), np.arange(400, 601, 5)])
+    assert np.allclose(test_passband_group.waves, np.unique(all_waves))
+
+    # Test that we can manually add another passband to the group.
+    pb4 = Passband(
+        np.array([[800, 0.75], [850, 0.25], [900, 0.5]]),
+        "my_survey2",
+        "a",
+        trim_quantile=None,
     )
+    test_passband_group.add_passband(pb4)
+
+    assert len(test_passband_group) == 4
+    assert "my_survey_a" in test_passband_group
+    assert "my_survey_b" in test_passband_group
+    assert "my_survey_c" in test_passband_group
+    assert "my_survey2_a" in test_passband_group
+
+    all_waves = np.concatenate([all_waves, np.arange(800, 901, 5)])
+    assert np.allclose(test_passband_group.waves, np.unique(all_waves))
 
 
 def test_passband_load_subset_passbands(tmp_path):
@@ -280,6 +300,28 @@ def test_passband_load_subset_passbands(tmp_path):
     # We run into an error if we try to load a filter that does not exist.
     with pytest.raises(ValueError):
         _ = PassbandGroup(given_passbands=pb_list, filters_to_load=["my_survey_a", "z"])
+
+
+def test_passband_ztf_preset():
+    """Test that we can load the ZTF passbands."""
+
+    def mock_get_bandpass(name):
+        """Return a predefined Bandpass object instead of downloading the transmission table."""
+        return Bandpass(np.array([6000, 6005, 6010]), np.array([0.5, 0.6, 0.7]))
+
+    # Mock the urlretrieve portion of the download method
+    with patch("sncosmo.get_bandpass", side_effect=mock_get_bandpass):
+        group = PassbandGroup(preset="ZTF")
+        assert len(group) == 3
+        assert "ZTF_g" in group
+        assert "ZTF_r" in group
+        assert "ZTF_i" in group
+
+
+def test_passband_invalid_preset():
+    """Test that we throw an error when given an invalid preset name."""
+    with pytest.raises(ValueError):
+        _ = PassbandGroup(preset="Invalid")
 
 
 def test_passband_unique_waves():

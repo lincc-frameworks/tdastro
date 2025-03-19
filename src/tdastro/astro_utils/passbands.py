@@ -6,7 +6,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pooch
 import scipy.integrate
-import sncosmo
+from citation_compass import cite_function
+from sncosmo import Bandpass, get_bandpass
 
 from tdastro import _TDASTRO_BASE_DATA_DIR
 
@@ -284,7 +285,7 @@ class PassbandGroup:
                 self.passbands[pb.full_name] = pb
         elif preset == "ZTF":
             for filter_name in ["g", "r", "i"]:
-                sn_pb = sncosmo.get_bandpass(f"ztf{filter_name}")
+                sn_pb = get_bandpass(f"ztf{filter_name}")
                 pb = Passband.from_sncosmo("ZTF", filter_name, sn_pb)
                 self.passbands[pb.full_name] = pb
         else:
@@ -649,7 +650,8 @@ class Passband:
         )
 
     @classmethod
-    def from_sncosmo(cls, survey: str, filter_name: str, bandpass: sncosmo.Bandpass):
+    @cite_function("https://sncosmo.readthedocs.io/en/stable/api/sncosmo.Bandpass.html")
+    def from_sncosmo(cls, survey: str, filter_name: str, bandpass: Bandpass):
         """Create a Passband object from an sncosmo.Bandpass object.
 
         Parameters
@@ -660,6 +662,11 @@ class Passband:
             The filter_name of the passband: eg, "u".
         bandpass : sncosmo.Bandpass
             The bandpass object from which to create the Passband object.
+
+        Reference
+        ---------
+        snocosmo.Bandpass:
+        https://sncosmo.readthedocs.io/en/stable/api/sncosmo.Bandpass.html
         """
         table = np.column_stack([bandpass.wave, bandpass.trans])
         return Passband(

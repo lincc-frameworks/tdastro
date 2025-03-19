@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import numpy as np
 import pytest
-from sncosmo import get_bandpass
+from sncosmo import Bandpass
 from tdastro.astro_utils.passbands import Passband
 from tdastro.sources.spline_model import SplineModel
 
@@ -198,15 +198,18 @@ def test_passband_from_file(passbands_dir, tmp_path):
 
 def test_passband_from_sncosmo(passbands_dir):
     """Test the from_sncosmo constructor of the Passband class."""
-    ztf_pb = get_bandpass("ztfg")
-    ztf_band = Passband.from_sncosmo("ZTF", "g", ztf_pb)
+    sn_pb = Bandpass(
+        np.array([6000, 6005, 6010]),  # wavelengths (A)
+        np.array([0.5, 0.6, 0.7]),  # transmissions
+    )
+    ztf_band = Passband.from_sncosmo("ZTF", "g", sn_pb)
     assert ztf_band.survey == "ZTF"
     assert ztf_band.filter_name == "g"
     assert ztf_band.full_name == "ZTF_g"
     assert ztf_band.units == "A"
     assert ztf_band._loaded_table is not None
-    assert np.allclose(ztf_band._loaded_table[:, 0], ztf_pb.wave)
-    assert np.allclose(ztf_band._loaded_table[:, 1], ztf_pb.trans)
+    assert np.allclose(ztf_band._loaded_table[:, 0], sn_pb.wave)
+    assert np.allclose(ztf_band._loaded_table[:, 1], sn_pb.trans)
 
 
 def test_process_transmission_table(passbands_dir, tmp_path):
