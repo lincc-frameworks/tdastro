@@ -560,8 +560,14 @@ class Passband:
         # Perform validation of the transmission table.
         if table_values.shape[1] != 2:
             raise ValueError("Passband requires an input table with exactly two columns.")
-        if np.any(np.diff(table_values[:, 0]) <= 0):
+        diffs = np.diff(table_values[:, 0])
+        if np.any(diffs < 0.0):
             raise ValueError("Wavelengths in transmission table must be strictly increasing.")
+        if np.any(diffs == 0.0):
+            logger.warning("Duplicate wavelengths found in transmission table; averaging values.")
+            dup_inds = np.where(diffs == 0.0)
+            table_values[dup_inds, 1] = 0.5 * (table_values[dup_inds, 1] + table_values[dup_inds + 1, 1])
+            table_values = np.delete(table_values, dup_inds + 1, axis=0)
         self._loaded_table = np.copy(table_values)
 
         # Preprocess the passband.
