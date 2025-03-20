@@ -659,7 +659,7 @@ class Passband:
             if not success:
                 raise RuntimeError(f"Failed to download passband table from {table_url}.")
 
-        # Load the table and create the passband./
+        # Load the table and create the passband.
         loaded_table = Passband.load_transmission_table(table_path)
         return Passband(
             loaded_table,
