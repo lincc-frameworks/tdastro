@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import numpy as np
 import pytest
+from sncosmo import Bandpass
 from tdastro.astro_utils.passbands import Passband
 from tdastro.sources.spline_model import SplineModel
 
@@ -12,7 +13,7 @@ def create_lsst_passband(path, filter_name, **kwargs):
     """Helper function to create an LSST Passband object for testing."""
     survey = "LSST"
     table_path = f"{path}/{survey}/{filter_name}.dat"
-    return Passband(survey, filter_name, table_path=table_path, **kwargs)
+    return Passband.from_file(survey, filter_name, table_path=table_path, **kwargs)
 
 
 def create_toy_passband(path, transmission_table, filter_name="a", **kwargs):
@@ -27,7 +28,7 @@ def create_toy_passband(path, transmission_table, filter_name="a", **kwargs):
         f.write(transmission_table)
 
     # Create a Passband object
-    return Passband(survey, filter_name, table_path=table_path, **kwargs)
+    return Passband.from_file(survey, filter_name, table_path=table_path, **kwargs)
 
 
 def test_passband_str(passbands_dir, tmp_path):
@@ -44,18 +45,16 @@ def test_passband_str(passbands_dir, tmp_path):
 
 def test_passband_eq(passbands_dir, tmp_path):
     """Test the __str__ method of the Passband class."""
-    a_band = Passband("LSST", "a", table_values=np.array([[1000, 0.5], [1005, 0.6], [1010, 0.7]]))
-    b_band = Passband("LSST", "b", table_values=np.array([[1000, 0.5], [1005, 0.6], [1010, 0.7]]))
-    c_band = Passband("LSST", "c", table_values=np.array([[1000, 0.5], [1005, 0.7], [1010, 0.7]]))
-    d_band = Passband("LSST", "d", table_values=np.array([[1000, 0.5], [1005, 0.6], [1020, 0.7]]))
+    a_band = Passband(np.array([[1000, 0.5], [1005, 0.6], [1010, 0.7]]), "LSST", "a")
+    b_band = Passband(np.array([[1000, 0.5], [1005, 0.6], [1010, 0.7]]), "LSST", "b")
+    c_band = Passband(np.array([[1000, 0.5], [1005, 0.7], [1010, 0.7]]), "LSST", "c")
+    d_band = Passband(np.array([[1000, 0.5], [1005, 0.6], [1020, 0.7]]), "LSST", "d")
     assert a_band == b_band
     assert a_band != c_band
     assert a_band != d_band
 
     # Passbands with different units are not equal.
-    a2_band = Passband(
-        "LSST", "a", table_values=np.array([[1000, 0.5], [1005, 0.6], [1010, 0.7]]), units="nm"
-    )
+    a2_band = Passband(np.array([[1000, 0.5], [1005, 0.6], [1010, 0.7]]), "LSST", "a", units="nm")
     assert a_band != a2_band
 
 
@@ -67,7 +66,7 @@ def test_passband_manual_create(tmp_path):
 
     # Create a manual passband.
     transmission_table = np.array([[1000, 0.5], [1005, 0.6], [1010, 0.7]])
-    test_pb = Passband(survey="test", filter_name="u", table_values=transmission_table)
+    test_pb = Passband(transmission_table, survey="test", filter_name="u")
 
     assert test_pb.survey == "test"
     assert test_pb.filter_name == "u"
@@ -77,7 +76,7 @@ def test_passband_manual_create(tmp_path):
 
     # We can create an load a table in nm as well. It will auto-convert to Angstroms.
     transmission2 = np.array([[100, 0.5], [100.5, 0.6], [101, 0.7]])
-    test_pb2 = Passband(survey="test", filter_name="g", table_values=transmission2, units="nm")
+    test_pb2 = Passband(transmission2, survey="test", filter_name="g", units="nm")
     assert test_pb2.survey == "test"
     assert test_pb2.filter_name == "g"
     assert test_pb2.full_name == "test_g"
@@ -87,37 +86,25 @@ def test_passband_manual_create(tmp_path):
     # We raise an error if the data is not sorted.
     with pytest.raises(ValueError):
         _ = Passband(
+            np.array([[1000, 0.5], [900, 0.2], [1100, 0.7]]),
             survey="test",
             filter_name="u",
-            table_values=np.array([[1000, 0.5], [900, 0.2], [1100, 0.7]]),
         )
 
     # We raise an error if the data is not the right shape.
     with pytest.raises(ValueError):
         _ = Passband(
+            np.full((10, 3), 1.0),
             survey="test",
             filter_name="u",
-            table_values=np.full((10, 3), 1.0),
-        )
-
-    # We raise an error when no data is given or when we given a path AND table.
-    with pytest.raises(ValueError):
-        _ = Passband(survey="test", filter_name="u")
-
-    with pytest.raises(ValueError):
-        _ = Passband(
-            survey="test",
-            filter_name="u",
-            table_path="./",
-            table_values=transmission_table,
         )
 
     # We raise an error with an invalid unit.
     with pytest.raises(ValueError):
         _ = Passband(
+            transmission_table,
             survey="test",
             filter_name="u",
-            table_values=transmission_table,
             units="invalid",
         )
 
@@ -168,7 +155,7 @@ def test_passband_download_transmission_table(tmp_path):
     survey = "TEST"
     filter_name = "a"
     table_path = tmp_path / f"{survey}/{filter_name}.dat"
-    table_url = f"http://example.com/{survey}/{filter_name}.dat"
+    table_url = f"https://data.lsdb.io/{survey}/{filter_name}.dat"
     transmission_table = "1000 0.5\n1005 0.6\n1010 0.7\n"
 
     def mock_urlretrieve(url, known_hash, fname, path):
@@ -179,7 +166,7 @@ def test_passband_download_transmission_table(tmp_path):
 
     # Mock the urlretrieve portion of the download method
     with patch("pooch.retrieve", side_effect=mock_urlretrieve) as mocked_urlretrieve:
-        a_band = Passband(survey, filter_name, table_path=table_path, table_url=table_url)
+        a_band = Passband.from_file(survey, filter_name, table_path=table_path, table_url=table_url)
 
         # Check that the transmission table was downloaded
         mocked_urlretrieve.assert_called_once_with(
@@ -191,6 +178,38 @@ def test_passband_download_transmission_table(tmp_path):
 
         # Check that the transmission table was loaded correctly
         np.testing.assert_allclose(a_band._loaded_table, np.array([[1000, 0.5], [1005, 0.6], [1010, 0.7]]))
+
+
+def test_passband_from_file(passbands_dir, tmp_path):
+    """Test the from_file constructor of the Passband class."""
+    # Test a toy transmission table was loaded correctly
+    transmission_table = "1000 0.5\n1005 0.6\n1010 0.7\n"
+    a_band = create_toy_passband(tmp_path, transmission_table)
+    np.testing.assert_allclose(a_band._loaded_table, np.array([[1000, 0.5], [1005, 0.6], [1010, 0.7]]))
+
+    table_path = Path(tmp_path, "TOY", "a.dat")
+    a_band_2 = Passband.from_file("TOY", "a", table_path=table_path)
+    np.testing.assert_allclose(a_band_2._loaded_table, np.array([[1000, 0.5], [1005, 0.6], [1010, 0.7]]))
+
+    # We raise an error if the transmission table does not exist.
+    with pytest.raises(ValueError):
+        _ = Passband.from_file(survey="test", filter_name="u", table_path="./no_such_file.dat")
+
+
+def test_passband_from_sncosmo(passbands_dir):
+    """Test the from_sncosmo constructor of the Passband class."""
+    sn_pb = Bandpass(
+        np.array([6000, 6005, 6010]),  # wavelengths (A)
+        np.array([0.5, 0.6, 0.7]),  # transmissions
+    )
+    ztf_band = Passband.from_sncosmo("ZTF", "g", sn_pb)
+    assert ztf_band.survey == "ZTF"
+    assert ztf_band.filter_name == "g"
+    assert ztf_band.full_name == "ZTF_g"
+    assert ztf_band.units == "A"
+    assert ztf_band._loaded_table is not None
+    assert np.allclose(ztf_band._loaded_table[:, 0], sn_pb.wave)
+    assert np.allclose(ztf_band._loaded_table[:, 1], sn_pb.trans)
 
 
 def test_process_transmission_table(passbands_dir, tmp_path):
