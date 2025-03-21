@@ -133,6 +133,7 @@ def draw_single_random_sn(
     opsim,
     passbands,
     state=None,
+    rng_info=None,
 ):
     """Process a single random SN realization.
 
@@ -146,6 +147,9 @@ def draw_single_random_sn(
         The passbands to use in generating the observations.
     state : GraphState
         The sample values to use. If None resamples the state.
+    rng_info : numpy.random._generator.Generator, optional
+        A given numpy random number generator to use for this computation. If not
+        provided, the function uses the default random number generator.
 
     Returns
     -------
@@ -153,7 +157,7 @@ def draw_single_random_sn(
         A dictionary of useful information about the run.
     """
     if state is None:
-        state = source.sample_parameters()
+        state = source.sample_parameters(rng_info=rng_info)
 
     # Extract some important parameters that we need to use.
     ra = state["source"]["ra"]
@@ -185,7 +189,7 @@ def draw_single_random_sn(
     res["filters"] = filters
 
     # Compute the fluxes over all wavelengths.
-    flux_nJy = source.evaluate(times, wave_obs, graph_state=state)
+    flux_nJy = source.evaluate(times, wave_obs, graph_state=state, rng_info=rng_info)
     res["flux_nJy"] = flux_nJy
     res["flux_flam"] = fnu_to_flam(
         flux_nJy,
@@ -210,7 +214,12 @@ def draw_single_random_sn(
 
 
 def run_snia_end2end(
-    oversampled_observations, passbands_dir, solid_angle=0.0001, nsample=1, check_sncosmo=False
+    oversampled_observations,
+    passbands_dir,
+    solid_angle=0.0001,
+    nsample=1,
+    check_sncosmo=False,
+    rng_info=None,
 ):
     """Test that we can sample and create SN Ia simulation using the salt3 model.
 
@@ -229,6 +238,9 @@ def run_snia_end2end(
         Run the simulation a second time directly with sncosmo and compare the answers.
         This should only be turned on for testing.
         Default: False
+    rng_info : numpy.random._generator.Generator, optional
+        A given numpy random number generator to use for this computation. If not
+        provided, the function uses the default random number generator.
 
     Returns
     -------
@@ -237,6 +249,9 @@ def run_snia_end2end(
     passbands : PassbandGroup
         The passbands used.
     """
+    if rng_info is None:
+        rng_info = np.random.default_rng()
+
     # Compute the distribution from which to sample the redshift.
     zmin = 0.1
     zmax = 0.4
@@ -267,6 +282,7 @@ def run_snia_end2end(
             opsim=oversampled_observations,
             passbands=passbands,
             state=current_state,
+            rng_info=rng_info,
         )
 
         # Copy out important parameter values.
