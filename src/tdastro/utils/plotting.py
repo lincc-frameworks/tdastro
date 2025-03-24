@@ -5,13 +5,7 @@ import numpy as np
 
 
 def plot_lightcurves(
-    fluxes,
-    times,
-    fluxerrs=None,
-    filters=None,
-    ax=None,
-    figure=None,
-    title=None,
+    fluxes, times, fluxerrs=None, filters=None, ax=None, figure=None, title=None, colormap=None
 ):
     """Plot one or more lightcurves.
 
@@ -34,6 +28,8 @@ def plot_lightcurves(
         Figure, None by default.
     title : str or None, optional
         Title of the plot. None by default.
+    colormap: dict
+        A dictionary that provides mapping between filters and the colors to be plotted.
     """
     # If no axes were given create them using either the given figure or
     # a newly created one (if no figure is given).
@@ -61,6 +57,12 @@ def plot_lightcurves(
     if fluxerrs is not None and len(fluxerrs) != num_pts:
         raise ValueError(f"Mismatched array sizes for fluxes ({num_pts}) and fluxerrs ({len(fluxerrs)}).")
 
+    if colormap is None:
+        colormap = {}
+        colors = "bgrcmyk"
+        for i, f in enumerate(unique_filters):
+            colormap[f] = colors[i]
+
     # Plot the data with one line for each filter.
     for filter in unique_filters:
         filter_mask = filters == filter
@@ -71,6 +73,7 @@ def plot_lightcurves(
                 fluxes[filter_mask],
                 marker="o",
                 label=filter,
+                color=colormap[filter],
             )
         else:
             ax.errorbar(
@@ -79,6 +82,7 @@ def plot_lightcurves(
                 yerr=fluxerrs[filter_mask],
                 fmt="o",
                 label=filter,
+                color=colormap[filter],
             )
 
     # Set the title and axis labels.
