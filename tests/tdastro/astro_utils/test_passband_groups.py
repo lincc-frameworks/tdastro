@@ -1,5 +1,8 @@
+from unittest.mock import patch
+
 import numpy as np
 import pytest
+from sncosmo import Bandpass
 from tdastro.astro_utils.passbands import Passband, PassbandGroup
 from tdastro.sources.spline_model import SplineModel
 
@@ -55,11 +58,11 @@ def test_passband_group_access(tmp_path):
     """Test that we can create a passband group and access the individual passbands."""
     table_vals = np.array([[100, 0.5], [200, 0.75], [300, 0.25]])
     pb_list = [
-        Passband("survey1", "a", table_values=table_vals, trim_quantile=None),
-        Passband("survey1", "b", table_values=table_vals, trim_quantile=None),
-        Passband("survey1", "c", table_values=table_vals, trim_quantile=None),
-        Passband("survey2", "c", table_values=table_vals, trim_quantile=None),
-        Passband("survey2", "d", table_values=table_vals, trim_quantile=None),
+        Passband(table_vals, "survey1", "a", trim_quantile=None),
+        Passband(table_vals, "survey1", "b", trim_quantile=None),
+        Passband(table_vals, "survey1", "c", trim_quantile=None),
+        Passband(table_vals, "survey2", "c", trim_quantile=None),
+        Passband(table_vals, "survey2", "d", trim_quantile=None),
     ]
 
     pb_group = PassbandGroup(given_passbands=pb_list)
@@ -209,21 +212,21 @@ def test_passband_group_from_list(tmp_path):
     """Test that we can create a PassbandGroup from a pre-specified list."""
     pb_list = [
         Passband(
+            np.array([[100, 0.5], [200, 0.75], [300, 0.25]]),
             "my_survey",
             "a",
-            table_values=np.array([[100, 0.5], [200, 0.75], [300, 0.25]]),
             trim_quantile=None,
         ),
         Passband(
+            np.array([[250, 0.25], [300, 0.5], [350, 0.75]]),
             "my_survey",
             "b",
-            table_values=np.array([[250, 0.25], [300, 0.5], [350, 0.75]]),
             trim_quantile=None,
         ),
         Passband(
+            np.array([[400, 0.75], [500, 0.25], [600, 0.5]]),
             "my_survey",
             "c",
-            table_values=np.array([[400, 0.75], [500, 0.25], [600, 0.5]]),
             trim_quantile=None,
         ),
     ]
@@ -233,37 +236,53 @@ def test_passband_group_from_list(tmp_path):
     assert "my_survey_b" in test_passband_group
     assert "my_survey_c" in test_passband_group
 
-    assert np.allclose(
-        test_passband_group.waves,
-        np.unique(np.concatenate([np.arange(100, 301, 5), np.arange(250, 351, 5), np.arange(400, 601, 5)])),
+    all_waves = np.concatenate([np.arange(100, 301, 5), np.arange(250, 351, 5), np.arange(400, 601, 5)])
+    assert np.allclose(test_passband_group.waves, np.unique(all_waves))
+
+    # Test that we can manually add another passband to the group.
+    pb4 = Passband(
+        np.array([[800, 0.75], [850, 0.25], [900, 0.5]]),
+        "my_survey2",
+        "a",
+        trim_quantile=None,
     )
+    test_passband_group.add_passband(pb4)
+
+    assert len(test_passband_group) == 4
+    assert "my_survey_a" in test_passband_group
+    assert "my_survey_b" in test_passband_group
+    assert "my_survey_c" in test_passband_group
+    assert "my_survey2_a" in test_passband_group
+
+    all_waves = np.concatenate([all_waves, np.arange(800, 901, 5)])
+    assert np.allclose(test_passband_group.waves, np.unique(all_waves))
 
 
 def test_passband_load_subset_passbands(tmp_path):
     """Test that we can load a subset of filters."""
     pb_list = [
         Passband(
+            np.array([[100, 0.5], [200, 0.75], [300, 0.25]]),
             "my_survey",
             "a",
-            table_values=np.array([[100, 0.5], [200, 0.75], [300, 0.25]]),
             trim_quantile=None,
         ),
         Passband(
+            np.array([[250, 0.25], [300, 0.5], [350, 0.75]]),
             "my_survey",
             "b",
-            table_values=np.array([[250, 0.25], [300, 0.5], [350, 0.75]]),
             trim_quantile=None,
         ),
         Passband(
+            np.array([[400, 0.75], [500, 0.25], [600, 0.5]]),
             "my_survey",
             "c",
-            table_values=np.array([[400, 0.75], [500, 0.25], [600, 0.5]]),
             trim_quantile=None,
         ),
         Passband(
+            np.array([[800, 0.75], [850, 0.25], [900, 0.5]]),
             "my_survey",
             "d",
-            table_values=np.array([[800, 0.75], [850, 0.25], [900, 0.5]]),
             trim_quantile=None,
         ),
     ]
@@ -282,19 +301,41 @@ def test_passband_load_subset_passbands(tmp_path):
         _ = PassbandGroup(given_passbands=pb_list, filters_to_load=["my_survey_a", "z"])
 
 
+def test_passband_ztf_preset():
+    """Test that we can load the ZTF passbands."""
+
+    def mock_get_bandpass(name):
+        """Return a predefined Bandpass object instead of downloading the transmission table."""
+        return Bandpass(np.array([6000, 6005, 6010]), np.array([0.5, 0.6, 0.7]))
+
+    # Mock the urlretrieve portion of the download method
+    with patch("sncosmo.get_bandpass", side_effect=mock_get_bandpass):
+        group = PassbandGroup(preset="ZTF")
+        assert len(group) == 3
+        assert "ZTF_g" in group
+        assert "ZTF_r" in group
+        assert "ZTF_i" in group
+
+
+def test_passband_invalid_preset():
+    """Test that we throw an error when given an invalid preset name."""
+    with pytest.raises(ValueError):
+        _ = PassbandGroup(preset="Invalid")
+
+
 def test_passband_unique_waves():
     """Test that if we create two passbands with very similar wavelengths, they get merged."""
     pb_list = [
         Passband(
+            np.array([[100, 0.5], [250, 0.25]]),
             "my_survey",
             "a",
-            table_values=np.array([[100, 0.5], [250, 0.25]]),
             trim_quantile=None,
         ),
         Passband(
+            np.array([[200.000001, 0.25], [300.000001, 0.5]]),
             "my_survey",
             "b",
-            table_values=np.array([[200.000001, 0.25], [300.000001, 0.5]]),
             trim_quantile=None,
         ),
     ]
@@ -307,15 +348,15 @@ def test_passband_unique_waves():
     # Larger gaps won't register.
     pb_list = [
         Passband(
+            np.array([[100, 0.5], [250, 0.25]]),
             "my_survey",
             "a",
-            table_values=np.array([[100, 0.5], [250, 0.25]]),
             trim_quantile=None,
         ),
         Passband(
+            np.array([[200.5, 0.25], [300.5, 0.5]]),
             "my_survey",
             "b",
-            table_values=np.array([[200.5, 0.25], [300.5, 0.5]]),
             trim_quantile=None,
         ),
     ]

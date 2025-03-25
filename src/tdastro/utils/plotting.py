@@ -28,7 +28,7 @@ def plot_lightcurves(
         Figure, None by default.
     title : str or None, optional
         Title of the plot. None by default.
-    colormap: dict
+    colormap: dict, optional
         A dictionary that provides mapping between filters and the colors to be plotted.
     """
     # If no axes were given create them using either the given figure or

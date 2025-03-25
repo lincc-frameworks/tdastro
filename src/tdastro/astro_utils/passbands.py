@@ -1,16 +1,15 @@
 import logging
-import socket
-import urllib.parse
-import urllib.request
 from pathlib import Path
 from typing import Literal, Optional, Union
-from urllib.error import HTTPError, URLError
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pooch
 import scipy.integrate
+from citation_compass import cite_function
+from sncosmo import Bandpass, get_bandpass
 
-import tdastro
+from tdastro import _TDASTRO_BASE_DATA_DIR
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -106,7 +105,7 @@ class PassbandGroup:
             )
 
         if preset is not None:
-            self._load_preset(preset, table_dir=table_dir, **kwargs)
+            self.add_preset(preset, table_dir=table_dir, **kwargs)
 
         elif passband_parameters is not None:
             for parameters in passband_parameters:
@@ -126,7 +125,7 @@ class PassbandGroup:
                 elif isinstance(parameters["table_path"], str):
                     parameters["table_path"] = Path(parameters["table_path"])
 
-                passband = Passband(**parameters)
+                passband = Passband.from_file(**parameters)
                 self.passbands[passband.full_name] = passband
 
         # Load any additional passbands from the given list.
@@ -244,35 +243,58 @@ class PassbandGroup:
         # Do the actual loading. The subsetting of filters happens here.
         return PassbandGroup(passband_parameters=all_params, filters_to_load=filters)
 
-    def _load_preset(self, preset: str, table_dir: Optional[str], **kwargs) -> None:
-        """Load a pre-defined set of passbands.
+    def add_passband(self, passband) -> None:
+        """Manually add a passband to the group.
+
+        Parameters
+        ----------
+        passband : Passband
+            The passband to add to the group.
+        """
+        self.passbands[passband.full_name] = passband
+        self._update_internal_data()
+
+    def add_preset(self, preset: str, table_dir: Optional[str], **kwargs) -> None:
+        """Load a pre-defined set of passbands and add it to the group.
 
         Parameters
         ----------
         preset : str
             The name of the pre-defined set of passbands to load.
         table_dir : str, optional
-            The path to the directory containing the passband tables. If no table_path has been specified in
-            the PassbandGroup's passband_parameters and table_dir is not None, table paths will be set to
-            table_dir/{survey}/{filter_name}.dat.
+            The path to the base directory containing the passband tables. The full path to the tables
+            will be {table_dir}/{survey}/{filter_name}.dat.
         **kwargs
             Additional keyword arguments to pass to the Passband constructor.
         """
         logger.info(f"Loading passbands from preset {preset}")
         if preset == "LSST":
+            if table_dir is None:
+                table_dir = Path(_TDASTRO_BASE_DATA_DIR, "passbands", "LSST")
+            else:
+                table_dir = Path(table_dir) / "LSST"
+
             for filter_name in ["u", "g", "r", "i", "z", "y"]:
-                if table_dir is None:
-                    self.passbands[f"LSST_{filter_name}"] = Passband("LSST", filter_name, **kwargs)
-                else:
-                    table_path = Path(table_dir, "LSST", f"{filter_name}.dat")
-                    self.passbands[f"LSST_{filter_name}"] = Passband(
-                        "LSST",
-                        filter_name,
-                        table_path=table_path,
-                        **kwargs,
-                    )
+                url = (
+                    f"https://github.com/lsst/throughputs/blob/main/baseline/total_{filter_name}.dat?raw=true"
+                )
+                pb = Passband.from_file(
+                    "LSST",
+                    filter_name,
+                    table_path=Path(table_dir, f"{filter_name}.dat"),
+                    table_url=url,
+                    **kwargs,
+                )
+                self.passbands[pb.full_name] = pb
+        elif preset == "ZTF":
+            for filter_name in ["g", "r", "i"]:
+                sn_pb = get_bandpass(f"ztf{filter_name}")
+                pb = Passband.from_sncosmo("ZTF", filter_name, sn_pb, **kwargs)
+                self.passbands[pb.full_name] = pb
         else:
             raise ValueError(f"Unknown passband preset: {preset}")
+
+        self._update_internal_data()
 
     def _update_internal_data(self) -> None:
         """Update the cached internal data."""
@@ -497,20 +519,19 @@ class Passband:
 
     def __init__(
         self,
+        table_values: np.array,
         survey: str,
         filter_name: str,
         delta_wave: Optional[float] = 5.0,
         trim_quantile: Optional[float] = 1e-3,
-        table_path: Optional[Union[str, Path]] = None,
-        table_url: Optional[str] = None,
-        table_values: Optional[np.array] = None,
         units: Optional[Literal["nm", "A"]] = "A",
-        force_download: bool = False,
     ):
         """Construct a Passband object.
 
         Parameters
         ----------
+        table_values : np.ndarray, optional
+            A 2D array of wavelengths and transmissions.
         survey : str
             The survey to which the passband belongs: eg, "LSST".
         filter_name : str
@@ -523,60 +544,31 @@ class Passband:
             The quantile to trim the transmission table by. For example, if trim_quantile is 1e-3, the
             transmission table will be trimmed to include only the central 99.8% of the area under the
             transmission curve.
-        table_path : str, optional
-            The path to the transmission table file. If None, the table path will be set to a default path;
-            if no file exists at this location, the file will be downloaded from table_url.
-        table_url : str, optional
-            The URL to download the transmission table file. If None, the table URL will be set to
-            a default URL based on the survey and filter_name. Default is None.
-        table_values : np.ndarray, optional
-            A 2D array of wavelengths and transmissions. Used to provide a given table.
         units : Literal['nm','A'], optional
             Denotes whether the wavelength units of the table are nanometers ('nm') or Angstroms ('A').
             By default 'A'. Does not affect the output units of the class, only the interpretation of the
             provided passband table.
         force_download : bool, optional
-            If True, the transmission table will be downloaded even if it already exists locally. Default is
-            False.
+            If True, the transmission table will be downloaded even if it already exists locally.
+            Default is False.
         """
         self.survey = survey
         self.filter_name = filter_name
         self.full_name = f"{survey}_{filter_name}"
         self.units = units
 
-        if table_values is not None:
-            # If the data values are given directly, use those.
-            if table_values.shape[1] != 2:
-                raise ValueError("Passband requires an input table with exactly two columns.")
-            if table_path is not None or table_url is not None:
-                raise ValueError("Multiple inputs given for passband table.")
-            self._loaded_table = np.copy(table_values)
-        else:
-            # Load the data from a file, possibly downloading it if needed.
-            if table_path is None:
-                # If no path is given, use the default.
-                table_path = Path(
-                    tdastro._TDASTRO_BASE_DATA_DIR,
-                    "passbands",
-                    self.survey,
-                    f"{self.filter_name}.dat",
-                )
-            else:
-                table_path = Path(table_path)
-
-            # If no URL is given, try loading a default.
-            if table_url is None:
-                table_url = _get_passband_url(self.survey, self.filter_name)
-
-            self._loaded_table = Passband.load_transmission_table(
-                table_path,
-                table_url=table_url,
-                force_download=force_download,
-            )
-
-        # Check that wavelengths are strictly increasing
-        if not np.all(np.diff(self._loaded_table[:, 0]) > 0):
+        # Perform validation of the transmission table.
+        if table_values.shape[1] != 2:
+            raise ValueError("Passband requires an input table with exactly two columns.")
+        diffs = np.diff(table_values[:, 0])
+        if np.any(diffs < 0.0):
             raise ValueError("Wavelengths in transmission table must be strictly increasing.")
+        if np.any(diffs == 0.0):
+            logger.warning("Duplicate wavelengths found in transmission table; averaging values.")
+            dup_inds = np.where(diffs == 0.0)
+            table_values[dup_inds, 1] = 0.5 * (table_values[dup_inds, 1] + table_values[dup_inds + 1, 1])
+            table_values = np.delete(table_values, dup_inds + 1, axis=0)
+        self._loaded_table = np.copy(table_values)
 
         # Preprocess the passband.
         self._standardize_units()
@@ -614,13 +606,108 @@ class Passband:
             raise ValueError(f"Unknown Passband units {self.units}")
         self.units = "A"
 
-    @staticmethod
-    def load_transmission_table(
-        table_path: Union[str, Path],
+    @classmethod
+    def from_file(
+        cls,
+        survey: str,
+        filter_name: str,
+        delta_wave: Optional[float] = 5.0,
+        trim_quantile: Optional[float] = 1e-3,
+        table_path: Optional[Union[str, Path]] = None,
         table_url: Optional[str] = None,
+        units: Optional[Literal["nm", "A"]] = "A",
         force_download: bool = False,
-    ) -> np.ndarray:
-        """Load a transmission table from a file (or download it if it doesn't exist).
+    ):
+        """Construct a Passband object from a file, downloading it if needed.
+
+        Parameters
+        ----------
+        survey : str
+            The survey to which the passband belongs: eg, "LSST".
+        filter_name : str
+            The filter_name of the passband: eg, "u".
+        delta_wave : float or None, optional
+            The grid step of the wave grid, in angstroms.
+            It is typically used to downsample transmission using linear interpolation.
+            Default is 5 angstroms. If None the original grid is used.
+        trim_quantile : float or None, optional
+            The quantile to trim the transmission table by. For example, if trim_quantile is 1e-3, the
+            transmission table will be trimmed to include only the central 99.8% of the area under the
+            transmission curve.
+        table_path : str, optional
+            The path to the transmission table file. If None, the table path will be set to a default path;
+            if no file exists at this location, the file will be downloaded from table_url.
+        table_url : str, optional
+            The URL to download the transmission table file. If None, the table URL will be set to
+            a default URL based on the survey and filter_name. Default is None.
+        units : Literal['nm','A'], optional
+            Denotes whether the wavelength units of the table are nanometers ('nm') or Angstroms ('A').
+            By default 'A'. Does not affect the output units of the class, only the interpretation of the
+            provided passband table.
+        force_download : bool, optional
+            If True, the transmission table will be downloaded even if it already exists locally. Default is
+            False.
+        """
+        if table_path is None:
+            # If no path is given, use the default.
+            table_path = Path(
+                _TDASTRO_BASE_DATA_DIR,
+                "passbands",
+                survey,
+                f"{filter_name}.dat",
+            )
+        else:
+            table_path = Path(table_path)
+
+        # Download the table if it does not exist or if force_download is True.
+        if force_download or not table_path.exists():
+            success = Passband.download_transmission_table(table_path, table_url)
+            if not success:
+                raise RuntimeError(f"Failed to download passband table from {table_url}.")
+
+        # Load the table and create the passband.
+        loaded_table = Passband.load_transmission_table(table_path)
+        return Passband(
+            loaded_table,
+            survey,
+            filter_name,
+            delta_wave,
+            trim_quantile,
+            units=units,
+        )
+
+    @classmethod
+    @cite_function("https://sncosmo.readthedocs.io/en/stable/api/sncosmo.Bandpass.html")
+    def from_sncosmo(cls, survey: str, filter_name: str, bandpass: Bandpass):
+        """Create a Passband object from an sncosmo.Bandpass object.
+
+        Parameters
+        ----------
+        survey : str
+            The survey to which the passband belongs: eg, "LSST".
+        filter_name : str
+            The filter_name of the passband: eg, "u".
+        bandpass : sncosmo.Bandpass
+            The bandpass object from which to create the Passband object.
+
+        Reference
+        ---------
+        snocosmo.Bandpass:
+        https://sncosmo.readthedocs.io/en/stable/api/sncosmo.Bandpass.html
+        """
+        table = np.column_stack([bandpass.wave, bandpass.trans])
+        return Passband(
+            table,
+            survey,
+            filter_name,
+            trim_quantile=None,  # Trimming is done in sncosmo
+            units="A",  # All sncosmo bandpasses are in Angstroms
+        )
+
+    @staticmethod
+    def load_transmission_table(table_path: Union[str, Path], **kwargs) -> np.ndarray:
+        """Load a transmission table from a file.
+
         Table must have 2 columns: wavelengths and transmissions; wavelengths must be
         strictly increasing.
 
@@ -629,12 +716,8 @@ class Passband:
         table_path : str or Path
             The path to the transmission table file. If no file exists at this location, the
             file will be downloaded from table_url.
-        table_url : str, optional
-            The URL to download the transmission table file. If None, the table URL will be set to
-            a default URL based on the survey and filter_name. Default is None.
-        force_download : bool, optional
-            If True, the transmission table will be downloaded even if it already exists locally.
-            Default is False.
+        **kwargs : dict
+            Additional keyword arguments to pass to the reader method.
 
         Returns
         -------
@@ -643,22 +726,31 @@ class Passband:
         """
         logger.info(f"Loading passband from file: {table_path}")
 
-        table_path.parent.mkdir(parents=True, exist_ok=True)
-        if force_download or not table_path.exists():
-            Passband.download_transmission_table(table_path, table_url)
+        table_path = Path(table_path)
+        if not table_path.exists():
+            raise FileNotFoundError(f"Transmission table not found at {table_path}")
 
-        # Load the table file
-        try:
-            loaded_table = np.loadtxt(table_path)
-        except OSError as e:
-            raise OSError(f"Error reading transmission table from file: {e}") from e
+        # Add default delimiter if not provided
+        if (table_path.suffix == ".csv" or table_path.suffix == ".ecsv") and "delimiter" not in kwargs:
+            kwargs["delimiter"] = ","
+
+        # Load the table.
+        loaded_table = np.loadtxt(table_path, **kwargs)
 
         # Check that the table has the correct shape
         if loaded_table.size == 0 or loaded_table.shape[1] != 2:
             raise ValueError("Transmission table must have exactly 2 columns.")
-        # Check that wavelengths are strictly increasing
-        if not np.all(np.diff(loaded_table[:, 0]) > 0):
-            raise ValueError("Wavelengths in transmission table must be strictly increasing.")
+
+        # Check that wavelengths are strictly increasing. If there are duplicates then
+        # we average the values.
+        diffs = np.diff(loaded_table[:, 0])
+        if np.any(diffs < 0.0):
+            raise ValueError("Wavelengths in transmission table must be increasing.")
+        if np.any(diffs == 0.0):
+            logger.warning("Duplicate wavelengths found in transmission table; averaging values.")
+            dup_inds = np.where(diffs == 0.0)
+            loaded_table[dup_inds, 1] = 0.5 * (loaded_table[dup_inds, 1] + loaded_table[dup_inds + 1, 1])
+            loaded_table = np.delete(loaded_table, dup_inds + 1, axis=0)
 
         return loaded_table
 
@@ -691,25 +783,22 @@ class Passband:
         table_path = Path(table_path)
         table_path.parent.mkdir(parents=True, exist_ok=True)
 
-        try:
-            socket.setdefaulttimeout(10)
-            logger.info(f"Retrieving {table_url}")
-            urllib.request.urlretrieve(table_url, table_path)
-            if table_path.stat().st_size == 0:
-                logger.error(f"Transmission table downloaded from {table_url} is empty.")
-                return False
-            else:
-                logger.info(f"Downloaded transmission table {table_url}.")
-                return True
-        except HTTPError as e:
-            logger.error(f"HTTP error occurred when downloading table {table_url}: {e}")
+        # Use pooch to download the data files and extract them to the data directory.
+        full_path = pooch.retrieve(
+            url=table_url,
+            known_hash=None,
+            fname=table_path.name,
+            path=table_path.parent,
+        )
+        if full_path is None or not Path(full_path).exists():
+            logger.error(f"Transmission table not downloaded from {table_url}.")
             return False
-        except URLError as e:
-            logger.error(f"URL error occurred when downloading table {table_url}: {e}")
-            return False
+        return True
 
     def process_transmission_table(
-        self, delta_wave: Optional[float] = 5.0, trim_quantile: Optional[float] = 1e-3
+        self,
+        delta_wave: Optional[float] = 5.0,
+        trim_quantile: Optional[float] = 1e-3,
     ):
         """Process the transmission table.
 
@@ -949,27 +1038,3 @@ class Passband:
         ax.set_xlabel(r"Wavelength, $\AA$")
         ax.set_ylabel("Transmission Value")
         ax.set_ylim(0, None)
-
-
-# --- Helper Functions ----------------------------------------------------
-
-
-def _get_passband_url(survey: str, filter: str) -> Union[str, None]:
-    """Get the URL to download passband information.
-
-    Parameters
-    ----------
-    survey : str,
-        The passband's survey.
-    filter : str,
-        The passband's filter.
-
-    Returns
-    -------
-    url : str or None
-        Returns a string with the URL if the survey's data location is known.
-        Otherwise returns None.
-    """
-    if survey == "LSST":
-        return f"https://github.com/lsst/throughputs/blob/main/baseline/total_{filter}.dat?raw=true"
-    return None
