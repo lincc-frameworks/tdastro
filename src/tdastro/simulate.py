@@ -91,7 +91,7 @@ def simulate_lightcurves(source, num_samples, opsim, passbands, rng=None):
         results_dict["ra"].append(ra[idx])
         results_dict["dec"].append(dec[idx])
         results_dict["nobs"].append(len(obs_times))
-        results_dict["z"].append(state["host.redshift"])
+        results_dict["z"].append(source.get_param(state, "redshift"))
         results_dict["params"].append(state.to_dict())
 
         # Append the per-observation data to the nested dictionary.
