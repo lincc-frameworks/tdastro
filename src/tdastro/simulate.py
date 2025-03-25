@@ -7,7 +7,7 @@ from nested_pandas import NestedFrame
 from tdastro.astro_utils.noise_model import apply_noise
 
 
-def simulate_lightcurves(source, num_samples, opsim, passbands, rng=None):
+def simulate_lightcurves(source, num_samples, opsim, passbands, apply_obs_mask=False, rng=None):
     """Generate a number of simulations of the given source.
 
     Parameters
@@ -21,6 +21,8 @@ def simulate_lightcurves(source, num_samples, opsim, passbands, rng=None):
         The OpSim information for the samples.
     passbands : PassbandGroup
         The passbands to use for generating the bandfluxes.
+    apply_obs_mask: boolean
+        If True, apply obs_mask to filter interesting indices/times
     rng : numpy.random._generator.Generator, optional
         A given numpy random number generator to use for this computation. If not
         provided, the function uses the node's random number generator.
@@ -74,10 +76,10 @@ def simulate_lightcurves(source, num_samples, opsim, passbands, rng=None):
             obs_times = all_times[obs_index]
 
             # Filter to only the "interesting" indices / times for this object.
-            obs_mask = source.mask_by_time(obs_times, state)
-            obs_index = obs_index[obs_mask]
-            obs_times = obs_times[obs_mask]
-
+            if apply_obs_mask:
+                obs_mask = source.mask_by_time(obs_times, state)
+                obs_index = obs_index[obs_mask]
+                obs_times = obs_times[obs_mask]
             # Extract the filters for this observation.
             obs_filters = all_filters[obs_index]
 
