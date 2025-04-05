@@ -3,6 +3,7 @@ from astropy import units as u
 from tdastro.astro_utils.unit_utils import fnu_to_flam
 from tdastro.math_nodes.np_random import NumpyRandomFunc
 from tdastro.sources.sncomso_models import SncosmoWrapperModel
+from tdastro.utils.wave_extrapolate import ExponentialDecay
 
 
 def test_sncomso_models_hsiao() -> None:
@@ -92,6 +93,36 @@ def test_sncomso_models_bounds() -> None:
     assert np.all(fluxes_fnu[:, 0] == 0.0)
     assert not np.any(fluxes_fnu[:, 1:4] == 0.0)
     assert np.all(fluxes_fnu[:, 4:6] == 0.0)
+
+
+def test_sncomso_models_linear_extrapolate() -> None:
+    """Test that we do not crash if we give wavelengths outside the model bounds."""
+    model = SncosmoWrapperModel(
+        "nugent-sn1a",
+        amplitude=2.0e10,
+        t0=0.0,
+        wave_extrapolation=ExponentialDecay(rate=0.1),
+    )
+    min_w = model.source.minwave()
+    max_w = model.source.maxwave()
+
+    wavelengths = [
+        min_w - 100.0,  # Out of bounds
+        min_w,  # edge of bounds (included)
+        0.5 * min_w + 0.5 * max_w,  # included
+        max_w,  # edge of bounds (included)
+        max_w + 0.1,  # Out of bounds
+        max_w + 500.0,  # Out of bounds
+        max_w + 5000.0,  # Out of bounds
+    ]
+
+    # Check that columns 0, 4, 5, and 6 are correctly extrapolated.
+    fluxes_fnu = model.evaluate([54990.0, 54990.5], wavelengths)
+    assert np.all(fluxes_fnu[:, 0:6] > 0.0)
+    assert np.all(fluxes_fnu[:, 0] < fluxes_fnu[:, 1])
+    assert np.all(fluxes_fnu[:, 4] < fluxes_fnu[:, 3])
+    assert np.all(fluxes_fnu[:, 5] < fluxes_fnu[:, 4])
+    assert np.all(fluxes_fnu[:, 6] < fluxes_fnu[:, 5])
 
 
 def test_sncomso_models_set() -> None:
