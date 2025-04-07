@@ -368,6 +368,7 @@ class PhysicalModel(ParameterizedNode):
 
         if filters is None:
             raise ValueError("If passband_or_group is a PassbandGroup, filters must be provided.")
+        filters = np.asarray(filters)
 
         band_fluxes = np.empty((state.num_samples, len(times)))
         for filter_name in np.unique(filters):
