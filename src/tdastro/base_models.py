@@ -546,7 +546,7 @@ class ParameterizedNode:
         for name, setter in self.setters.items():
             # Check if we need to sample this parameter's dependency node.
             if setter.dependency is not None and setter.dependency != self:
-                setter.dependency._sample_helper(graph_state, seen_nodes, rng_info)
+                setter.dependency._sample_helper(graph_state, seen_nodes, rng_info=rng_info)
 
             # Set the result from the correct source.
             if setter.source_type == ParameterSource.CONSTANT:
@@ -617,7 +617,7 @@ class ParameterizedNode:
 
         # Resample the nodes. All information is stored in the returned results dictionary.
         seen_nodes = {}
-        self._sample_helper(results, seen_nodes, rng_info)
+        self._sample_helper(results, seen_nodes, rng_info=rng_info)
         return results
 
     def build_pytree(self, graph_state, partial=None):
