@@ -37,6 +37,9 @@ class SncosmoWrapperModel(PhysicalModel, CiteClass):
         The name used to set the source.
     source_param_names : list
         A list of the source model's parameters that we need to set.
+    wave_extrapolation : WaveExtrapolationModel, optional
+        The extrapolation model to use for wavelengths that fall outside
+        the sncosmo model's bounds.  If None then the model will use all zeros.
 
     Parameters
     ----------
@@ -44,6 +47,9 @@ class SncosmoWrapperModel(PhysicalModel, CiteClass):
         The name used to set the source.
     node_label : str, optional
         An identifier (or name) for the current node.
+    wave_extrapolation : WaveExtrapolationModel, optional
+        The extrapolation model to use for wavelengths that fall outside
+        the sncosmo model's bounds.  If None then the model will use all zeros
     **kwargs : dict, optional
         Any additional keyword arguments.
     """
@@ -51,10 +57,19 @@ class SncosmoWrapperModel(PhysicalModel, CiteClass):
     # A class variable for the units so we are not computing them each time.
     _FLAM_UNIT = u.erg / u.second / u.cm**2 / u.AA
 
-    def __init__(self, source_name, node_label=None, **kwargs):
+    def __init__(
+        self,
+        source_name,
+        node_label=None,
+        wave_extrapolation=None,
+        **kwargs,
+    ):
         super().__init__(node_label=node_label, **kwargs)
         self.source_name = source_name
         self.source = get_source(source_name)
+
+        # Set the extrapolation for values outside the sncosmo bounds.
+        self.wave_extrapolation = wave_extrapolation
 
         # Use the kwargs to initialize the sncosmo model's parameters.
         self.source_param_names = []
@@ -200,21 +215,47 @@ class SncosmoWrapperModel(PhysicalModel, CiteClass):
         params = self.get_local_params(graph_state)
         self._update_sncosmo_model_parameters(graph_state)
 
-        # sncosmo gives an error if the wavelengths are out of bounds, so we truncate
-        # and fill the rest of the predictions with zero.
-        min_wave_idx = np.searchsorted(wavelengths, self.source.minwave(), side="left")
-        max_wave_idx = np.searchsorted(wavelengths, self.source.maxwave(), side="right")
+        # sncosmo gives an error if the wavelengths are out of bounds, so we truncate for the actual call.
+        before_mask = wavelengths < self.source.minwave()
+        after_mask = wavelengths > self.source.maxwave()
+        in_range = ~before_mask & ~after_mask
 
-        model_flam = self.source.flux(times - params["t0"], wavelengths[min_wave_idx:max_wave_idx])
-        flux_flam = np.zeros((len(times), len(wavelengths)))
-        flux_flam[:, min_wave_idx:max_wave_idx] = model_flam
+        # Pad the wavelengths with the min and max values and compute the flux (flam) at those points.
+        query_waves = np.concatenate(
+            ([self.source.minwave()], wavelengths[in_range], [self.source.maxwave()])
+        )
+        model_flam = self.source.flux(times - params["t0"], query_waves)
 
-        flux_fnu = flam_to_fnu(
-            flux_flam,
-            wavelengths,
+        # Convert the flux to the desired units. We only bother converting the
+        # wavelengths that are in range.
+        model_fnu = flam_to_fnu(
+            model_flam,
+            query_waves,
             wave_unit=u.AA,
             flam_unit=self._FLAM_UNIT,
             fnu_unit=u.nJy,
         )
+
+        # Initially zero pad the fnu array until we fill in the values with extrapolation.
+        flux_fnu = np.zeros((len(times), len(wavelengths)))
+        flux_fnu[:, in_range] = model_fnu[:, 1:-1]
+
+        # Do extrapolation for wavelengths that fell outside the model's bounds
+        # using the fnu values. The endpoints of model_fnu are the first and last
+        # valid values for the model.
+        if self.wave_extrapolation is not None:
+            # Compute the flux values before the model's first valid wavelength.
+            flux_fnu[:, before_mask] = self.wave_extrapolation(
+                self.source.minwave(),
+                model_fnu[:, 0],
+                wavelengths[before_mask],
+            )
+
+            # Compute the flux values after the model's last valid wavelength.
+            flux_fnu[:, after_mask] = self.wave_extrapolation(
+                self.source.maxwave(),
+                model_fnu[:, -1],
+                wavelengths[after_mask],
+            )
 
         return flux_fnu
