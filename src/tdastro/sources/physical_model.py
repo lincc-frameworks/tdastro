@@ -292,7 +292,7 @@ class PhysicalModel(ParameterizedNode):
             return results[0, :, :]
         return results
 
-    def sample_parameters(self, given_args=None, num_samples=1, rng_info=None, **kwargs):
+    def sample_parameters(self, given_args=None, num_samples=1, rng_info=None):
         """Sample the model's underlying parameters if they are provided by a function
         or ParameterizedModel.
 
@@ -329,8 +329,8 @@ class PhysicalModel(ParameterizedNode):
 
         seen_nodes = {}
         if self.background is not None:
-            self.background._sample_helper(graph_state, seen_nodes, rng_info, **kwargs)
-        self._sample_helper(graph_state, seen_nodes, rng_info, **kwargs)
+            self.background._sample_helper(graph_state, seen_nodes, rng_info=rng_info)
+        self._sample_helper(graph_state, seen_nodes, rng_info=rng_info)
 
         return graph_state
 

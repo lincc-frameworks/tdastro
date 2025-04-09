@@ -130,7 +130,7 @@ class SncosmoWrapperModel(PhysicalModel, CiteClass):
                 self.source_param_names.append(key)
         self.source.set(**kwargs)
 
-    def _sample_helper(self, graph_state, seen_nodes, num_samples=1, rng_info=None):
+    def _sample_helper(self, graph_state, seen_nodes, rng_info=None):
         """Internal recursive function to sample the model's underlying parameters
         if they are provided by a function or ParameterizedNode.
 
@@ -156,7 +156,7 @@ class SncosmoWrapperModel(PhysicalModel, CiteClass):
         ------
         Raise a ValueError the sampling encounters a problem with the order of dependencies.
         """
-        super()._sample_helper(graph_state, seen_nodes, rng_info)
+        super()._sample_helper(graph_state, seen_nodes, rng_info=rng_info)
         self._update_sncosmo_model_parameters(graph_state)
 
     def mask_by_time(self, times, graph_state=None):
