@@ -358,8 +358,8 @@ def test_trim_transmission_table(passbands_dir, tmp_path):
     table = c_band._trim_transmission_by_quantile(c_band._loaded_table, trim_quantile=0.05)
     assert len(table) < len(c_band._loaded_table)
 
-    original_area = np.trapz(c_band._loaded_table[:, 1], x=c_band._loaded_table[:, 0])
-    trimmed_area = np.trapz(table[:, 1], x=table[:, 0])
+    original_area = np.trapezoid(c_band._loaded_table[:, 1], x=c_band._loaded_table[:, 0])
+    trimmed_area = np.trapezoid(table[:, 1], x=table[:, 0])
     assert trimmed_area >= (original_area * 0.9)
 
     # Test 4: LSST transmission table
@@ -367,8 +367,8 @@ def test_trim_transmission_table(passbands_dir, tmp_path):
     table = LSST_z._trim_transmission_by_quantile(LSST_z._loaded_table, trim_quantile=0.05)
     assert len(table) < len(LSST_z._loaded_table)
 
-    original_area = np.trapz(LSST_z._loaded_table[:, 1], x=LSST_z._loaded_table[:, 0])
-    trimmed_area = np.trapz(table[:, 1], x=table[:, 0])
+    original_area = np.trapezoid(LSST_z._loaded_table[:, 1], x=LSST_z._loaded_table[:, 0])
+    trimmed_area = np.trapezoid(table[:, 1], x=table[:, 0])
     assert trimmed_area >= (original_area * 0.9)
 
 
@@ -417,7 +417,7 @@ def test_passband_fluxes_to_bandflux(passbands_dir, tmp_path):
             [1.0, 1.0, 1.0],
         ]
     )
-    expected_in_band_flux = np.trapz(flux * a_band.processed_transmission_table[:, 1], x=a_band.waves)
+    expected_in_band_flux = np.trapezoid(flux * a_band.processed_transmission_table[:, 1], x=a_band.waves)
     in_band_flux = a_band.fluxes_to_bandflux(flux)
     np.testing.assert_allclose(in_band_flux, expected_in_band_flux)
 
@@ -435,7 +435,7 @@ def test_passband_fluxes_to_bandflux(passbands_dir, tmp_path):
         ]
     )
     in_band_flux = a_band.fluxes_to_bandflux(flux)
-    expected_in_band_flux = np.trapz(
+    expected_in_band_flux = np.trapezoid(
         flux * a_band.processed_transmission_table[:, 1], x=a_band.processed_transmission_table[:, 0]
     )
     np.testing.assert_allclose(in_band_flux, expected_in_band_flux)
