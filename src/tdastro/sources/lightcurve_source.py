@@ -9,7 +9,7 @@ from tdastro.consts import lsst_filter_plot_colors
 from tdastro.sources.physical_model import PhysicalModel
 
 
-class LightcurveModel(PhysicalModel):
+class LightcurveSource(PhysicalModel):
     """A model that generates the SED of a source from lightcurves in given bands.
     The model estimates a box-shaped SED for each filter such that the resulting
     flux density is equal to the lightcurve's value after passing through
@@ -188,7 +188,7 @@ class LightcurveModel(PhysicalModel):
 
             # The contribution of this filter to the overall SED is the lightcurve's (interpolated)
             # value at each time multiplied by the SED values at each query wavelength.
-            sed_flux = np.outer(sed_waves, sed_time_mult)
+            sed_flux = np.outer(sed_time_mult, sed_waves)
             flux_density += sed_flux
 
         # Return the total flux density from all lightcurves.
