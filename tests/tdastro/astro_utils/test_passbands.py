@@ -350,7 +350,10 @@ def test_trim_transmission_table(passbands_dir, tmp_path):
     transmissions = rng.normal(0.5, 0.1, 1000)
     wavelengths = np.arange(100, 1100, 1)
     transmission_table = "\n".join(
-        [f"{wavelength} {transmission}" for wavelength, transmission in zip(wavelengths, transmissions)]
+        [
+            f"{wavelength} {transmission}"
+            for wavelength, transmission in zip(wavelengths, transmissions, strict=False)
+        ]
     )
     c_band = create_toy_passband(tmp_path, transmission_table, filter_name="c")
 
