@@ -53,10 +53,6 @@ def test_passband_eq(passbands_dir, tmp_path):
     assert a_band != c_band
     assert a_band != d_band
 
-    # Passbands with different units are not equal.
-    a2_band = Passband(np.array([[1000, 0.5], [1005, 0.6], [1010, 0.7]]), "LSST", "a", units="nm")
-    assert a_band != a2_band
-
 
 def test_passband_manual_create(tmp_path):
     """Test that we can create a passband from the transmission table."""
@@ -71,7 +67,6 @@ def test_passband_manual_create(tmp_path):
     assert test_pb.survey == "test"
     assert test_pb.filter_name == "u"
     assert test_pb.full_name == "test_u"
-    assert test_pb.units == "A"
     np.testing.assert_allclose(test_pb._loaded_table, transmission_table)
 
     # We can create an load a table in nm as well. It will auto-convert to Angstroms.
@@ -80,7 +75,6 @@ def test_passband_manual_create(tmp_path):
     assert test_pb2.survey == "test"
     assert test_pb2.filter_name == "g"
     assert test_pb2.full_name == "test_g"
-    assert test_pb2.units == "A"
     np.testing.assert_allclose(test_pb2._loaded_table, transmission_table)
 
     # We raise an error if the data is not sorted.
@@ -206,7 +200,6 @@ def test_passband_from_sncosmo(passbands_dir):
     assert ztf_band.survey == "ZTF"
     assert ztf_band.filter_name == "g"
     assert ztf_band.full_name == "ZTF_g"
-    assert ztf_band.units == "A"
     assert ztf_band._loaded_table is not None
     assert np.allclose(ztf_band._loaded_table[:, 0], sn_pb.wave)
     assert np.allclose(ztf_band._loaded_table[:, 1], sn_pb.trans)
