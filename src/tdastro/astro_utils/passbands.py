@@ -507,8 +507,8 @@ class Passband:
     full_name : str
         The full name of the passband. This is the survey and filter concatenated: eg, "LSST_u".
     waves : np.ndarray
-        The wavelengths of the transmission table. To be used when evaluating models to generate fluxes
-        that will be passed to fluxes_to_bandflux.
+        The wavelengths of the transmission table in Angstroms. To be used when evaluating models
+        to generate fluxes that will be passed to fluxes_to_bandflux.
     _loaded_table : np.ndarray
         A 2D array of wavelengths and transmissions. This is the table loaded from the file, and is neither
         interpolated nor normalized.
@@ -531,7 +531,7 @@ class Passband:
         Parameters
         ----------
         table_values : np.ndarray, optional
-            A 2D array of wavelengths and transmissions.
+            A 2D array of wavelengths (in the given units) and transmissions.
         survey : str
             The survey to which the passband belongs: eg, "LSST".
         filter_name : str
@@ -548,14 +548,10 @@ class Passband:
             Denotes whether the wavelength units of the table are nanometers ('nm') or Angstroms ('A').
             By default 'A'. Does not affect the output units of the class, only the interpretation of the
             provided passband table.
-        force_download : bool, optional
-            If True, the transmission table will be downloaded even if it already exists locally.
-            Default is False.
         """
         self.survey = survey
         self.filter_name = filter_name
         self.full_name = f"{survey}_{filter_name}"
-        self.units = units
 
         # Perform validation of the transmission table.
         if table_values.shape[1] != 2:
@@ -570,8 +566,14 @@ class Passband:
             table_values = np.delete(table_values, dup_inds + 1, axis=0)
         self._loaded_table = np.copy(table_values)
 
+        # Ensure the wavelengths are in Angstroms.
+        if units == "nm":
+            # Multiply the first column (wavelength) by 10.0 to convert to Angstroms
+            self._loaded_table[:, 0] *= 10.0
+        elif units != "A":
+            raise ValueError(f"Unknown Passband units {units}")
+
         # Preprocess the passband.
-        self._standardize_units()
         self.process_transmission_table(delta_wave, trim_quantile)
 
     def __str__(self) -> str:
@@ -580,9 +582,6 @@ class Passband:
 
     def __eq__(self, other) -> bool:
         """Determine if two passbands have equal values for the processed tables."""
-        if self.units != other.units:
-            return False
-
         # Check that they are using the same wavelengths.
         if len(self.waves) != len(other.waves):
             return False
@@ -596,15 +595,6 @@ class Passband:
             return False
 
         return True
-
-    def _standardize_units(self):
-        """Convert the units into Angstroms."""
-        if self.units == "nm":
-            # Multiply the first column (wavelength) by 10.0 to convert to Angstroms
-            self._loaded_table[:, 0] *= 10.0
-        elif self.units != "A":
-            raise ValueError(f"Unknown Passband units {self.units}")
-        self.units = "A"
 
     @classmethod
     def from_file(
@@ -805,7 +795,7 @@ class Passband:
         Parameters
         ----------
         delta_wave : Optional[float] = 5.0
-            The grid step of the wave grid. Default is 5.0 Angstroms.
+            The grid step in Angstroms of the wave grid. Default is 5.0 Angstroms.
         trim_quantile : Optional[float] = 1e-3
             The quantile to trim the transmission table by. For example, if trim_quantile is 1e-3, the
             transmission table will be trimmed to include only the central 99.8% of rows.
@@ -822,14 +812,14 @@ class Passband:
         Parameters
         ----------
         table : np.ndarray
-            A 2D array of wavelengths and transmissions.
+            A 2D array of wavelengths (in Angstroms) and transmissions.
         delta_wave : float or None
-            The grid step of the wave grid.
+            The grid step in Angstroms of the wave grid.
 
         Returns
         -------
         np.ndarray
-            A 2D array of wavelengths and transmissions.
+            The 2D interpolated array of wavelengths (in Angstroms) and transmissions.
         """
         # Don't interpolate if delta_wave is None or the table is already on the desired grid
         if delta_wave is None:
@@ -858,7 +848,7 @@ class Passband:
         Parameters
         ----------
         table : np.ndarray
-            A 2D array of wavelengths and transmissions.
+            A 2D array of wavelengths (in Angstroms) and transmissions.
         trim_quantile : float
             The quantile to trim the transmission table by. For example, if trim_quantile is 1e-3, the
             transmission table will be trimmed to include only the central 99.8% of rows. Must be greater than
@@ -867,7 +857,7 @@ class Passband:
         Returns
         -------
         np.ndarray
-            A 2D array of wavelengths and transmissions.
+            A 2D array of wavelengths (in Angstroms) and transmissions.
         """
         if trim_quantile is None or trim_quantile == 0.0:
             return table
@@ -905,12 +895,12 @@ class Passband:
         Parameters
         ----------
         transmission_table : np.ndarray
-            A 2D array of wavelengths and transmissions.
+            A 2D array of wavelengths (in Angstroms) and transmissions.
 
         Returns
         -------
         np.ndarray
-            A 2D array of wavelengths and normalized transmissions.
+            A 2D array of wavelengths (in Angstroms) and normalized transmissions.
 
         Raises
         ------
@@ -959,8 +949,8 @@ class Passband:
         ----------
         flux_density_matrix : np.ndarray
             A 2D or 3D array of flux densities. If the array is 2D it contains a single sample where
-            the rows are the T times and columns are M wavelengths. If the array is 3D it contains S
-            samples and the values are indexed as (sample_num, time, wavelength).
+            the rows are the T times and columns are M wavelengths in Angstroms. If the array is 3D
+            it contains S samples and the values are indexed as (sample_num, time, wavelength).
 
         Returns
         -------
