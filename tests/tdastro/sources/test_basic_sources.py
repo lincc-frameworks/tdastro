@@ -170,7 +170,7 @@ def test_sin_wave_source() -> None:
 
 
 def test_linear_wavelength_source() -> None:
-    """Test that we can sample and create a SinWaveSource object."""
+    """Test that we can sample and create a LinearWavelengthSource object."""
     model = LinearWavelengthSource(linear_base=1.0, linear_scale=0.1)
     state = model.sample_parameters()
 

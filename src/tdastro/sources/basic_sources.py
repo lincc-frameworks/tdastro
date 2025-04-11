@@ -182,8 +182,7 @@ class LinearWavelengthSource(PhysicalModel):
     linear_scale : parameter
         The slope of the linear function in nJy/Angstrom.
     **kwargs : dict, optional
-        Any additional keyword arguments.  MUST include all parameters
-        to flux_func that except time and wavelength.
+        Any additional keyword arguments.
     """
 
     def __init__(self, linear_base, linear_scale, **kwargs):
