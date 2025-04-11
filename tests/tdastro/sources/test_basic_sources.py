@@ -2,7 +2,12 @@ import random
 
 import numpy as np
 from tdastro.base_models import FunctionNode
-from tdastro.sources.basic_sources import SinWaveSource, StaticSource, StepSource
+from tdastro.sources.basic_sources import (
+    LinearWavelengthSource,
+    SinWaveSource,
+    StaticSource,
+    StepSource,
+)
 
 
 def _sampler_fun(magnitude, offset=0.0, **kwargs):
@@ -161,4 +166,38 @@ def test_sin_wave_source() -> None:
 
     values = model.evaluate(times, wavelengths, state)
     assert values.shape == (5, 2)
+    assert np.allclose(values, expected)
+
+
+def test_linear_wavelength_source() -> None:
+    """Test that we can sample and create a SinWaveSource object."""
+    model = LinearWavelengthSource(linear_base=1.0, linear_scale=0.1)
+    state = model.sample_parameters()
+
+    times = np.arange(0.0, 10.0, 0.5)
+    wavelengths = np.array([0.0, 1000.0, 2000.0])
+    expected = np.tile(np.array([1.0, 101.0, 201.0]), (len(times), 1))
+
+    values = model.evaluate(times, wavelengths, state)
+    assert values.shape == (20, 3)
+    assert np.allclose(values, expected)
+
+
+def test_linear_wavelength_source_redeshift() -> None:
+    """Test that we correctly apply a redshift to the wavelengths."""
+    model = LinearWavelengthSource(linear_base=1.0, linear_scale=0.1, redshift=0.2, t0=0.0)
+    state = model.sample_parameters()
+
+    times = np.arange(0.0, 10.0, 0.5)
+    wavelengths = np.array([0.0, 1000.0, 1111.1, 1500.0, 2000.0])
+    values = model.evaluate(times, wavelengths, state)
+    assert values.shape == (20, 5)
+
+    # The shifted (rest frame) wavelengths are given by the equation:
+    #   rest_frame_wavelengths = observer_frame_wavelengths / (1 + redshift)
+    # so we evaluate the linear function at those shifted wavelengths. Then scale
+    # those fluxes by (1 + redshift) to get back to the observer frame.
+    rest_frame_wavelengths = wavelengths / (1.2)
+    expected_single_time = 1.2 * (1.0 + 0.1 * rest_frame_wavelengths)
+    expected = np.tile(expected_single_time, (len(times), 1))
     assert np.allclose(values, expected)
