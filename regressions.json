@@ -1,1 +1,1 @@
-{"regressions": []}
+{"regressions": [["benchmarks.TimeSuite.time_make_new_salt3_model", "graphs/Cython/branch-HEAD/build/machine-gh-runner/packaging/python-3.11/benchmarks.TimeSuite.time_make_new_salt3_model.json", {"python": "3.11"}, null, 4.7027340725992785e-05, 4.463438721926705e-05, [[null, 844, 4.463438721926705e-05, 4.7027340725992785e-05]]]]}
