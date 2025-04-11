@@ -1,4 +1,4 @@
-"""A collection of toy source models that can be used for testing."""
+"""A collection of toy source models that are primarily used for testing."""
 
 import numpy as np
 
@@ -6,7 +6,7 @@ from tdastro.sources.physical_model import PhysicalModel
 
 
 class StaticSource(PhysicalModel):
-    """A static source.
+    """A static source (constant over time and wavelength)
 
     Parameterized values include:
       * brightness - The inherent brightness
@@ -160,3 +160,55 @@ class SinWaveSource(PhysicalModel):
         phases = 2.0 * np.pi * params["frequency"] * (times - params["t0"])
         single_wave = params["brightness"] * np.sin(phases)
         return np.tile(single_wave[:, np.newaxis], (1, len(wavelengths)))
+
+
+class LinearWavelengthSource(PhysicalModel):
+    """A source that emits flux as a linear function of wavelength
+    (that is constant over time): f(t, w) = scale * w + base.
+
+    Parameterized values include:
+      * linear_base - The base brightness in nJy.
+      * linear_scale - The slope of the linear function in nJy/Angstrom.
+      * dec - The object's declination in degrees. [from PhysicalModel]
+      * distance - The object's luminosity distance in pc. [from PhysicalModel]
+      * ra - The object's right ascension in degrees. [from PhysicalModel]
+      * redshift - The object's redshift. [from PhysicalModel]
+      * t0 - No effect for static model. [from PhysicalModel]
+
+    Parameters
+    ----------
+    linear_base : parameter
+        The base brightness in nJy.
+    linear_scale : parameter
+        The slope of the linear function in nJy/Angstrom.
+    **kwargs : dict, optional
+        Any additional keyword arguments.
+    """
+
+    def __init__(self, linear_base, linear_scale, **kwargs):
+        super().__init__(**kwargs)
+        self.add_parameter("linear_base", linear_base, **kwargs)
+        self.add_parameter("linear_scale", linear_scale, **kwargs)
+
+    def compute_flux(self, times, wavelengths, graph_state, **kwargs):
+        """Draw effect-free observations for this object.
+
+        Parameters
+        ----------
+        times : numpy.ndarray
+            A length T array of rest frame timestamps.
+        wavelengths : numpy.ndarray, optional
+            A length N array of wavelengths (in angstroms).
+        graph_state : GraphState
+            An object mapping graph parameters to their values.
+        **kwargs : dict, optional
+            Any additional keyword arguments.
+
+        Returns
+        -------
+        flux_density : numpy.ndarray
+            A length T x N matrix of SED values (in nJy).
+        """
+        params = self.get_local_params(graph_state)
+        single_wave = params["linear_base"] + params["linear_scale"] * wavelengths
+        return np.tile(single_wave[np.newaxis, :], (len(times), 1))
