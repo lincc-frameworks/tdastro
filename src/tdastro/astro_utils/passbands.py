@@ -10,21 +10,10 @@ from citation_compass import cite_function
 from sncosmo import Bandpass, get_bandpass
 
 from tdastro import _TDASTRO_BASE_DATA_DIR
+from tdastro.consts import lsst_filter_plot_colors
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
-
-
-# Set default colors for plotting to match:
-# https://community.lsst.org/t/lsst-filter-profiles/1463
-_lsst_filter_plot_colors = {
-    "u": "purple",
-    "g": "blue",
-    "r": "green",
-    "i": "yellow",
-    "z": "orange",
-    "y": "red",
-}
 
 
 class PassbandGroup:
@@ -1009,7 +998,7 @@ class Passband:
         # If the color is provided, we use that. Otherwise we try
         # the LSST filter colors (or default to black).
         if color is None:
-            color = _lsst_filter_plot_colors.get(self.filter_name, "black")
+            color = lsst_filter_plot_colors.get(self.filter_name, "black")
 
         ax.plot(
             self.processed_transmission_table[:, 0],  # X values are the wavelength
