@@ -489,7 +489,7 @@ class OpSim:
         nside_coverage = 64
 
         view_maps = []
-        for ra, dec in zip(self.table[self.colmap["ra"]], self.table[self.colmap["dec"]]):
+        for ra, dec in zip(self.table[self.colmap["ra"]], self.table[self.colmap["dec"]], strict=False):
             circ = hsp.Circle(ra=ra, dec=dec, radius=radius, value=True)
 
             # Generating a map to union is more expensive than `cov_map |= circ`

@@ -20,7 +20,6 @@ time-domain simulation software with realistic effects and survey strategies.
    :align: center
    :alt: TDAstro simulation components
 
-   TDAstro simulation components
 
 The main simulation components in TDAstro include:
 
