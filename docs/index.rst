@@ -20,8 +20,6 @@ time-domain simulation software with realistic effects and survey strategies.
    :align: center
    :alt: TDAstro simulation components
 
-   >> conda create env -n <env_name> python=3.11
-   >> conda activate <env_name>
 
 The main simulation components in TDAstro include:
 
