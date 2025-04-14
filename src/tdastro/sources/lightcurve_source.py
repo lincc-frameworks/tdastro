@@ -26,10 +26,9 @@ class LightcurveSource(PhysicalModel):
     Attributes
     ----------
     lightcurves : dict
-        A dictionary mapping filters to a 2d array representing the lightcurve
-        of the object. The first dimension is time and the second dimension
-        is the flux density in nJy.  An optional third dimension can be used to
-        represent the flux density error in nJy.
+        A dictionary mapping filter names to a 2d array of the bandlfuxes
+        in that filter where the first column is time (in days from the reference time
+        of the light curve) and the second column is the bandflux (in nJy).
     sed_values : dict
         A dictionary mapping filters to the fake SED values for that passband.
         These SED values are scaled by the lightcurve and added for the
@@ -39,19 +38,25 @@ class LightcurveSource(PhysicalModel):
 
     Parameters
     ----------
-    lightcurves : dict
-        A dictionary mapping filters to a 2d array representing the lightcurve
-        of the object. The first dimension is time and the second dimension
-        is the flux density in nJy.  An optional third dimension can be used to
-        represent the flux density error in nJy.
+    lightcurves : dict or numpy.ndarray
+        The lightcurves can be passed as either:
+        1) a dictionary mapping filter names to a (T, 2) array of the bandlfuxes in that filter
+        where the first column is time and the second column is the flux density (in nJy), or
+        2) a numpy array of shape (T, 3) array where the first column is time (in days), the
+        second column is the bandflux (in nJy), and the third column is the filter.
     passbands : Passband or PassbandGroup
         The passband or passband group to use for defining the lightcurve.
+    lc_t0 : float
+        The zero time in the lightcurve arrays.  When computing flux the model's t0 will be
+        aligned with the lightcurve's lc_t0.
+        Default: 0.0
     """
 
     def __init__(
         self,
         lightcurves,
         passbands,
+        lc_t0=0.0,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -60,19 +65,45 @@ class LightcurveSource(PhysicalModel):
         if isinstance(passbands, Passband):
             passbands = PassbandGroup(given_passbands=[passbands])
 
-        # Validate the lightcurves and confirm that we have the correct passband in the group.
-        for filter, data in lightcurves.items():
-            if filter not in passbands:
-                raise ValueError(f"Lightcurve {filter} does not match any passband in the group.")
-            if len(data.shape) != 2:
-                raise ValueError(f"Lightcurve {filter} must be a 2D array.")
-            if data.shape[1] != 2 and data.shape[1] != 3:
-                raise ValueError(f"Lightcurve {filter} must have either 2 or 3 columns.")
-        self.lightcurves = lightcurves
+        # Store the lightcurve information.
+        self.lc_t0 = lc_t0
+        if isinstance(lightcurves, np.ndarray):
+            if lightcurves.shape[1] != 3:
+                raise ValueError("Lightcurves must have 3 columns: time, flux, and filter.")
+
+            # Break up the lightcurves by filter and shift so that the time
+            # at lc_t0 is mapped to the lightcurve's 0.0 time.
+            self.lightcurves = {}
+            filters = np.unique(lightcurves[:, 2])
+            for filter in filters:
+                if filter not in passbands:
+                    raise ValueError(f"Lightcurve {filter} does not match any passband in the group.")
+
+                filter_mask = lightcurves[:, 2] == filter
+                filter_times = lightcurves[filter_mask, 0].astype(float) - lc_t0
+                filter_bandflux = lightcurves[filter_mask, 1].astype(float)
+                self.lightcurves[str(filter)] = np.column_stack((filter_times, filter_bandflux))
+        elif isinstance(lightcurves, dict):
+            self.lightcurves = {}
+            for filter, data in lightcurves.items():
+                # Validate the dictionary entry.
+                if filter not in passbands:
+                    raise ValueError(f"Lightcurve {filter} does not match any passband in the group.")
+                if len(data.shape) != 2:
+                    raise ValueError(f"Lightcurve {filter} must be a 2D array.")
+                if data.shape[1] != 2 and data.shape[1] != 3:
+                    raise ValueError(f"Lightcurve {filter} must have either 2 or 3 columns.")
+
+                # Copy the lightcurve data so we can shift the times to
+                # account for the light_curve's lc_t0.
+                self.lightcurves[filter] = np.copy(data)
+                self.lightcurves[filter][:, 0] -= lc_t0
+        else:
+            raise TypeError("Unknown type for lightcurve input. Must be dict or numpy array.")
 
         # Store the wavelengths information and lightcurves for each filter.
         self.all_waves = passbands.waves
-        self.sed_values = self._create_sed_basis(list(lightcurves.keys()), passbands)
+        self.sed_values = self._create_sed_basis(list(self.lightcurves.keys()), passbands)
 
         # Override some of the defaults of PhysicalModel. Never apply redshift and
         # do not allow brackground models.
@@ -170,6 +201,9 @@ class LightcurveSource(PhysicalModel):
             A length T x N matrix of rest frame SED values (in nJy).
         """
         params = self.get_local_params(graph_state)
+
+        # Shift the times for the model's t0 aligned with the lightcurve's lc_t0.
+        # The lightcurve times were a;ready shifted in the constructor to be relative to lc_t0.
         shifted_times = times - params["t0"]
 
         flux_density = np.zeros((len(times), len(wavelengths)))
