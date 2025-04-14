@@ -81,6 +81,10 @@ class LightcurveSource(PhysicalModel):
             raise ValueError("Lightcurve models do not support background models.")
         self.background = None
 
+        # Check that t0 is set.
+        if "t0" not in kwargs or kwargs["t0"] is None:
+            raise ValueError("Lightcurve models require a t0 parameter.")
+
     def _create_sed_basis(self, filters, passbands):
         """Create the SED basis functions. For each passband this creates a box shaped SED
         that does not overlap with any other passband. The height of the SED is normalized
@@ -165,8 +169,10 @@ class LightcurveSource(PhysicalModel):
         flux_density : numpy.ndarray
             A length T x N matrix of rest frame SED values (in nJy).
         """
-        flux_density = np.zeros((len(times), len(wavelengths)))
+        params = self.get_local_params(graph_state)
+        shifted_times = times - params["t0"]
 
+        flux_density = np.zeros((len(times), len(wavelengths)))
         for filter, lightcurve in self.lightcurves.items():
             # Compute the SED values for the wavelengths we are actually sampling.
             sed_waves = np.interp(
@@ -179,7 +185,7 @@ class LightcurveSource(PhysicalModel):
 
             # Compute the multipliers for the SEDs at different time steps along this lightcurve.
             sed_time_mult = np.interp(
-                times,  # The query times
+                shifted_times,  # The query times
                 lightcurve[:, 0],  # The lightcurve times for this passband filter
                 lightcurve[:, 1],  # The lightcurve flux densities for this passband filter
                 left=0.0,  # Do not extrapolate in time
