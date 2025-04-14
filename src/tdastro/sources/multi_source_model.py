@@ -16,6 +16,9 @@ class MultiSourceModel(PhysicalModel):
     for each source (for unresolved sources).  The observer frame effects are applied
     to the weighted sum of the sources.
 
+    Note: Each source may have its own sampled (RA, dec) position, which are not
+    required to align.
+
     Attributes
     ----------
     sources : list
