@@ -114,7 +114,7 @@ class LightcurveSource(PhysicalModel):
             # Mark all non-negligible wavelengths as used by this filter.
             filter_uses_wave[idx, indices] = 1.0
 
-        # Find which wavelenfths are used by multiple filters.
+        # Find which wavelengths are used by multiple filters.
         filter_counts = np.sum(filter_uses_wave, axis=0)
 
         # Create the sed values for each wavelength.
