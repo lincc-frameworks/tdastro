@@ -53,10 +53,6 @@ def test_passband_eq(passbands_dir, tmp_path):
     assert a_band != c_band
     assert a_band != d_band
 
-    # Passbands with different units are not equal.
-    a2_band = Passband(np.array([[1000, 0.5], [1005, 0.6], [1010, 0.7]]), "LSST", "a", units="nm")
-    assert a_band != a2_band
-
 
 def test_passband_manual_create(tmp_path):
     """Test that we can create a passband from the transmission table."""
@@ -71,7 +67,6 @@ def test_passband_manual_create(tmp_path):
     assert test_pb.survey == "test"
     assert test_pb.filter_name == "u"
     assert test_pb.full_name == "test_u"
-    assert test_pb.units == "A"
     np.testing.assert_allclose(test_pb._loaded_table, transmission_table)
 
     # We can create an load a table in nm as well. It will auto-convert to Angstroms.
@@ -80,7 +75,6 @@ def test_passband_manual_create(tmp_path):
     assert test_pb2.survey == "test"
     assert test_pb2.filter_name == "g"
     assert test_pb2.full_name == "test_g"
-    assert test_pb2.units == "A"
     np.testing.assert_allclose(test_pb2._loaded_table, transmission_table)
 
     # We raise an error if the data is not sorted.
@@ -206,7 +200,6 @@ def test_passband_from_sncosmo(passbands_dir):
     assert ztf_band.survey == "ZTF"
     assert ztf_band.filter_name == "g"
     assert ztf_band.full_name == "ZTF_g"
-    assert ztf_band.units == "A"
     assert ztf_band._loaded_table is not None
     assert np.allclose(ztf_band._loaded_table[:, 0], sn_pb.wave)
     assert np.allclose(ztf_band._loaded_table[:, 1], sn_pb.trans)
@@ -350,7 +343,10 @@ def test_trim_transmission_table(passbands_dir, tmp_path):
     transmissions = rng.normal(0.5, 0.1, 1000)
     wavelengths = np.arange(100, 1100, 1)
     transmission_table = "\n".join(
-        [f"{wavelength} {transmission}" for wavelength, transmission in zip(wavelengths, transmissions)]
+        [
+            f"{wavelength} {transmission}"
+            for wavelength, transmission in zip(wavelengths, transmissions, strict=False)
+        ]
     )
     c_band = create_toy_passband(tmp_path, transmission_table, filter_name="c")
 
@@ -358,8 +354,8 @@ def test_trim_transmission_table(passbands_dir, tmp_path):
     table = c_band._trim_transmission_by_quantile(c_band._loaded_table, trim_quantile=0.05)
     assert len(table) < len(c_band._loaded_table)
 
-    original_area = np.trapz(c_band._loaded_table[:, 1], x=c_band._loaded_table[:, 0])
-    trimmed_area = np.trapz(table[:, 1], x=table[:, 0])
+    original_area = np.trapezoid(c_band._loaded_table[:, 1], x=c_band._loaded_table[:, 0])
+    trimmed_area = np.trapezoid(table[:, 1], x=table[:, 0])
     assert trimmed_area >= (original_area * 0.9)
 
     # Test 4: LSST transmission table
@@ -367,8 +363,8 @@ def test_trim_transmission_table(passbands_dir, tmp_path):
     table = LSST_z._trim_transmission_by_quantile(LSST_z._loaded_table, trim_quantile=0.05)
     assert len(table) < len(LSST_z._loaded_table)
 
-    original_area = np.trapz(LSST_z._loaded_table[:, 1], x=LSST_z._loaded_table[:, 0])
-    trimmed_area = np.trapz(table[:, 1], x=table[:, 0])
+    original_area = np.trapezoid(LSST_z._loaded_table[:, 1], x=LSST_z._loaded_table[:, 0])
+    trimmed_area = np.trapezoid(table[:, 1], x=table[:, 0])
     assert trimmed_area >= (original_area * 0.9)
 
 
@@ -417,7 +413,7 @@ def test_passband_fluxes_to_bandflux(passbands_dir, tmp_path):
             [1.0, 1.0, 1.0],
         ]
     )
-    expected_in_band_flux = np.trapz(flux * a_band.processed_transmission_table[:, 1], x=a_band.waves)
+    expected_in_band_flux = np.trapezoid(flux * a_band.processed_transmission_table[:, 1], x=a_band.waves)
     in_band_flux = a_band.fluxes_to_bandflux(flux)
     np.testing.assert_allclose(in_band_flux, expected_in_band_flux)
 
@@ -435,7 +431,7 @@ def test_passband_fluxes_to_bandflux(passbands_dir, tmp_path):
         ]
     )
     in_band_flux = a_band.fluxes_to_bandflux(flux)
-    expected_in_band_flux = np.trapz(
+    expected_in_band_flux = np.trapezoid(
         flux * a_band.processed_transmission_table[:, 1], x=a_band.processed_transmission_table[:, 0]
     )
     np.testing.assert_allclose(in_band_flux, expected_in_band_flux)

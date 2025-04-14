@@ -5,8 +5,9 @@ To manually run the benchmarks use: asv run
 For more information on writing benchmarks:
 https://asv.readthedocs.io/en/stable/writing_benchmarks.html."""
 
+from pathlib import Path
+
 import numpy as np
-import tdastro
 from astropy import units as u
 from tdastro.astro_utils.passbands import PassbandGroup
 from tdastro.astro_utils.snia_utils import DistModFromRedshift, HostmassX1Func, X0FromDistMod
@@ -16,18 +17,25 @@ from tdastro.effects.white_noise import WhiteNoise
 from tdastro.math_nodes.np_random import NumpyRandomFunc
 from tdastro.sources.sncomso_models import SncosmoWrapperModel
 
+# ASV runs from copy of the project (benchmarks/env/....). So we load the
+# data files based off the current file location instead.
+_PROJECT_BASE_DIR = Path(__file__).parent.parent
+_TEST_DATA_DIR = _PROJECT_BASE_DIR / "tests" / "tdastro" / "data"
+
 
 def _load_test_passbands():
     """Load passbands to use in various benchmarks."""
-    passbands_dir = tdastro._TDASTRO_TEST_DATA_DIR / "passbands"
+    passbands_dir = _TEST_DATA_DIR / "passbands"
     passbands = PassbandGroup(
         passband_parameters=[
             {
                 "filter_name": "g",
+                "survey": "LSST",
                 "table_path": passbands_dir / "LSST" / "g.dat",
             },
             {
                 "filter_name": "r",
+                "survey": "LSST",
                 "table_path": passbands_dir / "LSST" / "r.dat",
             },
         ],
