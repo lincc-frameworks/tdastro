@@ -1,1 +1,1 @@
-{"regressions": [["benchmarks.TimeSuite.time_evaluate_simple_linear_wavelength_source", "graphs/Cython/branch-HEAD/build/machine-gh-runner/packaging/python-3.11/benchmarks.TimeSuite.time_evaluate_simple_linear_wavelength_source.json", {}, null, 0.0012484078999960957, 0.0004670051875024228, [[null, 936, 0.0004670051875024228, 0.0012484078999960957]]]]}
+{"regressions": []}
