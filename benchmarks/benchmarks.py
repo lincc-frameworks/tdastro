@@ -15,6 +15,7 @@ from tdastro.astro_utils.unit_utils import fnu_to_flam
 from tdastro.base_models import FunctionNode
 from tdastro.effects.white_noise import WhiteNoise
 from tdastro.math_nodes.np_random import NumpyRandomFunc
+from tdastro.sources.basic_sources import LinearWavelengthSource, StepSource
 from tdastro.sources.sncomso_models import SncosmoWrapperModel
 
 # ASV runs from copy of the project (benchmarks/env/....). So we load the
@@ -80,6 +81,9 @@ class TimeSuite:
             redshift=self.redshift,
         )
 
+        # A simple LinearWavelengthSource that we can use in tests.
+        self.linear_source = LinearWavelengthSource(linear_base=1.0, linear_scale=0.1)
+
         # Create samples that we can use in tests.
         self.times = np.arange(-20.0, 50.0, 0.5)
         self.wavelengths = self.passbands.waves
@@ -122,6 +126,22 @@ class TimeSuite:
     def time_sample_x0_from_distmod(self):
         """Time the computation of the X0 function."""
         _ = self.x0_func.sample_parameters()
+
+    def time_make_and_evaluate_step_source(self):
+        """Time creating and evaluating a StepSource."""
+        model = StepSource(brightness=100.0, t0=2.0, t1=5.0)
+        state = model.sample_parameters()
+        times = np.arange(0.0, 10.0, 0.05)
+        wavelengths = np.arange(1000.0, 2000.0, 5.0)
+        _ = model.evaluate(times, wavelengths, state)
+
+    def time_make_simple_linear_wavelength_source(self):
+        """Time creating a simple LinearWavelengthSource."""
+        _ = LinearWavelengthSource(linear_base=1.0, linear_scale=0.1)
+
+    def time_evaluate_simple_linear_wavelength_source(self):
+        """Time evaluating a simple LinearWavelengthSource."""
+        _ = self.linear_source.evaluate(self.times, self.wavelengths)
 
     def time_make_new_salt3_model(self):
         """Time creating a new SALT3 model."""

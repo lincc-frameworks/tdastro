@@ -2,6 +2,8 @@ import numpy as np
 from astropy import constants
 from astropy import units as u
 
+# Physics Constants --------------------------------------
+
 # Mass of the sun in grams
 M_SUN_G = constants.M_sun.cgs.value
 
@@ -31,3 +33,24 @@ ANGSTROM_TO_CM = (1.0 * u.AA).to_value(u.cm)
 
 CGS_FNU_UNIT_TO_NJY = (1.0 * u.erg / u.second / u.cm**2 / u.Hz).to_value(u.nJy)
 """Conversion factor from erg/s/cm²/Hz to nJy, 1e32"""
+
+
+# Plotting constants ----------------------------------------
+
+# Set default colors for plotting to match. We provide values for
+# the filters with and without the "LSST_" prefix.
+# https://community.lsst.org/t/lsst-filter-profiles/1463
+lsst_filter_plot_colors = {
+    "u": "purple",
+    "g": "blue",
+    "r": "green",
+    "i": "yellow",
+    "z": "orange",
+    "y": "red",
+    "LSST_u": "purple",
+    "LSST_g": "blue",
+    "LSST_r": "green",
+    "LSST_i": "yellow",
+    "LSST_z": "orange",
+    "LSST_y": "red",
+}
