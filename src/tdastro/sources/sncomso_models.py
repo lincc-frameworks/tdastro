@@ -99,7 +99,7 @@ class SncosmoWrapperModel(PhysicalModel, CiteClass):
 
         Returns
         -------
-        minwave : float or Nonw
+        minwave : float or None
             The minimum wavelength of the model (in angstroms) or None
             if the model does not have a defined minimum wavelength.
         """
@@ -110,7 +110,7 @@ class SncosmoWrapperModel(PhysicalModel, CiteClass):
 
         Returns
         -------
-        maximum : float or Nonw
+        maximum : float or None
             The maximum wavelength of the model (in angstroms) or None
             if the model does not have a defined maximum wavelength.
         """
@@ -247,7 +247,7 @@ class SncosmoWrapperModel(PhysicalModel, CiteClass):
         if np.any(wavelengths < self.source.minwave()) or np.any(wavelengths > self.source.maxwave()):
             return self.compute_flux_with_extrapolation(times, wavelengths, graph_state, **kwargs)
 
-        # Query the model and convery the output to nJy.
+        # Query the model and convert the output to nJy.
         model_flam = self.source.flux(times - params["t0"], wavelengths)
         model_fnu = flam_to_fnu(
             model_flam,

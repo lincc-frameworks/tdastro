@@ -213,7 +213,7 @@ def test_linear_wavelength_source_bounds() -> None:
     wavelengths = np.array([500.0, 1000.0, 1500.0, 2000.0, 2500.0])
     values = model.evaluate(times, wavelengths, state)
 
-    # Without any extrapolation, we zero bad the data.
+    # Without any extrapolation, we zero pad the data.
     expected = np.tile(np.array([0.0, 101.0, 151.0, 201.0, 0.0]), (len(times), 1))
     assert np.allclose(values, expected)
 

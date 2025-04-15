@@ -215,7 +215,7 @@ class LinearWavelengthSource(PhysicalModel):
 
         Returns
         -------
-        minwave : float or Nonw
+        minwave : float or None
             The minimum wavelength of the model (in angstroms) or None
             if the model does not have a defined minimum wavelength.
         """
@@ -226,7 +226,7 @@ class LinearWavelengthSource(PhysicalModel):
 
         Returns
         -------
-        maximum : float or Nonw
+        maximum : float or None
             The maximum wavelength of the model (in angstroms) or None
             if the model does not have a defined maximum wavelength.
         """
