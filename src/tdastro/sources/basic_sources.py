@@ -166,6 +166,9 @@ class LinearWavelengthSource(PhysicalModel):
     """A source that emits flux as a linear function of wavelength
     (that is constant over time): f(t, w) = scale * w + base.
 
+    Includes optional minimum and maximum wavelength bounds to test
+    extrapolation.
+
     Parameterized values include:
       * linear_base - The base brightness in nJy.
       * linear_scale - The slope of the linear function in nJy/Angstrom.
@@ -175,20 +178,59 @@ class LinearWavelengthSource(PhysicalModel):
       * redshift - The object's redshift. [from PhysicalModel]
       * t0 - No effect for static model. [from PhysicalModel]
 
+    Attributes
+    ----------
+    min_wave : float or None
+        The minimum wavelength of the model (in angstroms). Or None if there
+        is no minimum wavelength.
+    max_wave : float or None
+        The maximum wavelength of the model (in angstroms). Or None if there
+        is no maximum wavelength.
+
     Parameters
     ----------
     linear_base : parameter
         The base brightness in nJy.
     linear_scale : parameter
         The slope of the linear function in nJy/Angstrom.
+    min_wave : float or None
+        The minimum wavelength of the model (in angstroms). Or None if there
+        is no minimum wavelength.
+    max_wave : float or None
+        The maximum wavelength of the model (in angstroms). Or None if there
+        is no maximum wavelength.
     **kwargs : dict, optional
         Any additional keyword arguments.
     """
 
-    def __init__(self, linear_base, linear_scale, **kwargs):
+    def __init__(self, linear_base, linear_scale, min_wave=None, max_wave=None, **kwargs):
         super().__init__(**kwargs)
         self.add_parameter("linear_base", linear_base, **kwargs)
         self.add_parameter("linear_scale", linear_scale, **kwargs)
+        self.min_wave = min_wave
+        self.max_wave = max_wave
+
+    def minwave(self):
+        """Get the minimum wavelength of the model.
+
+        Returns
+        -------
+        minwave : float or None
+            The minimum wavelength of the model (in angstroms) or None
+            if the model does not have a defined minimum wavelength.
+        """
+        return self.min_wave
+
+    def maxwave(self):
+        """Get the maximum wavelength of the model.
+
+        Returns
+        -------
+        maximum : float or None
+            The maximum wavelength of the model (in angstroms) or None
+            if the model does not have a defined maximum wavelength.
+        """
+        return self.max_wave
 
     def compute_flux(self, times, wavelengths, graph_state, **kwargs):
         """Draw effect-free observations for this object.

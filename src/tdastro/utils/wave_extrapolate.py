@@ -21,7 +21,7 @@ class WaveExtrapolationModel:
             The last valid wavelength (in AA).
         last_flux : numpy.ndarray
             A length T array of the last valid flux values at each time
-            at the last valid wavelength (in the model's units).
+            at the last valid wavelength (in nJy).
         query_waves : numpy.ndarray
             A length W array of the query wavelengths (in AA) at which to extrapolate.
 
@@ -39,12 +39,12 @@ class WaveExtrapolationModel:
 
 
 class ConstantExtrapolation(WaveExtrapolationModel):
-    """Extrapolate using a constant value.
+    """Extrapolate using a constant value in nJy.
 
     Attributes
     ----------
     value : float
-        The value (in the model's flux units) to use for the extrapolation.
+        The value (in nJy) to use for the extrapolation.
     """
 
     def __init__(self, value=0.0):
@@ -97,14 +97,14 @@ class LastValueExtrapolation(WaveExtrapolationModel):
             The last valid wavelength (in AA).
         last_flux : numpy.ndarray
             A length T array of the last valid flux values at each time
-            at the last valid wavelength (in the model's units).
+            at the last valid wavelength (in nJy).
         query_waves : numpy.ndarray
             A length W array of the query wavelengths (in AA) at which to extrapolate.
 
         Returns
         -------
         flux : numpy.ndarray
-            A T x W matrix of extrapolated values.
+            A T x W matrix of extrapolated values (in nJy).
         """
         last_flux = np.asarray(last_flux)
         query_waves = np.asarray(query_waves)
@@ -140,14 +140,14 @@ class LinearDecay(WaveExtrapolationModel):
             The last valid wavelength (in AA).
         last_flux : numpy.ndarray
             A length T array of the last valid flux values at each time
-            at the last valid wavelength (in the model's units).
+            at the last valid wavelength (in nJy).
         query_waves : numpy.ndarray
             A length W array of the query wavelengths (in AA) at which to extrapolate.
 
         Returns
         -------
         flux : numpy.ndarray
-            A T x W matrix of extrapolated values.
+            A T x W matrix of extrapolated values (in nJy).
         """
         last_flux = np.asarray(last_flux)
         query_waves = np.asarray(query_waves)
@@ -186,14 +186,14 @@ class ExponentialDecay(WaveExtrapolationModel):
             The last valid wavelength (in AA).
         last_flux : numpy.ndarray
             A length T array of the last valid flux values at each time
-            at the last valid wavelength (in the model's units).
+            at the last valid wavelength (in nJy)
         query_waves : numpy.ndarray
             A length W array of the query wavelengths (in AA) at which to extrapolate.
 
         Returns
         -------
         flux : numpy.ndarray
-            A T x W matrix of extrapolated values.
+            A T x W matrix of extrapolated values (in nJy).
         """
         last_flux = np.asarray(last_flux)
         query_waves = np.asarray(query_waves)

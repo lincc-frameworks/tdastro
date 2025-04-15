@@ -40,6 +40,9 @@ class PhysicalModel(ParameterizedNode):
         A list of effects to apply in the rest frame.
     obs_frame_effects : list of EffectModel
         A list of effects to apply in the observer frame.
+    wave_extrapolation : WaveExtrapolationModel, optional
+        The extrapolation model to use for wavelengths that fall outside
+        the model's defined bounds.  If None then the model will use all zeros.
 
     Parameters
     ----------
@@ -57,6 +60,9 @@ class PhysicalModel(ParameterizedNode):
         the redshift and the cosmology.
     background : PhysicalModel
         A source of background flux such as a host galaxy.
+    wave_extrapolation : WaveExtrapolationModel, optional
+        The extrapolation model to use for wavelengths that fall outside
+        the model's defined bounds.  If None then the model will use all zeros.
     seed : int, optional
         The seed for a random number generator.
     **kwargs : dict, optional
@@ -71,6 +77,7 @@ class PhysicalModel(ParameterizedNode):
         t0=None,
         distance=None,
         background=None,
+        wave_extrapolation=None,
         seed=None,
         **kwargs,
     ):
@@ -102,11 +109,36 @@ class PhysicalModel(ParameterizedNode):
         self.rest_frame_effects = []
         self.obs_frame_effects = []
 
+        # Set the extrapolation for values outside the model's defined bounds.
+        self.wave_extrapolation = wave_extrapolation
+
         # Get a default random number generator for this object, using the
         # given seed if one is provided.
         if seed is None:
             seed = int.from_bytes(urandom(4), "big")
         self._rng = np.random.default_rng(seed=seed)
+
+    def minwave(self):
+        """Get the minimum wavelength of the model.
+
+        Returns
+        -------
+        minwave : float or None
+            The minimum wavelength of the model (in angstroms) or None
+            if the model does not have a defined minimum wavelength.
+        """
+        return None
+
+    def maxwave(self):
+        """Get the maximum wavelength of the model.
+
+        Returns
+        -------
+        maximum : float or None
+            The maximum wavelength of the model (in angstroms) or None
+            if the model does not have a defined maximum wavelength.
+        """
+        return None
 
     def set_graph_positions(self, seen_nodes=None):
         """Force an update of the graph structure (numbering of each node).
@@ -173,7 +205,7 @@ class PhysicalModel(ParameterizedNode):
         """
         return np.full(len(times), True)
 
-    def compute_flux(self, times, wavelengths, graph_state):
+    def compute_flux(self, times, wavelengths, graph_state, **kwargs):
         """Draw effect-free rest frame flux densities.
         The rest-frame flux is defined as F_nu = L_nu / 4*pi*D_L**2,
         where D_L is the luminosity distance.
@@ -186,6 +218,8 @@ class PhysicalModel(ParameterizedNode):
             A length N array of rest frame wavelengths (in angstroms).
         graph_state : GraphState
             An object mapping graph parameters to their values.
+        **kwargs : dict, optional
+            Any additional keyword arguments.
 
         Returns
         -------
@@ -193,6 +227,73 @@ class PhysicalModel(ParameterizedNode):
             A length T x N matrix of rest frame SED values (in nJy).
         """
         raise NotImplementedError()
+
+    def compute_flux_with_extrapolation(self, times, wavelengths, graph_state, **kwargs):
+        """Draw effect-free observations for this object, extrapolating
+        to wavelengths where the model is not defined.
+
+        Parameters
+        ----------
+        times : numpy.ndarray
+            A length T array of rest frame timestamps.
+        wavelengths : numpy.ndarray, optional
+            A length N array of wavelengths (in angstroms).
+        graph_state : GraphState
+            An object mapping graph parameters to their values.
+        **kwargs : dict, optional
+           Any additional keyword arguments.
+
+        Returns
+        -------
+        flux_density : numpy.ndarray
+            A length T x N matrix of SED values (in nJy).
+        """
+        min_query_wave = np.min(wavelengths)
+        min_valid_wave = self.minwave()
+        if min_valid_wave is None:
+            min_valid_wave = min_query_wave
+
+        max_query_wave = np.max(wavelengths)
+        max_valid_wave = self.maxwave()
+        if max_valid_wave is None:
+            max_valid_wave = max_query_wave
+
+        # If no extrapolation is needed, just call compute the flux.
+        if min_query_wave >= min_valid_wave and max_query_wave <= max_valid_wave:
+            return self.compute_flux(times, wavelengths, graph_state, **kwargs)
+
+        # Truncate the wavelengths on which we evaluate the model.
+        before_mask = wavelengths < min_valid_wave
+        after_mask = wavelengths > max_valid_wave
+        in_range = ~before_mask & ~after_mask
+
+        # Pad the wavelengths with the min and max values and compute the flux at those points.
+        query_waves = np.concatenate(([min_valid_wave], wavelengths[in_range], [max_valid_wave]))
+        computed_flux = self.compute_flux(times, query_waves, graph_state)
+
+        # Initially zero pad the full array until we fill in the values with extrapolation.
+        # We drop the first and last flux values since they were added to get the flux at the
+        # min and max wavelengths.
+        flux_density = np.zeros((len(times), len(wavelengths)))
+        flux_density[:, in_range] = computed_flux[:, 1:-1]
+
+        # Do extrapolation for wavelengths that fell outside the model's bounds.
+        if self.wave_extrapolation is not None:
+            # Compute the flux values before the model's first valid wavelength.
+            flux_density[:, before_mask] = self.wave_extrapolation(
+                min_valid_wave,
+                computed_flux[:, 0],
+                wavelengths[before_mask],
+            )
+
+            # Compute the flux values after the model's last valid wavelength.
+            flux_density[:, after_mask] = self.wave_extrapolation(
+                max_valid_wave,
+                computed_flux[:, -1],
+                wavelengths[after_mask],
+            )
+
+        return flux_density
 
     def evaluate(self, times, wavelengths, graph_state=None, given_args=None, rng_info=None, **kwargs):
         """Draw observations for this object and apply the noise.
@@ -251,9 +352,9 @@ class PhysicalModel(ParameterizedNode):
 
             # Compute the flux density for the current object, add in anything behind
             # the object, such as a host galaxy, and then apply rest frame effects.
-            flux_density = self.compute_flux(rest_times, rest_wavelengths, state, **kwargs)
+            flux_density = self.compute_flux_with_extrapolation(rest_times, rest_wavelengths, state, **kwargs)
             if self.background is not None:
-                flux_density += self.background.compute_flux(
+                flux_density += self.background.compute_flux_with_extrapolation(
                     rest_times,
                     rest_wavelengths,
                     state,
