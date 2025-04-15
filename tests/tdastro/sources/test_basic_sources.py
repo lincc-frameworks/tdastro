@@ -8,6 +8,7 @@ from tdastro.sources.basic_sources import (
     StaticSource,
     StepSource,
 )
+from tdastro.utils.wave_extrapolate import ConstantExtrapolation, LinearDecay
 
 
 def _sampler_fun(magnitude, offset=0.0, **kwargs):
@@ -201,3 +202,44 @@ def test_linear_wavelength_source_redeshift() -> None:
     expected_single_time = 1.2 * (1.0 + 0.1 * rest_frame_wavelengths)
     expected = np.tile(expected_single_time, (len(times), 1))
     assert np.allclose(values, expected)
+
+
+def test_linear_wavelength_source_bounds() -> None:
+    """Test that we correctly apply a redshift to the wavelengths."""
+    model = LinearWavelengthSource(linear_base=1.0, linear_scale=0.1, min_wave=1000.0, max_wave=2000.0)
+    state = model.sample_parameters()
+
+    times = np.arange(0.0, 10.0, 0.5)
+    wavelengths = np.array([500.0, 1000.0, 1500.0, 2000.0, 2500.0])
+    values = model.evaluate(times, wavelengths, state)
+
+    # Without any extrapolation, we zero bad the data.
+    expected = np.tile(np.array([0.0, 101.0, 151.0, 201.0, 0.0]), (len(times), 1))
+    assert np.allclose(values, expected)
+
+    # We fill in with a constant value.
+    model2 = LinearWavelengthSource(
+        linear_base=1.0,
+        linear_scale=0.1,
+        min_wave=1000.0,
+        max_wave=2000.0,
+        wave_extrapolation=ConstantExtrapolation(value=100.0),
+    )
+    state2 = model2.sample_parameters()
+    values2 = model2.evaluate(times, wavelengths, state2)
+    expected2 = np.tile(np.array([100.0, 101.0, 151.0, 201.0, 100.0]), (len(times), 1))
+    assert np.allclose(values2, expected2)
+
+    # We linearly decay the values.
+    model3 = LinearWavelengthSource(
+        linear_base=1.0,
+        linear_scale=0.1,
+        min_wave=1000.0,
+        max_wave=2000.0,
+        wave_extrapolation=LinearDecay(decay_width=100.0),
+    )
+    wavelengths3 = np.array([500.0, 950.0, 1000.0, 1500.0, 2000.0, 2050.0, 2300.0])
+    state3 = model3.sample_parameters()
+    values3 = model3.evaluate(times, wavelengths3, state3)
+    expected3 = np.tile(np.array([0.0, 50.5, 101.0, 151.0, 201.0, 100.5, 0.0]), (len(times), 1))
+    assert np.allclose(values3, expected3)

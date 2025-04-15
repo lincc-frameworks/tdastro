@@ -18,7 +18,7 @@ class SplineModel(PhysicalModel):
 
     The model is defined by a 2D grid of flux values as a function of time
     and wavelength. Time is given in decimal days since t0 and wavelength
-    is given in angstroms:
+    is given in angstroms.
 
     Parameterized values include:
       * amplitude - A unitless scaling parameter for the flux density values.
@@ -38,8 +38,6 @@ class SplineModel(PhysicalModel):
         (in angstroms).
     _spline : RectBivariateSpline
         The spline object for predicting the flux from a given (time, wavelength).
-    name : str
-        The name of the model being used.
 
     Parameters
     ----------
@@ -130,6 +128,28 @@ class SplineModel(PhysicalModel):
         """
         times, wavelengths, flux = read_grid_data(input_file, format=format, validate=True)
         return cls(times, wavelengths, flux, amplitude, time_degree, wave_degree, **kwargs)
+
+    def minwave(self):
+        """Get the minimum wavelength of the model.
+
+        Returns
+        -------
+        minwave : float or Nonw
+            The minimum wavelength of the model (in angstroms) or None
+            if the model does not have a defined minimum wavelength.
+        """
+        return self._wavelengths[0]
+
+    def maxwave(self):
+        """Get the maximum wavelength of the model.
+
+        Returns
+        -------
+        maximum : float or Nonw
+            The maximum wavelength of the model (in angstroms) or None
+            if the model does not have a defined maximum wavelength.
+        """
+        return self._wavelengths[-1]
 
     def compute_flux(self, times, wavelengths, graph_state, **kwargs):
         """Draw effect-free observations for this object.
