@@ -70,9 +70,16 @@ def read_grid_data(input_file, format="ascii", validate=False):
         for i in range(len(x0)):
             for j in range(len(x1)):
                 if data[x0_col][counter] != x0[i]:
-                    raise ValueError(f"Incorrect x0 ordering in {input_file} at row={counter}.")
+                    raise ValueError(
+                        f"Incorrect x0 ordering in {input_file} at line={counter}."
+                        f"Expected {x0[i]} but found {data[x0_col][counter]}."
+                    )
                 if data[x1_col][counter] != x1[j]:
-                    raise ValueError(f"Incorrect x0 ordering in {input_file} at row={counter}.")
+                    raise ValueError(
+                        f"Incorrect x1 ordering in {input_file} at line={counter}. "
+                        f"Expected {x1[j]} but found {data[x1_col][counter]}."
+                    )
+                counter += 1
 
     # Build the values matrix.
     values = data[v_col].data.reshape((len(x0), len(x1)))
