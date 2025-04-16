@@ -17,10 +17,6 @@ class PhysicalModel(ParameterizedNode):
     a setter function to change them) and settable model parameters that can be passed functions
     or constants and are stored in the graph's (external) graph_state dictionary.
 
-    Physical models can also have special background pointers that link to another PhysicalModel
-    producing flux density. We can chain these to have a supernova in front of a star in front
-    of a static background.
-
     Physical models also support adding and applying a variety of effects, such as redshift.
 
     Parameterized values include:
@@ -32,8 +28,6 @@ class PhysicalModel(ParameterizedNode):
 
     Attributes
     ----------
-    background : PhysicalModel
-        A source of background flux such as a host galaxy.
     apply_redshift : bool
         Indicates whether to apply the redshift.
     rest_frame_effects : list of EffectModel
@@ -58,8 +52,6 @@ class PhysicalModel(ParameterizedNode):
         The object's luminosity distance (in pc). If no value is provided and
         a cosmology parameter is given, the model will try to derive from
         the redshift and the cosmology.
-    background : PhysicalModel
-        A source of background flux such as a host galaxy.
     wave_extrapolation : WaveExtrapolationModel, optional
         The extrapolation model to use for wavelengths that fall outside
         the model's defined bounds.  If None then the model will use all zeros.
@@ -76,7 +68,6 @@ class PhysicalModel(ParameterizedNode):
         redshift=None,
         t0=None,
         distance=None,
-        background=None,
         wave_extrapolation=None,
         seed=None,
         **kwargs,
@@ -98,9 +89,6 @@ class PhysicalModel(ParameterizedNode):
             self.add_parameter("distance", self._redshift_func, allow_gradient=False)
         else:
             self.add_parameter("distance", None, allow_gradient=False)
-
-        # Background is an object not a sampled parameter
-        self.background = background
 
         # Initialize the effect settings to their default values.
         self.apply_redshift = redshift is not None
@@ -139,23 +127,6 @@ class PhysicalModel(ParameterizedNode):
             if the model does not have a defined maximum wavelength.
         """
         return None
-
-    def set_graph_positions(self, seen_nodes=None):
-        """Force an update of the graph structure (numbering of each node).
-
-        Parameters
-        ----------
-        seen_nodes : set, optional
-            A set of nodes that have already been processed to prevent infinite loops.
-            Caller should not set.
-        """
-        if seen_nodes is None:
-            seen_nodes = set()
-
-        # Set the graph positions for each node, its background, and all of its effects.
-        super().set_graph_positions(seen_nodes=seen_nodes)
-        if self.background is not None:
-            self.background.set_graph_positions(seen_nodes=seen_nodes)
 
     def set_apply_redshift(self, apply_redshift):
         """Toggles the apply_redshift setting.
@@ -295,6 +266,71 @@ class PhysicalModel(ParameterizedNode):
 
         return flux_density
 
+    def _evaluate_single(self, times, wavelengths, state, rng_info=None, **kwargs):
+        """Evaluate the model and apply the effects for a single, given graph state.
+        This function applies redshift, computes the flux density for the object,
+        applies rest frames effects, performs the redshift correction (if needed),
+        and applies the observer frame effects.
+
+        Parameters
+        ----------
+        times : numpy.ndarray
+            A length T array of observer frame timestamps in MJD.
+        wavelengths : numpy.ndarray
+            A length N array of wavelengths (in angstroms).
+        state : GraphState
+            An object mapping graph parameters to their values with num_samples=1.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
+        **kwargs : dict, optional
+            All the other keyword arguments.
+        """
+        if state is None or state.num_samples != 1:
+            raise ValueError("A GraphState with num_samples=1 required.")
+        params = self.get_local_params(state)
+
+        # Pre-effects are adjustments done to times and/or wavelengths, before flux density
+        # computation. We skip if redshift is 0.0 since there is nothing to do.
+        if self.apply_redshift and params["redshift"] != 0.0:
+            if params.get("redshift", None) is None:
+                raise ValueError("The 'redshift' parameter is required for redshifted models.")
+            if params.get("t0", None) is None:
+                raise ValueError("The 't0' parameter is required for redshifted models.")
+            rest_times, rest_wavelengths = obs_to_rest_times_waves(
+                times, wavelengths, params["redshift"], params["t0"]
+            )
+        else:
+            rest_times = times
+            rest_wavelengths = wavelengths
+
+        # Compute the flux density for the object and apply any rest frame effects.
+        flux_density = self.compute_flux_with_extrapolation(rest_times, rest_wavelengths, state, **kwargs)
+        for effect in self.rest_frame_effects:
+            flux_density = effect.apply(
+                flux_density,
+                times=rest_times,
+                wavelengths=rest_wavelengths,
+                rng_info=rng_info,
+                **params,
+            )
+
+        # Post-effects are adjustments done to the flux density after computation.
+        if self.apply_redshift and params["redshift"] != 0.0:
+            # We have alread checked that redshift is not None.
+            flux_density = rest_to_obs_flux(flux_density, params["redshift"])
+
+        # Apply observer frame effects.
+        for effect in self.obs_frame_effects:
+            flux_density = effect.apply(
+                flux_density,
+                times=times,
+                wavelengths=wavelengths,
+                rng_info=rng_info,
+                **params,
+            )
+        return flux_density
+
     def evaluate(self, times, wavelengths, graph_state=None, given_args=None, rng_info=None, **kwargs):
         """Draw observations for this object and apply the noise.
 
@@ -302,7 +338,7 @@ class PhysicalModel(ParameterizedNode):
         ----------
         times : numpy.ndarray
             A length T array of observer frame timestamps in MJD.
-        wavelengths : numpy.ndarray, optional
+        wavelengths : numpy.ndarray
             A length N array of wavelengths (in angstroms).
         graph_state : GraphState, optional
             An object mapping graph parameters to their values.
@@ -334,60 +370,14 @@ class PhysicalModel(ParameterizedNode):
 
         results = np.empty((graph_state.num_samples, len(times), len(wavelengths)))
         for sample_num, state in enumerate(graph_state):
-            params = self.get_local_params(state)
-
-            # Pre-effects are adjustments done to times and/or wavelengths, before flux density
-            # computation. We skip if redshift is 0.0 since there is nothing to do.
-            if self.apply_redshift and params["redshift"] != 0.0:
-                if params.get("redshift", None) is None:
-                    raise ValueError("The 'redshift' parameter is required for redshifted models.")
-                if params.get("t0", None) is None:
-                    raise ValueError("The 't0' parameter is required for redshifted models.")
-                rest_times, rest_wavelengths = obs_to_rest_times_waves(
-                    times, wavelengths, params["redshift"], params["t0"]
-                )
-            else:
-                rest_times = times
-                rest_wavelengths = wavelengths
-
-            # Compute the flux density for the current object, add in anything behind
-            # the object, such as a host galaxy, and then apply rest frame effects.
-            flux_density = self.compute_flux_with_extrapolation(rest_times, rest_wavelengths, state, **kwargs)
-            if self.background is not None:
-                flux_density += self.background.compute_flux_with_extrapolation(
-                    rest_times,
-                    rest_wavelengths,
-                    state,
-                    ra=params["ra"],
-                    dec=params["dec"],
-                    **kwargs,
-                )
-            for effect in self.rest_frame_effects:
-                flux_density = effect.apply(
-                    flux_density,
-                    times=rest_times,
-                    wavelengths=rest_wavelengths,
-                    rng_info=rng_info,
-                    **params,
-                )
-
-            # Post-effects are adjustments done to the flux density after computation.
-            if self.apply_redshift and params["redshift"] != 0.0:
-                # We have alread checked that redshift is not None.
-                flux_density = rest_to_obs_flux(flux_density, params["redshift"])
-
-            # Apply observer frame effects (in the observer's frame).
-            for effect in self.obs_frame_effects:
-                flux_density = effect.apply(
-                    flux_density,
-                    times=times,
-                    wavelengths=wavelengths,
-                    rng_info=rng_info,
-                    **params,
-                )
-
-            # Save the result.
-            results[sample_num, :, :] = flux_density
+            # Compute the flux (applying all effects) and save the result.
+            results[sample_num, :, :] = self._evaluate_single(
+                times,
+                wavelengths,
+                state,
+                rng_info=rng_info,
+                **kwargs,
+            )
 
         if graph_state.num_samples == 1:
             return results[0, :, :]
@@ -422,15 +412,13 @@ class PhysicalModel(ParameterizedNode):
         if self.node_pos is None:
             self.set_graph_positions()
 
-        # We use the same seen_nodes for all sampling calls so each node
-        # is sampled at most one time regardless of link structure.
         graph_state = GraphState(num_samples)
         if given_args is not None:
             graph_state.update(given_args, all_fixed=True)
 
+        # We use the same seen_nodes for all sampling calls so each node
+        # is sampled at most one time regardless of link structure.
         seen_nodes = {}
-        if self.background is not None:
-            self.background._sample_helper(graph_state, seen_nodes, rng_info=rng_info)
         self._sample_helper(graph_state, seen_nodes, rng_info=rng_info)
 
         return graph_state
