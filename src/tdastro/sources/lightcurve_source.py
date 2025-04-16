@@ -47,8 +47,8 @@ class LightcurveSource(PhysicalModel):
     passbands : Passband or PassbandGroup
         The passband or passband group to use for defining the lightcurve.
     lc_t0 : float
-        The zero time in the lightcurve arrays.  When computing flux the model's t0 will be
-        aligned with the lightcurve's lc_t0.
+        The reference epoch (t0) of the input light curve. The model will be shifted
+        to the model's t0 when computing fluxes.
         Default: 0.0
     """
 
