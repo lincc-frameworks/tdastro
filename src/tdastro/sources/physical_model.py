@@ -128,23 +128,6 @@ class PhysicalModel(ParameterizedNode):
         """
         return None
 
-    def set_graph_positions(self, seen_nodes=None):
-        """Force an update of the graph structure (numbering of each node).
-
-        Parameters
-        ----------
-        seen_nodes : set, optional
-            A set of nodes that have already been processed to prevent infinite loops.
-            Caller should not set.
-        """
-        if seen_nodes is None:
-            seen_nodes = set()
-
-        # Set the graph positions for each node, its background, and all of its effects.
-        super().set_graph_positions(seen_nodes=seen_nodes)
-        if self.background is not None:
-            self.background.set_graph_positions(seen_nodes=seen_nodes)
-
     def set_apply_redshift(self, apply_redshift):
         """Toggles the apply_redshift setting.
 
