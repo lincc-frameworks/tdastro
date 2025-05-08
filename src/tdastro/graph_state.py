@@ -31,20 +31,23 @@ from astropy.table import Table
 
 class GraphState:
     """A class to hold the state(s) of the each variable for one or more samples of the random
-    variables in the graph. Each entry is index by a combination of node name and variable name.
+    variables in the graph. Each entry is index by a combination of node's (unique) name and
+    variable's name.  This allows nodes to have parameters with the same name, such as ra and dec.
 
     Attributes
     ----------
     states : dict
-        A dictionary of dictionaries mapping node->hash, variable_name to either a
-        value or array of values.
+        A dictionary of dictionaries mapping the node's string and variable name to
+        either a value or array of values for that parameters.
     num_samples : int
-        A count of the number of samples stored in the GraphState.
+        A count of the number of samples stored in the GraphState.  If num_samples > 1, then
+        all parameters are stored as arrays of length num_samples.  If num_samples == 1, then
+        all parameters are stored as scalars.
     num_parameters : int
         The total number of parameters stored in a single sample within GraphState.
     fixed_vars : dict
         A dictionary mapping the node name to a set of the variable names that
-        are fixed in this GraphState instance.
+        are fixed (not changed by resampling) in this GraphState instance.
     """
 
     def __init__(self, num_samples=1):
@@ -67,14 +70,31 @@ class GraphState:
         return self._iterate()
 
     def _iterate(self):
-        """Returns a single sliced state."""
+        """Returns a single sliced state, which is a GraphState object
+        with num_samples==1 and all scalar values."""
         for idx in range(self.num_samples):
             yield self.extract_single_sample(idx)
 
     def __contains__(self, key):
+        """Check if the GraphState contains an entry.
+
+        The key can be:
+        1) the name of a node (in which case we return True if the node exists),
+        2) the full name of a parameter (in which case we return True if the
+           combination of node and parameter exist), or
+        3) the name of a parameter in a GraphState with a single node (in which case we return True
+           if the parameter exists in that node).
+
+        Parameters
+        ----------
+        key : str
+            The name of the entry to check.
+        """
         if key in self.states:
+            # Check if this is a node name.
             return True
         elif "." in key:
+            # Check if this is a full name in node.param format.
             tokens = key.split(".")
             if len(tokens) != 2:
                 raise KeyError(f"Invalid GraphState key: {key}")
@@ -124,8 +144,20 @@ class GraphState:
         return True
 
     def __getitem__(self, key):
-        """Access the dictionary of parameter values for a node name. Allows
-        access by both the pair of keys and the extended name."""
+        """Access an entry in the GraphState contains.
+
+        The key can be:
+        1) the name of a node (in which case we return that node's dictionary of
+           parameter_name -> value),
+        2) the full name of a parameter (in which case we return the values), or
+        3) the name of a parameter in a GraphState with a single node (in which case we
+           return that parameter's values.
+
+        Parameters
+        ----------
+        key : str
+            The name of the entry to access.
+        """
         if key in self.states:
             return self.states[key]
         elif "." in key:
@@ -325,7 +357,7 @@ class GraphState:
                 self.set(node_name, var_name, value, force_copy=force_copy, fixed=all_fixed)
 
     def extract_single_sample(self, sample_num):
-        """Create a new GraphState with a single sample state.
+        """Create a new GraphState with a single sample state and all scalar values.
 
         Parameters
         ----------
