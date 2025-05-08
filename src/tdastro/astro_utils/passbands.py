@@ -1,4 +1,5 @@
 import logging
+import os
 from pathlib import Path
 from typing import Literal, Optional, Union
 
@@ -278,6 +279,13 @@ class PassbandGroup:
         elif preset == "LSST_test":
             # Use an old cached version of the LSST passbands
             table_dir = Path(_TDASTRO_TEST_DATA_DIR, "passbands", "LSST")
+
+            current_directory = os.getcwd()
+            print(f"Current directory: {current_directory}")
+
+            items = os.listdir(current_directory)
+            print(f"Contents of directory: {items}")
+
             print(f"Loading LSST passbands from: {table_dir}")
             for filter_name in ["u", "g", "r", "i", "z", "y"]:
                 pb = Passband.from_file(
