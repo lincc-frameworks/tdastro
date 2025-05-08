@@ -9,7 +9,7 @@ import scipy.integrate
 from citation_compass import cite_function
 from sncosmo import Bandpass, get_bandpass
 
-from tdastro import _TDASTRO_BASE_DATA_DIR
+from tdastro import _TDASTRO_BASE_DATA_DIR, _TDASTRO_TEST_DATA_DIR
 from tdastro.consts import lsst_filter_plot_colors
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -272,6 +272,18 @@ class PassbandGroup:
                     filter_name,
                     table_path=Path(table_dir, f"{filter_name}.dat"),
                     table_url=url,
+                    **kwargs,
+                )
+                self.passbands[pb.full_name] = pb
+        elif preset == "LSST_test":
+            # Use an old cached version of the LSST passbands
+            table_dir = Path(_TDASTRO_TEST_DATA_DIR, "passbands", "LSST")
+            for filter_name in ["u", "g", "r", "i", "z", "y"]:
+                pb = Passband.from_file(
+                    "LSST",
+                    filter_name,
+                    table_path=Path(table_dir, f"{filter_name}.dat"),
+                    table_url=None,
                     **kwargs,
                 )
                 self.passbands[pb.full_name] = pb

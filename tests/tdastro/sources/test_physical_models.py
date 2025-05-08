@@ -128,7 +128,7 @@ def test_physical_model_get_band_fluxes(passbands_dir):
     f_nu = np.random.lognormal()
     static_source = StaticSource(brightness=f_nu)
     state = static_source.sample_parameters()
-    passbands = PassbandGroup(preset="LSST")
+    passbands = PassbandGroup(preset="LSST_test")
     n_passbands = len(passbands)
 
     times = np.arange(n_passbands, dtype=float)

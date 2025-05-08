@@ -13,7 +13,7 @@ def test_simulate_lightcurves(test_data_dir):
 
     # Load the passband data for the griz filters only.
     passband_group = PassbandGroup(
-        preset="LSST",
+        preset="LSST_test",
         table_dir=test_data_dir / "passbands",
         filters_to_load=["g", "r", "i", "z"],
     )
