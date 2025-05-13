@@ -115,7 +115,8 @@ class ParameterSource:
         self.value = value
 
     def set_as_parameter(self, dependency, param_name):
-        """Set the parameter as a model parameter of another node.
+        """Set the parameter as a model parameter of another node.  This is
+        used for chaining, such as when an object's ra depends on its host's ra.
 
         Parameters
         ----------
@@ -130,7 +131,8 @@ class ParameterSource:
         self.value = param_name
 
     def set_as_function(self, dependency, param_name="function_node_result"):
-        """Set the parameter as a model parameter of another node.
+        """Set the parameter as the result of a FunctionNode (that is not
+        the current node).
 
         Parameters
         ----------
@@ -146,6 +148,10 @@ class ParameterSource:
 
     def set_as_compute_output(self, param_name="function_node_result"):
         """Set the parameter the output of this current node's compute() method.
+
+        This needs to be separate from FUNCTION_NODE type (set_as_function) because
+        the sampling function needs to know to call the current node's compute()
+        method after the other parameters have been sampled.
 
         Parameters
         ----------
@@ -163,20 +169,27 @@ class ParameterizedNode:
     """Any model that uses parameters that can be set by constants,
     functions, or other parameterized nodes.
 
+    ParameterizedNodes do not store values directly, but rather provide a recipe
+    for how to generate the parameters' values.  The sampled values are read from
+    and written to a GraphState object that stores all the parameter values for
+    all the nodes.
+
     Attributes
     ----------
     node_label : str
         An optional human readable identifier (name) for the current node.
     node_string : str
         The full string used to identify a node. This is a combination of the nodes position
-        in the graph (if known), node_label (if provided), and class information.
+        in the graph (if known), node_label (if provided), and class information. This is
+        used to access the parameters for this node in the graph_state.
     setters : dict
         A dictionary mapping the parameters' names to information about the setters
         (ParameterSource). The model parameters are stored in the order in which they
         need to be set.
     node_pos : int or None
         A unique ID number for each node in the graph indicating its position.
-        Assigned during resampling or set_graph_positions()
+        Assigned during resampling or set_graph_positions(). This is required to resolve
+        naming collisions so we do not overwrite parameters from other nodes.
 
     Parameters
     ----------
@@ -340,7 +353,12 @@ class ParameterizedNode:
         return graph_state[self.node_string]
 
     def set_parameter(self, name, value=None, **kwargs):
-        """Set a single *existing* parameter to the ParameterizedNode.
+        """Set the source of a single *existing* parameter in the ParameterizedNode.
+
+        Parameters within a node are actually a mapping of the parameter name
+        to a ParameterSource object that indicates how they are set during sampling.
+        Some parameters may be set as a constant value while others may be set by
+        evaluating a function that depends on other parameters.
 
         Notes
         -----
@@ -382,8 +400,9 @@ class ParameterizedNode:
         if callable(value):
             if "__self__" in value.__dir__() and isinstance(value.__self__, ParameterizedNode):
                 # Case 1a: This is a method attached to another ParameterizedNode.
-                # Check if this is a getter method. If so, we access the parameter directly
-                # to save a function call.
+                # Check if this is a getter method, including one that might have been automatically
+                # created in add_parameter(). If this is a getter, we access the parameter's sampled
+                # values directly to save a function call.
                 method_name = value.__name__
                 parent = value.__self__
                 if method_name in parent.setters:
@@ -458,7 +477,7 @@ class ParameterizedNode:
         Raise a KeyError if there is a parameter collision or the parameter
         cannot be found.
         """
-        # Check for parameter collision and add a place holder value.
+        # Check for parameter collision and add a place holder value to the 'setters' dictionary.
         if hasattr(self, name) and name not in self.setters:
             raise KeyError(
                 f"Parameter name '{name}' conflicts with a predefined model parameter "
@@ -481,9 +500,16 @@ class ParameterizedNode:
         if allow_gradient is not None:
             self.setters[name].allow_gradient = allow_gradient
 
-        # Create a callable getter function using. We override the __self__ and __name__
-        # attributes so it looks like method of this object.
-        # This allows us to reference the parameter as object.parameter_name for chaining.
+        # Create a callable getter function with the same name as the parameter.
+        # This function allows us to reference the parameter as object.parameter_name
+        # for chaining without copying the value. For example, if my_node_1, is a
+        # ParameterizedNode with a parameter x, we can do:
+        #   my_node_2 = ParameterizedNode(y=my_node_1.x)
+        # and my_node_2 will know to use the sampled values of x from my_node_1
+        # (as opposed to the setter for x).
+        #
+        # We override the __self__ and __name__ attributes so it looks like method of
+        # this object and the assignment y=my_node_1.x doesn't do a copy of the value.
         def getter(graph_state):
             return graph_state[getter.__self__.node_string][getter.__name__]
 
@@ -492,7 +518,9 @@ class ParameterizedNode:
         setattr(self, name, getter)
 
     def compute(self, graph_state, rng_info=None, **kwargs):
-        """Placeholder for a general compute function.
+        """Placeholder for a general compute function, which is called at the end
+        of the sampling process and can produce derived parameters. This function
+        is the main processing step in a FunctionNode.
 
         Parameters
         ----------
