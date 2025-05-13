@@ -144,7 +144,7 @@ class GraphState:
         return True
 
     def __getitem__(self, key):
-        """Access an entry in the GraphState contains.
+        """Access an entry in the GraphState.
 
         The key can be:
         1) the name of a node (in which case we return that node's dictionary of
