@@ -2,11 +2,13 @@ from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
+import pytest
 from citation_compass import find_in_citations
 from pzflow import Flow
 from pzflow.bijectors import Reverse
 from tdastro.astro_utils.pzflow_node import PZFlowNode
 from tdastro.base_models import FunctionNode, ParameterizedNode
+from tdastro.math_nodes.np_random import NumpyRandomFunc
 
 
 class SumNode(ParameterizedNode):
@@ -91,6 +93,36 @@ def test_pzflow_node_from_file(test_flow_filename):
     assert len(state["loaded_node"]) == 2
     assert len(state["loaded_node"]["redshift"]) == 100
     assert len(state["loaded_node"]["brightness"]) == 100
+
+
+def test_conditional_pzflow_node(test_conditional_flow_filename):
+    """Test that we can load and query a conditional flow."""
+    redshift_node = NumpyRandomFunc(
+        "uniform",
+        low=0.05,
+        high=0.3,
+        node_label="redshift_node",
+    )
+
+    pz_node = PZFlowNode.from_file(
+        test_conditional_flow_filename,
+        node_label="loaded_node",
+        redshift=redshift_node,
+    )
+
+    # Sample the pair of parameters defined by this flow (redshift and hostmass).
+    state = pz_node.sample_parameters(num_samples=100)
+    assert len(state["loaded_node"]) == 2
+    assert len(state["loaded_node"]["redshift"]) == 100
+    assert len(state["loaded_node"]["brightness"]) == 100
+
+
+def test_invalid_conditional_pzflow_node(test_conditional_flow_filename):
+    """Test that we raise an error if we try to create a pzflow node from
+    a conditional flow, but do not provide the input parameters."""
+    with pytest.raises(ValueError):
+        # redshift is missing.
+        _ = PZFlowNode.from_file(test_conditional_flow_filename, node_label="loaded_node")
 
 
 def test_pzflow_node_citation(test_flow_filename):

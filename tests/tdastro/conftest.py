@@ -41,6 +41,12 @@ def test_flow_filename(test_data_dir):
 
 
 @pytest.fixture
+def test_conditional_flow_filename(test_data_dir):
+    """Return the file path for the test flow input file."""
+    return test_data_dir / "test_conditional_flow.pkl"
+
+
+@pytest.fixture
 def oversampled_observations(opsim_shorten):
     """Return an OpSim object with 0.01 day cadence spanning year 2027."""
     from tdastro.opsim.opsim import OpSim, oversample_opsim
