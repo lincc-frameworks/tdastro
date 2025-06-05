@@ -22,7 +22,6 @@ dependencies = [
     "citation-compass>=0.0.3",
     "dust_extinction",
     "extinction>=0.4.7",  # Needed by sncosmo
-    "healsparse",
     "jax",
     "matplotlib",
     "nested-pandas",

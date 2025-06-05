@@ -144,7 +144,7 @@ def test_passband_load_transmission_table(passbands_dir, tmp_path):
 
 
 def test_passband_download_transmission_table(tmp_path):
-    """Test the _download_transmission_table method of the Passband class."""
+    """Test the functionality of downloading the transmission table Passband class."""
     # Initialize a Passband object
     survey = "TEST"
     filter_name = "a"
