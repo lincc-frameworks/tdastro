@@ -4,13 +4,13 @@ from typing import Literal, Optional, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pooch
 import scipy.integrate
 from citation_compass import cite_function
 from sncosmo import Bandpass, get_bandpass
 
 from tdastro import _TDASTRO_BASE_DATA_DIR
 from tdastro.consts import lsst_filter_plot_colors
+from tdastro.utils.data_download import download_data_file_if_needed
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -639,10 +639,9 @@ class Passband:
             table_path = Path(table_path)
 
         # Download the table if it does not exist or if force_download is True.
-        if force_download or not table_path.exists():
-            success = Passband.download_transmission_table(table_path, table_url)
-            if not success:
-                raise RuntimeError(f"Failed to download passband table from {table_url}.")
+        success = download_data_file_if_needed(table_path, table_url, force_download=force_download)
+        if not success:
+            raise RuntimeError(f"Failed to download passband table from {table_url}.")
 
         # Load the table and create the passband.
         loaded_table = Passband.load_transmission_table(table_path)
@@ -732,47 +731,6 @@ class Passband:
             loaded_table = np.delete(loaded_table, dup_inds + 1, axis=0)
 
         return loaded_table
-
-    @staticmethod
-    def download_transmission_table(
-        table_path: Union[str, Path],
-        table_url: str,
-    ) -> bool:
-        """Download a transmission table from a URL.
-
-        Parameters
-        ----------
-        table_path : str or Path
-            The path to the transmission table file. This is where the downloaded file
-            will be written.
-        table_url : str
-            The URL to download the transmission table file.
-
-        Returns
-        -------
-        bool
-            True if the download was successful, False otherwise.
-        """
-        # Check that there is a valid URL for the download.
-        if table_url is None:
-            raise ValueError("No URL given for table download.")
-        logger.info(f"Downloading passband file from {table_url} to {table_path}")
-
-        # Create the directory in which to save the file if it does not already exist.
-        table_path = Path(table_path)
-        table_path.parent.mkdir(parents=True, exist_ok=True)
-
-        # Use pooch to download the data files and extract them to the data directory.
-        full_path = pooch.retrieve(
-            url=table_url,
-            known_hash=None,
-            fname=table_path.name,
-            path=table_path.parent,
-        )
-        if full_path is None or not Path(full_path).exists():
-            logger.error(f"Transmission table not downloaded from {table_url}.")
-            return False
-        return True
 
     def process_transmission_table(
         self,
