@@ -8,12 +8,11 @@ from __future__ import annotations  # "type1 | type2" syntax in Python <3.10
 import sqlite3
 from pathlib import Path
 
-import healsparse as hsp
 import numpy as np
 import pandas as pd
-from citation_compass import cite_function
 from scipy.spatial import KDTree
 
+from tdastro import _TDASTRO_BASE_DATA_DIR
 from tdastro.astro_utils.mag_flux import mag2flux
 from tdastro.astro_utils.noise_model import poisson_bandflux_std
 from tdastro.astro_utils.zeropoint import (
@@ -22,6 +21,7 @@ from tdastro.astro_utils.zeropoint import (
     flux_electron_zeropoint,
 )
 from tdastro.consts import GAUSS_EFF_AREA2FWHM_SQ
+from tdastro.utils.data_download import download_data_file_if_needed
 
 LSSTCAM_PIXEL_SCALE = 0.2
 """The pixel scale for the LSST camera in arcseconds per pixel."""
@@ -253,6 +253,35 @@ class OpSim:
 
         return OpSim(opsim, colmap=colmap)
 
+    @classmethod
+    def from_url(cls, opsim_url, force_download=False):
+        """Construct an OpSim object from a URL to a predefined opsim data file.
+
+        For Rubin OpSim data, you will typically use the latest baseline data set in:
+        https://s3df.slac.stanford.edu/data/rubin/sim-data/
+        such as:
+        https://s3df.slac.stanford.edu/data/rubin/sim-data/sims_featureScheduler_runs3.4/baseline/baseline_v3.4_10yrs.db
+
+        Parameters
+        ----------
+        opsim_url : str
+            The URL to the opsim data file.
+        force_download : bool, optional
+            If True, the OpSim data will be downloaded even if it already exists locally.
+            Default is False.
+
+        Returns
+        -------
+        opsim : OpSim
+            An OpSim object containing the data from the specified URL.
+        """
+        data_file_name = opsim_url.split("/")[-1]
+        data_path = _TDASTRO_BASE_DATA_DIR / "opsim" / data_file_name
+
+        if not download_data_file_if_needed(data_path, opsim_url, force_download=force_download):
+            raise RuntimeError(f"Failed to download opsim data from {opsim_url}.")
+        return cls.from_db(data_path)
+
     def add_column(self, colname, values, overwrite=False):
         """Add a column to the current opsim table.
 
@@ -460,48 +489,6 @@ class OpSim:
                 raise KeyError(f"Unrecognized column name {table_col}")
             results[col] = self.table[table_col][neighbors].to_numpy()
         return results
-
-    @cite_function
-    def make_coverage_map(self, nside=2**12, radius=None):
-        """Create a HEALSparse coverage map from the OpSim table.
-
-        Citation
-        --------
-        HealSparse by Eli Rykoff and Javier Sanchez
-        https://healsparse.readthedocs.io/en/stable/
-        https://github.com/LSSTDESC/healsparse
-
-        Parameters
-        ----------
-        nside : int
-            The nside of the HEALPix grid.
-            Default: 2**15
-        radius : float or None, optional
-            The angular radius of the observation (in degrees). If None
-            uses the default radius for the OpSim.
-
-        Returns
-        -------
-        cov_map : healsparse.HealSparseMap
-            The coverage map.
-        """
-        radius = self.radius if radius is None else radius
-        nside_coverage = 64
-
-        view_maps = []
-        for ra, dec in zip(self.table[self.colmap["ra"]], self.table[self.colmap["dec"]], strict=False):
-            circ = hsp.Circle(ra=ra, dec=dec, radius=radius, value=True)
-
-            # Generating a map to union is more expensive than `cov_map |= circ`
-            # but this later approach is failing in some cases. TODO: Investigate.
-            current_view = circ.get_map(
-                nside_coverage=nside_coverage,  # nside_coverage
-                nside_sparse=nside,  # nside_sparse
-                dtype=bool,  # dtype
-            )
-            view_maps.append(current_view)
-        cov_map = hsp.or_union(view_maps)
-        return cov_map
 
     def bandflux_error_point_source(self, bandflux, index):
         """Compute observational bandflux error for a point source
