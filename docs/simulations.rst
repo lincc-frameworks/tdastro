@@ -25,6 +25,9 @@ The main simulation components in TDAstro include:
 * The ``PassbandGroup`` contains the filter information of the telescope and is used
   to calculate the fluxes in each band.
 
+See the :doc:`Glossary <glossary>` for definitions of key terms, such as
+*GraphState*, *Node*, *Parameter*, *ParameterizedNode*, *PhysicalModel*, and *Source*.
+
 Defining a parameterized model
 -------------------------------------------------------------------------------
 

@@ -40,6 +40,9 @@ to produce realistic light curves using the above components.  See the
 
 For an overview of the package, we recommend starting with the :doc:`introduction notebook <notebooks/introduction>`.
 
+The :doc:`gloassary <glossary>` provides definitions of key terms, such as
+*GraphState*, *Node*, *Parameter*, *ParameterizedNode*, *PhysicalModel*, and *Source*.
+
 
 Getting Started
 -------------------------------------------------------------------------------
@@ -62,6 +65,7 @@ see the :doc:`contribution guide <contributing>`.
    Simulations <simulations>
    Notebooks <notebooks>
    API Reference <autoapi/index>
+   Glossary <glossary>
    Contribution Guide <contributing>
 
 Acknowledgements
