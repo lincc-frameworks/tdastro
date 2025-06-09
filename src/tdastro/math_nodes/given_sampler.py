@@ -130,8 +130,10 @@ class GivenValueSampler(NumpyRandomFunc):
             inds = rng.choice(self._num_values, p=self._weights)
         else:
             inds = rng.choice(self._num_values, size=graph_state.num_samples, p=self._weights)
+        results = self.values[inds]
+        self._save_results(results, graph_state)
 
-        return self.values[inds]
+        return results
 
 
 class TableSampler(NumpyRandomFunc):
