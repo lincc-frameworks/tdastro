@@ -108,6 +108,23 @@ def test_given_value_sampler():
     assert len(results[results == 7]) > 1000
 
 
+def test_given_value_sampler_weighted():
+    """Test that we can retrieve numbers from a GivenValueSampler
+    with a weighted distribution."""
+    given_node = GivenValueSampler([1, 3, 5, 7], [0.1, 0.5, 0.3, 0.1])
+
+    # Check that we have sampled uniformly from the given options
+    # with approximately the given weights.
+    state = GraphState(num_samples=10_000)
+    results = given_node.compute(state)
+    assert len(results) == 10_000
+    assert np.all((results == 1) | (results == 3) | (results == 5) | (results == 7))
+    assert len(results[results == 1]) > 500
+    assert len(results[results == 3]) > 4000
+    assert len(results[results == 5]) > 2000
+    assert len(results[results == 7]) > 500
+
+
 @pytest.mark.parametrize("test_data_type", ["dict", "ap_table", "pd_df"])
 def test_table_sampler(test_data_type):
     """Test that we can retrieve numbers from a TableSampler from a
