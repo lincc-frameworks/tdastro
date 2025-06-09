@@ -83,13 +83,24 @@ class GivenValueSampler(NumpyRandomFunc):
         The values to select from.
     _num_values : int
         The number of values that can be sampled.
+    _weights : numpy.ndarray, optional
+        The weights for each value, if provided. If None, all values are equally likely.
     """
 
-    def __init__(self, values, seed=None, **kwargs):
+    def __init__(self, values, weights=None, seed=None, **kwargs):
         self.values = np.asarray(values)
         self._num_values = len(values)
         if self._num_values == 0:
             raise ValueError("No values provided for NumpySamplerNode")
+
+        # Compute the normalized weights for each value.
+        if weights is not None:
+            self._weights = np.asarray(weights)
+            if len(self._weights) != self._num_values:
+                raise ValueError("Weights must match the number of values provided.")
+            self._weights /= np.sum(self._weights)
+        else:
+            self._weights = None
 
         super().__init__("uniform", seed=seed, **kwargs)
 
@@ -116,11 +127,13 @@ class GivenValueSampler(NumpyRandomFunc):
         rng = rng_info if rng_info is not None else self._rng
 
         if graph_state.num_samples == 1:
-            inds = rng.integers(0, self._num_values)
+            inds = rng.choice(self._num_values, p=self._weights)
         else:
-            inds = rng.integers(0, self._num_values, size=graph_state.num_samples)
+            inds = rng.choice(self._num_values, size=graph_state.num_samples, p=self._weights)
+        results = self.values[inds]
+        self._save_results(results, graph_state)
 
-        return self.values[inds]
+        return results
 
 
 class TableSampler(NumpyRandomFunc):
