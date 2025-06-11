@@ -37,11 +37,12 @@ def test_read_lclib_data(test_data_dir):
 
     expected_cols = ["time", "u", "g", "r", "i", "z"]
     expected_len = [20, 20, 15]
-    expected_param = ["1", "1", "6"]
+    expected_param = [["1", "1"], ["1", "2"], ["6", "7"]]
     for idx, curve in enumerate(curves):
         assert len(curve) == expected_len[idx]
         assert int(curve.meta["id"]) == idx
         assert curve.meta["PARVAL"] == expected_param[idx]
+        assert curve.meta["MODEL_PARNAMES"] == ["TYPE", "OTHER"]
         assert curve.meta["RECUR_CLASS"] == "RECUR-PERIODIC"
 
         for col in expected_cols:
