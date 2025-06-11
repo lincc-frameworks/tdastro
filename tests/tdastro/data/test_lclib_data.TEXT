@@ -1,3 +1,10 @@
+DOCUMENTATION:
+PURPOSE: This is a model used to test the reader
+NOTES:
+- We could have something very insightful here.
+- Maybe here as well.
+DOCUMENTATION_END:
+
 # global header info
 SURVEY: test-data
 FILTERS: ugriz

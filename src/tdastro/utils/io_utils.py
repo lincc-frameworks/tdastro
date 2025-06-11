@@ -105,6 +105,8 @@ def _read_lclib_data_from_open_file(input_file):
     curves = []
     meta = {}
     current_model = {}
+    parnames = []
+    in_doc_block = False
 
     for l_num, line in enumerate(input_file):
         # Strip out the trailing comment. Then skip lines that are either
@@ -117,7 +119,16 @@ def _read_lclib_data_from_open_file(input_file):
         key, value = line.split(":", 1)
         value = value.strip()
 
-        if key == "COMMENT" or key == "DOCUMENTATION":
+        # Handle the keys corresponding to a documentation block.
+        if key == "DOCUMENTATION":
+            in_doc_block = True
+        elif key == "DOCUMENTATION_END":
+            in_doc_block = False
+        if in_doc_block:
+            # If we are in a documentation block, just continue to the next line.
+            continue
+
+        if key == "COMMENT":
             continue  # Skip comments.
         elif key == "FILTERS":
             # Create a list of data columns with time and each filter.
@@ -137,16 +148,29 @@ def _read_lclib_data_from_open_file(input_file):
 
             # Start a new light curve.
             current_model = {col: [] for col in colnames}
+            current_model["type"] = []  # Initialize the type list.
             meta["id"] = value
-        elif key == "S":
-            # Save an observation to the current lightcurve.
+        elif key == "S" or key == "T":
+            # Save an observation or template to the current lightcurve.
+            current_model["type"].append(key)  # Get the type from the key.
+
+            # Get the time and magnitudes from the columns.
             col_vals = value.split()
             if len(col_vals) != len(colnames):
                 raise ValueError(f"Expected {len(colnames)} values on line={l_num}: {col_vals}")
             for col_idx, col in enumerate(colnames):
                 current_model[col].append(float(col_vals[col_idx]))
-        elif key == "MODEL_PARNAMES" or key == "PARVAL":
-            meta[key] = value.split(",")
+        elif key == "MODEL_PARNAMES":
+            parnames = value.split(",")
+        elif key == "PARVAL":
+            if "," in value:
+                all_vals = value.split(",")
+            else:
+                all_vals = value.split()
+
+            if len(all_vals) != len(parnames):
+                raise ValueError(f"Expected {len(parnames)} parameter values on line={l_num}: {all_vals}")
+            meta["PARVAL"] = {key: value for key, value in zip(parnames, all_vals, strict=False)}
         else:
             # Save everything else to the meta dictionary.
             meta[key] = value
