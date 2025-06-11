@@ -146,9 +146,10 @@ def _read_lclib_data_from_open_file(input_file):
             if len(colnames) == 0:
                 raise ValueError(f"Error on line= {l_num}: No filters defined.")
 
-            # Start a new light curve.
-            current_model = {col: [] for col in colnames}
+            # Start a new light curve, but resetting the lists of data from the columns.
             current_model["type"] = []  # Initialize the type list.
+            for col in colnames:
+                current_model[col] = []
             meta["id"] = value
         elif key == "S" or key == "T":
             # Save an observation or template to the current lightcurve.
