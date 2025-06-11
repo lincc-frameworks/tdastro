@@ -42,7 +42,7 @@ def test_create_fake_sed_basis() -> None:
         assert len(sed_basis.sed_values[filt]) == len(pb_group.waves)
 
         # Interpolate the SED basis to the sample wavelengths.
-        sampled_sed = sed_basis.interp_sed(filt, pb_group.waves)
+        sampled_sed = sed_basis.get_basis(filt, pb_group.waves)
         assert len(sampled_sed) == len(pb_group.waves)
 
         # Check that the SED values are all 1.0 in the passband range.

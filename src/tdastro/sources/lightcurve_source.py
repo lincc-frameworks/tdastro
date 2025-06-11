@@ -39,16 +39,22 @@ class FakeSEDBasis:
         """Get the number of filters in the SED basis functions."""
         return len(self.sed_values)
 
-    def interp_sed(self, filter_name, wavelengths):
-        """Compute the interpolated SED values for a given filter at specified wavelengths
-        by interpolating the basis function.
+    def get_basis(self, filter_name, wavelengths=None):
+        """Compute the interpolated SED values for a given filter at specified wavelengths.
+
+        Note
+        ----
+        The query wavelengths must use the same sampling as the wavelengths used
+        to create the SED basis functions.
 
         Parameters
         ----------
         filter_name : str
             The name of the filter to use.
-        wavelengths : numpy.ndarray
+        wavelengths : numpy.ndarray, optional
             A 1d array of wavelengths (in Angstroms) at which to compute the SED.
+            If None then the all wavelengths used to create the SED basis functions
+            will be used.
 
         Returns
         -------
@@ -56,13 +62,18 @@ class FakeSEDBasis:
             A 1d array of SED values for the given filter at the specified wavelengths.
         """
         filter_vals = self.sed_values.get(filter_name)
-        return np.interp(
-            wavelengths,
-            self.all_waves,
-            filter_vals,
-            left=0.0,  # Do not extrapolate in wavelength
-            right=0.0,  # Do not extrapolate in wavelength
-        )
+        if wavelengths is None:
+            # If no wavelengths are provided, return the full SED for this filter.
+            return filter_vals
+
+        # Find the closest index for each query wavelength.
+        wave_inds = np.searchsorted(self.all_waves, wavelengths, side="left")
+        wave_inds[wave_inds >= len(self.all_waves)] = len(self.all_waves) - 1
+        if np.any(np.abs(self.all_waves[wave_inds] - wavelengths) > 0.01):
+            raise ValueError(
+                "Wavelengths used to query FakeSEDBasis must be a subset of " "those used to create it."
+            )
+        return filter_vals[wave_inds]
 
     @classmethod
     def from_passbands(cls, passbands, filters=None):
@@ -304,8 +315,6 @@ class LightcurveSource(PhysicalModel):
 
     def compute_flux(self, times, wavelengths, graph_state):
         """Draw effect-free rest frame flux densities.
-        The rest-frame flux is defined as F_nu = L_nu / 4*pi*D_L**2,
-        where D_L is the luminosity distance.
 
         Parameters
         ----------
@@ -323,14 +332,25 @@ class LightcurveSource(PhysicalModel):
         """
         params = self.get_local_params(graph_state)
 
+        # We only support querying wavelengths that were used to create the SED basis
+        # functions so as to keep the scaling consistent.  This means we do not allow
+        # changes to the wavelengths (such as redshift).
+        wave_inds = np.searchsorted(self.all_waves, wavelengths, side="left")
+        wave_inds[wave_inds >= len(self.all_waves)] = len(self.all_waves) - 1
+        if np.any(np.abs(self.all_waves[wave_inds] - wavelengths) > 0.01):
+            raise ValueError(
+                "Wavelengths used to query LightcurveSource must be a subset of those used to create it."
+            )
+
         # Shift the times for the model's t0 aligned with the lightcurve's lc_t0.
-        # The lightcurve times were a;ready shifted in the constructor to be relative to lc_t0.
+        # The lightcurve times were already shifted in the constructor to be relative to lc_t0.
         shifted_times = times - params["t0"]
 
         flux_density = np.zeros((len(times), len(wavelengths)))
         for filter, lightcurve in self.lightcurves.items():
             # Compute the SED values for the wavelengths we are actually sampling.
-            sed_waves = self.sed_basis.interp_sed(filter, wavelengths)
+            # Since we have already compute the indices, we can use them directly.
+            sed_waves = self.sed_basis.sed_values[filter][wave_inds]
 
             # Compute the multipliers for the SEDs at different time steps along this lightcurve.
             sed_time_mult = np.interp(
