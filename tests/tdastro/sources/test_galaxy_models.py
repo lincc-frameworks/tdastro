@@ -2,7 +2,7 @@ import numpy as np
 from tdastro.math_nodes.np_random import NumpyRandomFunc
 from tdastro.sources.basic_sources import StaticSource
 from tdastro.sources.galaxy_models import GaussianGalaxy
-from tdastro.sources.multi_source_model import MultiSourceModel
+from tdastro.sources.multi_source_model import AdditiveMultiSourceModel
 
 
 def test_gaussian_galaxy() -> None:
@@ -25,7 +25,7 @@ def test_gaussian_galaxy() -> None:
     )
 
     # Create a combined source / host model.
-    combined_source = MultiSourceModel(sources=[host, source], ra=source.ra, dec=source.dec)
+    combined_source = AdditiveMultiSourceModel(sources=[host, source], ra=source.ra, dec=source.dec)
 
     # Both RA and dec should be "close" to (but not exactly at) the center of the galaxy.
     state = combined_source.sample_parameters()
