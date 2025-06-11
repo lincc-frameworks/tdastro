@@ -1,3 +1,4 @@
+import gzip
 import logging
 from pathlib import Path
 
@@ -85,3 +86,101 @@ def read_grid_data(input_file, format="ascii", validate=False):
     values = data[v_col].data.reshape((len(x0), len(x1)))
 
     return x0, x1, values
+
+
+def _read_lclib_data_from_open_file(input_file):
+    """Read SNANA's lclib data from a text file.
+
+    Parameters
+    ----------
+    input_file : file
+        The input data file containing SNANA's lclib data.
+
+    Returns
+    -------
+    curves : list of astropy.table.Table
+        A list of Astropy Tables, each representing a light curve.
+    """
+    colnames = []
+    curves = []
+    meta = {}
+    current_model = {}
+
+    for l_num, line in enumerate(input_file):
+        # Strip out the trailing comment. Then skip lines that are either
+        # empty or do not contain a key-value pair.
+        line = line.split("#")[0].strip()
+        if not line or ":" not in line:
+            continue
+
+        # Split the line into key and value.
+        key, value = line.split(":", 1)
+        value = value.strip()
+
+        if key == "COMMENT":
+            continue  # Skip comments.
+        elif key == "FILTERS":
+            # Create a list of data columns with time and each filter.
+            colnames = ["time"]
+            for c in value:
+                colnames.append(c)
+        elif key == "END_EVENT":
+            curr_id = meta.get("id", "")
+            if curr_id != value:
+                raise ValueError(f"Event ID mismatch (line {l_num}): found {value}, expected {curr_id}.")
+
+            # Save the table we have so far.
+            curves.append(Table(current_model, meta=meta))
+        elif key == "START_EVENT":
+            if len(colnames) == 0:
+                raise ValueError(f"Error on line= {l_num}: No filters defined.")
+
+            # Start a new light curve.
+            current_model = {col: [] for col in colnames}
+            meta["id"] = value
+        elif key == "S":
+            # Save an observation to the current lightcurve.
+            col_vals = value.split()
+            if len(col_vals) != len(colnames):
+                raise ValueError(f"Expected {len(colnames)} values on line={l_num}: {col_vals}")
+            for col_idx, col in enumerate(colnames):
+                current_model[col].append(float(col_vals[col_idx]))
+        else:
+            # Save everything else to the meta dictionary.
+            meta[key] = value
+
+    return curves
+
+
+def read_lclib_data(input_file):
+    """Read SNANA's LCLIB data from a text file.
+
+    Parameters
+    ----------
+    input_file : str or Path
+        The path to the SNANA LCLIB data file.
+
+    Returns
+    -------
+    curves : list of astropy.table.Table
+        A list of Astropy Tables, each representing a light curve.
+    """
+    input_file = Path(input_file)
+    logging.debug(f"Loading SNANA LCLIB data from {input_file}")
+    if not input_file.is_file():
+        raise FileNotFoundError(f"File {input_file} not found.")
+
+    # Use the file suffix to determine how to read the file.
+    suffix = input_file.suffix.lower()
+    if suffix in [".gz", ".gzip"]:
+        # Open as a gzipped text file.
+        with gzip.open(input_file, "rt") as file_ptr:
+            curves = _read_lclib_data_from_open_file(file_ptr)
+    elif suffix in [".dat", ".txt", ".text"]:
+        # Try to open the file as a regular text file.
+        with open(input_file, "r") as file_ptr:
+            curves = _read_lclib_data_from_open_file(file_ptr)
+    else:
+        raise ValueError(f"Unsupported file format: {suffix}.")
+
+    return curves
