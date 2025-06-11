@@ -35,7 +35,7 @@ def test_read_lclib_data(test_data_dir):
     curves = read_lclib_data(lc_file)
     assert len(curves) == 3
 
-    expected_cols = ["time", "u", "g", "r", "i", "z"]
+    expected_cols = ["type", "time", "u", "g", "r", "i", "z"]
     expected_len = [20, 20, 15]
     expected_param = [
         {"TYPE": "1", "OTHER": "1"},
@@ -52,5 +52,7 @@ def test_read_lclib_data(test_data_dir):
         # We did not pick up anything in the documentation block.
         assert "PURPOSE" not in curve.meta
 
+        # Check that the expected columns are present and type is "S" or "T"
         for col in expected_cols:
             assert col in curve.colnames
+        assert np.all((curve["type"].data == "S") | (curve["type"].data == "T"))
