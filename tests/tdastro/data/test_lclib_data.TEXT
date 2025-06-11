@@ -8,6 +8,7 @@ COMMENT: This is complete random data for testing.
 MODEL_PARNAMES:  TYPE
 
 NEVENT: 3
+RECUR_CLASS: RECUR-PERIODIC
 
 START_EVENT: 0 
 NROW: 20 

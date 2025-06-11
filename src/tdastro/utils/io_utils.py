@@ -117,7 +117,7 @@ def _read_lclib_data_from_open_file(input_file):
         key, value = line.split(":", 1)
         value = value.strip()
 
-        if key == "COMMENT":
+        if key == "COMMENT" or key == "DOCUMENTATION":
             continue  # Skip comments.
         elif key == "FILTERS":
             # Create a list of data columns with time and each filter.
