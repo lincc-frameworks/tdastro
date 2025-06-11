@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from tdastro.utils.io_utils import read_grid_data, read_snana_lc
+from tdastro.utils.io_utils import read_grid_data, read_snana_output_lc
 
 
 def test_read_grid_data_good(grid_data_good_file):
@@ -32,7 +32,7 @@ def test_read_grid_data_bad(grid_data_bad_file):
 def test_read_snana_lc(test_data_dir):
     """Test reading a SNANA light curve from a text file."""
     lc_file = test_data_dir / "test_snana_lc.dat"
-    lc, spec = read_snana_lc(lc_file)
+    lc, spec = read_snana_output_lc(lc_file)
     assert len(lc) == 10
     assert len(spec) == 2
     assert len(spec[0]) == 5
