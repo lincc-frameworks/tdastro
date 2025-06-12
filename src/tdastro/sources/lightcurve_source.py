@@ -15,6 +15,12 @@ class LightcurveSource(PhysicalModel):
     flux density is equal to the lightcurve's value after passing through
     the passband filter.
 
+    LightcurveSource supports both periodic and non-periodic lightcurves. If the
+    light curve is not periodic then each lightcurve's given values will be interpolated
+    during the time range of the lightcurve. Values outside the time range (before and
+    after) will be set to the baseline value for that filter (0.0 by default). Periodic
+    sources require that each filter's lightcurve is sampled at the same times.
+
     The set of passbands used to configure the model MUST be the same as used
     to generate the SED (the wavelengths must match).
 
@@ -35,6 +41,18 @@ class LightcurveSource(PhysicalModel):
         final SED.
     all_waves : numpy.ndarray
         A 1d array of all of the wavelengths used by the passband group.
+    period : float or None
+        The period of the lightcurve in days. If the lightcurve is not periodic,
+        then this value is set to None.
+    min_times : dict
+        A dictionary mapping filter names to the minimum time of the lightcurve
+        in that filter (relative to lc_t0).
+    max_times : dict
+        A dictionary mapping filter names to the maximum time of the lightcurve
+        in that filter (relative to lc_t0).
+    baseline : dict
+        A dictionary of baseline bandfluxes for each filter. This is only used
+        for non-periodic lightcurves when they are not active.
 
     Parameters
     ----------
@@ -50,6 +68,14 @@ class LightcurveSource(PhysicalModel):
         The reference epoch (t0) of the input light curve. The model will be shifted
         to the model's t0 when computing fluxes.
         Default: 0.0
+    periodic : bool
+        Whether the lightcurve is periodic. If True, the model will assume that
+        the lightcurve repeats every period.
+        Default: False
+    baseline : dict or None
+        A dictionary of baseline bandfluxes for each filter. This is only used
+        for non-periodic lightcurves when they are not active.
+        Default: None
     """
 
     def __init__(
@@ -57,9 +83,12 @@ class LightcurveSource(PhysicalModel):
         lightcurves,
         passbands,
         lc_t0=0.0,
+        periodic=False,
+        baseline=None,
         **kwargs,
     ):
         super().__init__(**kwargs)
+        self.period = None
 
         # Convert a single passband to a PassbandGroup.
         if isinstance(passbands, Passband):
@@ -101,9 +130,33 @@ class LightcurveSource(PhysicalModel):
         else:
             raise TypeError("Unknown type for lightcurve input. Must be dict or numpy array.")
 
+        # Validate that all the times for each lightcurve are in sorted order.
+        for filter, lc in self.lightcurves.items():
+            if not np.all(np.diff(lc[:, 0]) > 0):
+                raise ValueError(f"Lightcurve {filter}'s times are not in sorted order.")
+
         # Store the wavelengths information and lightcurves for each filter.
         self.all_waves = passbands.waves
         self.sed_values = self._create_sed_basis(list(self.lightcurves.keys()), passbands)
+
+        # Store information about the lightcurve's periodicity and duration.  We compute
+        # the minimum and maximum times for each lightcurve, after _handle_periodicity
+        # in case we needed to adjust the lightcurves for periodicity.
+        if periodic:
+            self._handle_periodicity()
+        self.min_times = {filter: lc[0, 0] for filter, lc in self.lightcurves.items()}
+        self.max_times = {filter: lc[-1, 0] for filter, lc in self.lightcurves.items()}
+
+        # Store the baseline values for each filter. If the baseline is provided,
+        # make sure it contains all of the filters. If no baseline is provided,
+        # set the baseline to 0.0 for each filter.
+        if baseline is None:
+            self.baseline = {filter: 0.0 for filter in self.lightcurves}
+        else:
+            for filter in self.lightcurves:
+                if filter not in baseline:
+                    raise ValueError(f"Baseline value for filter {filter} is missing.")
+            self.baseline = baseline
 
         # Override some of the defaults of PhysicalModel. Never apply redshift and
         # do not allow brackground models.
@@ -115,6 +168,43 @@ class LightcurveSource(PhysicalModel):
         # Check that t0 is set.
         if "t0" not in kwargs or kwargs["t0"] is None:
             raise ValueError("Lightcurve models require a t0 parameter.")
+
+    def _handle_periodicity(self):
+        """Update the internal state to handle periodic models.
+
+        Currently we restrict the periodic models to use lightcurves that are
+        sampled at the same times and cover the same time range. We can relax
+        this restriction in the future if needed, but for now it simplifies the
+        implementation and ensures that the lightcurves are consistent.
+        """
+        all_lcs = list(self.lightcurves.values())
+        num_curves = len(all_lcs)
+        for i in range(1, num_curves):
+            if not np.allclose(all_lcs[i][:, 0], all_lcs[0][:, 0], atol=0.01):
+                raise ValueError("All lightcurves in a periodic model must be sampled at the same times.")
+
+        all_lcs = np.asanyarray(all_lcs)
+        if all_lcs.shape[1] < 2:
+            raise ValueError("All periodic lightcurves must have at least two time points.")
+
+        period = all_lcs[0, -1, 0] - all_lcs[0, 0, 0]
+        if period <= 0.0:
+            raise ValueError("The period of the lightcurve must be positive.")
+
+        # If the first and last values of any curve are not the same, we need to insert
+        # a value at the end of each lightcurve (even the ones that were the same) so
+        # every lightcurve continues to cover the same time range while wrapping correctly.
+        if np.any(np.abs(all_lcs[:, 0, 1] - all_lcs[:, -1, 1]) > 0.001):
+            # Use the average time step along the lightcurve to compute the
+            # new time to insert at the end of each lightcurve.
+            time_step = period / (all_lcs.shape[1] - 1)
+            new_time = all_lcs[0, -1, 0] + time_step
+            for filter, lc in self.lightcurves.items():
+                self.lightcurves[filter] = np.vstack((lc, [new_time, lc[0, 1]]))
+
+            period += time_step
+
+        self.period = period
 
     def _create_sed_basis(self, filters, passbands):
         """Create the SED basis functions. For each passband this creates a box shaped SED
@@ -204,7 +294,10 @@ class LightcurveSource(PhysicalModel):
 
         # Shift the times for the model's t0 aligned with the lightcurve's lc_t0.
         # The lightcurve times were a;ready shifted in the constructor to be relative to lc_t0.
+        # If the model is periodic, wrap times for the all fall within the period.
         shifted_times = times - params["t0"]
+        if self.period is not None:
+            shifted_times = shifted_times % self.period
 
         flux_density = np.zeros((len(times), len(wavelengths)))
         for filter, lightcurve in self.lightcurves.items():
@@ -218,8 +311,15 @@ class LightcurveSource(PhysicalModel):
             )
 
             # Compute the multipliers for the SEDs at different time steps along this lightcurve.
-            sed_time_mult = np.interp(
-                shifted_times,  # The query times
+            # We use the lightcurve's baseline value for all times outside the lightcurve's range.
+            sed_time_mult = np.full(len(shifted_times), self.baseline.get(filter, 0.0))
+            overlap_mask = (shifted_times >= self.min_times[filter]) & (
+                shifted_times <= self.max_times[filter]
+            )
+
+            # For the times that overlap with the lightcurve, interpolate the lightcurve values.
+            sed_time_mult[overlap_mask] = np.interp(
+                shifted_times[overlap_mask],  # The query times
                 lightcurve[:, 0],  # The lightcurve times for this passband filter
                 lightcurve[:, 1],  # The lightcurve flux densities for this passband filter
                 left=0.0,  # Do not extrapolate in time

@@ -61,6 +61,72 @@ def test_create_lightcurve_source() -> None:
     assert np.allclose(fluxes, [0.0, 0.0, 2.0, 1.2, 2.0, 1.4, 0.0, 0.0])
 
 
+def test_create_lightcurve_source_unsorted() -> None:
+    """Test that we fail if we try to create a LightcurveSource with unsorted lightcurves."""
+    pb_group = _create_toy_passbands()
+    lightcurves = _create_toy_lightcurves()
+    lightcurves["u"][0, 0] = 2.0  # Make the u band unsorted
+
+    with pytest.raises(ValueError):
+        # We should fail because the lightcurves are not sorted by time.
+        LightcurveSource(lightcurves, pb_group, t0=0.0)
+
+
+def test_create_lightcurve_source_baseline() -> None:
+    """Test that we can create a simple LightcurveSource object with baseline values."""
+    pb_group = _create_toy_passbands()
+    lightcurves = _create_toy_lightcurves()
+    baseline = {"u": 0.5, "g": 1.2, "r": 0.05}
+    lc_source = LightcurveSource(lightcurves, pb_group, t0=0.0, baseline=baseline)
+
+    # A call to get_band_fluxes should return the desired lightcurves.  We only use two of the passbands.
+    graph_state = lc_source.sample_parameters(num_samples=1)
+    query_times = np.array([-100.0, 0.0, 0.5, 1.0, 2.0, 3.0, 4.0, 20.0, 21.0, 1000.0])
+    query_filters = np.array(["u", "u", "r", "u", "r", "u", "r", "u", "r", "r"])
+    fluxes = lc_source.get_band_fluxes(pb_group, query_times, query_filters, graph_state)
+    assert len(fluxes) == len(query_times)
+
+    # Timesteps -100.0, 0.0, 0.5, 20.0, 21.0, 1000.0 all fall outside the range of the model
+    # and use baseline values for the respective bands.
+    # Timesteps 1.0 and 3.0 are from the u band which is constant at 2.
+    # Timesteps 2.0 and 4.0 are from the r band which is linearly increasing with time.
+    assert np.allclose(fluxes, [0.5, 0.5, 0.05, 2.0, 1.2, 2.0, 1.4, 0.5, 0.05, 0.05])
+
+    # We fail if we try to create a LightcurveSource with a baseline that does
+    # not match the passbands (no r band provided).
+    with pytest.raises(ValueError):
+        LightcurveSource(lightcurves, pb_group, t0=0.0, baseline={"u": 0.5, "g": 1.2})
+
+
+def test_create_lightcurve_source_periodic() -> None:
+    """Test that we can create a periodic LightcurveSource object."""
+    pb_group = _create_toy_passbands()
+
+    with pytest.raises(ValueError):
+        # We cannot create a periodic lightcurve source lightcurves that do
+        # not cover the same time range.
+        lightcurves = _create_toy_lightcurves()
+        LightcurveSource(lightcurves, pb_group, periodic=True)
+
+    times = np.arange(0.0, 10.0, 0.5)
+    lightcurves = {
+        "g": np.array([times, 3.0 * np.ones_like(times)]).T,
+        "r": np.array([times, 0.1 * times + 1.0]).T,
+    }
+    lc_source = LightcurveSource(lightcurves, pb_group, t0=0.0, periodic=True)
+
+    # A call to get_band_fluxes should return the desired lightcurves.
+    graph_state = lc_source.sample_parameters(num_samples=1)
+    query_times = np.array([1.0, 5.0, 11.0, 15.0, 21.0, 25.0, 51.0])
+    query_filters = np.full(len(query_times), "r")
+    fluxes = lc_source.get_band_fluxes(pb_group, query_times, query_filters, graph_state)
+    assert len(fluxes) == len(query_times)
+
+    # Time steps 1.0, 11.0, 21.0, and 51.0 are all wrapped to the same point.
+    # Time steps 5.0, 15.0, and 25.0 are all wrapped to the same point.
+    assert np.allclose(fluxes, [1.1, 1.5, 1.1, 1.5, 1.1, 1.5, 1.1])
+
+
 def test_create_lightcurve_source_numpy() -> None:
     """Test that we can create a simple LightcurveSource object from a numpy array."""
     pb_group = _create_toy_passbands()
