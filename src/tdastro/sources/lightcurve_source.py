@@ -12,7 +12,7 @@ from tdastro.sources.physical_model import PhysicalModel
 
 
 class LightcurveData:
-    """A class to hold data for a single lightcurve.
+    """A class to hold data for a single model lightcurve.
 
     Attributes
     ----------
