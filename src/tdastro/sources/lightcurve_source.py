@@ -275,7 +275,6 @@ class LightcurveSource(PhysicalModel):
         self.lightcurves = {}
 
         # Store the lightcurve information.
-        self.lc_t0 = lc_t0
         if isinstance(lightcurves, np.ndarray):
             if lightcurves.shape[1] != 3:
                 raise ValueError("Lightcurves must have 3 columns: time, flux, and filter.")
@@ -311,7 +310,7 @@ class LightcurveSource(PhysicalModel):
                 filter_bandflux = lightcurves[filter].astype(float)
                 self.lightcurves[str(filter)] = np.column_stack((filter_times, filter_bandflux))
         else:
-            raise TypeError("Unknown type for lightcurve input. Must be dict or numpy array.")
+            raise TypeError("Unknown type for lightcurve input. Must be dict, numpy array, or Table.")
 
         # Validate that all the times for each lightcurve are in sorted order.
         for filter, lc in self.lightcurves.items():
