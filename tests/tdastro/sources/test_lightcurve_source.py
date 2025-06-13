@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 from tdastro.astro_utils.passbands import Passband, PassbandGroup
-from tdastro.sources.lightcurve_source import LightcurveSource
+from tdastro.sources.lightcurve_source import FakeSEDBasis, LightcurveSource
 
 
 def _create_toy_passbands() -> PassbandGroup:
@@ -28,15 +28,50 @@ def _create_toy_lightcurves() -> dict:
     return lightcurves
 
 
+def test_create_fake_sed_basis() -> None:
+    """Test that we can create a simple FakeSEDBasis object."""
+    pb_group = _create_toy_passbands()
+    sed_basis = FakeSEDBasis.from_passbands(pb_group)
+
+    # Check the internal structure of the FakeSEDBasis and that
+    # when we pass each basis through the corresponding passband,
+    # we get the expected SED values (1.0).
+    assert len(sed_basis) == 3
+    for filt in ["u", "g", "r"]:
+        assert filt in sed_basis.sed_values
+        assert len(sed_basis.sed_values[filt]) == len(pb_group.waves)
+
+        # Interpolate the SED basis to the sample wavelengths.
+        sampled_sed = sed_basis.get_basis(filt, pb_group.waves)
+        assert len(sampled_sed) == len(pb_group.waves)
+
+        # Check that the SED values are all 1.0 in the passband range.
+        # Stack 3 copies s though we have three times.
+        sampled_at_times = np.vstack([sampled_sed, sampled_sed, sampled_sed])
+        sampled_bandflux = pb_group.fluxes_to_bandflux(sampled_at_times, filt)
+        assert len(sampled_bandflux) == 3
+        assert np.allclose(sampled_bandflux, 1.0)
+
+
+def test_create_single_fake_sed_basis() -> None:
+    """Test that we can create a simple FakeSEDBasis object from a single passband."""
+    a_band = Passband(np.array([[400, 0.5], [500, 0.5], [600, 0.5]]), "LSST", "u")
+    sed_basis = FakeSEDBasis.from_passbands(a_band)
+    assert len(sed_basis) == 1
+    assert "u" in sed_basis.sed_values
+    assert "g" not in sed_basis.sed_values
+    assert "r" not in sed_basis.sed_values
+
+
 def test_create_lightcurve_source() -> None:
     """Test that we can create a simple LightcurveSource object."""
     pb_group = _create_toy_passbands()
     lightcurves = _create_toy_lightcurves()
-    lc_source = LightcurveSource(lightcurves, pb_group, t0=0.0)
+    lc_source = LightcurveSource(lightcurves, passbands=pb_group, t0=0.0)
 
     # Check the internal structure of the LightCurveSource.
     assert len(lc_source.lightcurves) == 3
-    assert len(lc_source.sed_values) == 3
+    assert len(lc_source.sed_basis.sed_values) == 3
     assert np.allclose(lc_source.all_waves, pb_group.waves)
 
     filters = list(lc_source.lightcurves.keys())
@@ -46,7 +81,8 @@ def test_create_lightcurve_source() -> None:
     for f1 in filters:
         for f2 in filters:
             if f1 != f2:
-                assert np.count_nonzero(lc_source.sed_values[f1] * lc_source.sed_values[f2]) == 0
+                overlap = lc_source.sed_basis.sed_values[f1] * lc_source.sed_basis.sed_values[f2]
+                assert np.count_nonzero(overlap) == 0
 
     # A call to get_band_fluxes should return the desired lightcurves.  We only use two of the passbands.
     graph_state = lc_source.sample_parameters(num_samples=1)
@@ -69,7 +105,7 @@ def test_create_lightcurve_source_unsorted() -> None:
 
     with pytest.raises(ValueError):
         # We should fail because the lightcurves are not sorted by time.
-        LightcurveSource(lightcurves, pb_group, t0=0.0)
+        LightcurveSource(lightcurves, passbands=pb_group, t0=0.0)
 
 
 def test_create_lightcurve_source_baseline() -> None:
@@ -77,7 +113,7 @@ def test_create_lightcurve_source_baseline() -> None:
     pb_group = _create_toy_passbands()
     lightcurves = _create_toy_lightcurves()
     baseline = {"u": 0.5, "g": 1.2, "r": 0.05}
-    lc_source = LightcurveSource(lightcurves, pb_group, t0=0.0, baseline=baseline)
+    lc_source = LightcurveSource(lightcurves, passbands=pb_group, t0=0.0, baseline=baseline)
 
     # A call to get_band_fluxes should return the desired lightcurves.  We only use two of the passbands.
     graph_state = lc_source.sample_parameters(num_samples=1)
@@ -95,7 +131,7 @@ def test_create_lightcurve_source_baseline() -> None:
     # We fail if we try to create a LightcurveSource with a baseline that does
     # not match the passbands (no r band provided).
     with pytest.raises(ValueError):
-        LightcurveSource(lightcurves, pb_group, t0=0.0, baseline={"u": 0.5, "g": 1.2})
+        LightcurveSource(lightcurves, passbands=pb_group, t0=0.0, baseline={"u": 0.5, "g": 1.2})
 
 
 def test_create_lightcurve_source_periodic() -> None:
@@ -106,7 +142,7 @@ def test_create_lightcurve_source_periodic() -> None:
         # We cannot create a periodic lightcurve source lightcurves that do
         # not cover the same time range.
         lightcurves = _create_toy_lightcurves()
-        LightcurveSource(lightcurves, pb_group, periodic=True)
+        LightcurveSource(lightcurves, passbands=pb_group, periodic=True)
 
     times = np.arange(0.0, 10.5, 0.5)
     g_curve = 3.0 * np.ones_like(times)
@@ -116,7 +152,7 @@ def test_create_lightcurve_source_periodic() -> None:
         "g": np.array([times, g_curve]).T,
         "r": np.array([times, r_curve]).T,
     }
-    lc_source = LightcurveSource(lightcurves, pb_group, t0=0.0, periodic=True)
+    lc_source = LightcurveSource(lightcurves, passbands=pb_group, t0=0.0, periodic=True)
 
     # A call to get_band_fluxes should return the desired lightcurves.
     graph_state = lc_source.sample_parameters(num_samples=1)
@@ -140,9 +176,9 @@ def test_create_lightcurve_source_periodic() -> None:
 
     # We fail if we specify an incorrect lc_t0 for a periodic lightcurve.
     with pytest.raises(ValueError):
-        _ = LightcurveSource(lightcurves, pb_group, lc_t0=1.0, t0=0.0, periodic=True)
+        _ = LightcurveSource(lightcurves, passbands=pb_group, lc_t0=1.0, t0=0.0, periodic=True)
 
-    lc_source = LightcurveSource(lightcurves, pb_group, lc_t0=2.0, t0=0.0, periodic=True)
+    lc_source = LightcurveSource(lightcurves, passbands=pb_group, lc_t0=2.0, t0=0.0, periodic=True)
     query_times = np.array([0.0, 1.0, 2.0, 3.0, 4.0])
     query_filters = np.full(len(query_times), "r")
 
@@ -153,14 +189,14 @@ def test_create_lightcurve_source_periodic() -> None:
     assert np.allclose(fluxes, [0.0, 1.0, 2.0, 3.0, 2.5])
 
     # We can also auto-derive lc_t0 from the lightcurves.
-    lc_source = LightcurveSource(lightcurves, pb_group, t0=0.0, periodic=True)
+    lc_source = LightcurveSource(lightcurves, passbands=pb_group, t0=0.0, periodic=True)
     graph_state = lc_source.sample_parameters(num_samples=1)
     fluxes = lc_source.get_band_fluxes(pb_group, query_times, query_filters, graph_state)
     assert np.allclose(fluxes, [0.0, 1.0, 2.0, 3.0, 2.5])
 
     # If we use t0=1.0, we are saying the period starts at 1.0 for this sample, so a
     # query time of 0.0 should wrap around and return the *last* value of the lightcurve.
-    lc_source = LightcurveSource(lightcurves, pb_group, t0=1.0, periodic=True)
+    lc_source = LightcurveSource(lightcurves, passbands=pb_group, t0=1.0, periodic=True)
     graph_state = lc_source.sample_parameters(num_samples=1)
     fluxes = lc_source.get_band_fluxes(pb_group, query_times, query_filters, graph_state)
     assert np.allclose(fluxes, [1.5, 0.0, 1.0, 2.0, 3.0])
@@ -183,7 +219,7 @@ def test_create_lightcurve_source_periodic_complex_offsets() -> None:
     }
 
     # Create a LightcurveSource with t0=60672.0, so we are shifting it back by 4 days.
-    lc_source = LightcurveSource(lightcurves, pb_group, t0=60672.0, periodic=True)
+    lc_source = LightcurveSource(lightcurves, passbands=pb_group, t0=60672.0, periodic=True)
     graph_state = lc_source.sample_parameters(num_samples=1)
 
     # Check query times relative to 60676.0 (4 days after the period started).
@@ -218,11 +254,11 @@ def test_create_lightcurve_source_numpy() -> None:
             [4.3, 10.6, "r"],
         ]
     )
-    lc_source = LightcurveSource(lightcurves, pb_group, t0=0.0)
+    lc_source = LightcurveSource(lightcurves, passbands=pb_group, t0=0.0)
 
     # Check the internal structure of the LightCurveSource.
     assert len(lc_source.lightcurves) == 3
-    assert len(lc_source.sed_values) == 3
+    assert len(lc_source.sed_basis.sed_values) == 3
     assert np.allclose(lc_source.all_waves, pb_group.waves)
 
     filters = list(lc_source.lightcurves.keys())
@@ -243,7 +279,7 @@ def test_create_lightcurve_source_t0() -> None:
     """Test that we can create a simple LightcurveSource object with a given t0."""
     pb_group = _create_toy_passbands()
     lightcurves = _create_toy_lightcurves()
-    lc_source = LightcurveSource(lightcurves, pb_group, t0=60676.0)
+    lc_source = LightcurveSource(lightcurves, passbands=pb_group, t0=60676.0)
 
     graph_state = lc_source.sample_parameters(num_samples=1)  # needed for t0
     query_times = 60676.0 + np.array([0.0, 0.5, 1.0, 2.0, 3.0, 4.0, 20.0, 21.0])
@@ -258,7 +294,7 @@ def test_create_lightcurve_source_t0() -> None:
     assert np.allclose(fluxes, [0.0, 0.0, 2.0, 1.2, 2.0, 1.4, 0.0, 0.0])
 
     # Test that we can also handle a lightcurve with a different lc_t0.
-    lc_source2 = LightcurveSource(lightcurves, pb_group, t0=60676.0, lc_t0=1.0)
+    lc_source2 = LightcurveSource(lightcurves, passbands=pb_group, t0=60676.0, lc_t0=1.0)
     graph_state2 = lc_source2.sample_parameters(num_samples=1)  # needed for t0
     fluxes2 = lc_source2.get_band_fluxes(pb_group, query_times, query_filters, graph_state2)
 
@@ -279,9 +315,9 @@ def test_lightcurve_source_nonoverlap() -> None:
     lightcurves = _create_toy_lightcurves()
     del lightcurves["u"]  # Remove the u band lightcurve.
 
-    lc_source = LightcurveSource(lightcurves, pb_group, t0=0.0)
+    lc_source = LightcurveSource(lightcurves, passbands=pb_group, t0=0.0)
     assert len(lc_source.lightcurves) == 2
-    assert len(lc_source.sed_values) == 2
+    assert len(lc_source.sed_basis.sed_values) == 2
     assert np.allclose(lc_source.all_waves, pb_group.waves)
 
     filters = list(lc_source.lightcurves.keys())
@@ -314,21 +350,21 @@ def test_create_lightcurve_source_fail() -> None:
     }
 
     # Fail on mismatched passbands.
-    with pytest.raises(ValueError):
-        _ = LightcurveSource(lightcurves, pb_group, t0=0.0)
+    with pytest.raises(KeyError):
+        _ = LightcurveSource(lightcurves, passbands=pb_group, t0=0.0)
 
     # Remove the offending passband and try again.
     del lightcurves["i"]
-    _ = LightcurveSource(lightcurves, pb_group, t0=0.0)
+    _ = LightcurveSource(lightcurves, passbands=pb_group, t0=0.0)
 
     # We fail without a t0 value.
     with pytest.raises(ValueError):
-        _ = LightcurveSource(lightcurves, pb_group)
+        _ = LightcurveSource(lightcurves, passbands=pb_group)
 
     # Make one of the lightcurves the wrong shape.
     lightcurves["u"] = times.T
     with pytest.raises(ValueError):
-        _ = LightcurveSource(lightcurves, pb_group, t0=0.0)
+        _ = LightcurveSource(lightcurves, passbands=pb_group, t0=0.0)
     lightcurves["u"] = np.array([times, 2.0 * np.ones_like(times)]).T
 
     # We fail if two passbands overlap other passbands completely.
@@ -336,13 +372,13 @@ def test_create_lightcurve_source_fail() -> None:
     pb_group = PassbandGroup(given_passbands=[a_band, b_band, c_band, d_band])
     lightcurves["i"] = np.array([times, 0.1 * times + 1.0]).T
     with pytest.raises(ValueError):
-        _ = LightcurveSource(lightcurves, pb_group, t0=0.0)
+        _ = LightcurveSource(lightcurves, passbands=pb_group, t0=0.0)
 
 
 def test_lightcurve_plot() -> None:
     """Test that the plotting functions do not crash."""
     pb_group = _create_toy_passbands()
     lightcurves = _create_toy_lightcurves()
-    lc_source = LightcurveSource(lightcurves, pb_group, t0=0.0)
+    lc_source = LightcurveSource(lightcurves, passbands=pb_group, t0=0.0)
     lc_source.plot_lightcurves()
     lc_source.plot_sed_basis()

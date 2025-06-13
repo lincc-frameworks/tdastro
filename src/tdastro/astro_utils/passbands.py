@@ -178,6 +178,11 @@ class PassbandGroup:
             return True
         return False
 
+    @property
+    def filters(self) -> list:
+        """Return a list of filter names in the passband group."""
+        return list(self._filter_to_name.keys())
+
     @classmethod
     def from_dir(
         cls,
