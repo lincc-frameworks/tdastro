@@ -5,7 +5,6 @@ import warnings
 
 import matplotlib.pyplot as plt
 import numpy as np
-from astropy.table import Table
 
 from tdastro.astro_utils.passbands import Passband, PassbandGroup
 from tdastro.consts import lsst_filter_plot_colors
@@ -47,8 +46,6 @@ class LightcurveData:
         where the first column is time and the second column is the flux density (in nJy), or
         2) a numpy array of shape (T, 3) array where the first column is time (in days), the
         second column is the bandflux (in nJy), and the third column is the filter.
-        3) an astropy Table in LCLIB format (with a "time" column, optional "type" column,
-        and a column for each filter).
     lc_t0 : float
         The reference epoch (t0) of the input light curve. The model will be shifted
         to the model's t0 when computing fluxes.  For periodic lightcurves, this either
@@ -84,10 +81,6 @@ class LightcurveData:
                 filter_times = lightcurves[filter_mask, 0].astype(float)
                 filter_bandflux = lightcurves[filter_mask, 1].astype(float)
                 self.lightcurves[str(filter)] = np.column_stack((filter_times, filter_bandflux))
-        elif isinstance(lightcurves, Table):
-            if baseline is not None:
-                raise ValueError("Baseline cannot be provided when lightcurves are in LCLIB format.")
-            self.lightcurves, self.baseline = self.parse_lclib_table(lightcurves)
         else:
             raise TypeError("Unknown type for lightcurve input. Must be dict, numpy array, or astropy Table.")
 
@@ -166,8 +159,8 @@ class LightcurveData:
             for lc in self.lightcurves.values():
                 lc[:, 0] -= self.lc_t0
 
-    @staticmethod
-    def parse_lclib_table(lightcurves_table):
+    @classmethod
+    def from_lclib_table(cls, lightcurves_table, lc_t0=0.0):
         """Break up a lightcurves table in LCLIB format into a LightcurveData instance.
         This function expects the table to have a "time" column, an optional "type" column,
         and a column for each filter. The "type" column should use "S" for source observation
@@ -179,15 +172,12 @@ class LightcurveData:
             A table with a "time" column, optional "type" column, and a column for each filter.
             If the type column is present it should use "S" for source observation and "T"
             for template (background) observation.
-
-        Returns
-        -------
-        lightcurve : dict
-            A dictionary mapping filter names to a (T, 2) array of the bandfluxes in that filter,
-            where the first column is time (in days from the reference time of the light curve)
-            and the second column is the bandflux (in nJy).
-        baseline : dict
-            A dictionary of baseline bandfluxes for each filter.
+        lc_t0 : float
+            The reference epoch (t0) of the input light curve. The model will be shifted
+            to the model's t0 when computing fluxes.  For periodic lightcurves, this either
+            must be set to the first time of the lightcurve or left as 0.0 to automatically
+            derive the lc_t0 from the lightcurve.
+            Default: 0.0
         """
         if "time" not in lightcurves_table.colnames:
             raise ValueError("Lightcurves table must have a 'time' column.")
@@ -203,7 +193,7 @@ class LightcurveData:
         if "type" in lightcurves_table.colnames:
             obs_mask = lightcurves_table["type"] == "S"
             if np.any(~obs_mask):
-                tmp_table = lightcurves_table[obs_mask]
+                tmp_table = lightcurves_table[~obs_mask]
                 if len(tmp_table) > 1:
                     warnings.warn(
                         "Multiple template (background) observations found in lightcurves table. "
@@ -219,7 +209,11 @@ class LightcurveData:
             filter_bandflux = lightcurves_table[filter].astype(float)
             lightcurves[str(filter)] = np.column_stack((filter_times, filter_bandflux))
 
-        return lightcurves, baseline
+        # Check the metadata for periodicity information.
+        recur_class = lightcurves_table.meta.get("RECUR_CLASS", "")
+        periodic = (recur_class == "RECUR-PERIODIC") or (recur_class == "PERIODIC")
+
+        return cls(lightcurves, lc_t0=lc_t0, periodic=periodic, baseline=baseline)
 
     def evaluate(self, times, filter):
         """Get the SED values for a given filter at specified times.
@@ -344,8 +338,6 @@ class LightcurveSource(PhysicalModel):
         where the first column is time and the second column is the flux density (in nJy), or
         3) a numpy array of shape (T, 3) array where the first column is time (in days), the
         second column is the bandflux (in nJy), and the third column is the filter.
-        4) an astropy Table in LCLIB format (with a "time" column, optional "type" column,
-        and a column for each filter).
     passbands : Passband or PassbandGroup
         The passband or passband group to use for defining the lightcurve.
     lc_t0 : float
