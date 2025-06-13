@@ -80,6 +80,9 @@ def test_passband_group_access(tmp_path):
     assert pb_group["survey2_c"].filter_name == "c"
     assert pb_group["survey2_d"].filter_name == "d"
 
+    # Test that we can access a list of filters.
+    assert pb_group.filters == ["a", "b", "c", "d"]
+
     # If the group only has a single passband for a given filter,
     # We can use the filter name to access it.
     assert pb_group["a"].full_name == "survey1_a"
