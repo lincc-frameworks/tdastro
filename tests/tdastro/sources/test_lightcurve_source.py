@@ -1,7 +1,8 @@
 import numpy as np
 import pytest
+from astropy.table import Table
 from tdastro.astro_utils.passbands import Passband, PassbandGroup
-from tdastro.sources.lightcurve_source import LightcurveSource
+from tdastro.sources.lightcurve_source import LightcurveData, LightcurveSource
 
 
 def _create_toy_passbands() -> PassbandGroup:
@@ -28,6 +29,117 @@ def _create_toy_lightcurves() -> dict:
     return lightcurves
 
 
+def test_create_lightcurve_data_from_dict() -> None:
+    """Test that we can create a simple LightcurveData object from a dict."""
+    lightcurves = _create_toy_lightcurves()
+    lc_data = LightcurveData(lightcurves)
+
+    # Check the internal structure of the LightcurveData.
+    assert len(lc_data) == 3
+    assert lc_data.lc_t0 == 0.0
+    assert lc_data.period is None
+    assert lc_data.filters == ["u", "g", "r"]
+    for filt in ["u", "g", "r"]:
+        assert np.allclose(lc_data.lightcurves[filt], lightcurves[filt])
+        assert lc_data.baseline[filt] == 0.0
+
+    # If we use an lc_t0, we should shift the lightcurves' times accordingly
+    # and provide a baseline.
+    lc_data2 = LightcurveData(lightcurves, lc_t0=2.0, baseline={"u": 0.1, "g": 0.2, "r": 0.3})
+    assert lc_data2.lc_t0 == 2.0
+    assert lc_data2.period is None
+    for filt in ["u", "g", "r"]:
+        assert np.allclose(lc_data2.lightcurves[filt][:, 0], lightcurves[filt][:, 0] - 2.0)
+        assert np.allclose(lc_data2.lightcurves[filt][:, 1], lightcurves[filt][:, 1])
+    assert lc_data2.baseline == {"u": 0.1, "g": 0.2, "r": 0.3}
+
+    # We fail if the baseline does not match the filters.
+    with pytest.raises(ValueError):
+        _ = LightcurveData(lightcurves, lc_t0=2.0, baseline={"u": 0.1, "g": 0.2, "i": 0.3})
+
+    # If we mark them as periodic we should fail because the times do not match.
+    with pytest.raises(ValueError):
+        _ = LightcurveData(lightcurves, periodic=True)
+
+
+def test_create_lightcurve_data_periodic_from_dict() -> None:
+    """Test that we can create a periodic LightcurveData object from a dict."""
+    times = np.linspace(3, 13, 20)
+    lightcurves = {
+        "u": np.array([times, 2.0 * np.ones_like(times)]).T,
+        "g": np.array([times, 3.0 * np.ones_like(times)]).T,
+    }
+    lc_data = LightcurveData(lightcurves, periodic=True)
+
+    assert len(lc_data) == 2
+    assert lc_data.filters == ["u", "g"]
+    assert lc_data.lc_t0 == 3.0
+    assert lc_data.period == 10.0
+
+    # The values should be the same and the times should be shifted by 3.0.
+    for filt in ["u", "g"]:
+        assert np.allclose(lc_data.lightcurves[filt][:, 0], lightcurves[filt][:, 0] - 3.0)
+        assert np.allclose(lc_data.lightcurves[filt][:, 1], lightcurves[filt][:, 1])
+    assert lc_data.baseline == {"u": 0.0, "g": 0.0}
+
+
+def test_create_lightcurve_data_from_numpy() -> None:
+    """Test that we can create a simple LightcurveData object from a numpy array."""
+    lightcurves = np.array(
+        [
+            [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0],
+            [1.0, 2.0, 1.0, 1.5, 2.0, 2.5, 1.5, 1.0, 0.0, 1.0],
+            ["u", "g", "r", "u", "g", "r", "u", "g", "r", "u"],
+        ]
+    ).T
+    lc_data = LightcurveData(lightcurves)
+
+    # Check the internal structure of the LightcurveData.
+    assert len(lc_data) == 3
+    assert lc_data.lc_t0 == 0.0
+    assert lc_data.period is None
+    assert set(lc_data.filters) == {"u", "g", "r"}
+    assert np.allclose(lc_data.lightcurves["u"][:, 0], [0.0, 3.0, 6.0, 9.0])
+    assert np.allclose(lc_data.lightcurves["u"][:, 1], [1.0, 1.5, 1.5, 1.0])
+    assert np.allclose(lc_data.lightcurves["g"][:, 0], [1.0, 4.0, 7.0])
+    assert np.allclose(lc_data.lightcurves["g"][:, 1], [2.0, 2.0, 1.0])
+    assert np.allclose(lc_data.lightcurves["r"][:, 0], [2.0, 5.0, 8.0])
+    assert np.allclose(lc_data.lightcurves["r"][:, 1], [1.0, 2.5, 0.0])
+    assert lc_data.baseline == {"u": 0.0, "g": 0.0, "r": 0.0}
+
+
+def test_create_lightcurve_data_from_lclib_table() -> None:
+    """Test that we can create a simple LightcurveData object from a LCLIB table."""
+    data = {
+        "time": [0.0, 1.0, 2.0, 3.0, 4.0, 0.0],
+        "type": ["S", "S", "S", "S", "S", "T"],
+        "u": [1.0, 2.0, 1.0, 1.5, 2.0, 1.0],
+        "g": [2.0, 3.0, 2.0, 2.5, 3.0, 2.0],
+        "r": [1.0, 1.5, 2.0, 2.5, 3.0, 2.0],
+        "i": [0.5, 0.6, 0.7, 0.8, 0.9, 1.5],
+    }
+    table = Table(data)
+    table.meta["RECUR_CLASS"] = "RECUR-NONPERIODIC"
+    lc_data = LightcurveData.from_lclib_table(table)
+
+    # Check the internal structure of the LightcurveData.
+    assert len(lc_data) == 4
+    assert lc_data.lc_t0 == 0.0
+    assert lc_data.period is None
+    assert lc_data.filters == ["u", "g", "r", "i"]
+
+    for filt in ["u", "g", "r", "i"]:
+        assert np.allclose(lc_data.lightcurves[filt][:, 0], data["time"][:5])
+        assert np.allclose(lc_data.lightcurves[filt][:, 1], data[filt][:5])
+
+    # We get the baseline from the "T" type row.
+    print(lc_data.baseline)
+    assert lc_data.baseline["u"] == 1.0
+    assert lc_data.baseline["g"] == 2.0
+    assert lc_data.baseline["r"] == 2.0
+    assert lc_data.baseline["i"] == 1.5
+
+
 def test_create_lightcurve_source() -> None:
     """Test that we can create a simple LightcurveSource object."""
     pb_group = _create_toy_passbands()
@@ -38,13 +150,11 @@ def test_create_lightcurve_source() -> None:
     assert len(lc_source.lightcurves) == 3
     assert len(lc_source.sed_values) == 3
     assert np.allclose(lc_source.all_waves, pb_group.waves)
-
-    filters = list(lc_source.lightcurves.keys())
-    assert filters == ["u", "g", "r"]
+    assert lc_source.filters == ["u", "g", "r"]
 
     # Check that no two SED basis functions overlap.
-    for f1 in filters:
-        for f2 in filters:
+    for f1 in lc_source.filters:
+        for f2 in lc_source.filters:
             if f1 != f2:
                 assert np.count_nonzero(lc_source.sed_values[f1] * lc_source.sed_values[f2]) == 0
 
@@ -224,9 +334,7 @@ def test_create_lightcurve_source_numpy() -> None:
     assert len(lc_source.lightcurves) == 3
     assert len(lc_source.sed_values) == 3
     assert np.allclose(lc_source.all_waves, pb_group.waves)
-
-    filters = list(lc_source.lightcurves.keys())
-    assert set(filters) == set(["u", "g", "r"])
+    assert set(lc_source.filters) == set(["u", "g", "r"])
 
     # A call to get_band_fluxes should return the desired lightcurves.
     graph_state = lc_source.sample_parameters(num_samples=1)
@@ -283,9 +391,7 @@ def test_lightcurve_source_nonoverlap() -> None:
     assert len(lc_source.lightcurves) == 2
     assert len(lc_source.sed_values) == 2
     assert np.allclose(lc_source.all_waves, pb_group.waves)
-
-    filters = list(lc_source.lightcurves.keys())
-    assert filters == ["g", "r"]
+    assert lc_source.filters == ["g", "r"]
 
     # A call to get_band_fluxes should return the desired lightcurves.  We query
     # u and g bands. Since u is not present, we should get zeros at those times.
