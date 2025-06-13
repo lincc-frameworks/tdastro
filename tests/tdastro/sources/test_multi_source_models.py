@@ -3,14 +3,14 @@ import pytest
 from tdastro.effects.basic_effects import ConstantDimming
 from tdastro.math_nodes.np_random import NumpyRandomFunc
 from tdastro.sources.basic_sources import StaticSource, StepSource
-from tdastro.sources.multi_source_model import MultiSourceModel
+from tdastro.sources.multi_source_model import AdditiveMultiSourceModel, RandomMultiSourceModel
 
 
-def test_multi_source_node() -> None:
-    """Test that we can create and evaluate a MultiSourceModel."""
+def test_additive_multi_source_node() -> None:
+    """Test that we can create and evaluate a AdditiveMultiSourceModel."""
     source1 = StaticSource(brightness=10.0, node_label="my_static_source")
     source2 = StepSource(brightness=15.0, t0=1.0, t1=2.0, node_label="my_step_source")
-    model = MultiSourceModel([source1, source2], node_label="my_multi_source")
+    model = AdditiveMultiSourceModel([source1, source2], node_label="my_multi_source")
 
     state = model.sample_parameters()
     assert state["my_static_source"]["brightness"] == 10.0
@@ -24,8 +24,8 @@ def test_multi_source_node() -> None:
     assert np.allclose(values, [[10.0, 10.0], [25.0, 25.0], [10.0, 10.0]])
 
 
-def test_multi_source_node_resample() -> None:
-    """Test that we can correctly resample a MultiSourceModel."""
+def test_additive_multi_source_node_resample() -> None:
+    """Test that we can correctly resample a AdditiveMultiSourceModel."""
     ra = NumpyRandomFunc("uniform", low=10.0, high=20.0)
     dec = NumpyRandomFunc("uniform", low=-10.0, high=10.0)
 
@@ -45,7 +45,7 @@ def test_multi_source_node_resample() -> None:
         t1=2.0,
         node_label="my_step_source",
     )
-    model = MultiSourceModel([source1, source2], node_label="my_multi_source")
+    model = AdditiveMultiSourceModel([source1, source2], node_label="my_multi_source")
 
     num_samples = 1000
     rng_info = np.random.default_rng(100)
@@ -79,11 +79,11 @@ def test_multi_source_node_resample() -> None:
     assert np.allclose(values[:, 2, 1], state["my_static_source"]["brightness"])
 
 
-def test_multi_source_node_redshift() -> None:
+def test_additive_multi_source_node_redshift() -> None:
     """Test that we handle redshifts separately for each source."""
     source1 = StepSource(brightness=10.0, t0=1.0, t1=3.0, redshift=0.0, node_label="source1")
     source2 = StepSource(brightness=10.0, t0=2.0, t1=4.0, redshift=1.0, node_label="source2")
-    model = MultiSourceModel([source1, source2], node_label="my_multi_source")
+    model = AdditiveMultiSourceModel([source1, source2], node_label="my_multi_source")
 
     state = model.sample_parameters()
     times = np.array([0.5, 1.5, 2.5, 3.5, 4.5])
@@ -101,13 +101,13 @@ def test_multi_source_node_redshift() -> None:
     assert np.allclose(values, contrib1 + contrib2)
 
 
-def test_multi_source_node_effects_rest_frame() -> None:
+def test_additive_multi_source_node_effects_rest_frame() -> None:
     """Test that we handle rest frame effects separately for each source."""
     source1 = StepSource(brightness=10.0, t0=1.0, t1=3.0, node_label="source1")
     source2 = StepSource(brightness=10.0, t0=2.0, t1=4.0, node_label="source2")
     source1.add_effect(ConstantDimming(flux_fraction=0.5, rest_frame=True))
     source2.add_effect(ConstantDimming(flux_fraction=0.1, rest_frame=True))
-    model = MultiSourceModel([source1, source2], node_label="my_multi_source")
+    model = AdditiveMultiSourceModel([source1, source2], node_label="my_multi_source")
 
     # We added the effect to each submodel's rest frame list.
     assert len(source1.rest_frame_effects) == 1
@@ -128,11 +128,11 @@ def test_multi_source_node_effects_rest_frame() -> None:
     assert np.allclose(values, contrib1 + contrib2)
 
 
-def test_multi_source_node_effects_rest_frame_add() -> None:
+def test_additive_multi_source_node_effects_rest_frame_add() -> None:
     """Test that we handle rest frame effects separately for each source."""
     source1 = StepSource(brightness=10.0, t0=1.0, t1=3.0, node_label="source1")
     source2 = StepSource(brightness=10.0, t0=2.0, t1=4.0, node_label="source2")
-    model = MultiSourceModel([source1, source2], node_label="my_multi_source")
+    model = AdditiveMultiSourceModel([source1, source2], node_label="my_multi_source")
     model.add_effect(ConstantDimming(flux_fraction=0.5, rest_frame=True))
 
     # We added the effect to each submodel's rest frame list.
@@ -154,11 +154,11 @@ def test_multi_source_node_effects_rest_frame_add() -> None:
     assert np.allclose(values, contrib1 + contrib2)
 
 
-def test_multi_source_node_effects_obs_frame() -> None:
+def test_additive_multi_source_node_effects_obs_frame() -> None:
     """Test that we handle observer frame effects together."""
     source1 = StepSource(brightness=10.0, t0=1.0, t1=3.0, node_label="source1")
     source2 = StepSource(brightness=10.0, t0=2.0, t1=4.0, node_label="source2")
-    model = MultiSourceModel([source1, source2], node_label="my_multi_source")
+    model = AdditiveMultiSourceModel([source1, source2], node_label="my_multi_source")
     model.add_effect(ConstantDimming(flux_fraction=0.5, rest_frame=False))
 
     # We added the effect to the joint model's rest frame list.
@@ -180,11 +180,43 @@ def test_multi_source_node_effects_obs_frame() -> None:
     assert np.allclose(values, contrib1 + contrib2)
 
 
-def test_multi_source_node_effects_fail() -> None:
+def test_additive_multi_source_node_effects_fail() -> None:
     """Test that we fail if any source includes an observer frame effect."""
     source1 = StepSource(brightness=10.0, t0=1.0, t1=3.0, node_label="source1")
     source2 = StepSource(brightness=10.0, t0=2.0, t1=4.0, node_label="source2")
     source2.add_effect(ConstantDimming(flux_fraction=0.5, rest_frame=False))
 
     with pytest.raises(ValueError):
-        _ = MultiSourceModel([source1, source2], node_label="my_multi_source")
+        _ = AdditiveMultiSourceModel([source1, source2], node_label="my_multi_source")
+
+
+def test_random_multi_source_node() -> None:
+    """Test that we can create and evaluate a RandomMultiSourceModel."""
+    source1 = StaticSource(brightness=10.0, node_label="source1")
+    source2 = StaticSource(brightness=15.0, node_label="source2")
+    model = RandomMultiSourceModel(
+        [source1, source2],
+        weights=[0.8, 0.2],
+        node_label="my_multi_source",
+    )
+
+    state = model.sample_parameters(num_samples=10_000)
+    assert np.all(state["source1"]["brightness"] == 10.0)
+    assert np.all(state["source2"]["brightness"] == 15.0)
+
+    # We should get approximately 80% of the samples from the first
+    # source and 20% from the second source.
+    source = np.array(state["my_multi_source"]["selected_source"], dtype=str)
+    assert np.all((source == "source1") | (source == "source2"))
+    assert np.sum(source == "source1") > 7000
+    assert np.sum(source == "source2") > 1000
+
+    # When we evaluate the model, we should get the expected values.
+    times = np.array([0.0, 1.5, 3.0])
+    wavelengths = np.array([1000.0, 2000.0])
+    values = model.evaluate(times, wavelengths, state)
+
+    assert values.shape == (10_000, 3, 2)
+    assert np.all((values == 10.0) | (values == 15.0))
+    assert np.sum(values == 10.0) > 7000 * 5
+    assert np.sum(values == 15.0) > 1000 * 5
