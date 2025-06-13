@@ -105,7 +105,7 @@ def test_create_lightcurve_source_unsorted() -> None:
 
     with pytest.raises(ValueError):
         # We should fail because the lightcurves are not sorted by time.
-        LightcurveSource(lightcurves, pb_group, t0=0.0)
+        LightcurveSource(lightcurves, passbands=pb_group, t0=0.0)
 
 
 def test_create_lightcurve_source_baseline() -> None:
@@ -113,7 +113,7 @@ def test_create_lightcurve_source_baseline() -> None:
     pb_group = _create_toy_passbands()
     lightcurves = _create_toy_lightcurves()
     baseline = {"u": 0.5, "g": 1.2, "r": 0.05}
-    lc_source = LightcurveSource(lightcurves, pb_group, t0=0.0, baseline=baseline)
+    lc_source = LightcurveSource(lightcurves, passbands=pb_group, t0=0.0, baseline=baseline)
 
     # A call to get_band_fluxes should return the desired lightcurves.  We only use two of the passbands.
     graph_state = lc_source.sample_parameters(num_samples=1)
@@ -131,7 +131,7 @@ def test_create_lightcurve_source_baseline() -> None:
     # We fail if we try to create a LightcurveSource with a baseline that does
     # not match the passbands (no r band provided).
     with pytest.raises(ValueError):
-        LightcurveSource(lightcurves, pb_group, t0=0.0, baseline={"u": 0.5, "g": 1.2})
+        LightcurveSource(lightcurves, passbands=pb_group, t0=0.0, baseline={"u": 0.5, "g": 1.2})
 
 
 def test_create_lightcurve_source_periodic() -> None:
@@ -142,7 +142,7 @@ def test_create_lightcurve_source_periodic() -> None:
         # We cannot create a periodic lightcurve source lightcurves that do
         # not cover the same time range.
         lightcurves = _create_toy_lightcurves()
-        LightcurveSource(lightcurves, pb_group, periodic=True)
+        LightcurveSource(lightcurves, passbands=pb_group, periodic=True)
 
     times = np.arange(0.0, 10.5, 0.5)
     g_curve = 3.0 * np.ones_like(times)
@@ -152,7 +152,7 @@ def test_create_lightcurve_source_periodic() -> None:
         "g": np.array([times, g_curve]).T,
         "r": np.array([times, r_curve]).T,
     }
-    lc_source = LightcurveSource(lightcurves, pb_group, t0=0.0, periodic=True)
+    lc_source = LightcurveSource(lightcurves, passbands=pb_group, t0=0.0, periodic=True)
 
     # A call to get_band_fluxes should return the desired lightcurves.
     graph_state = lc_source.sample_parameters(num_samples=1)
@@ -176,9 +176,9 @@ def test_create_lightcurve_source_periodic() -> None:
 
     # We fail if we specify an incorrect lc_t0 for a periodic lightcurve.
     with pytest.raises(ValueError):
-        _ = LightcurveSource(lightcurves, pb_group, lc_t0=1.0, t0=0.0, periodic=True)
+        _ = LightcurveSource(lightcurves, passbands=pb_group, lc_t0=1.0, t0=0.0, periodic=True)
 
-    lc_source = LightcurveSource(lightcurves, pb_group, lc_t0=2.0, t0=0.0, periodic=True)
+    lc_source = LightcurveSource(lightcurves, passbands=pb_group, lc_t0=2.0, t0=0.0, periodic=True)
     query_times = np.array([0.0, 1.0, 2.0, 3.0, 4.0])
     query_filters = np.full(len(query_times), "r")
 
@@ -189,14 +189,14 @@ def test_create_lightcurve_source_periodic() -> None:
     assert np.allclose(fluxes, [0.0, 1.0, 2.0, 3.0, 2.5])
 
     # We can also auto-derive lc_t0 from the lightcurves.
-    lc_source = LightcurveSource(lightcurves, pb_group, t0=0.0, periodic=True)
+    lc_source = LightcurveSource(lightcurves, passbands=pb_group, t0=0.0, periodic=True)
     graph_state = lc_source.sample_parameters(num_samples=1)
     fluxes = lc_source.get_band_fluxes(pb_group, query_times, query_filters, graph_state)
     assert np.allclose(fluxes, [0.0, 1.0, 2.0, 3.0, 2.5])
 
     # If we use t0=1.0, we are saying the period starts at 1.0 for this sample, so a
     # query time of 0.0 should wrap around and return the *last* value of the lightcurve.
-    lc_source = LightcurveSource(lightcurves, pb_group, t0=1.0, periodic=True)
+    lc_source = LightcurveSource(lightcurves, passbands=pb_group, t0=1.0, periodic=True)
     graph_state = lc_source.sample_parameters(num_samples=1)
     fluxes = lc_source.get_band_fluxes(pb_group, query_times, query_filters, graph_state)
     assert np.allclose(fluxes, [1.5, 0.0, 1.0, 2.0, 3.0])
@@ -219,7 +219,7 @@ def test_create_lightcurve_source_periodic_complex_offsets() -> None:
     }
 
     # Create a LightcurveSource with t0=60672.0, so we are shifting it back by 4 days.
-    lc_source = LightcurveSource(lightcurves, pb_group, t0=60672.0, periodic=True)
+    lc_source = LightcurveSource(lightcurves, passbands=pb_group, t0=60672.0, periodic=True)
     graph_state = lc_source.sample_parameters(num_samples=1)
 
     # Check query times relative to 60676.0 (4 days after the period started).
