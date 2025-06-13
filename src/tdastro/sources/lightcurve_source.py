@@ -4,6 +4,7 @@ in each band."""
 import matplotlib.pyplot as plt
 import numpy as np
 
+from tdastro.astro_utils.fake_sed_basis import FakeSEDBasis
 from tdastro.astro_utils.passbands import Passband, PassbandGroup
 from tdastro.consts import lsst_filter_plot_colors
 from tdastro.sources.physical_model import PhysicalModel
@@ -39,10 +40,8 @@ class LightcurveSource(PhysicalModel):
         A dictionary mapping filter names to a 2d array of the bandlfuxes
         in that filter where the first column is time (in days from the reference time
         of the light curve) and the second column is the bandflux (in nJy).
-    sed_values : dict
-        A dictionary mapping filters to the fake SED values for that passband.
-        These SED values are scaled by the lightcurve and added for the
-        final SED.
+    sed_values : FakeSEDBasis
+        Fake basis functions for the SED in each filter.
     all_waves : numpy.ndarray
         A 1d array of all of the wavelengths used by the passband group.
     period : float or None
@@ -142,9 +141,10 @@ class LightcurveSource(PhysicalModel):
             if not np.all(np.diff(lc[:, 0]) > 0):
                 raise ValueError(f"Lightcurve {filter}'s times are not in sorted order.")
 
-        # Store the wavelengths information and lightcurves for each filter.
+        # Store the wavelengths information and lightcurves for each filter that we actually use.
+        filters = list(self.lightcurves.keys())
+        self.sed_values = FakeSEDBasis.from_passbands(passbands, filters=filters)
         self.all_waves = passbands.waves
-        self.sed_values = self._create_sed_basis(list(self.lightcurves.keys()), passbands)
 
         # Store information about the lightcurve's periodicity and duration.  We compute
         # the minimum and maximum times for each lightcurve, after _handle_periodicity
@@ -215,61 +215,6 @@ class LightcurveSource(PhysicalModel):
             for lc in self.lightcurves.values():
                 lc[:, 0] -= self.lc_t0
 
-    def _create_sed_basis(self, filters, passbands):
-        """Create the SED basis functions. For each passband this creates a box shaped SED
-        that does not overlap with any other passband. The height of the SED is normalized
-        such that the total flux density will be 1.0 after passing through the passband.
-
-        Parameters
-        ----------
-        filters : list
-            A list of filters to use for the model.
-        passbands : PassbandGroup
-            The passband group to use for defining the lightcurve.
-
-        Returns
-        -------
-        sed_values : dict
-            A dictionary mapping the filter names to the SED values over all wavelengths.
-        """
-        # Mark which wavelengths are used by each passband.
-        filter_uses_wave = np.zeros((len(filters), len(passbands.waves)))
-        for idx, filter in enumerate(filters):
-            # Get all of the wavelengths that have a non-negligible transmission value
-            # for this filter and find their indices in the passband group.
-            is_significant = passbands[filter].processed_transmission_table[:, 1] > 0.001
-            significant_waves = passbands[filter].waves[is_significant]
-            indices = np.searchsorted(passbands.waves, significant_waves)
-
-            # Mark all non-negligible wavelengths as used by this filter.
-            filter_uses_wave[idx, indices] = 1.0
-
-        # Find which wavelengths are used by multiple filters.
-        filter_counts = np.sum(filter_uses_wave, axis=0)
-
-        # Create the sed values for each wavelength.
-        sed_values = {}
-        for idx, filter in enumerate(filters):
-            # Get the wavelengths that are used by ONLY this filter.
-            valid_waves = (filter_uses_wave[idx, :] == 1) & (filter_counts == 1)
-            if np.sum(valid_waves) == 0:
-                raise ValueError(
-                    f"Passband {filter} has no valid wavelengths where it: a) has a non-negligible "
-                    "transmission value (>0.001) and b) does not overlap with another passband."
-                )
-
-            # Compute how much flux is passed through these wavelengths of this filter
-            # and use this to normalize the sed values.
-            filter_sed = np.zeros((1, len(passbands.waves)))
-            filter_sed[0, valid_waves] = 1.0
-
-            total_flux = passbands.fluxes_to_bandflux(filter_sed, filter)
-            if total_flux[0] <= 0:
-                raise ValueError(f"Total flux for filter {filter} is {total_flux[0]}.")
-            sed_values[filter] = filter_sed[0, :] / total_flux[0]
-
-        return sed_values
-
     def set_apply_redshift(self, apply_redshift):
         """Toggles the apply_redshift setting.
 
@@ -301,6 +246,16 @@ class LightcurveSource(PhysicalModel):
         """
         params = self.get_local_params(graph_state)
 
+        # We only support querying wavelengths that were used to create the SED basis
+        # functions so as to keep the scaling consistent.  This means we do not allow
+        # changes to the wavelengths (such as redshift).
+        wave_inds = np.searchsorted(self.all_waves, wavelengths, side="left")
+        wave_inds[wave_inds >= len(self.all_waves)] = len(self.all_waves) - 1
+        if np.any(np.abs(self.all_waves[wave_inds] - wavelengths) > 0.01):
+            raise ValueError(
+                "Wavelengths used to query LightcurveSource must be a subset of those used to create it."
+            )
+
         # Shift the times for the model's t0 aligned with the lightcurve's lc_t0.
         # The lightcurve times were already shifted in the constructor to be relative to lc_t0.
         shifted_times = times - params["t0"]
@@ -309,14 +264,8 @@ class LightcurveSource(PhysicalModel):
 
         flux_density = np.zeros((len(times), len(wavelengths)))
         for filter, lightcurve in self.lightcurves.items():
-            # Compute the SED values for the wavelengths we are actually sampling.
-            sed_waves = np.interp(
-                wavelengths,  # The query wavelengths
-                self.all_waves,  # All of the passband group's wavelengths
-                self.sed_values[filter],  # The SED values at each of the passband group's wavelengths
-                left=0.0,  # Do not extrapolate in wavelength
-                right=0.0,  # Do not extrapolate in wavelength
-            )
+            # Since we have already compute the indices, we can use them directly.
+            sed_waves = self.sed_values.sed_values[filter][wave_inds]
 
             # Compute the multipliers for the SEDs at different time steps along this lightcurve.
             # We use the lightcurve's baseline value for all times outside the lightcurve's range.
@@ -354,21 +303,7 @@ class LightcurveSource(PhysicalModel):
         figure : matplotlib.pyplot.Figure or None
             Figure, None by default.
         """
-        if ax is None:
-            if figure is None:
-                figure = plt.figure()
-            ax = figure.add_axes([0, 0, 1, 1])
-
-        # Plot each passband.
-        for filter_name, filter_curve in self.sed_values.items():
-            color = lsst_filter_plot_colors.get(filter_name, "black")
-            ax.plot(self.all_waves, filter_curve, color=color, label=filter_name)
-
-        # Set the x and y axis labels.
-        ax.set_xlabel("Wavelength (Angstroms)")
-        ax.set_ylabel("SED (nJy)")
-        ax.set_title("SED Basis Functions")
-        ax.legend()
+        self.sed_values.plot_sed_basis(ax=ax, figure=figure)
 
     def plot_lightcurves(self, times=None, ax=None, figure=None):
         """Plot the underlying lightcurves. This is a debugging

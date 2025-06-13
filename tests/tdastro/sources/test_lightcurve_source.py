@@ -42,12 +42,6 @@ def test_create_lightcurve_source() -> None:
     filters = list(lc_source.lightcurves.keys())
     assert filters == ["u", "g", "r"]
 
-    # Check that no two SED basis functions overlap.
-    for f1 in filters:
-        for f2 in filters:
-            if f1 != f2:
-                assert np.count_nonzero(lc_source.sed_values[f1] * lc_source.sed_values[f2]) == 0
-
     # A call to get_band_fluxes should return the desired lightcurves.  We only use two of the passbands.
     graph_state = lc_source.sample_parameters(num_samples=1)
     query_times = np.array([0.0, 0.5, 1.0, 2.0, 3.0, 4.0, 20.0, 21.0])
