@@ -1,50 +1,31 @@
 """A model that generates the SED of a source based on the lightcurves of fluxes
 in each band."""
 
+import warnings
+
 import matplotlib.pyplot as plt
 import numpy as np
+from astropy.table import Table
 
 from tdastro.astro_utils.passbands import Passband, PassbandGroup
 from tdastro.consts import lsst_filter_plot_colors
 from tdastro.sources.physical_model import PhysicalModel
 
 
-class LightcurveSource(PhysicalModel):
-    """A model that generates the SED of a source from lightcurves in given bands.
-    The model estimates a box-shaped SED for each filter such that the resulting
-    flux density is equal to the lightcurve's value after passing through
-    the passband filter.
-
-    LightcurveSource supports both periodic and non-periodic lightcurves. If the
-    light curve is not periodic then each lightcurve's given values will be interpolated
-    during the time range of the lightcurve. Values outside the time range (before and
-    after) will be set to the baseline value for that filter (0.0 by default).
-
-    Periodic models require that each filter's lightcurve is sampled at the same times
-    and that the value at the end of the lightcurve is equal to the value at the start
-    of the lightcurve. The lightcurve epoch (lc_t0) is automatically set to the first time
-    so that the t0 parameter corresponds to the shift in phase.
-
-    The set of passbands used to configure the model MUST be the same as used
-    to generate the SED (the wavelengths must match).
-
-    Parameterized values include:
-      * dec - The object's declination in degrees.
-      * ra - The object's right ascension in degrees.
-      * t0 - The t0 of the zero phase (if applicable), date.
+class LightcurveData:
+    """A class to hold data for a single lightcurve.
 
     Attributes
     ----------
     lightcurves : dict
-        A dictionary mapping filter names to a 2d array of the bandlfuxes
-        in that filter where the first column is time (in days from the reference time
-        of the light curve) and the second column is the bandflux (in nJy).
-    sed_values : dict
-        A dictionary mapping filters to the fake SED values for that passband.
-        These SED values are scaled by the lightcurve and added for the
-        final SED.
-    all_waves : numpy.ndarray
-        A 1d array of all of the wavelengths used by the passband group.
+        A dictionary mapping filter names to a 2D array of the bandfluxes in that filter,
+        where the first column is time (in days from the reference time of the light curve)
+        and the second column is the bandflux (in nJy).
+    lc_t0 : float
+        The reference epoch (t0) of the input light curve. The model will be shifted
+        to the model's t0 when computing fluxes. For periodic lightcurves, this either
+        must be set to the first time of the lightcurve or left as 0.0 to automatically
+        derive the lc_t0 from the lightcurve.
     period : float or None
         The period of the lightcurve in days. If the lightcurve is not periodic,
         then this value is set to None.
@@ -66,8 +47,8 @@ class LightcurveSource(PhysicalModel):
         where the first column is time and the second column is the flux density (in nJy), or
         2) a numpy array of shape (T, 3) array where the first column is time (in days), the
         second column is the bandflux (in nJy), and the third column is the filter.
-    passbands : Passband or PassbandGroup
-        The passband or passband group to use for defining the lightcurve.
+        3) an astropy Table in LCLIB format (with a "time" column, optional "type" column,
+        and a column for each filter).
     lc_t0 : float
         The reference epoch (t0) of the input light curve. The model will be shifted
         to the model's t0 when computing fluxes.  For periodic lightcurves, this either
@@ -84,71 +65,43 @@ class LightcurveSource(PhysicalModel):
         Default: None
     """
 
-    def __init__(
-        self,
-        lightcurves,
-        passbands,
-        lc_t0=0.0,
-        periodic=False,
-        baseline=None,
-        **kwargs,
-    ):
-        super().__init__(**kwargs)
-
-        # Set model information.
-        self.period = None
+    def __init__(self, lightcurves, lc_t0=0.0, periodic=False, baseline=None):
         self.lc_t0 = lc_t0
+        self.period = None
 
-        # Convert a single passband to a PassbandGroup.
-        if isinstance(passbands, Passband):
-            passbands = PassbandGroup(given_passbands=[passbands])
-
-        if isinstance(lightcurves, np.ndarray):
+        if isinstance(lightcurves, dict):
+            # Make a copy of the lightcurves to avoid modifying the original data.
+            self.lightcurves = {filter: lc.copy() for filter, lc in lightcurves.items()}
+        elif isinstance(lightcurves, np.ndarray):
             if lightcurves.shape[1] != 3:
-                raise ValueError("Lightcurves must have 3 columns: time, flux, and filter.")
+                raise ValueError("Lightcurves array must have 3 columns: time, flux, and filter.")
 
-            # Break up the lightcurves by filter and shift so that the time
-            # at lc_t0 is mapped to the lightcurve's 0.0 time.
+            # Break up the lightcurves by filter.
             self.lightcurves = {}
             filters = np.unique(lightcurves[:, 2])
             for filter in filters:
-                if filter not in passbands:
-                    raise ValueError(f"Lightcurve {filter} does not match any passband in the group.")
-
                 filter_mask = lightcurves[:, 2] == filter
-                filter_times = lightcurves[filter_mask, 0].astype(float) - lc_t0
+                filter_times = lightcurves[filter_mask, 0].astype(float)
                 filter_bandflux = lightcurves[filter_mask, 1].astype(float)
                 self.lightcurves[str(filter)] = np.column_stack((filter_times, filter_bandflux))
-        elif isinstance(lightcurves, dict):
-            self.lightcurves = {}
-            for filter, data in lightcurves.items():
-                # Validate the dictionary entry.
-                if filter not in passbands:
-                    raise ValueError(f"Lightcurve {filter} does not match any passband in the group.")
-                if len(data.shape) != 2:
-                    raise ValueError(f"Lightcurve {filter} must be a 2D array.")
-                if data.shape[1] != 2 and data.shape[1] != 3:
-                    raise ValueError(f"Lightcurve {filter} must have either 2 or 3 columns.")
-
-                # Copy the lightcurve data so we can shift the times to
-                # account for the light_curve's lc_t0.
-                self.lightcurves[filter] = np.copy(data)
-                self.lightcurves[filter][:, 0] -= lc_t0
+        elif isinstance(lightcurves, Table):
+            if baseline is not None:
+                raise ValueError("Baseline cannot be provided when lightcurves are in LCLIB format.")
+            self.lightcurves, self.baseline = self.parse_lclib_table(lightcurves)
         else:
-            raise TypeError("Unknown type for lightcurve input. Must be dict or numpy array.")
+            raise TypeError("Unknown type for lightcurve input. Must be dict, numpy array, or astropy Table.")
 
-        # Validate that all the times for each lightcurve are in sorted order.
+        # Do basic validation of the lightcurves and shift them so that the time
+        # at lc_t0 is mapped to 0.0.
         for filter, lc in self.lightcurves.items():
+            if len(lc.shape) != 2 or (lc.shape[1] != 2 and lc.shape[1] != 3):
+                raise ValueError(f"Lightcurve {filter} must have either 2 or 3 columns.")
             if not np.all(np.diff(lc[:, 0]) > 0):
                 raise ValueError(f"Lightcurve {filter}'s times are not in sorted order.")
+            lc[:, 0] -= self.lc_t0
 
-        # Store the wavelengths information and lightcurves for each filter.
-        self.all_waves = passbands.waves
-        self.sed_values = self._create_sed_basis(list(self.lightcurves.keys()), passbands)
-
-        # Store information about the lightcurve's periodicity and duration.  We compute
-        # the minimum and maximum times for each lightcurve, after _handle_periodicity
-        # in case we needed to adjust the lightcurves for periodicity.
+        # Store the minimum and maximum times for each lightcurve. This is done after
+        # validating periodicity in case we needed to adjust the lightcurve start times.
         if periodic:
             self._validate_periodicity()
         self.min_times = {filter: lc[0, 0] for filter, lc in self.lightcurves.items()}
@@ -165,16 +118,14 @@ class LightcurveSource(PhysicalModel):
                     raise ValueError(f"Baseline value for filter {filter} is missing.")
             self.baseline = baseline
 
-        # Override some of the defaults of PhysicalModel. Never apply redshift and
-        # do not allow brackground models.
-        self.apply_redshift = False
-        if "background" in kwargs:
-            raise ValueError("Lightcurve models do not support background models.")
-        self.background = None
+    def __len__(self):
+        """Get the number of lightcurves."""
+        return len(self.lightcurves)
 
-        # Check that t0 is set.
-        if "t0" not in kwargs or kwargs["t0"] is None:
-            raise ValueError("Lightcurve models require a t0 parameter.")
+    @property
+    def filters(self):
+        """Get the list of filters in the lightcurves."""
+        return list(self.lightcurves.keys())
 
     def _validate_periodicity(self):
         """Check that the lightcurves meet the requirements for periodic models:
@@ -214,6 +165,247 @@ class LightcurveSource(PhysicalModel):
             self.lc_t0 = all_lcs[0][0, 0]
             for lc in self.lightcurves.values():
                 lc[:, 0] -= self.lc_t0
+
+    @staticmethod
+    def parse_lclib_table(lightcurves_table):
+        """Break up a lightcurves table in LCLIB format into a LightcurveData instance.
+        This function expects the table to have a "time" column, an optional "type" column,
+        and a column for each filter. The "type" column should use "S" for source observation
+        and "T" for template (background) observation.
+
+        Parameters
+        ----------
+        lightcurves_table : astropy.table.Table
+            A table with a "time" column, optional "type" column, and a column for each filter.
+            If the type column is present it should use "S" for source observation and "T"
+            for template (background) observation.
+
+        Returns
+        -------
+        lightcurve : dict
+            A dictionary mapping filter names to a (T, 2) array of the bandfluxes in that filter,
+            where the first column is time (in days from the reference time of the light curve)
+            and the second column is the bandflux (in nJy).
+        baseline : dict
+            A dictionary of baseline bandfluxes for each filter.
+        """
+        if "time" not in lightcurves_table.colnames:
+            raise ValueError("Lightcurves table must have a 'time' column.")
+
+        # Extract the name of the filters from the table column names.
+        filters = [col for col in lightcurves_table.colnames if col != "time" and col != "type"]
+        if len(filters) == 0:
+            raise ValueError("Lightcurves table must have at least one filter column.")
+
+        # Check if there are baseline curves to extract and filter them out of the
+        # lightcurves table. Use a default to 0.0 for each filter if no baselines are found.
+        baseline = {filter: 0.0 for filter in filters}
+        if "type" in lightcurves_table.colnames:
+            obs_mask = lightcurves_table["type"] == "S"
+            if np.any(~obs_mask):
+                tmp_table = lightcurves_table[obs_mask]
+                if len(tmp_table) > 1:
+                    warnings.warn(
+                        "Multiple template (background) observations found in lightcurves table. "
+                        "The source will only use the first one for baseline values."
+                    )
+                baseline = {filter: tmp_table[filter][0] for filter in filters}
+            lightcurves_table = lightcurves_table[obs_mask]
+
+        # Convert the Table to a dictionary of lightcurves.
+        lightcurves = {}
+        for filter in filters:
+            filter_times = lightcurves_table["time"].astype(float)
+            filter_bandflux = lightcurves_table[filter].astype(float)
+            lightcurves[str(filter)] = np.column_stack((filter_times, filter_bandflux))
+
+        return lightcurves, baseline
+
+    def evaluate(self, times, filter):
+        """Get the SED values for a given filter at specified times.
+
+        Parameters
+        ----------
+        times : numpy.ndarray
+            A length T array of times (in days) at which to compute the SED values. These should
+            be shift to be relative to the lightcurve's lc_t0.
+        filter : str
+            The name of the filter for which to compute the SED values.
+
+        Returns
+        -------
+        sed_values : numpy.ndarray
+            A length T array of SED values (in nJy) for the specified filter at the given times.
+        """
+        if filter not in self.lightcurves:
+            raise ValueError(f"Filter {filter} not found in lightcurves.")
+        lightcurve = self.lightcurves[filter]
+
+        # If the lightcurve is periodic, wrap the times around the period.
+        if self.period is not None:
+            times = times % self.period
+
+        # Start with an array of all baseline values.
+        sed_values = np.full(len(times), self.baseline.get(filter, 0.0))
+
+        # For the times that overlap with the lightcurve, interpolate the lightcurve values.
+        overlap = (times >= self.min_times[filter]) & (times <= self.max_times[filter])
+        sed_values[overlap] = np.interp(
+            times[overlap],  # The query times
+            lightcurve[:, 0],  # The lightcurve times for this passband filter
+            lightcurve[:, 1],  # The lightcurve flux densities for this passband filter
+            left=0.0,  # Do not extrapolate in time
+            right=0.0,  # Do not extrapolate in time
+        )
+
+        return sed_values
+
+    def plot_lightcurves(self, times=None, ax=None, figure=None):
+        """Plot the underlying lightcurves. This is a debugging
+        function to help the user understand the SEDs produced by this
+        model.
+
+        Parameters
+        ----------
+        times : numpy.ndarray or None, optional
+            An array of timestamps at which to plot the lightcurves.
+            If None, the function uses the timestamps from each lightcurves.
+        ax : matplotlib.pyplot.Axes or None, optional
+            Axes, None by default.
+        figure : matplotlib.pyplot.Figure or None
+            Figure, None by default.
+        """
+        if ax is None:
+            if figure is None:
+                figure = plt.figure()
+            ax = figure.add_axes([0, 0, 1, 1])
+
+        # Plot each passband.
+        for filter_name, filter_curve in self.lightcurves.items():
+            # Check if we need to use the query times.
+            if times is None:
+                plot_times = filter_curve[:, 0]
+                plot_values = filter_curve[:, 1]
+            else:
+                plot_times = times
+                plot_values = np.interp(times, filter_curve[:, 0], filter_curve[:, 1], left=0.0, right=0.0)
+
+            color = lsst_filter_plot_colors.get(filter_name, "black")
+            ax.plot(plot_times, plot_values, color=color, label=filter_name)
+
+        # Set the x and y axis labels.
+        ax.set_xlabel("Time (days)")
+        ax.set_ylabel("Filter value (nJy)")
+        ax.set_title("Lightcurve Source Underlying Lightcurves")
+        ax.legend()
+
+
+class LightcurveSource(PhysicalModel):
+    """A model that generates the SED of a source from lightcurves in given bands.
+    The model estimates a box-shaped SED for each filter such that the resulting
+    flux density is equal to the lightcurve's value after passing through
+    the passband filter.
+
+    LightcurveSource supports both periodic and non-periodic lightcurves. If the
+    light curve is not periodic then each lightcurve's given values will be interpolated
+    during the time range of the lightcurve. Values outside the time range (before and
+    after) will be set to the baseline value for that filter (0.0 by default).
+
+    Periodic models require that each filter's lightcurve is sampled at the same times
+    and that the value at the end of the lightcurve is equal to the value at the start
+    of the lightcurve. The lightcurve epoch (lc_t0) is automatically set to the first time
+    so that the t0 parameter corresponds to the shift in phase.
+
+    The set of passbands used to configure the model MUST be the same as used
+    to generate the SED (the wavelengths must match).
+
+    Parameterized values include:
+      * dec - The object's declination in degrees.
+      * ra - The object's right ascension in degrees.
+      * t0 - The t0 of the zero phase (if applicable), date.
+
+    Attributes
+    ----------
+    lightcurves : LightcurveData
+        The data for the lightcurves, such as the times and bandfluxes in each filter.
+    sed_values : dict
+        A dictionary mapping filters to the fake SED values for that passband.
+        These SED values are scaled by the lightcurve and added for the
+        final SED.
+    all_waves : numpy.ndarray
+        A 1d array of all of the wavelengths used by the passband group.
+
+    Parameters
+    ----------
+    lightcurves : dict or numpy.ndarray
+        The lightcurves can be passed as either:
+        1) a LightcurveData instance,
+        2) a dictionary mapping filter names to a (T, 2) array of the bandlfuxes in that filter
+        where the first column is time and the second column is the flux density (in nJy), or
+        3) a numpy array of shape (T, 3) array where the first column is time (in days), the
+        second column is the bandflux (in nJy), and the third column is the filter.
+        4) an astropy Table in LCLIB format (with a "time" column, optional "type" column,
+        and a column for each filter).
+    passbands : Passband or PassbandGroup
+        The passband or passband group to use for defining the lightcurve.
+    lc_t0 : float
+        The reference epoch (t0) of the input light curve. The model will be shifted
+        to the model's t0 when computing fluxes.  For periodic lightcurves, this either
+        must be set to the first time of the lightcurve or left as 0.0 to automatically
+        derive the lc_t0 from the lightcurve.
+        Default: 0.0
+    periodic : bool
+        Whether the lightcurve is periodic. If True, the model will assume that
+        the lightcurve repeats every period.
+        Default: False
+    baseline : dict or None
+        A dictionary of baseline bandfluxes for each filter. This is only used
+        for non-periodic lightcurves when they are not active.
+        Default: None
+    """
+
+    def __init__(
+        self,
+        lightcurves,
+        passbands,
+        lc_t0=0.0,
+        periodic=False,
+        baseline=None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+
+        # Store the lightcurve data, parsing out different formats if needed.
+        self.lightcurves = LightcurveData(lightcurves, lc_t0=lc_t0, periodic=periodic, baseline=baseline)
+
+        # Convert a single passband to a PassbandGroup.
+        if isinstance(passbands, Passband):
+            passbands = PassbandGroup(given_passbands=[passbands])
+
+        # Store the wavelengths information and lightcurves for each filter.
+        for filter in self.lightcurves.filters:
+            if filter not in passbands:
+                raise ValueError(
+                    f"Lightcurve model requires a passband for filter {filter} " "to compute the SED values."
+                )
+        self.all_waves = passbands.waves
+        self.sed_values = self._create_sed_basis(self.lightcurves.filters, passbands)
+
+        # Override some of the defaults of PhysicalModel. Never apply redshift and
+        # do not allow brackground models.
+        self.apply_redshift = False
+        if "background" in kwargs:
+            raise ValueError("Lightcurve models do not support background models.")
+        self.background = None
+
+        # Check that t0 is set.
+        if "t0" not in kwargs or kwargs["t0"] is None:
+            raise ValueError("Lightcurve models require a t0 parameter.")
+
+    @property
+    def filters(self):
+        """Get the list of filters in the lightcurves."""
+        return self.lightcurves.filters
 
     def _create_sed_basis(self, filters, passbands):
         """Create the SED basis functions. For each passband this creates a box shaped SED
@@ -304,11 +496,9 @@ class LightcurveSource(PhysicalModel):
         # Shift the times for the model's t0 aligned with the lightcurve's lc_t0.
         # The lightcurve times were already shifted in the constructor to be relative to lc_t0.
         shifted_times = times - params["t0"]
-        if self.period is not None:
-            shifted_times = shifted_times % self.period
 
         flux_density = np.zeros((len(times), len(wavelengths)))
-        for filter, lightcurve in self.lightcurves.items():
+        for filter in self.lightcurves.filters:
             # Compute the SED values for the wavelengths we are actually sampling.
             sed_waves = np.interp(
                 wavelengths,  # The query wavelengths
@@ -320,19 +510,7 @@ class LightcurveSource(PhysicalModel):
 
             # Compute the multipliers for the SEDs at different time steps along this lightcurve.
             # We use the lightcurve's baseline value for all times outside the lightcurve's range.
-            sed_time_mult = np.full(len(shifted_times), self.baseline.get(filter, 0.0))
-            overlap_mask = (shifted_times >= self.min_times[filter]) & (
-                shifted_times <= self.max_times[filter]
-            )
-
-            # For the times that overlap with the lightcurve, interpolate the lightcurve values.
-            sed_time_mult[overlap_mask] = np.interp(
-                shifted_times[overlap_mask],  # The query times
-                lightcurve[:, 0],  # The lightcurve times for this passband filter
-                lightcurve[:, 1],  # The lightcurve flux densities for this passband filter
-                left=0.0,  # Do not extrapolate in time
-                right=0.0,  # Do not extrapolate in time
-            )
+            sed_time_mult = self.lightcurves.evaluate(shifted_times, filter)
 
             # The contribution of this filter to the overall SED is the lightcurve's (interpolated)
             # value at each time multiplied by the SED values at each query wavelength.
@@ -385,26 +563,4 @@ class LightcurveSource(PhysicalModel):
         figure : matplotlib.pyplot.Figure or None
             Figure, None by default.
         """
-        if ax is None:
-            if figure is None:
-                figure = plt.figure()
-            ax = figure.add_axes([0, 0, 1, 1])
-
-        # Plot each passband.
-        for filter_name, filter_curve in self.lightcurves.items():
-            # Check if we need to use the query times.
-            if times is None:
-                plot_times = filter_curve[:, 0]
-                plot_values = filter_curve[:, 1]
-            else:
-                plot_times = times
-                plot_values = np.interp(times, filter_curve[:, 0], filter_curve[:, 1], left=0.0, right=0.0)
-
-            color = lsst_filter_plot_colors.get(filter_name, "black")
-            ax.plot(plot_times, plot_values, color=color, label=filter_name)
-
-        # Set the x and y axis labels.
-        ax.set_xlabel("Time (days)")
-        ax.set_ylabel("Filter value (nJy)")
-        ax.set_title("Lightcurve Source Underlying Lightcurves")
-        ax.legend()
+        self.lightcurves.plot_lightcurves(times=times, ax=ax, figure=figure)

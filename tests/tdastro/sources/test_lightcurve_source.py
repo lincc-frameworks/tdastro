@@ -38,13 +38,11 @@ def test_create_lightcurve_source() -> None:
     assert len(lc_source.lightcurves) == 3
     assert len(lc_source.sed_values) == 3
     assert np.allclose(lc_source.all_waves, pb_group.waves)
-
-    filters = list(lc_source.lightcurves.keys())
-    assert filters == ["u", "g", "r"]
+    assert lc_source.filters == ["u", "g", "r"]
 
     # Check that no two SED basis functions overlap.
-    for f1 in filters:
-        for f2 in filters:
+    for f1 in lc_source.filters:
+        for f2 in lc_source.filters:
             if f1 != f2:
                 assert np.count_nonzero(lc_source.sed_values[f1] * lc_source.sed_values[f2]) == 0
 
@@ -224,9 +222,7 @@ def test_create_lightcurve_source_numpy() -> None:
     assert len(lc_source.lightcurves) == 3
     assert len(lc_source.sed_values) == 3
     assert np.allclose(lc_source.all_waves, pb_group.waves)
-
-    filters = list(lc_source.lightcurves.keys())
-    assert set(filters) == set(["u", "g", "r"])
+    assert set(lc_source.filters) == set(["u", "g", "r"])
 
     # A call to get_band_fluxes should return the desired lightcurves.
     graph_state = lc_source.sample_parameters(num_samples=1)
@@ -283,9 +279,7 @@ def test_lightcurve_source_nonoverlap() -> None:
     assert len(lc_source.lightcurves) == 2
     assert len(lc_source.sed_values) == 2
     assert np.allclose(lc_source.all_waves, pb_group.waves)
-
-    filters = list(lc_source.lightcurves.keys())
-    assert filters == ["g", "r"]
+    assert lc_source.filters == ["g", "r"]
 
     # A call to get_band_fluxes should return the desired lightcurves.  We query
     # u and g bands. Since u is not present, we should get zeros at those times.
