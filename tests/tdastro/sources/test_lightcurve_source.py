@@ -143,6 +143,14 @@ def test_create_lightcurve_data_from_lclib_table() -> None:
     assert lc_data.baseline["r"] == 2.0
     assert lc_data.baseline["i"] == 1.5
 
+    # If we specify a subset of filters, only load those.
+    lc_data = LightcurveData.from_lclib_table(table, filters=["u", "g"])
+    assert set(lc_data.filters) == set(["u", "g"])
+    assert "r" not in lc_data.lightcurves
+    assert "i" not in lc_data.lightcurves
+    assert "u" in lc_data.lightcurves
+    assert "g" in lc_data.lightcurves
+
 
 def test_create_lightcurve_source() -> None:
     """Test that we can create a simple LightcurveSource object."""
@@ -570,4 +578,21 @@ def test_create_multilightcurve_from_lclib_file(test_data_dir):
     source = MultiLightcurveSource.from_lclib_file(lc_file, pb_group, t0=0.0)
     assert len(source.lightcurves) == 3
     assert set(source.filters) == {"u", "g", "r", "i", "z"}
+    assert source.apply_redshift is False
+
+
+def test_create_multilightcurve_from_lclib_file_filtered(test_data_dir):
+    """Test creating a MultiLightcurveSource from a LCLIB file using a subset of filters."""
+    passband_list = []
+    pb_start = np.array([[400, 0.5], [500, 0.5], [600, 0.5]])
+    pb_shift = np.array([[500, 0], [500, 0], [500, 0]])
+    for idx, filter in enumerate(["u", "g", "r", "i", "z"]):
+        pb = Passband(pb_start + idx * pb_shift, "LSST", filter)
+        passband_list.append(pb)
+    pb_group = PassbandGroup(given_passbands=passband_list)
+
+    lc_file = test_data_dir / "test_lclib_data.TEXT"
+    source = MultiLightcurveSource.from_lclib_file(lc_file, pb_group, t0=0.0, filters=["u", "g", "r"])
+    assert len(source.lightcurves) == 3
+    assert set(source.filters) == {"u", "g", "r"}
     assert source.apply_redshift is False

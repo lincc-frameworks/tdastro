@@ -161,7 +161,7 @@ def _read_lclib_data_from_open_file(input_file):
                 raise ValueError(f"Expected {len(colnames)} values on line={l_num}: {col_vals}")
             for col_idx, col in enumerate(colnames):
                 current_model[col].append(float(col_vals[col_idx]))
-        elif key == "MODEL_PARNAMES":
+        elif key == "MODEL_PARNAMES" or key == "MODEL_PARAMETERS":
             parnames = value.split(",")
         elif key == "PARVAL":
             if "," in value:

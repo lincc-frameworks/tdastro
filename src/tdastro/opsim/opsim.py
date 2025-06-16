@@ -161,6 +161,13 @@ class OpSim:
         """Get the column names."""
         return self.table.columns
 
+    def get_filters(self):
+        """Get the unique filters in the OpSim table."""
+        colname = self.colmap.get("filter", "filter")
+        if colname not in self.table.columns:
+            raise KeyError(f"No filters column found in OpSim table. Expected column: {colname}")
+        return np.unique(self.table[colname])
+
     def has_columns(self, columns):
         """Checks whether OpSim has a column or columns while accounting
         for the colmap.

@@ -56,6 +56,10 @@ def test_create_opsim():
     assert np.allclose(ops_data["fieldDec"], values["fieldDec"])
     assert np.allclose(ops_data["observationStartMJD"], values["observationStartMJD"])
 
+    # Without a filters column we cannot access the filters.
+    with pytest.raises(KeyError):
+        _ = ops_data.get_filters()
+
     # We can create an OpSim directly from the dictionary as well.
     ops_data2 = OpSim(pdf)
     assert len(ops_data2) == 5
@@ -77,6 +81,7 @@ def test_create_opsim_override():
         "fieldRA": np.array([15.0, 30.0, 15.0, 0.0, 60.0]),
         "fieldDec": np.array([-10.0, -5.0, 0.0, 5.0, 10.0]),
         "zp_nJy": np.ones(5),
+        "filter": np.array(["r", "g", "r", "i", "g"]),
     }
     ops_data = OpSim(
         values,
@@ -95,6 +100,10 @@ def test_create_opsim_override():
     assert ops_data.radius == 1.0
     assert ops_data.read_noise == 5.0
     assert ops_data.zp_per_sec == {"u": 25.0, "g": 26.0, "r": 27.0, "i": 28.0, "z": 29.0, "y": 30.0}
+
+    # We can access the filters.
+    filters = ops_data.get_filters()
+    assert set(filters) == {"r", "g", "i"}
 
 
 def test_create_opsim_no_zp():
