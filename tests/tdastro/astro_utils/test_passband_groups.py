@@ -131,6 +131,16 @@ def test_passband_group_init(tmp_path, passbands_dir):
     assert "LSST_y" in lsst_passband_group
     assert "LSST_purple" not in lsst_passband_group
 
+    # Test that we fail if we use the wrong units for the LSST preset
+    with pytest.raises(ValueError):
+        _ = PassbandGroup(
+            preset="LSST",
+            table_dir=passbands_dir,
+            delta_wave=5.0,
+            trim_quantile=None,
+            units="A",
+        )
+
     # We can access passbands using the [] notation.
     assert lsst_passband_group["LSST_u"].filter_name == "u"
     with pytest.raises(KeyError):
