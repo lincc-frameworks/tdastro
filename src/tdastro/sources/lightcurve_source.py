@@ -2,6 +2,7 @@
 in each band."""
 
 import warnings
+from abc import ABC
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -296,7 +297,7 @@ class LightcurveData:
         ax.legend()
 
 
-class BaseLightcurveSource(PhysicalModel):
+class BaseLightcurveSource(PhysicalModel, ABC):
     """A base class for lightcurve source models. This class is not meant to be used directly,
     but rather as a base for other lightcurve source models that may have additional functionality.
     It provides the basic structure (primarily SED basis functions) and validation for
