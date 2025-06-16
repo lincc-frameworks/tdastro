@@ -263,6 +263,15 @@ class PassbandGroup:
         """
         logger.info(f"Loading passbands from preset {preset}")
         if preset == "LSST":
+            # Check that units are what is expected for this preset.
+            if "units" not in kwargs:
+                kwargs["units"] = "nm"
+            elif kwargs["units"] != "nm":
+                raise ValueError(
+                    "LSST passbands are expected to be in nanometers (nm). "
+                    "Please set units='nm' in the kwargs."
+                )
+
             if table_dir is None:
                 table_dir = Path(_TDASTRO_BASE_DATA_DIR, "passbands", "LSST")
             else:
