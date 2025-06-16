@@ -2,7 +2,11 @@ import numpy as np
 import pytest
 from astropy.table import Table
 from tdastro.astro_utils.passbands import Passband, PassbandGroup
-from tdastro.sources.lightcurve_source import LightcurveData, LightcurveSource
+from tdastro.sources.lightcurve_source import (
+    LightcurveData,
+    LightcurveSource,
+    MultiLightcurveSource,
+)
 
 
 def _create_toy_passbands() -> PassbandGroup:
@@ -151,6 +155,11 @@ def test_create_lightcurve_source() -> None:
     assert len(lc_source.sed_values) == 3
     assert np.allclose(lc_source.all_waves, pb_group.waves)
     assert lc_source.filters == ["u", "g", "r"]
+    assert lc_source.apply_redshift is False
+
+    # Check that we fail if we try to turn on redshift.
+    with pytest.raises(NotImplementedError):
+        lc_source.set_apply_redshift(True)
 
     # Check that no two SED basis functions overlap.
     for f1 in lc_source.filters:
@@ -452,3 +461,113 @@ def test_lightcurve_plot() -> None:
     lc_source = LightcurveSource(lightcurves, pb_group, t0=0.0)
     lc_source.plot_lightcurves()
     lc_source.plot_sed_basis()
+
+
+def test_create_multilightcurve_source() -> None:
+    """Test that we can create a simple MultiLightcurveSource object."""
+    pb_group = _create_toy_passbands()
+
+    # Lightcurve 1 is non-periodic and covers u and g.
+    lc1_times = np.arange(0.0, 10.5, 0.5)
+    lc1_lightcurves = {
+        "u": np.array([lc1_times + 0.1, 2.0 * np.ones_like(lc1_times)]).T,
+        "g": np.array([lc1_times, 3.0 * np.ones_like(lc1_times)]).T,
+    }
+    lc1_data = LightcurveData(lc1_lightcurves, lc_t0=0.0, baseline={"u": 0.1, "g": 0.2})
+
+    # Lightcurve 2 is periodic and covers r and g.
+    lc2_times = np.arange(0.0, 19.0, 1.0)
+    lc2_lightcurves = {
+        "r": np.array([lc2_times, lc2_times % 2]).T,
+        "g": np.array([lc2_times, lc2_times % 2 + 0.5]).T,
+    }
+    lc2_data = LightcurveData(lc2_lightcurves, periodic=True)
+
+    # Create the MultiLightcurveSource with both lightcurves.
+    source = MultiLightcurveSource(
+        [lc1_data, lc2_data],
+        pb_group,
+        weights=[0.25, 0.75],
+        t0=0.0,
+        node_label="source",
+    )
+    assert len(source.lightcurves) == 2
+    assert set(source.filters) == {"u", "g", "r"}
+    assert source.apply_redshift is False
+
+    # We fail if we try to turn on redshift.
+    with pytest.raises(NotImplementedError):
+        source.set_apply_redshift(True)
+
+    # Check that we sample the lightcurves correctly.
+    graph_state = source.sample_parameters(num_samples=1_000)
+    lc_used = graph_state["source"]["selected_lightcurve"]
+    assert np.all((lc_used == 0) | (lc_used == 1))
+    assert np.sum(lc_used == 0) >= 200  # approximately 25% of the samples should be from lc1
+    assert np.sum(lc_used == 1) >= 700  # approximately 75% of the samples should be from lc2
+
+    query_times = np.array([-1.0, 1.0, 2.0, 3.0, 4.0, 20.0, 21.0])
+    query_filters = np.full(len(query_times), "g")
+    fluxes = source.get_band_fluxes(pb_group, query_times, query_filters, graph_state)
+    assert len(fluxes) == 1_000
+
+    # Check that we sampled from the lightcurve that we said we did.
+    expected_0 = np.array([0.2, 3.0, 3.0, 3.0, 3.0, 0.2, 0.2])
+    expected_1 = np.array([1.5, 1.5, 0.5, 1.5, 0.5, 0.5, 1.5])
+    for idx in range(1_000):
+        if lc_used[idx] == 0:
+            # The first light curve is 3.0 when active
+            assert np.allclose(fluxes[idx], expected_0)
+        else:
+            assert np.allclose(fluxes[idx], expected_1)
+
+
+def test_create_multilightcurve_source_fail() -> None:
+    """Test creating a MultiLightcurveSource with invalid parameters."""
+    pb_group = _create_toy_passbands()
+
+    # Lightcurve 1 is non-periodic and covers u and g.
+    lc1_times = np.arange(0.0, 10.5, 0.5)
+    lc1_lightcurves = {
+        "u": np.array([lc1_times + 0.1, 2.0 * np.ones_like(lc1_times)]).T,
+        "g": np.array([lc1_times, 3.0 * np.ones_like(lc1_times)]).T,
+        "r": np.array([lc1_times, 3.0 * np.ones_like(lc1_times)]).T,
+    }
+    lc1_data = LightcurveData(lc1_lightcurves, lc_t0=0.0, baseline={"u": 0.1, "g": 0.2, "r": 0.3})
+
+    # This single source works.
+    _ = MultiLightcurveSource([lc1_data], pb_group, t0=0.0)
+
+    # We fail with no t0 value.
+    with pytest.raises(ValueError):
+        _ = MultiLightcurveSource([lc1_data], pb_group)
+
+    # Lightcurve 2 is periodic and covers r and g.
+    lc2_times = np.arange(0.0, 19.0, 1.0)
+    lc2_lightcurves = {
+        "r": np.array([lc2_times, lc2_times % 2]).T,
+        "g": np.array([lc2_times, lc2_times % 2 + 0.5]).T,
+        "i": np.array([lc2_times, lc2_times % 2 + 0.5]).T,
+    }
+    lc2_data = LightcurveData(lc2_lightcurves, periodic=True)
+
+    with pytest.raises(ValueError):
+        # The passband group does not have data for the 'i' band.
+        _ = MultiLightcurveSource([lc1_data, lc2_data], pb_group, weights=[0.25, 0.75], t0=0.0)
+
+
+def test_create_multilightcurve_from_lclib_file(test_data_dir):
+    """Test creating a MultiLightcurveSource from a LCLIB file."""
+    passband_list = []
+    pb_start = np.array([[400, 0.5], [500, 0.5], [600, 0.5]])
+    pb_shift = np.array([[500, 0], [500, 0], [500, 0]])
+    for idx, filter in enumerate(["u", "g", "r", "i", "z"]):
+        pb = Passband(pb_start + idx * pb_shift, "LSST", filter)
+        passband_list.append(pb)
+    pb_group = PassbandGroup(given_passbands=passband_list)
+
+    lc_file = test_data_dir / "test_lclib_data.TEXT"
+    source = MultiLightcurveSource.from_lclib_file(lc_file, pb_group, t0=0.0)
+    assert len(source.lightcurves) == 3
+    assert set(source.filters) == {"u", "g", "r", "i", "z"}
+    assert source.apply_redshift is False

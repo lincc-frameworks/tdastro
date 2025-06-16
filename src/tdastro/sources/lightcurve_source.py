@@ -8,7 +8,9 @@ import numpy as np
 
 from tdastro.astro_utils.passbands import Passband, PassbandGroup
 from tdastro.consts import lsst_filter_plot_colors
+from tdastro.math_nodes.given_sampler import GivenValueSampler
 from tdastro.sources.physical_model import PhysicalModel
+from tdastro.utils.io_utils import read_lclib_data
 
 
 class LightcurveData:
@@ -294,21 +296,11 @@ class LightcurveData:
         ax.legend()
 
 
-class LightcurveSource(PhysicalModel):
-    """A model that generates the SED of a source from lightcurves in given bands.
-    The model estimates a box-shaped SED for each filter such that the resulting
-    flux density is equal to the lightcurve's value after passing through
-    the passband filter.
-
-    LightcurveSource supports both periodic and non-periodic lightcurves. If the
-    light curve is not periodic then each lightcurve's given values will be interpolated
-    during the time range of the lightcurve. Values outside the time range (before and
-    after) will be set to the baseline value for that filter (0.0 by default).
-
-    Periodic models require that each filter's lightcurve is sampled at the same times
-    and that the value at the end of the lightcurve is equal to the value at the start
-    of the lightcurve. The lightcurve epoch (lc_t0) is automatically set to the first time
-    so that the t0 parameter corresponds to the shift in phase.
+class BaseLightcurveSource(PhysicalModel):
+    """A base class for lightcurve source models. This class is not meant to be used directly,
+    but rather as a base for other lightcurve source models that may have additional functionality.
+    It provides the basic structure (primarily SED basis functions) and validation for
+    lightcurve-based SED models.
 
     The set of passbands used to configure the model MUST be the same as used
     to generate the SED (the wavelengths must match).
@@ -320,68 +312,42 @@ class LightcurveSource(PhysicalModel):
 
     Attributes
     ----------
-    lightcurves : LightcurveData
-        The data for the lightcurves, such as the times and bandfluxes in each filter.
     sed_values : dict
         A dictionary mapping filters to the fake SED values for that passband.
         These SED values are scaled by the lightcurve and added for the
         final SED.
     all_waves : numpy.ndarray
         A 1d array of all of the wavelengths used by the passband group.
+    filters : list
+        A list of all supported filters in the lightcurve model.
 
     Parameters
     ----------
-    lightcurves : dict or numpy.ndarray
-        The lightcurves can be passed as either:
-        1) a LightcurveData instance,
-        2) a dictionary mapping filter names to a (T, 2) array of the bandlfuxes in that filter
-        where the first column is time and the second column is the flux density (in nJy), or
-        3) a numpy array of shape (T, 3) array where the first column is time (in days), the
-        second column is the bandflux (in nJy), and the third column is the filter.
     passbands : Passband or PassbandGroup
         The passband or passband group to use for defining the lightcurve.
-    lc_t0 : float
-        The reference epoch (t0) of the input light curve. The model will be shifted
-        to the model's t0 when computing fluxes.  For periodic lightcurves, this either
-        must be set to the first time of the lightcurve or left as 0.0 to automatically
-        derive the lc_t0 from the lightcurve.
-        Default: 0.0
-    periodic : bool
-        Whether the lightcurve is periodic. If True, the model will assume that
-        the lightcurve repeats every period.
-        Default: False
-    baseline : dict or None
-        A dictionary of baseline bandfluxes for each filter. This is only used
-        for non-periodic lightcurves when they are not active.
-        Default: None
+    filters : list
+        A list of filter names that the model supports. If None then
+        all available filters will be used.
     """
 
-    def __init__(
-        self,
-        lightcurves,
-        passbands,
-        lc_t0=0.0,
-        periodic=False,
-        baseline=None,
-        **kwargs,
-    ):
+    def __init__(self, passbands, *, filters=None, **kwargs):
         super().__init__(**kwargs)
-
-        # Store the lightcurve data, parsing out different formats if needed.
-        self.lightcurves = LightcurveData(lightcurves, lc_t0=lc_t0, periodic=periodic, baseline=baseline)
 
         # Convert a single passband to a PassbandGroup.
         if isinstance(passbands, Passband):
             passbands = PassbandGroup(given_passbands=[passbands])
 
-        # Store the wavelengths information and lightcurves for each filter.
-        for filter in self.lightcurves.filters:
-            if filter not in passbands:
-                raise ValueError(
-                    f"Lightcurve model requires a passband for filter {filter} " "to compute the SED values."
-                )
+        # Check that we have passbands for each filter.
+        if filters is None:
+            filters = passbands.filters
+        else:
+            for filter in filters:
+                if filter not in passbands:
+                    raise ValueError(f"Lightcurve model requires a passband for filter {filter}.")
+        self.filters = filters
+
         self.all_waves = passbands.waves
-        self.sed_values = self._create_sed_basis(self.lightcurves.filters, passbands)
+        self.sed_values = self._create_sed_basis(self.filters, passbands)
 
         # Override some of the defaults of PhysicalModel. Never apply redshift and
         # do not allow brackground models.
@@ -393,11 +359,6 @@ class LightcurveSource(PhysicalModel):
         # Check that t0 is set.
         if "t0" not in kwargs or kwargs["t0"] is None:
             raise ValueError("Lightcurve models require a t0 parameter.")
-
-    @property
-    def filters(self):
-        """Get the list of filters in the lightcurves."""
-        return self.lightcurves.filters
 
     def _create_sed_basis(self, filters, passbands):
         """Create the SED basis functions. For each passband this creates a box shaped SED
@@ -464,13 +425,13 @@ class LightcurveSource(PhysicalModel):
         """
         raise NotImplementedError("Lightcurve models do not support apply_redshift.")
 
-    def compute_flux(self, times, wavelengths, graph_state):
-        """Draw effect-free rest frame flux densities.
-        The rest-frame flux is defined as F_nu = L_nu / 4*pi*D_L**2,
-        where D_L is the luminosity distance.
+    def compute_flux_given_lc(self, lc, times, wavelengths, graph_state):
+        """Compute the flux density for a given lightcurve at specified times and wavelengths.
 
         Parameters
         ----------
+        lc : LightcurveData
+            The lightcurve data to use for computing the flux density.
         times : numpy.ndarray
             A length T array of rest frame timestamps in MJD.
         wavelengths : numpy.ndarray, optional
@@ -490,7 +451,7 @@ class LightcurveSource(PhysicalModel):
         shifted_times = times - params["t0"]
 
         flux_density = np.zeros((len(times), len(wavelengths)))
-        for filter in self.lightcurves.filters:
+        for filter in lc.filters:
             # Compute the SED values for the wavelengths we are actually sampling.
             sed_waves = np.interp(
                 wavelengths,  # The query wavelengths
@@ -502,7 +463,7 @@ class LightcurveSource(PhysicalModel):
 
             # Compute the multipliers for the SEDs at different time steps along this lightcurve.
             # We use the lightcurve's baseline value for all times outside the lightcurve's range.
-            sed_time_mult = self.lightcurves.evaluate(shifted_times, filter)
+            sed_time_mult = lc.evaluate(shifted_times, filter)
 
             # The contribution of this filter to the overall SED is the lightcurve's (interpolated)
             # value at each time multiplied by the SED values at each query wavelength.
@@ -540,6 +501,107 @@ class LightcurveSource(PhysicalModel):
         ax.set_title("SED Basis Functions")
         ax.legend()
 
+
+class LightcurveSource(BaseLightcurveSource):
+    """A model that generates the SED of a source from lightcurves in given bands.
+    The model estimates a box-shaped SED for each filter such that the resulting
+    flux density is equal to the lightcurve's value after passing through
+    the passband filter.
+
+    LightcurveSource supports both periodic and non-periodic lightcurves. If the
+    light curve is not periodic then each lightcurve's given values will be interpolated
+    during the time range of the lightcurve. Values outside the time range (before and
+    after) will be set to the baseline value for that filter (0.0 by default).
+
+    Periodic models require that each filter's lightcurve is sampled at the same times
+    and that the value at the end of the lightcurve is equal to the value at the start
+    of the lightcurve. The lightcurve epoch (lc_t0) is automatically set to the first time
+    so that the t0 parameter corresponds to the shift in phase.
+
+    The set of passbands used to configure the model MUST be the same as used
+    to generate the SED (the wavelengths must match).
+
+    Parameterized values include:
+      * dec - The object's declination in degrees.
+      * ra - The object's right ascension in degrees.
+      * t0 - The t0 of the zero phase (if applicable), date.
+
+    Attributes
+    ----------
+    lightcurves : LightcurveData
+        The data for the lightcurves, such as the times and bandfluxes in each filter.
+    sed_values : dict
+        A dictionary mapping filters to the fake SED values for that passband.
+        These SED values are scaled by the lightcurve and added for the
+        final SED.
+    all_waves : numpy.ndarray
+        A 1d array of all of the wavelengths used by the passband group.
+
+    Parameters
+    ----------
+    lightcurves : dict or numpy.ndarray
+        The lightcurves can be passed as either:
+        1) a LightcurveData instance,
+        2) a dictionary mapping filter names to a (T, 2) array of the bandlfuxes in that filter
+        where the first column is time and the second column is the flux density (in nJy), or
+        3) a numpy array of shape (T, 3) array where the first column is time (in days), the
+        second column is the bandflux (in nJy), and the third column is the filter.
+    passbands : Passband or PassbandGroup
+        The passband or passband group to use for defining the lightcurve.
+    lc_t0 : float
+        The reference epoch (t0) of the input light curve. The model will be shifted
+        to the model's t0 when computing fluxes.  For periodic lightcurves, this either
+        must be set to the first time of the lightcurve or left as 0.0 to automatically
+        derive the lc_t0 from the lightcurve.
+        Default: 0.0
+    periodic : bool
+        Whether the lightcurve is periodic. If True, the model will assume that
+        the lightcurve repeats every period.
+        Default: False
+    baseline : dict or None
+        A dictionary of baseline bandfluxes for each filter. This is only used
+        for non-periodic lightcurves when they are not active.
+        Default: None
+    """
+
+    def __init__(
+        self,
+        lightcurves,
+        passbands,
+        *,
+        lc_t0=0.0,
+        periodic=False,
+        baseline=None,
+        **kwargs,
+    ):
+        # Store the lightcurve data, parsing out different formats if needed.
+        self.lightcurves = LightcurveData(lightcurves, lc_t0=lc_t0, periodic=periodic, baseline=baseline)
+        super().__init__(passbands, filters=self.lightcurves.filters, **kwargs)
+
+    def compute_flux(self, times, wavelengths, graph_state):
+        """Draw effect-free rest frame flux densities.
+
+        Parameters
+        ----------
+        times : numpy.ndarray
+            A length T array of rest frame timestamps in MJD.
+        wavelengths : numpy.ndarray, optional
+            A length N array of rest frame wavelengths (in angstroms).
+        graph_state : GraphState
+            An object mapping graph parameters to their values.
+
+        Returns
+        -------
+        flux_density : numpy.ndarray
+            A length T x N matrix of rest frame SED values (in nJy).
+        """
+        return self.compute_flux_given_lc(
+            self.lightcurves,
+            times,
+            wavelengths,
+            graph_state,
+        )
+
     def plot_lightcurves(self, times=None, ax=None, figure=None):
         """Plot the underlying lightcurves. This is a debugging
         function to help the user understand the SEDs produced by this
@@ -556,3 +618,142 @@ class LightcurveSource(PhysicalModel):
             Figure, None by default.
         """
         self.lightcurves.plot_lightcurves(times=times, ax=ax, figure=figure)
+
+
+class MultiLightcurveSource(BaseLightcurveSource):
+    """A MultiLightcurveSource randomly selects a lightcurve at each evaluation
+    computes the flux from that source. The model uses a box-shaped SED for each
+    filter such that the resulting flux density is equal to the lightcurve's value
+    after passing through the passband filter.
+
+    MultiLightcurveSource supports both periodic and non-periodic lightcurves. If the
+    light curve is not periodic then each lightcurve's given values will be interpolated
+    during the time range of the lightcurve. Values outside the time range (before and
+    after) will be set to the baseline value for that filter (0.0 by default).
+
+    Periodic models require that each filter's lightcurve is sampled at the same times
+    and that the value at the end of the lightcurve is equal to the value at the start
+    of the lightcurve. The lightcurve epoch (lc_t0) is automatically set to the first time
+    so that the t0 parameter corresponds to the shift in phase.
+
+    The set of passbands used to configure the model MUST be the same as used
+    to generate the SED (the wavelengths must match).
+
+    Parameterized values include:
+      * dec - The object's declination in degrees.
+      * ra - The object's right ascension in degrees.
+      * t0 - The t0 of the zero phase (if applicable), date.
+
+    Attributes
+    ----------
+    lightcurves : list of LightcurveData
+        The data for each set of lightcurves.
+    sed_values : dict
+        A dictionary mapping filters to the fake SED values for that passband.
+        These SED values are scaled by the lightcurve and added for the
+        final SED.
+    all_waves : numpy.ndarray
+        A 1d array of all of the wavelengths used by the passband group.
+    all_filters : set
+        A set of all filters used by the lightcurves. This is the union of all
+        filters used by each lightcurve in the lightcurves list.
+
+    Parameters
+    ----------
+    lightcurves : list of LightcurveData
+        The data for each set of lightcurves. One lightcurve will be randomly selected
+        at each evaluation.
+    passbands : Passband or PassbandGroup
+        The passband or passband group to use for defining the lightcurve.
+    weights : numpy.ndarray, optional
+        A length N array indicating the relative weight from which to select
+        a source at random. If None, all sources will be weighted equally.
+    """
+
+    def __init__(
+        self,
+        lightcurves,
+        passbands,
+        *,
+        weights=None,
+        **kwargs,
+    ):
+        # Validate the lightcurve input and create a union of all filters used.
+        self.all_filters = set()
+        for lc in lightcurves:
+            if not isinstance(lc, LightcurveData):
+                raise TypeError("Each lightcurve must be an instance of LightcurveData.")
+            self.all_filters.update(lc.filters)
+        self.lightcurves = lightcurves
+
+        super().__init__(passbands, filters=list(self.all_filters), **kwargs)
+
+        source_inds = [i for i in range(len(lightcurves))]
+        self._sampler_node = GivenValueSampler(source_inds, weights=weights)
+        self.add_parameter("selected_lightcurve", value=self._sampler_node, allow_gradient=False)
+
+    def __len__(self):
+        """Get the number of lightcurves."""
+        return len(self.lightcurves)
+
+    @classmethod
+    def from_lclib_file(cls, lightcurves_file, passbands, lc_t0=0.0, **kwargs):
+        """Create a MultiLightcurveSource from a lightcurves file in LCLIB format.
+
+        Parameters
+        ----------
+        lightcurves_file : str
+            The path to the lightcurves file in LCLIB format.
+        passbands : Passband or PassbandGroup
+            The passband or passband group to use for defining the lightcurve.
+        lc_t0 : float
+            The reference epoch (t0) of the input light curve. The model will be shifted
+            to the model's t0 when computing fluxes.  For periodic lightcurves, this either
+            must be set to the first time of the lightcurve or left as 0.0 to automatically
+            derive the lc_t0 from the lightcurve.
+            Default: 0.0
+        **kwargs
+            Additional keyword arguments to pass to the LightcurveData constructor, including
+            the parameters for the model such as `dec`, `ra`, and `t0`.
+
+        Returns
+        -------
+        MultiLightcurveSource
+            An instance of MultiLightcurveSource with the loaded lightcurves.
+        """
+        lightcurve_tables = read_lclib_data(lightcurves_file)
+        if lightcurve_tables is None or len(lightcurve_tables) == 0:
+            raise ValueError(f"Could not read lightcurves from file: {lightcurves_file}")
+
+        lightcurves = []
+        for table in lightcurve_tables:
+            lc_data = LightcurveData.from_lclib_table(table, lc_t0=lc_t0)
+            lightcurves.append(lc_data)
+
+        return cls(lightcurves, passbands, **kwargs)
+
+    def compute_flux(self, times, wavelengths, graph_state):
+        """Draw effect-free rest frame flux densities.
+
+        Parameters
+        ----------
+        times : numpy.ndarray
+            A length T array of rest frame timestamps in MJD.
+        wavelengths : numpy.ndarray, optional
+            A length N array of rest frame wavelengths (in angstroms).
+        graph_state : GraphState
+            An object mapping graph parameters to their values.
+
+        Returns
+        -------
+        flux_density : numpy.ndarray
+            A length T x N matrix of rest frame SED values (in nJy).
+        """
+        # Use the lightcurve selected by the sampler node to compute the flux density.
+        model_ind = self.get_param(graph_state, "selected_lightcurve")
+        return self.compute_flux_given_lc(
+            self.lightcurves[model_ind],
+            times,
+            wavelengths,
+            graph_state,
+        )
