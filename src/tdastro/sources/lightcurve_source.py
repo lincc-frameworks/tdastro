@@ -163,7 +163,7 @@ class LightcurveData:
                 lc[:, 0] -= self.lc_t0
 
     @classmethod
-    def from_lclib_table(cls, lightcurves_table, lc_t0=0.0):
+    def from_lclib_table(cls, lightcurves_table, lc_t0=0.0, filters=None):
         """Break up a lightcurves table in LCLIB format into a LightcurveData instance.
         This function expects the table to have a "time" column, an optional "type" column,
         and a column for each filter. The "type" column should use "S" for source observation
@@ -181,12 +181,21 @@ class LightcurveData:
             must be set to the first time of the lightcurve or left as 0.0 to automatically
             derive the lc_t0 from the lightcurve.
             Default: 0.0
+        filters : list of str or None
+            A list of filters to use for the light curves. If None, all filters will be used.
+            Used to select a subset of filters.
+            Default: None
         """
         if "time" not in lightcurves_table.colnames:
             raise ValueError("Lightcurves table must have a 'time' column.")
 
         # Extract the name of the filters from the table column names.
-        filters = [col for col in lightcurves_table.colnames if col != "time" and col != "type"]
+        filter_cols = [col for col in lightcurves_table.colnames if col != "time" and col != "type"]
+        if filters is None:
+            filters = filter_cols
+        else:
+            to_keep = set(filter_cols) & set(filters)
+            filters = list(to_keep)
         if len(filters) == 0:
             raise ValueError("Lightcurves table must have at least one filter column.")
 
@@ -383,7 +392,7 @@ class BaseLightcurveSource(PhysicalModel, ABC):
         for idx, filter in enumerate(filters):
             # Get all of the wavelengths that have a non-negligible transmission value
             # for this filter and find their indices in the passband group.
-            is_significant = passbands[filter].processed_transmission_table[:, 1] > 0.001
+            is_significant = passbands[filter].processed_transmission_table[:, 1] > 1e-5
             significant_waves = passbands[filter].waves[is_significant]
             indices = np.searchsorted(passbands.waves, significant_waves)
 
@@ -698,7 +707,7 @@ class MultiLightcurveSource(BaseLightcurveSource):
         return len(self.lightcurves)
 
     @classmethod
-    def from_lclib_file(cls, lightcurves_file, passbands, lc_t0=0.0, **kwargs):
+    def from_lclib_file(cls, lightcurves_file, passbands, lc_t0=0.0, filters=None, **kwargs):
         """Create a MultiLightcurveSource from a lightcurves file in LCLIB format.
 
         Parameters
@@ -713,6 +722,10 @@ class MultiLightcurveSource(BaseLightcurveSource):
             must be set to the first time of the lightcurve or left as 0.0 to automatically
             derive the lc_t0 from the lightcurve.
             Default: 0.0
+        filters : list of str, optional
+            A list of filters to use for the lightcurves. If None, all filters will be used.
+            Used to select a subset of filters that match the survey to simulate.
+            Default: None
         **kwargs
             Additional keyword arguments to pass to the LightcurveData constructor, including
             the parameters for the model such as `dec`, `ra`, and `t0`.
@@ -728,7 +741,7 @@ class MultiLightcurveSource(BaseLightcurveSource):
 
         lightcurves = []
         for table in lightcurve_tables:
-            lc_data = LightcurveData.from_lclib_table(table, lc_t0=lc_t0)
+            lc_data = LightcurveData.from_lclib_table(table, lc_t0=lc_t0, filters=filters)
             lightcurves.append(lc_data)
 
         return cls(lightcurves, passbands, **kwargs)
