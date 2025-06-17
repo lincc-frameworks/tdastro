@@ -45,7 +45,7 @@ class PassbandGroup:
 
         Parameters
         ----------
-        given_passbands : list of Passband or dict
+        given_passbands : Passband, list of Passband, or dict
             A list of all the passbands to include in this group. These can either be
             Passband objects or dictionaries of passband parameters with the following keys:
             - required:
