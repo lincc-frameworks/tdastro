@@ -38,9 +38,10 @@ TDAstro can generate numerous random realizations of the parameters for the ``Ph
 to produce realistic light curves using the above components.  See the 
 :doc:`simulations <simulations>` page for a more detailed description of the process.
 
-For an overview of the package, we recommend starting with the :doc:`introduction notebook <notebooks/introduction>`.
+For an overview of the package, we recommend starting with the notebooks in the "Getting Started"
+section of the :doc:`notebooks page <notebooks>`.
 
-The :doc:`gloassary <glossary>` provides definitions of key terms, such as
+The :doc:`glossary <glossary>` provides definitions of key terms, such as
 *GraphState*, *Node*, *Parameter*, *ParameterizedNode*, *PhysicalModel*, and *Source*.
 
 
