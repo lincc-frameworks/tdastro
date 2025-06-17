@@ -1,17 +1,20 @@
 """A model that generates the SED of a source based on the lightcurves of fluxes
 in each band."""
 
-import warnings
+import logging
 from abc import ABC
 
 import matplotlib.pyplot as plt
 import numpy as np
 
+from tdastro.astro_utils.mag_flux import mag2flux
 from tdastro.astro_utils.passbands import Passband, PassbandGroup
 from tdastro.consts import lsst_filter_plot_colors
 from tdastro.math_nodes.given_sampler import GivenValueSampler
 from tdastro.sources.physical_model import PhysicalModel
 from tdastro.utils.io_utils import read_lclib_data
+
+logger = logging.getLogger(__name__)
 
 
 class LightcurveData:
@@ -207,7 +210,7 @@ class LightcurveData:
             if np.any(~obs_mask):
                 tmp_table = lightcurves_table[~obs_mask]
                 if len(tmp_table) > 1:
-                    warnings.warn(
+                    logger.warning(
                         "Multiple template (background) observations found in lightcurves table. "
                         "The source will only use the first one for baseline values."
                     )
@@ -218,12 +221,29 @@ class LightcurveData:
         lightcurves = {}
         for filter in filters:
             filter_times = lightcurves_table["time"].astype(float)
-            filter_bandflux = lightcurves_table[filter].astype(float)
+            filter_bandflux = mag2flux(lightcurves_table[filter].astype(float))
             lightcurves[str(filter)] = np.column_stack((filter_times, filter_bandflux))
 
         # Check the metadata for periodicity information.
         recur_class = lightcurves_table.meta.get("RECUR_CLASS", "")
-        periodic = (recur_class == "RECUR-PERIODIC") or (recur_class == "PERIODIC")
+        if recur_class == "PERIODIC" or recur_class == "RECUR-PERIODIC":
+            periodic = True
+            baseline = None  # Baseline is not used for periodic lightcurves.
+        elif recur_class == "RECUR-NONPERIODIC":
+            periodic = False
+            logger.warning("Recurring non-periodic lightcurves are treated as non-recurring within TDAstro.")
+        elif recur_class == "NON-RECUR":
+            periodic = False
+        elif recur_class == "":
+            periodic = False
+            logger.warning(
+                "No RECUR_CLASS metadata found in lightcurves table. Using non-periodic lightcurves."
+            )
+        else:
+            raise ValueError(
+                f"Unknown RECUR_CLASS value in lightcurves table metadata: {recur_class}. "
+                "Expected 'PERIODIC', 'RECUR-PERIODIC', 'RECUR-NONPERIODIC', or 'NON-RECUR'."
+            )
 
         return cls(lightcurves, lc_t0=lc_t0, periodic=periodic, baseline=baseline)
 

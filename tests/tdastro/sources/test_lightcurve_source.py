@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 from astropy.table import Table
+from tdastro.astro_utils.mag_flux import mag2flux
 from tdastro.astro_utils.passbands import Passband, PassbandGroup
 from tdastro.sources.lightcurve_source import (
     LightcurveData,
@@ -114,6 +115,8 @@ def test_create_lightcurve_data_from_numpy() -> None:
 
 def test_create_lightcurve_data_from_lclib_table() -> None:
     """Test that we can create a simple LightcurveData object from a LCLIB table."""
+    # When creating the LightcurveData from a table, we specifc the values in magnitude,
+    # instead of flux.
     data = {
         "time": [0.0, 1.0, 2.0, 3.0, 4.0, 0.0],
         "type": ["S", "S", "S", "S", "S", "T"],
@@ -123,7 +126,7 @@ def test_create_lightcurve_data_from_lclib_table() -> None:
         "i": [0.5, 0.6, 0.7, 0.8, 0.9, 1.5],
     }
     table = Table(data)
-    table.meta["RECUR_CLASS"] = "RECUR-NONPERIODIC"
+    table.meta["RECUR_CLASS"] = "NON-RECUR"
     lc_data = LightcurveData.from_lclib_table(table)
 
     # Check the internal structure of the LightcurveData.
@@ -134,7 +137,10 @@ def test_create_lightcurve_data_from_lclib_table() -> None:
 
     for filt in ["u", "g", "r", "i"]:
         assert np.allclose(lc_data.lightcurves[filt][:, 0], data["time"][:5])
-        assert np.allclose(lc_data.lightcurves[filt][:, 1], data[filt][:5])
+        assert np.allclose(
+            lc_data.lightcurves[filt][:, 1],
+            mag2flux(np.array(data[filt][:5])),
+        )
 
     # We get the baseline from the "T" type row.
     print(lc_data.baseline)
