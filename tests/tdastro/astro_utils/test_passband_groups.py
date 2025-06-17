@@ -10,8 +10,11 @@ from tdastro.sources.spline_model import SplineModel
 def create_lsst_passband_group(passbands_dir, delta_wave=5.0, trim_quantile=None):
     """Helper function to create a PassbandGroup object for LSST passbands, using transmission tables
     included in the test data directory."""
-    return PassbandGroup(
-        preset="LSST", table_dir=passbands_dir, delta_wave=delta_wave, trim_quantile=trim_quantile
+    return PassbandGroup.from_preset(
+        preset="LSST",
+        table_dir=passbands_dir,
+        delta_wave=delta_wave,
+        trim_quantile=trim_quantile,
     )
 
 
@@ -51,7 +54,7 @@ def create_toy_passband_group(path, delta_wave=5.0, trim_quantile=None):
                 "trim_quantile": trim_quantile,
             }
         )
-    return PassbandGroup(passband_parameters=passbands)
+    return PassbandGroup(passbands)
 
 
 def test_passband_group_access(tmp_path):
@@ -108,12 +111,12 @@ def test_passband_group_access(tmp_path):
 def test_passband_group_init(tmp_path, passbands_dir):
     """Test the initialization of the Passband class, and implicitly, _load_preset."""
     # Test that we cannot create an empty PassbandGroup object
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         _ = PassbandGroup()
 
     # Test that the PassbandGroup class raises an error for an unknown preset
     try:
-        _ = PassbandGroup(preset="Unknown")
+        _ = PassbandGroup.from_preset(preset="Unknown")
     except ValueError as e:
         assert str(e) == "Unknown passband preset: Unknown"
     else:
@@ -133,7 +136,7 @@ def test_passband_group_init(tmp_path, passbands_dir):
 
     # Test that we fail if we use the wrong units for the LSST preset
     with pytest.raises(ValueError):
-        _ = PassbandGroup(
+        _ = PassbandGroup.from_preset(
             preset="LSST",
             table_dir=passbands_dir,
             delta_wave=5.0,
@@ -152,7 +155,7 @@ def test_passband_group_init(tmp_path, passbands_dir):
         {"survey": "LSST", "filter_name": "r", "table_path": f"{passbands_dir}/LSST/r.dat"},
         {"survey": "LSST", "filter_name": "i", "table_path": f"{passbands_dir}/LSST/i.dat"},
     ]
-    lsst_gri_passband_group = PassbandGroup(passband_parameters=lsst_gri_passband_parameters)
+    lsst_gri_passband_group = PassbandGroup(given_passbands=lsst_gri_passband_parameters)
     assert len(lsst_gri_passband_group) == 3
     assert "LSST_g" in lsst_gri_passband_group
     assert "LSST_r" in lsst_gri_passband_group
@@ -176,7 +179,7 @@ def test_passband_group_init(tmp_path, passbands_dir):
 
     # Test that the PassbandGroup class raises an error for an unknown preset
     try:
-        _ = PassbandGroup(preset="Unknown")
+        _ = PassbandGroup.from_preset(preset="Unknown")
     except ValueError as e:
         assert str(e) == "Unknown passband preset: Unknown"
     else:
@@ -301,7 +304,7 @@ def test_passband_load_subset_passbands(tmp_path):
     ]
 
     # Load one filter by full name and the other by filter name.
-    test_passband_group = PassbandGroup(given_passbands=pb_list, filters_to_load=["my_survey_a", "c"])
+    test_passband_group = PassbandGroup(given_passbands=pb_list, filters=["my_survey_a", "c"])
     assert len(test_passband_group) == 2
 
     assert np.allclose(
@@ -311,7 +314,7 @@ def test_passband_load_subset_passbands(tmp_path):
 
     # We run into an error if we try to load a filter that does not exist.
     with pytest.raises(ValueError):
-        _ = PassbandGroup(given_passbands=pb_list, filters_to_load=["my_survey_a", "z"])
+        _ = PassbandGroup(given_passbands=pb_list, filters=["my_survey_a", "z"])
 
 
 def test_passband_ztf_preset():
@@ -321,19 +324,27 @@ def test_passband_ztf_preset():
         """Return a predefined Bandpass object instead of downloading the transmission table."""
         return Bandpass(np.array([6000, 6005, 6010]), np.array([0.5, 0.6, 0.7]))
 
-    # Mock the urlretrieve portion of the download method
+    # Mock the get_bandpass portion of the download method
     with patch("sncosmo.get_bandpass", side_effect=mock_get_bandpass):
-        group = PassbandGroup(preset="ZTF")
+        group = PassbandGroup.from_preset(preset="ZTF")
         assert len(group) == 3
         assert "ZTF_g" in group
         assert "ZTF_r" in group
         assert "ZTF_i" in group
 
+    # Try the load with a subset of filters.
+    with patch("sncosmo.get_bandpass", side_effect=mock_get_bandpass):
+        group = PassbandGroup.from_preset(preset="ZTF", filters=["g", "i"])
+        assert len(group) == 2
+        assert "ZTF_g" in group
+        assert "ZTF_i" in group
+        assert "ZTF_r" not in group
+
 
 def test_passband_invalid_preset():
     """Test that we throw an error when given an invalid preset name."""
     with pytest.raises(ValueError):
-        _ = PassbandGroup(preset="Invalid")
+        _ = PassbandGroup.from_preset(preset="Invalid")
 
 
 def test_passband_unique_waves():
