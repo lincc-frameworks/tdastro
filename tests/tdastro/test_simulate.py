@@ -12,10 +12,10 @@ def test_simulate_lightcurves(test_data_dir):
     opsim_db = OpSim.from_db(test_data_dir / "opsim_small.db")
 
     # Load the passband data for the griz filters only.
-    passband_group = PassbandGroup(
+    passband_group = PassbandGroup.from_preset(
         preset="LSST",
         table_dir=test_data_dir / "passbands",
-        filters_to_load=["g", "r", "i", "z"],
+        filters=["g", "r", "i", "z"],
     )
 
     # Create a static source with known brightnesses and RA, dec

@@ -28,7 +28,7 @@ def _load_test_passbands():
     """Load passbands to use in various benchmarks."""
     passbands_dir = _TEST_DATA_DIR / "passbands"
     passbands = PassbandGroup(
-        passband_parameters=[
+        given_passbands=[
             {
                 "filter_name": "g",
                 "survey": "LSST",
