@@ -158,6 +158,44 @@ def test_create_lightcurve_data_from_lclib_table() -> None:
     assert "g" in lc_data.lightcurves
 
 
+def test_create_lightcurve_data_from_lclib_table_periodic() -> None:
+    """Test that we can create a periodic LightcurveData object from a LCLIB table."""
+    # When creating the LightcurveData from a table, we specifc the values in magnitude,
+    # instead of flux.
+    data = {
+        "time": [0.0, 1.0, 2.0, 3.0, 4.0],
+        "type": ["S", "S", "S", "S", "S"],
+        "u": [1.0, 2.0, 1.0, 1.5, 1.0],
+        "g": [2.0, 3.0, 2.0, 2.5, 2.0],
+        "i": [1.0, 2.0, 3.0, 4.0, 5.0],  # First does not match last.
+    }
+    table = Table(data)
+    table.meta["RECUR_CLASS"] = "RECUR-PERIODIC"
+    lc_data = LightcurveData.from_lclib_table(table)
+
+    # Check the internal structure of the LightcurveData.
+    assert len(lc_data) == 3
+    assert lc_data.lc_t0 == 0.0
+    assert np.allclose(lc_data.period, 5.0)
+    assert lc_data.filters == ["u", "g", "i"]
+
+    # The first 5 entries match the entry data and the last was inserted
+    # to match the periodicity.
+    for filt in ["u", "g", "i"]:
+        assert len(lc_data.lightcurves[filt]) == 6
+        assert np.allclose(lc_data.lightcurves[filt][:5, 0], data["time"])
+        assert np.allclose(lc_data.lightcurves[filt][5, 0], 5.0)
+
+        assert np.allclose(
+            lc_data.lightcurves[filt][:5, 1],
+            mag2flux(np.array(data[filt])),
+        )
+        assert np.allclose(
+            lc_data.lightcurves[filt][5, 1],
+            lc_data.lightcurves[filt][0, 1],
+        )
+
+
 def test_create_lightcurve_source() -> None:
     """Test that we can create a simple LightcurveSource object."""
     pb_group = _create_toy_passbands()
