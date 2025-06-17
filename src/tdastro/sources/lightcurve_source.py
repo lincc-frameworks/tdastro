@@ -728,7 +728,8 @@ class MultiLightcurveSource(BaseLightcurveSource):
             Default: None
         **kwargs
             Additional keyword arguments to pass to the LightcurveData constructor, including
-            the parameters for the model such as `dec`, `ra`, and `t0`.
+            the parameters for the model such as `dec`, `ra`, and `t0` and metadata
+            such as `node_label`.
 
         Returns
         -------

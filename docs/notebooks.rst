@@ -41,3 +41,4 @@ The following notebooks provide example simulations using the TDAstro package.
     :maxdepth: 1
 
     PLAsTiCC SNIa <notebooks/pre_executed/plasticc_snia>
+    Resampling LCLIB <notebooks/pre_executed/lclib_example>
