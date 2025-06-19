@@ -1,5 +1,5 @@
-"""A model that generates the SED of a source based on the lightcurves of fluxes
-in each band."""
+"""A model that generates the SED of a source based on given observer frame
+lightcurves of fluxes in each band."""
 
 import logging
 from abc import ABC
@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 
 
 class LightcurveData:
-    """A class to hold data for a single model lightcurve.
+    """A class to hold data for a single model lightcurve (set of fluxes over time for
+    each filter).
 
     Attributes
     ----------
@@ -343,7 +344,7 @@ class BaseLightcurveSource(PhysicalModel, ABC):
     Attributes
     ----------
     sed_values : dict
-        A dictionary mapping filters to the fake SED values for that passband.
+        A dictionary mapping filters to the SED basis values for that passband.
         These SED values are scaled by the lightcurve and added for the
         final SED.
     all_waves : numpy.ndarray
@@ -404,11 +405,11 @@ class BaseLightcurveSource(PhysicalModel, ABC):
 
         Returns
         -------
-        sed_values : dict
-            A dictionary mapping the filter names to the SED values over all wavelengths.
+        sed_basis_values : dict
+            A dictionary mapping the filter names to the SED basis values over all wavelengths.
         """
         # Mark which wavelengths are used by each passband.
-        filter_uses_wave = np.zeros((len(filters), len(passbands.waves)))
+        waves_per_filter = np.zeros((len(filters), len(passbands.waves)))
         for idx, filter in enumerate(filters):
             # Get all of the wavelengths that have a non-negligible transmission value
             # for this filter and find their indices in the passband group.
@@ -417,16 +418,16 @@ class BaseLightcurveSource(PhysicalModel, ABC):
             indices = np.searchsorted(passbands.waves, significant_waves)
 
             # Mark all non-negligible wavelengths as used by this filter.
-            filter_uses_wave[idx, indices] = 1.0
+            waves_per_filter[idx, indices] = 1.0
 
         # Find which wavelengths are used by multiple filters.
-        filter_counts = np.sum(filter_uses_wave, axis=0)
+        filter_counts = np.sum(waves_per_filter, axis=0)
 
         # Create the sed values for each wavelength.
-        sed_values = {}
+        sed_basis_values = {}
         for idx, filter in enumerate(filters):
             # Get the wavelengths that are used by ONLY this filter.
-            valid_waves = (filter_uses_wave[idx, :] == 1) & (filter_counts == 1)
+            valid_waves = (waves_per_filter[idx, :] == 1) & (filter_counts == 1)
             if np.sum(valid_waves) == 0:
                 raise ValueError(
                     f"Passband {filter} has no valid wavelengths where it: a) has a non-negligible "
@@ -435,15 +436,15 @@ class BaseLightcurveSource(PhysicalModel, ABC):
 
             # Compute how much flux is passed through these wavelengths of this filter
             # and use this to normalize the sed values.
-            filter_sed = np.zeros((1, len(passbands.waves)))
-            filter_sed[0, valid_waves] = 1.0
+            filter_sed_basis = np.zeros((1, len(passbands.waves)))
+            filter_sed_basis[0, valid_waves] = 1.0
 
-            total_flux = passbands.fluxes_to_bandflux(filter_sed, filter)
+            total_flux = passbands.fluxes_to_bandflux(filter_sed_basis, filter)
             if total_flux[0] <= 0:
                 raise ValueError(f"Total flux for filter {filter} is {total_flux[0]}.")
-            sed_values[filter] = filter_sed[0, :] / total_flux[0]
+            sed_basis_values[filter] = filter_sed_basis[0, :] / total_flux[0]
 
-        return sed_values
+        return sed_basis_values
 
     def set_apply_redshift(self, apply_redshift):
         """Toggles the apply_redshift setting.
@@ -454,6 +455,18 @@ class BaseLightcurveSource(PhysicalModel, ABC):
             The new value for apply_redshift.
         """
         raise NotImplementedError("Lightcurve models do not support apply_redshift.")
+
+    def add_effect(self, effect):
+        """Add an effect to the model.
+
+        Parameters
+        ----------
+        effect : EffectModel
+            The effect to add.
+        """
+        raise NotImplementedError(
+            "Lightcurve-based models are defined in the observer frame and do not support effects."
+        )
 
     def compute_flux_given_lc(self, lc, times, wavelengths, graph_state):
         """Compute the flux density for a given lightcurve at specified times and wavelengths.
@@ -561,7 +574,7 @@ class LightcurveSource(BaseLightcurveSource):
     lightcurves : LightcurveData
         The data for the lightcurves, such as the times and bandfluxes in each filter.
     sed_values : dict
-        A dictionary mapping filters to the fake SED values for that passband.
+        A dictionary mapping filters to the SED basis values for that passband.
         These SED values are scaled by the lightcurve and added for the
         final SED.
     all_waves : numpy.ndarray
@@ -679,7 +692,7 @@ class MultiLightcurveSource(BaseLightcurveSource):
     lightcurves : list of LightcurveData
         The data for each set of lightcurves.
     sed_values : dict
-        A dictionary mapping filters to the fake SED values for that passband.
+        A dictionary mapping filters to the SED basis values for that passband.
         These SED values are scaled by the lightcurve and added for the
         final SED.
     all_waves : numpy.ndarray
