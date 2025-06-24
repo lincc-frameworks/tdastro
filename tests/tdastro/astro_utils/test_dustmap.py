@@ -1,3 +1,5 @@
+import importlib
+
 import numpy as np
 import pytest
 from citation_compass import find_in_citations
@@ -60,6 +62,9 @@ def test_dust_map_wrapper():
 
 def test_sfdmap():
     """Test that we can create and sample an SFDObject."""
+    if importlib.util.find_spec("sfdmap2") is None:
+        pytest.skip("sfdmap2 is not installed, skipping SFDMap tests.")
+
     # Use data from a fake map with zero dust in the high North latitudes
     # and high dust in the South.
     dust = SFDMap(
