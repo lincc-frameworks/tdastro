@@ -139,7 +139,8 @@ class PhysicalModel(ParameterizedNode):
         self.apply_redshift = apply_redshift
 
     def add_effect(self, effect):
-        """Add an effect to the model.
+        """Add an effect to the model. This effect will be applied to all
+        fluxes densities simulated by the model.
 
         Parameters
         ----------

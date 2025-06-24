@@ -4,7 +4,7 @@ from tdastro.sources.physical_model import PhysicalModel
 
 
 class PeriodicSource(PhysicalModel, ABC):
-    """A periodic source.
+    """The base model for periodic sources.
 
     Parameterized values include:
       * dec - The object's declination in degrees. [from PhysicalModel]
