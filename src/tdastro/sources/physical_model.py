@@ -84,7 +84,7 @@ class PhysicalModel(ParameterizedNode):
         # redshift value using the cosmology (if given). Finally, default to None.
         if distance is not None:
             self.add_parameter("distance", distance, allow_gradient=False)
-        elif redshift is not None and kwargs.get("cosmology", None) is not None:
+        elif redshift is not None and kwargs.get("cosmology") is not None:
             self._redshift_func = RedshiftDistFunc(redshift=self.redshift, **kwargs)
             self.add_parameter("distance", self._redshift_func, allow_gradient=False)
         else:
@@ -107,7 +107,7 @@ class PhysicalModel(ParameterizedNode):
         self._rng = np.random.default_rng(seed=seed)
 
     def minwave(self):
-        """Get the minimum wavelength of the model.
+        """Get the minimum supported wavelength of the model.
 
         Returns
         -------
@@ -118,7 +118,7 @@ class PhysicalModel(ParameterizedNode):
         return None
 
     def maxwave(self):
-        """Get the maximum wavelength of the model.
+        """Get the maximum supported wavelength of the model.
 
         Returns
         -------
@@ -129,7 +129,9 @@ class PhysicalModel(ParameterizedNode):
         return None
 
     def set_apply_redshift(self, apply_redshift):
-        """Toggles the apply_redshift setting.
+        """Toggles the apply_redshift setting. If set to True, the model will
+        apply redshift during the flux density computation including applying wavelength
+        and time transformations.
 
         Parameters
         ----------
@@ -139,7 +141,11 @@ class PhysicalModel(ParameterizedNode):
         self.apply_redshift = apply_redshift
 
     def add_effect(self, effect):
-        """Add an effect to the model.
+        """Add an effect to the model. This effect will be applied to all
+        fluxes densities simulated by the model.
+
+        Any effect parameters that are not already in the model
+        will be added to this node's parameters.
 
         Parameters
         ----------
