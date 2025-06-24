@@ -137,11 +137,8 @@ class GraphState:
                 if not np.allclose(var_value, other_params[var_name]):
                     return False
 
-        # Check that the 'fixed' dictionary is the same.
-        if self.fixed_vars != other.fixed_vars:
-            return False
-
-        return True
+        # Finally check that the 'fixed' dictionary is the same.
+        return self.fixed_vars == other.fixed_vars
 
     def __getitem__(self, key):
         """Access an entry in the GraphState.
