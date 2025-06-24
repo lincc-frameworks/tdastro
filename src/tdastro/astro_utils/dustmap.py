@@ -5,6 +5,7 @@ was primarily designed to work with the dustmaps package:
 https://github.com/gregreen/dustmaps
 """
 
+import importlib
 import logging
 from pathlib import Path
 
@@ -12,7 +13,6 @@ import numpy as np
 import pooch
 from astropy.coordinates import SkyCoord
 from citation_compass import CiteClass
-from sfdmap2 import sfdmap
 
 from tdastro import _TDASTRO_BASE_DATA_DIR
 from tdastro.base_models import FunctionNode
@@ -240,6 +240,15 @@ class SFDMap(DustEBV):
             The dust map object.
         """
         logger = logging.getLogger(__name__)
+
+        # Check that we have the sfdmap2 package installed (since it is not installed by default).
+        if importlib.util.find_spec("sfdmap2") is None:
+            raise ImportError(
+                "The sfdmap2 package is required to use the SFDMap effect and not installed by default. "
+                "You can install sfdmap2 using `pip install sfdmap2`."
+            )
+        else:
+            from sfdmap2 import sfdmap
 
         data_dir = Path(data_dir) if data_dir is not None else self._default_map_dir
         logger.debug(f"Loading SFD dust map data from {data_dir}")

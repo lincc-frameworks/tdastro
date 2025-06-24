@@ -28,6 +28,11 @@ class EffectModel:
     def add_effect_parameter(self, name, setter):
         """Add a parameter to the effect.
 
+        Note
+        ----
+        These parameters are automatically added to the corresponding source
+        nodes so they are sampled and recorded with the model's other parameters.
+
         Parameters
         ----------
         name : str
