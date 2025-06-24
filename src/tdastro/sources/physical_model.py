@@ -84,7 +84,7 @@ class PhysicalModel(ParameterizedNode):
         # redshift value using the cosmology (if given). Finally, default to None.
         if distance is not None:
             self.add_parameter("distance", distance, allow_gradient=False)
-        elif redshift is not None and kwargs.get("cosmology", None) is not None:
+        elif redshift is not None and kwargs.get("cosmology") is not None:
             self._redshift_func = RedshiftDistFunc(redshift=self.redshift, **kwargs)
             self.add_parameter("distance", self._redshift_func, allow_gradient=False)
         else:

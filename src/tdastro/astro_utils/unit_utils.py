@@ -107,7 +107,7 @@ def fnu_to_flam(flux_fnu, wavelengths, *, wave_unit, flam_unit, fnu_unit):
         _ = np.broadcast_shapes(flux_fnu.shape, wavelengths.shape)
     except ValueError as err:
         raise ValueError(
-            f"Mismatched sizes for flux_fnu={flux_fnu.shape} " f"and wavelengths={wavelengths.shape}."
+            f"Mismatched sizes for flux_fnu={flux_fnu.shape} and wavelengths={wavelengths.shape}."
         ) from err
 
     # convert flux in fnu_unit (e.g. nJy or ergs/s/cm^2/Hz) to flam_unit (e.g. ergs/s/cm^2/A)

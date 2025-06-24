@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Literal, Optional, Union
+from typing import Literal, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -121,10 +121,7 @@ class PassbandGroup:
 
     def __str__(self) -> str:
         """Return a string representation of the PassbandGroup."""
-        return (
-            f"PassbandGroup containing {len(self.passbands)} passbands: "
-            f"{', '.join(self.passbands.keys())}"
-        )
+        return f"PassbandGroup containing {len(self.passbands)} passbands: {', '.join(self.passbands.keys())}"
 
     def __len__(self) -> int:
         return len(self.passbands)
@@ -162,10 +159,10 @@ class PassbandGroup:
     def from_dir(
         cls,
         dir_path: Union[str, Path],
-        filters: Optional[list] = None,
-        delta_wave: Optional[float] = 5.0,
-        trim_quantile: Optional[float] = 1e-3,
-        units: Optional[Literal["nm", "A"]] = "A",
+        filters: list | None = None,
+        delta_wave: float | None = 5.0,
+        trim_quantile: float | None = 1e-3,
+        units: Literal["nm", "A"] | None = "A",
     ):
         """Load the passbands from a directory where the directorty name corresponds
         to the survey and the file names correspond to the filters:
@@ -387,9 +384,7 @@ class PassbandGroup:
         filter_name_mask = np.isin(filters, list(self._filter_to_name.keys()))
         return full_name_mask | filter_name_mask
 
-    def process_transmission_tables(
-        self, delta_wave: Optional[float] = 5.0, trim_quantile: Optional[float] = 1e-3
-    ):
+    def process_transmission_tables(self, delta_wave: float | None = 5.0, trim_quantile: float | None = 1e-3):
         """Process the transmission tables for all passbands in the group; recalculate group's wave attribute.
 
         Parameters
@@ -518,9 +513,9 @@ class Passband:
         table_values: np.array,
         survey: str,
         filter_name: str,
-        delta_wave: Optional[float] = 5.0,
-        trim_quantile: Optional[float] = 1e-3,
-        units: Optional[Literal["nm", "A"]] = "A",
+        delta_wave: float | None = 5.0,
+        trim_quantile: float | None = 1e-3,
+        units: Literal["nm", "A"] | None = "A",
     ):
         """Construct a Passband object.
 
@@ -587,21 +582,18 @@ class Passband:
         # Check that they have the (approximately) same transmission tables.
         if self.processed_transmission_table.shape != other.processed_transmission_table.shape:
             return False
-        if not np.allclose(self.processed_transmission_table, other.processed_transmission_table):
-            return False
-
-        return True
+        return np.allclose(self.processed_transmission_table, other.processed_transmission_table)
 
     @classmethod
     def from_file(
         cls,
         survey: str,
         filter_name: str,
-        delta_wave: Optional[float] = 5.0,
-        trim_quantile: Optional[float] = 1e-3,
-        table_path: Optional[Union[str, Path]] = None,
-        table_url: Optional[str] = None,
-        units: Optional[Literal["nm", "A"]] = "A",
+        delta_wave: float | None = 5.0,
+        trim_quantile: float | None = 1e-3,
+        table_path: Union[str, Path] | None = None,
+        table_url: str | None = None,
+        units: Literal["nm", "A"] | None = "A",
         force_download: bool = False,
     ):
         """Construct a Passband object from a file, downloading it if needed.
@@ -741,8 +733,8 @@ class Passband:
 
     def process_transmission_table(
         self,
-        delta_wave: Optional[float] = 5.0,
-        trim_quantile: Optional[float] = 1e-3,
+        delta_wave: float | None = 5.0,
+        trim_quantile: float | None = 1e-3,
     ):
         """Process the transmission table.
 
@@ -760,7 +752,7 @@ class Passband:
 
         self.waves = self.processed_transmission_table[:, 0]
 
-    def _interpolate_transmission_table(self, table: np.ndarray, delta_wave: Optional[float]) -> np.ndarray:
+    def _interpolate_transmission_table(self, table: np.ndarray, delta_wave: float | None) -> np.ndarray:
         """Interpolate the transmission table to a new wave grid.
 
         Parameters
@@ -793,7 +785,7 @@ class Passband:
         interpolated_transmissions = spline(new_wavelengths)
         return np.column_stack((new_wavelengths, interpolated_transmissions))
 
-    def _trim_transmission_by_quantile(self, table: np.ndarray, trim_quantile: Optional[float]) -> np.ndarray:
+    def _trim_transmission_by_quantile(self, table: np.ndarray, trim_quantile: float | None) -> np.ndarray:
         """Trim the transmission table so that it only includes the central (100 - 2*trim_quartile)% of rows.
 
         E.g., if trim_quantile is 1e-3, the transmission table will be trimmed to include only the central

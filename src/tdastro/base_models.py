@@ -288,10 +288,7 @@ class ParameterizedNode:
             return False
 
         setter = self.setters[name]
-        if setter.source_type == ParameterSource.CONSTANT and setter.value is None:
-            return False
-
-        return True
+        return not (setter.source_type == ParameterSource.CONSTANT and setter.value is None)
 
     def get_param(self, graph_state, name, default=None):
         """Get the value of a parameter stored in this node or a default value.
