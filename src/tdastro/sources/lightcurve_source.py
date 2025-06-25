@@ -255,7 +255,9 @@ class LightcurveData:
         return cls(lightcurves, lc_t0=lc_t0, periodic=periodic, baseline=baseline)
 
     def evaluate(self, times, filter):
-        """Get the SED values for a given filter at specified times.
+        """Get the bandflux values for a given filter at the specified times. These can
+        be multiplied by a basis SED function to produce estimated SED values
+        for the given filter at the specified times or can be used directly as bandfluxes.
 
         Parameters
         ----------
@@ -267,8 +269,8 @@ class LightcurveData:
 
         Returns
         -------
-        sed_values : numpy.ndarray
-            A length T array of SED values (in nJy) for the specified filter at the given times.
+        values : numpy.ndarray
+            A length T array of bandpass fluxes for the specified filter at the given times.
         """
         if filter not in self.lightcurves:
             raise ValueError(f"Filter {filter} not found in lightcurves.")
@@ -279,11 +281,11 @@ class LightcurveData:
             times = times % self.period
 
         # Start with an array of all baseline values.
-        sed_values = np.full(len(times), self.baseline.get(filter, 0.0))
+        values = np.full(len(times), self.baseline.get(filter, 0.0))
 
         # For the times that overlap with the lightcurve, interpolate the lightcurve values.
         overlap = (times >= self.min_times[filter]) & (times <= self.max_times[filter])
-        sed_values[overlap] = np.interp(
+        values[overlap] = np.interp(
             times[overlap],  # The query times
             lightcurve[:, 0],  # The lightcurve times for this passband filter
             lightcurve[:, 1],  # The lightcurve flux densities for this passband filter
@@ -291,7 +293,7 @@ class LightcurveData:
             right=0.0,  # Do not extrapolate in time
         )
 
-        return sed_values
+        return values
 
     def plot_lightcurves(self, times=None, ax=None, figure=None):
         """Plot the underlying lightcurves. This is a debugging
@@ -350,9 +352,8 @@ class BaseLightcurveSource(PhysicalModel, ABC):
     Attributes
     ----------
     sed_values : dict
-        A dictionary mapping filters to the SED basis values for that passband.
-        These SED values are scaled by the lightcurve and added for the
-        final SED.
+        A dictionary mapping filters to the SED basis values for that passband. These SED values can
+        be scaled by the lightcurve (bandfluxes) and added together to produce an estimated SED.
     all_waves : numpy.ndarray
         A 1d array of all of the wavelengths used by the passband group.
     filters : list
@@ -620,10 +621,11 @@ class BaseLightcurveSource(PhysicalModel, ABC):
 
 
 class LightcurveSource(BaseLightcurveSource):
-    """A model that generates the SED of a source from lightcurves in given bands.
-    The model estimates a box-shaped SED for each filter such that the resulting
-    flux density is equal to the lightcurve's value after passing through
-    the passband filter.
+    """A model that generates either the SED or bandflux of a source based on
+    given lightcurves in each band. When generating the bandflux, it interpolates
+    the lightcurves directly. When generating the SED, the model uses a box-shaped SED
+    for each filter such that the resulting flux density is equal to the lightcurve's
+    value after passing through the passband filter.
 
     LightcurveSource supports both periodic and non-periodic lightcurves. If the
     light curve is not periodic then each lightcurve's given values will be interpolated
@@ -710,7 +712,9 @@ class LightcurveSource(BaseLightcurveSource):
         Returns
         -------
         flux_density : numpy.ndarray
-            A length T x N matrix of rest frame SED values (in nJy).
+            A length T x N matrix of rest frame SED values (in nJy). These are generated
+            from non-overlapping box-shaped SED basis functions for each filter and
+            scaled by the lightcurve values.
         """
         return self.compute_flux_given_lc(
             self.lightcurves,
@@ -771,9 +775,11 @@ class LightcurveSource(BaseLightcurveSource):
 
 class MultiLightcurveSource(BaseLightcurveSource):
     """A MultiLightcurveSource randomly selects a lightcurve at each evaluation
-    computes the flux from that source. The model uses a box-shaped SED for each
-    filter such that the resulting flux density is equal to the lightcurve's value
-    after passing through the passband filter.
+    computes the flux from that source. The models can generate either the SED or
+    bandflux of a source based of given lightcurves in each band. When generating
+    the bandflux, the model interpolates the lightcurves directly. When generating the SED,
+    the model uses a box-shaped SED for each filter such that the resulting flux density
+    is equal to the lightcurve's value after passing through the passband filter.
 
     MultiLightcurveSource supports both periodic and non-periodic lightcurves. If the
     light curve is not periodic then each lightcurve's given values will be interpolated
@@ -900,7 +906,9 @@ class MultiLightcurveSource(BaseLightcurveSource):
         Returns
         -------
         flux_density : numpy.ndarray
-            A length T x N matrix of rest frame SED values (in nJy).
+            A length T x N matrix of rest frame SED values (in nJy). These are generated
+            from non-overlapping box-shaped SED basis functions for each filter and
+            scaled by the lightcurve values.
         """
         # Use the lightcurve selected by the sampler node to compute the flux density.
         model_ind = self.get_param(graph_state, "selected_lightcurve")
