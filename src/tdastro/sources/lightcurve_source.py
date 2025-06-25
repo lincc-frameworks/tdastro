@@ -1,5 +1,11 @@
-"""A model that generates the SED of a source based on given observer frame
-lightcurves of fluxes in each band."""
+"""Model that generate the SED or bandflux of a source based on given observer frame
+lightcurves of fluxes in each band.
+
+If we are generating the bandfluxes directly, the models interpolate the given lightcurves
+at the requested times and filters. If we are generating an SED for a given set of
+wavelengths, the model computes a box-shaped SED basis function for each filter that
+will produce the same bandflux after being passed through the passband filter.
+"""
 
 import logging
 from abc import ABC
@@ -249,7 +255,9 @@ class LightcurveData:
         return cls(lightcurves, lc_t0=lc_t0, periodic=periodic, baseline=baseline)
 
     def evaluate(self, times, filter):
-        """Get the SED values for a given filter at specified times.
+        """Get the bandflux values for a given filter at the specified times. These can
+        be multiplied by a basis SED function to produce estimated SED values
+        for the given filter at the specified times or can be used directly as bandfluxes.
 
         Parameters
         ----------
@@ -261,8 +269,8 @@ class LightcurveData:
 
         Returns
         -------
-        sed_values : numpy.ndarray
-            A length T array of SED values (in nJy) for the specified filter at the given times.
+        values : numpy.ndarray
+            A length T array of bandpass fluxes for the specified filter at the given times.
         """
         if filter not in self.lightcurves:
             raise ValueError(f"Filter {filter} not found in lightcurves.")
@@ -273,11 +281,11 @@ class LightcurveData:
             times = times % self.period
 
         # Start with an array of all baseline values.
-        sed_values = np.full(len(times), self.baseline.get(filter, 0.0))
+        values = np.full(len(times), self.baseline.get(filter, 0.0))
 
         # For the times that overlap with the lightcurve, interpolate the lightcurve values.
         overlap = (times >= self.min_times[filter]) & (times <= self.max_times[filter])
-        sed_values[overlap] = np.interp(
+        values[overlap] = np.interp(
             times[overlap],  # The query times
             lightcurve[:, 0],  # The lightcurve times for this passband filter
             lightcurve[:, 1],  # The lightcurve flux densities for this passband filter
@@ -285,7 +293,7 @@ class LightcurveData:
             right=0.0,  # Do not extrapolate in time
         )
 
-        return sed_values
+        return values
 
     def plot_lightcurves(self, times=None, ax=None, figure=None):
         """Plot the underlying lightcurves. This is a debugging
@@ -344,9 +352,8 @@ class BaseLightcurveSource(PhysicalModel, ABC):
     Attributes
     ----------
     sed_values : dict
-        A dictionary mapping filters to the SED basis values for that passband.
-        These SED values are scaled by the lightcurve and added for the
-        final SED.
+        A dictionary mapping filters to the SED basis values for that passband. These SED values can
+        be scaled by the lightcurve (bandfluxes) and added together to produce an estimated SED.
     all_waves : numpy.ndarray
         A 1d array of all of the wavelengths used by the passband group.
     filters : list
@@ -476,16 +483,16 @@ class BaseLightcurveSource(PhysicalModel, ABC):
         lc : LightcurveData
             The lightcurve data to use for computing the flux density.
         times : numpy.ndarray
-            A length T array of rest frame timestamps in MJD.
+            A length T array of observer frame timestamps in MJD.
         wavelengths : numpy.ndarray, optional
-            A length N array of rest frame wavelengths (in angstroms).
+            A length N array of observer frame wavelengths (in angstroms).
         graph_state : GraphState
             An object mapping graph parameters to their values.
 
         Returns
         -------
         flux_density : numpy.ndarray
-            A length T x N matrix of rest frame SED values (in nJy).
+            A length T x N matrix of observer frame SED values (in nJy).
         """
         params = self.get_local_params(graph_state)
 
@@ -515,6 +522,74 @@ class BaseLightcurveSource(PhysicalModel, ABC):
 
         # Return the total flux density from all lightcurves.
         return flux_density
+
+    def compute_bandflux(self, times, filters, state, rng_info=None):
+        """Evaluate the model at the passband level for a single, given graph state.
+
+        Parameters
+        ----------
+        times : numpy.ndarray
+            A length T array of observer frame timestamps in MJD.
+        filters : numpy.ndarray
+            A length T array of filter names.
+        state : GraphState
+            An object mapping graph parameters to their values with num_samples=1.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
+        """
+        raise NotImplementedError
+
+    def get_band_fluxes(self, passband_or_group, times, filters, state, rng_info=None) -> np.ndarray:
+        """Get the band fluxes for a given Passband or PassbandGroup.
+
+        Parameters
+        ----------
+        passband_or_group : Passband or PassbandGroup
+            The passband (or passband group) to use.
+        times : numpy.ndarray
+            A length T array of observer frame timestamps in MJD.
+        filters : numpy.ndarray or None
+            A length T array of filter names. It may be None if
+            passband_or_group is a Passband.
+        state : GraphState
+            An object mapping graph parameters to their values.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
+
+        Returns
+        -------
+        band_fluxes : numpy.ndarray
+            A matrix of the band fluxes. If only one sample is provided in the GraphState,
+            then returns a length T array. Otherwise returns a size S x T array where S is the
+            number of samples in the graph state.
+        """
+        if isinstance(passband_or_group, Passband):
+            if filters is not None and not np.all(filters == passband_or_group.filter_name):
+                raise ValueError(
+                    "If passband_or_group is a Passband, filters must either be None "
+                    "or a list where every entry matches the given filter's name: "
+                    f"{passband_or_group.filter_name}."
+                )
+            passband_or_group = PassbandGroup(given_passbands=[passband_or_group])
+
+        if filters is None:
+            raise ValueError("If passband_or_group is a PassbandGroup, filters must be provided.")
+        filters = np.asarray(filters)
+
+        # Check if we need to sample the graph.
+        if state is None:
+            state = self.sample_parameters(num_samples=1, rng_info=rng_info)
+
+        results = np.empty((state.num_samples, len(times)))
+        for sample_num, current_state in enumerate(state):
+            # Compute the flux (applying all effects) and save the result.
+            results[sample_num, :] = self.compute_bandflux(times, filters, current_state)
+
+        if state.num_samples == 1:
+            return results[0, :]
+        return results
 
     def plot_sed_basis(self, ax=None, figure=None):
         """Plot the basis functions for the SED.  This is a debugging
@@ -546,10 +621,11 @@ class BaseLightcurveSource(PhysicalModel, ABC):
 
 
 class LightcurveSource(BaseLightcurveSource):
-    """A model that generates the SED of a source from lightcurves in given bands.
-    The model estimates a box-shaped SED for each filter such that the resulting
-    flux density is equal to the lightcurve's value after passing through
-    the passband filter.
+    """A model that generates either the SED or bandflux of a source based on
+    given lightcurves in each band. When generating the bandflux, it interpolates
+    the lightcurves directly. When generating the SED, the model uses a box-shaped SED
+    for each filter such that the resulting flux density is equal to the lightcurve's
+    value after passing through the passband filter.
 
     LightcurveSource supports both periodic and non-periodic lightcurves. If the
     light curve is not periodic then each lightcurve's given values will be interpolated
@@ -622,21 +698,23 @@ class LightcurveSource(BaseLightcurveSource):
         super().__init__(passbands, filters=self.lightcurves.filters, **kwargs)
 
     def compute_flux(self, times, wavelengths, graph_state):
-        """Draw effect-free rest frame flux densities.
+        """Draw effect-free observer frame flux densities.
 
         Parameters
         ----------
         times : numpy.ndarray
-            A length T array of rest frame timestamps in MJD.
+            A length T array of observer frame timestamps in MJD.
         wavelengths : numpy.ndarray, optional
-            A length N array of rest frame wavelengths (in angstroms).
+            A length N array of observer frame wavelengths (in angstroms).
         graph_state : GraphState
             An object mapping graph parameters to their values.
 
         Returns
         -------
         flux_density : numpy.ndarray
-            A length T x N matrix of rest frame SED values (in nJy).
+            A length T x N matrix of observer frame SED values (in nJy). These are generated
+            from non-overlapping box-shaped SED basis functions for each filter and
+            scaled by the lightcurve values.
         """
         return self.compute_flux_given_lc(
             self.lightcurves,
@@ -644,6 +722,38 @@ class LightcurveSource(BaseLightcurveSource):
             wavelengths,
             graph_state,
         )
+
+    def compute_bandflux(self, times, filters, state, **kwargs):
+        """Evaluate the model at the passband level for a single, given graph state.
+
+        Parameters
+        ----------
+        times : numpy.ndarray
+            A length T array of observer frame timestamps in MJD.
+        filters : numpy.ndarray
+            A length T array of filter names.
+        state : GraphState
+            An object mapping graph parameters to their values with num_samples=1.
+        **kwargs : dict
+            Additional keyword arguments, not used in this method.
+
+        Returns
+        -------
+        band_fluxes : numpy.ndarray
+            A length T matrix of observer frame passband fluxes (in nJy).
+        """
+        params = self.get_local_params(state)
+
+        # Shift the times for the model's t0 aligned with the lightcurve's lc_t0.
+        # The lightcurve times were already shifted in the constructor to be relative to lc_t0.
+        shifted_times = times - params["t0"]
+
+        band_fluxes = np.zeros(len(times))
+        for filter in self.lightcurves.filters:
+            filter_mask = filters == filter
+            band_fluxes[filter_mask] = self.lightcurves.evaluate(shifted_times[filter_mask], filter)
+
+        return band_fluxes
 
     def plot_lightcurves(self, times=None, ax=None, figure=None):
         """Plot the underlying lightcurves. This is a debugging
@@ -665,9 +775,11 @@ class LightcurveSource(BaseLightcurveSource):
 
 class MultiLightcurveSource(BaseLightcurveSource):
     """A MultiLightcurveSource randomly selects a lightcurve at each evaluation
-    computes the flux from that source. The model uses a box-shaped SED for each
-    filter such that the resulting flux density is equal to the lightcurve's value
-    after passing through the passband filter.
+    computes the flux from that source. The models can generate either the SED or
+    bandflux of a source based of given lightcurves in each band. When generating
+    the bandflux, the model interpolates the lightcurves directly. When generating the SED,
+    the model uses a box-shaped SED for each filter such that the resulting flux density
+    is equal to the lightcurve's value after passing through the passband filter.
 
     MultiLightcurveSource supports both periodic and non-periodic lightcurves. If the
     light curve is not periodic then each lightcurve's given values will be interpolated
@@ -780,21 +892,23 @@ class MultiLightcurveSource(BaseLightcurveSource):
         return cls(lightcurves, passbands, **kwargs)
 
     def compute_flux(self, times, wavelengths, graph_state):
-        """Draw effect-free rest frame flux densities.
+        """Draw effect-free observer frame flux densities.
 
         Parameters
         ----------
         times : numpy.ndarray
-            A length T array of rest frame timestamps in MJD.
+            A length T array of observer frame timestamps in MJD.
         wavelengths : numpy.ndarray, optional
-            A length N array of rest frame wavelengths (in angstroms).
+            A length N array of observer frame wavelengths (in angstroms).
         graph_state : GraphState
             An object mapping graph parameters to their values.
 
         Returns
         -------
         flux_density : numpy.ndarray
-            A length T x N matrix of rest frame SED values (in nJy).
+            A length T x N matrix of observer frame SED values (in nJy). These are generated
+            from non-overlapping box-shaped SED basis functions for each filter and
+            scaled by the lightcurve values.
         """
         # Use the lightcurve selected by the sampler node to compute the flux density.
         model_ind = self.get_param(graph_state, "selected_lightcurve")
@@ -804,3 +918,37 @@ class MultiLightcurveSource(BaseLightcurveSource):
             wavelengths,
             graph_state,
         )
+
+    def compute_bandflux(self, times, filters, state, **kwargs):
+        """Evaluate the model at the passband level for a single, given graph state.
+
+        Parameters
+        ----------
+        times : numpy.ndarray
+            A length T array of observer frame timestamps in MJD.
+        filters : numpy.ndarray
+            A length T array of filter names.
+        state : GraphState
+            An object mapping graph parameters to their values with num_samples=1.
+        **kwargs : dict
+            Additional keyword arguments, not used in this method.
+
+        Returns
+        -------
+        band_fluxes : numpy.ndarray
+            A length T matrix of observer frame passband fluxes (in nJy).
+        """
+        params = self.get_local_params(state)
+        model_ind = params["selected_lightcurve"]
+        lc = self.lightcurves[model_ind]
+
+        # Shift the times for the model's t0 aligned with the lightcurve's lc_t0.
+        # The lightcurve times were already shifted in the constructor to be relative to lc_t0.
+        shifted_times = times - params["t0"]
+
+        band_fluxes = np.zeros(len(times))
+        for filter in lc.filters:
+            filter_mask = filters == filter
+            band_fluxes[filter_mask] = lc.evaluate(shifted_times[filter_mask], filter)
+
+        return band_fluxes

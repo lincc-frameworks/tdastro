@@ -429,7 +429,7 @@ class PhysicalModel(ParameterizedNode):
 
         return graph_state
 
-    def get_band_fluxes(self, passband_or_group, times, filters, state) -> np.ndarray:
+    def get_band_fluxes(self, passband_or_group, times, filters, state, rng_info=None) -> np.ndarray:
         """Get the band fluxes for a given Passband or PassbandGroup.
 
         Parameters
@@ -443,6 +443,9 @@ class PhysicalModel(ParameterizedNode):
             passband_or_group is a Passband.
         state : GraphState
             An object mapping graph parameters to their values.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
 
         Returns
         -------
@@ -458,7 +461,7 @@ class PhysicalModel(ParameterizedNode):
                     "or a list where every entry matches the given filter's name: "
                     f"{passband_or_group.filter_name}."
                 )
-            spectral_fluxes = self.evaluate(times, passband_or_group.waves, state)
+            spectral_fluxes = self.evaluate(times, passband_or_group.waves, state, rng_info=rng_info)
             return passband_or_group.fluxes_to_bandflux(spectral_fluxes)
 
         if filters is None:
@@ -469,7 +472,7 @@ class PhysicalModel(ParameterizedNode):
         for filter_name in np.unique(filters):
             passband = passband_or_group[filter_name]
             filter_mask = filters == filter_name
-            spectral_fluxes = self.evaluate(times[filter_mask], passband.waves, state)
+            spectral_fluxes = self.evaluate(times[filter_mask], passband.waves, state, rng_info=rng_info)
             band_fluxes[:, filter_mask] = passband.fluxes_to_bandflux(spectral_fluxes)
 
         if state.num_samples == 1:
