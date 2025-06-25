@@ -483,16 +483,16 @@ class BaseLightcurveSource(PhysicalModel, ABC):
         lc : LightcurveData
             The lightcurve data to use for computing the flux density.
         times : numpy.ndarray
-            A length T array of rest frame timestamps in MJD.
+            A length T array of observer frame timestamps in MJD.
         wavelengths : numpy.ndarray, optional
-            A length N array of rest frame wavelengths (in angstroms).
+            A length N array of observer frame wavelengths (in angstroms).
         graph_state : GraphState
             An object mapping graph parameters to their values.
 
         Returns
         -------
         flux_density : numpy.ndarray
-            A length T x N matrix of rest frame SED values (in nJy).
+            A length T x N matrix of observer frame SED values (in nJy).
         """
         params = self.get_local_params(graph_state)
 
@@ -698,21 +698,21 @@ class LightcurveSource(BaseLightcurveSource):
         super().__init__(passbands, filters=self.lightcurves.filters, **kwargs)
 
     def compute_flux(self, times, wavelengths, graph_state):
-        """Draw effect-free rest frame flux densities.
+        """Draw effect-free observer frame flux densities.
 
         Parameters
         ----------
         times : numpy.ndarray
-            A length T array of rest frame timestamps in MJD.
+            A length T array of observer frame timestamps in MJD.
         wavelengths : numpy.ndarray, optional
-            A length N array of rest frame wavelengths (in angstroms).
+            A length N array of observer frame wavelengths (in angstroms).
         graph_state : GraphState
             An object mapping graph parameters to their values.
 
         Returns
         -------
         flux_density : numpy.ndarray
-            A length T x N matrix of rest frame SED values (in nJy). These are generated
+            A length T x N matrix of observer frame SED values (in nJy). These are generated
             from non-overlapping box-shaped SED basis functions for each filter and
             scaled by the lightcurve values.
         """
@@ -892,21 +892,21 @@ class MultiLightcurveSource(BaseLightcurveSource):
         return cls(lightcurves, passbands, **kwargs)
 
     def compute_flux(self, times, wavelengths, graph_state):
-        """Draw effect-free rest frame flux densities.
+        """Draw effect-free observer frame flux densities.
 
         Parameters
         ----------
         times : numpy.ndarray
-            A length T array of rest frame timestamps in MJD.
+            A length T array of observer frame timestamps in MJD.
         wavelengths : numpy.ndarray, optional
-            A length N array of rest frame wavelengths (in angstroms).
+            A length N array of observer frame wavelengths (in angstroms).
         graph_state : GraphState
             An object mapping graph parameters to their values.
 
         Returns
         -------
         flux_density : numpy.ndarray
-            A length T x N matrix of rest frame SED values (in nJy). These are generated
+            A length T x N matrix of observer frame SED values (in nJy). These are generated
             from non-overlapping box-shaped SED basis functions for each filter and
             scaled by the lightcurve values.
         """
