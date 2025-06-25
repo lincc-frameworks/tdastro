@@ -3,6 +3,7 @@ import pytest
 from astropy.table import Table
 from tdastro.astro_utils.mag_flux import mag2flux
 from tdastro.astro_utils.passbands import Passband, PassbandGroup
+from tdastro.effects.basic_effects import ConstantDimming
 from tdastro.sources.lightcurve_source import (
     LightcurveData,
     LightcurveSource,
@@ -267,6 +268,17 @@ def test_create_lightcurve_source_baseline() -> None:
     # not match the passbands (no r band provided).
     with pytest.raises(ValueError):
         LightcurveSource(lightcurves, pb_group, t0=0.0, baseline={"u": 0.5, "g": 1.2})
+
+
+def test_lightcurve_source_no_effects() -> None:
+    """Test that we cannot add effects to a LightcurveSource."""
+    pb_group = _create_toy_passbands()
+    lightcurves = _create_toy_lightcurves()
+    lc_source = LightcurveSource(lightcurves, pb_group, t0=0.0)
+
+    effect = ConstantDimming(flux_fraction=0.1)
+    with pytest.raises(NotImplementedError):
+        lc_source.add_effect(effect)
 
 
 def test_create_lightcurve_source_periodic() -> None:

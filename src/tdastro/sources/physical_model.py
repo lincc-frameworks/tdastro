@@ -84,7 +84,7 @@ class PhysicalModel(ParameterizedNode):
         # redshift value using the cosmology (if given). Finally, default to None.
         if distance is not None:
             self.add_parameter("distance", distance, allow_gradient=False)
-        elif redshift is not None and kwargs.get("cosmology", None) is not None:
+        elif redshift is not None and kwargs.get("cosmology") is not None:
             self._redshift_func = RedshiftDistFunc(redshift=self.redshift, **kwargs)
             self.add_parameter("distance", self._redshift_func, allow_gradient=False)
         else:
@@ -107,7 +107,7 @@ class PhysicalModel(ParameterizedNode):
         self._rng = np.random.default_rng(seed=seed)
 
     def minwave(self):
-        """Get the minimum wavelength of the model.
+        """Get the minimum supported wavelength of the model.
 
         Returns
         -------
@@ -118,7 +118,7 @@ class PhysicalModel(ParameterizedNode):
         return None
 
     def maxwave(self):
-        """Get the maximum wavelength of the model.
+        """Get the maximum supported wavelength of the model.
 
         Returns
         -------
@@ -129,7 +129,9 @@ class PhysicalModel(ParameterizedNode):
         return None
 
     def set_apply_redshift(self, apply_redshift):
-        """Toggles the apply_redshift setting.
+        """Toggles the apply_redshift setting. If set to True, the model will
+        apply redshift during the flux density computation including applying wavelength
+        and time transformations.
 
         Parameters
         ----------
@@ -139,7 +141,11 @@ class PhysicalModel(ParameterizedNode):
         self.apply_redshift = apply_redshift
 
     def add_effect(self, effect):
-        """Add an effect to the model.
+        """Add an effect to the model. This effect will be applied to all
+        fluxes densities simulated by the model.
+
+        Any effect parameters that are not already in the model
+        will be added to this node's parameters.
 
         Parameters
         ----------
@@ -423,7 +429,7 @@ class PhysicalModel(ParameterizedNode):
 
         return graph_state
 
-    def get_band_fluxes(self, passband_or_group, times, filters, state) -> np.ndarray:
+    def get_band_fluxes(self, passband_or_group, times, filters, state, rng_info=None) -> np.ndarray:
         """Get the band fluxes for a given Passband or PassbandGroup.
 
         Parameters
@@ -437,6 +443,9 @@ class PhysicalModel(ParameterizedNode):
             passband_or_group is a Passband.
         state : GraphState
             An object mapping graph parameters to their values.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
 
         Returns
         -------
@@ -452,7 +461,7 @@ class PhysicalModel(ParameterizedNode):
                     "or a list where every entry matches the given filter's name: "
                     f"{passband_or_group.filter_name}."
                 )
-            spectral_fluxes = self.evaluate(times, passband_or_group.waves, state)
+            spectral_fluxes = self.evaluate(times, passband_or_group.waves, state, rng_info=rng_info)
             return passband_or_group.fluxes_to_bandflux(spectral_fluxes)
 
         if filters is None:
@@ -463,7 +472,7 @@ class PhysicalModel(ParameterizedNode):
         for filter_name in np.unique(filters):
             passband = passband_or_group[filter_name]
             filter_mask = filters == filter_name
-            spectral_fluxes = self.evaluate(times[filter_mask], passband.waves, state)
+            spectral_fluxes = self.evaluate(times[filter_mask], passband.waves, state, rng_info=rng_info)
             band_fluxes[:, filter_mask] = passband.fluxes_to_bandflux(spectral_fluxes)
 
         if state.num_samples == 1:

@@ -30,7 +30,6 @@ dependencies = [
     "pooch",
     "pzflow",
     "scipy",
-    "sfdmap2",
     "sncosmo",
 ]
 

@@ -12,7 +12,8 @@ from tdastro.math_nodes.np_random import NumpyRandomFunc
 
 
 class GivenValueList(FunctionNode):
-    """A FunctionNode that returns given results for a single parameter.
+    """A FunctionNode that returns given results for a single parameter
+    in the order in which they are provided.
 
     Attributes
     ----------
