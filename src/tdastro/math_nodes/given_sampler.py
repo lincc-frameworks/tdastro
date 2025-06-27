@@ -137,6 +137,34 @@ class GivenValueSampler(NumpyRandomFunc):
         return results
 
 
+class GivenValueSelector(FunctionNode):
+    """A FunctionNode that selects a single value from a list of parameters.
+
+    Parameters
+    ----------
+    values : float, list, or numpy.ndarray
+        The values that can be selected.
+    index : parameter
+        The parameter that selects which value to return. This should return an
+        integer index corresponding to the position in `values`.
+    **kwargs : dict, optional
+        Any additional keyword arguments.
+    """
+
+    def __init__(self, values, index, **kwargs):
+        # The index parameter will automatically be added as input by the FunctionNode constructor.
+        super().__init__(self._select, index=index, **kwargs)
+        self.values = np.asarray(values)
+        if len(values) == 0:
+            raise ValueError("No values provided for GivenValueList")
+
+    def _select(self, index):
+        """Select the value at the given index."""
+        if np.any(index < 0) or np.any(index >= len(self.values)):
+            raise IndexError(f"Index {index} out of bounds for values of length {len(self.values)}")
+        return self.values[index]
+
+
 class TableSampler(NumpyRandomFunc):
     """A FunctionNode that returns values from a table-like data,
     including a Pandas DataFrame or AstroPy Table. The results returned
