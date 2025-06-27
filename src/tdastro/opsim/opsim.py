@@ -99,6 +99,9 @@ class OpSim:
         "ra": "fieldRA",
         "time": "observationStartMJD",
         "zp": "zp_nJy",  # We add this column to the table
+        "seeing": "seeingFwhmEff",
+        "skybrightness": "skyBrightness",
+        "nexposure": "numExposures",
     }
 
     # Default survey values.
@@ -517,19 +520,22 @@ class OpSim:
         # By the effective FWHM definition, see
         # https://smtn-002.lsst.io/v/OPSIM-1171/index.html
         # We need it in pixel^2
-        footprint = GAUSS_EFF_AREA2FWHM_SQ * (observations["seeingFwhmEff"] / self.pixel_scale) ** 2
+        footprint = (
+            GAUSS_EFF_AREA2FWHM_SQ
+            * (observations[self.colmap.get("seeing", "seeingFwhmEff")] / self.pixel_scale) ** 2
+        )
 
-        zp = observations["zp_nJy"]
+        zp = observations[self.colmap.get("zp", "zp_nJy")]
 
         # Table value is in mag/arcsec^2
-        sky_njy_angular = mag2flux(observations["skyBrightness"])
+        sky_njy_angular = mag2flux(observations[self.colmap.get("skybrightness", "skyBrightness")])
         # We need electrons per pixel^2
         sky = sky_njy_angular * self.pixel_scale**2 / zp
 
         return poisson_bandflux_std(
             bandflux,
-            total_exposure_time=observations["visitExposureTime"],
-            exposure_count=observations["numExposures"],
+            total_exposure_time=observations[self.colmap.get("exptime", "visitExposureTime")],
+            exposure_count=observations[self.colmap.get("nexposure", "numExposures")],
             footprint=footprint,
             sky=sky,
             zp=zp,
