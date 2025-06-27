@@ -7,7 +7,16 @@ from nested_pandas import NestedFrame
 from tdastro.astro_utils.noise_model import apply_noise
 
 
-def simulate_lightcurves(source, num_samples, opsim, passbands, apply_obs_mask=False, rng=None):
+def simulate_lightcurves(
+    source,
+    num_samples,
+    opsim,
+    passbands,
+    opsim_save_cols=None,
+    param_cols=None,
+    apply_obs_mask=False,
+    rng=None,
+):
     """Generate a number of simulations of the given source.
 
     Parameters
@@ -23,6 +32,15 @@ def simulate_lightcurves(source, num_samples, opsim, passbands, apply_obs_mask=F
         The passbands to use for generating the bandfluxes.
     apply_obs_mask: boolean
         If True, apply obs_mask to filter interesting indices/times
+    opsim_save_cols : list of str, optional
+        A list of opsim columns to be saved as part of the results. This is used
+        to save context information about how the lightcurves were generated.
+        If None, no additional columns are saved.
+    param_cols : list of str, optional
+        A list of source parameter columns to be saved as separate columns in
+        the results (instead of just the full dictionary of parameters). These
+        must be specified as strings in the node_name.param_name format.
+        If None, no additional columns are saved.
     rng : numpy.random._generator.Generator, optional
         A given numpy random number generator to use for this computation. If not
         provided, the function uses the node's random number generator.
@@ -66,6 +84,16 @@ def simulate_lightcurves(source, num_samples, opsim, passbands, apply_obs_mask=F
     }
     nested_index = []
 
+    # Add the extra columns to both the results and nested dictionaries.
+    if opsim_save_cols is None:
+        opsim_save_cols = []
+    for col in opsim_save_cols:
+        nested_dict[col] = []
+    if param_cols is None:
+        param_cols = []
+    for col in param_cols:
+        results_dict[col.replace(".", "_")] = []
+
     for idx, state in enumerate(sample_states):
         # Find the indices and times where the current source is seen.
         obs_index = np.asarray(all_obs_matches[idx])
@@ -96,12 +124,21 @@ def simulate_lightcurves(source, num_samples, opsim, passbands, apply_obs_mask=F
         results_dict["z"].append(source.get_param(state, "redshift"))
         results_dict["params"].append(state.to_dict())
 
-        # Append the per-observation data to the nested dictionary.
+        # Save the per-object parameters as separate columns. We use {node_name}_{param_name}
+        # as the column name for each parameter since the . notation is used for nested columns.
+        for col in param_cols:
+            results_dict[col.replace(".", "_")].append(state[col])
+
+        # Append the per-observation data to the nested dictionary, including
+        # and needed opsim columns.
         nested_dict["mjd"].extend(list(obs_times))
         nested_dict["filter"].extend(list(obs_filters))
         nested_dict["flux_perfect"].extend(list(bandfluxes_perfect))
         nested_dict["flux"].extend(list(bandfluxes))
         nested_dict["fluxerr"].extend(list(bandfluxes_error))
+        for col in opsim_save_cols:
+            nested_dict[col].extend(list(opsim[col].values[obs_index]))
+
         nested_index.extend([idx] * len(obs_times))
 
     # Create the nested frame.
