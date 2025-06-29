@@ -4,7 +4,12 @@ import pytest
 from astropy.table import Table
 from tdastro.base_models import FunctionNode
 from tdastro.graph_state import GraphState
-from tdastro.math_nodes.given_sampler import GivenValueList, GivenValueSampler, TableSampler
+from tdastro.math_nodes.given_sampler import (
+    GivenValueList,
+    GivenValueSampler,
+    GivenValueSelector,
+    TableSampler,
+)
 
 
 def _test_func(value1, value2):
@@ -106,6 +111,20 @@ def test_given_value_sampler():
     assert len(results[results == 3]) > 1000
     assert len(results[results == 5]) > 1000
     assert len(results[results == 7]) > 1000
+
+
+def test_given_value_selector():
+    """Test that we can retrieve numbers from a GivenValueSelector."""
+    index_node = GivenValueList([0, 1, 2, 3, 2, 3, 1, 2], node_label="index_node")
+    given_node = GivenValueSelector([10, 20, 30, 40], index_node, node_label="given_node")
+
+    # Check that we have saampled from the given options based on index.
+    state = given_node.sample_parameters(num_samples=8)
+    assert len(state["given_node"]["function_node_result"]) == 8
+    assert np.array_equal(
+        state["given_node"]["function_node_result"],
+        [10, 20, 30, 40, 30, 40, 20, 30],
+    )
 
 
 def test_given_value_sampler_weighted():
