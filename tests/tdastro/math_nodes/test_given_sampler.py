@@ -118,7 +118,7 @@ def test_given_value_selector():
     index_node = GivenValueList([0, 1, 2, 3, 2, 3, 1, 2], node_label="index_node")
     given_node = GivenValueSelector([10, 20, 30, 40], index_node, node_label="given_node")
 
-    # Check that we have sampled uniformly from the given options.
+    # Check that we have saampled from the given options based on index.
     state = given_node.sample_parameters(num_samples=8)
     assert len(state["given_node"]["function_node_result"]) == 8
     assert np.array_equal(
