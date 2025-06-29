@@ -16,7 +16,7 @@ import numpy as np
 from tdastro.astro_utils.mag_flux import mag2flux
 from tdastro.astro_utils.passbands import Passband, PassbandGroup
 from tdastro.consts import lsst_filter_plot_colors
-from tdastro.math_nodes.given_sampler import GivenValueSampler
+from tdastro.math_nodes.given_sampler import GivenValueSampler, GivenValueSelector
 from tdastro.sources.physical_model import PhysicalModel
 from tdastro.utils.io_utils import read_lclib_data
 
@@ -846,6 +846,15 @@ class MultiLightcurveSource(BaseLightcurveSource):
         source_inds = [i for i in range(len(lightcurves))]
         self._sampler_node = GivenValueSampler(source_inds, weights=weights)
         self.add_parameter("selected_lightcurve", value=self._sampler_node, allow_gradient=False)
+
+        # Assemble a list of baseline values for each filter across all lightcurves.
+        # Create a parameter to track the baseline values for the selected lightcurve. The node
+        # will automatically fill in the correct baseline value based on the index given by
+        # the selected_lightcurve parameter.
+        for fltr in self.all_filters:
+            baselines = [lc.baseline.get(fltr, 0.0) for lc in lightcurves]
+            baseline_selector = GivenValueSelector(baselines, self.selected_lightcurve)
+            self.add_parameter(f"baseline_{fltr}", value=baseline_selector, allow_gradient=False)
 
     def __len__(self):
         """Get the number of lightcurves."""

@@ -532,6 +532,19 @@ def test_create_multilightcurve_source() -> None:
     assert np.sum(lc_used == 0) >= 200  # approximately 25% of the samples should be from lc1
     assert np.sum(lc_used == 1) >= 700  # approximately 75% of the samples should be from lc2
 
+    # Check that the baseline values are set correctly for the selected lightcurves.
+    # Lightcurve 0 has values given for u and g. Lightcurve 1 does not have any given
+    # baseline values, so it should default to 0.0 in all bands.
+    lc0_mask = lc_used == 0
+    assert np.all(graph_state["source"]["baseline_u"][lc0_mask] == 0.1)
+    assert np.all(graph_state["source"]["baseline_g"][lc0_mask] == 0.2)
+    assert np.all(graph_state["source"]["baseline_r"][lc0_mask] == 0.0)  # Default
+
+    lc1_mask = lc_used == 1
+    assert np.all(graph_state["source"]["baseline_u"][lc1_mask] == 0.0)
+    assert np.all(graph_state["source"]["baseline_g"][lc1_mask] == 0.0)
+    assert np.all(graph_state["source"]["baseline_r"][lc1_mask] == 0.0)
+
     query_times = np.array([-1.0, 1.0, 2.0, 3.0, 4.0, 20.0, 21.0])
     query_filters = np.full(len(query_times), "g")
     fluxes = source.get_band_fluxes(pb_group, query_times, query_filters, graph_state)
