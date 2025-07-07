@@ -252,6 +252,23 @@ class LightcurveData:
                 "Expected 'PERIODIC', 'RECUR-PERIODIC', 'RECUR-NONPERIODIC', or 'NON-RECUR'."
             )
 
+        # If the lightcurves are periodic, make sure they start and end at the same value.
+        if periodic:
+            all_match = True
+            for lc in lightcurves.values():
+                all_match &= np.isclose(lc[0, 1], lc[-1, 1])
+
+            # Insert a value to wrap. This should be a bit after the last time
+            # and have the same value as the first time.
+            if not all_match:
+                dt = lightcurves_table["time"][-1] - lightcurves_table["time"][0]
+                ave_dt = dt / (len(lightcurves_table) - 1)
+                new_end = lightcurves_table["time"][-1] + ave_dt
+
+                for filter, lc in lightcurves.items():
+                    lc = np.vstack((lc, [new_end, lc[0, 1]]))
+                    lightcurves[filter] = lc
+
         return cls(lightcurves, lc_t0=lc_t0, periodic=periodic, baseline=baseline)
 
     def evaluate(self, times, filter):
@@ -882,7 +899,8 @@ class MultiLightcurveSource(BaseLightcurveSource):
             Default: None
         **kwargs
             Additional keyword arguments to pass to the LightcurveData constructor, including
-            the parameters for the model such as `dec`, `ra`, and `t0`.
+            the parameters for the model such as `dec`, `ra`, and `t0` and metadata
+            such as `node_label`.
 
         Returns
         -------
