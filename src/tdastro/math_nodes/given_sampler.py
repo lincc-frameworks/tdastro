@@ -80,8 +80,9 @@ class GivenValueSampler(NumpyRandomFunc):
 
     Attributes
     ----------
-    values : list or numpy.ndarray
-        The values to select from.
+    values : int, list, or numpy.ndarray
+        The values to select from. If an integer is provided, it is treated as a range
+        from 0 to that value - 1.
     _num_values : int
         The number of values that can be sampled.
     _weights : numpy.ndarray, optional
@@ -89,7 +90,10 @@ class GivenValueSampler(NumpyRandomFunc):
     """
 
     def __init__(self, values, weights=None, seed=None, **kwargs):
+        if isinstance(values, int):
+            values = np.arange(values)
         self.values = np.asarray(values)
+
         self._num_values = len(values)
         if self._num_values == 0:
             raise ValueError("No values provided for NumpySamplerNode")

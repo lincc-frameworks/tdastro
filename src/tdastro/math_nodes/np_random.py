@@ -37,6 +37,8 @@ class NumpyRandomFunc(FunctionNode):
     and use that generator's functions, we cannot pass in the function directly.
     Instead we need to pass in the function's name.
 
+    The NumpyRandomFunc node does not support the `choice` function.
+
     Examples
     --------
     # Create a uniform random number generator between 100.0 and 150.0
@@ -48,6 +50,12 @@ class NumpyRandomFunc(FunctionNode):
 
     def __init__(self, func_name, size=1, seed=None, **kwargs):
         self.func_name = func_name
+
+        # The node does not support the 'choice' function since it cannot take a list of different
+        # lists to use for each sampling run (sample 1 chooses a value from list 1, sample 2 from
+        # list 2, etc.).
+        if func_name == "choice":
+            raise ValueError("The 'choice' function is not supported. Use GivenValueSampler instead.")
 
         # Convert the given size into a tuple of dimensions or None for a single value per sample.
         if size is None or size == 1:
