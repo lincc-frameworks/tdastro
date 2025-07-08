@@ -113,6 +113,19 @@ def test_given_value_sampler():
     assert len(results[results == 7]) > 1000
 
 
+def test_given_value_sampler_int():
+    """Test that we can retrieve numbers from a GivenValueSampler representing a range."""
+    given_node = GivenValueSampler(5)
+
+    # Check that we have sampled uniformly from the given options.
+    state = GraphState(num_samples=5_000)
+    results = given_node.compute(state)
+    assert len(results) == 5_000
+    assert np.all((results >= 0) & (results < 5))
+    for i in range(5):
+        assert len(results[results == i]) > 500
+
+
 def test_given_value_selector():
     """Test that we can retrieve numbers from a GivenValueSelector."""
     index_node = GivenValueList([0, 1, 2, 3, 2, 3, 1, 2], node_label="index_node")
