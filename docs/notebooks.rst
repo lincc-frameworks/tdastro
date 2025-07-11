@@ -29,6 +29,7 @@ features and models of the TDAstro package.
     Adding New Source Types <notebooks/adding_sources>
     Adding New Effect Types <notebooks/adding_effects>
     Lightcurve Source Demo <notebooks/lightcurve_source_demo>
+    Advanced Sampling Techniques <notebooks/advanced_sampling>
     PZFlow Source Demo <notebooks/using_pzflow>
 
 
