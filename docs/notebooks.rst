@@ -43,3 +43,10 @@ The following notebooks provide example simulations using the TDAstro package.
 
     PLAsTiCC SNIa <notebooks/pre_executed/plasticc_snia>
     Resampling LCLIB <notebooks/pre_executed/lclib_example>
+
+
+Running TDAstro in a Jupyter Notebook
+-----------------------------------------------------------------------------------------
+
+For instructions on how to add the TDAstro kernel to your Jupyter Notebook environment, see the
+:doc:`index page <index>`.

@@ -48,6 +48,16 @@ The :doc:`glossary <glossary>` provides definitions of key terms, such as
 Getting Started
 -------------------------------------------------------------------------------
 
+You can install TDAstro via pip. We recommend that you do so in a virtual environment. 
+To create and start a new virtual environment named "tdastro" from the terminal:
+
+.. code-block:: bash
+
+   >> python3 -m venv ~/envs/tdastro
+   >> source ~/envs/tdastro/bin/activate
+
+You can then directly install the software from pip:
+
 .. code-block:: bash
 
    >> pip install tdastro
@@ -59,6 +69,26 @@ to get a high level overview.
 If you are interested in installing from source, or contributing to the package,
 see the :doc:`contribution guide <contributing>`.
 
+Running TDAstro in a Jupyter Notebook
+-------------------------------------------------------------------------------
+
+Note that to run the TDAstro within a notebook, your notebook kernel will need to have TDAstro installed.
+If you are using JupyterLab, you can install the kernel with (using the Terminal program):
+
+.. code-block:: bash
+
+   >> python3 -m pip install ipykernel
+   >> python3 -m ipykernel install --user --name=tdastro
+
+You will need to restart your notebook server to see the new kernel.
+
+
+Acknowledgements
+-------------------------------------------------------------------------------
+
+This project is supported by Schmidt Sciences.
+
+
 .. toctree::
    :hidden:
 
@@ -68,8 +98,3 @@ see the :doc:`contribution guide <contributing>`.
    API Reference <autoapi/index>
    Glossary <glossary>
    Contribution Guide <contributing>
-
-Acknowledgements
--------------------------------------------------------------------------------
-
-This project is supported by Schmidt Sciences.
