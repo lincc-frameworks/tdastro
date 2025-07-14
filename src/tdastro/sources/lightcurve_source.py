@@ -976,7 +976,7 @@ class MultiLightcurveSource(BaseLightcurveSource):
 
         # Check that the filters are all supported by the model.
         for flt in np.unique(filters):
-            if flt not in lc.filters:
+            if flt not in lc.lightcurves:
                 raise ValueError(f"Filter '{flt}' is not supported by LightcurveSource {model_ind}.")
 
         # Shift the times for the model's t0 aligned with the lightcurve's lc_t0.
