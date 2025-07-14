@@ -761,6 +761,11 @@ class LightcurveSource(BaseLightcurveSource):
         """
         params = self.get_local_params(state)
 
+        # Check that the filters are all supported by the model.
+        for flt in np.unique(filters):
+            if flt not in self.lightcurves.lightcurves:
+                raise ValueError(f"Filter '{flt}' is not supported by LightcurveSource.")
+
         # Shift the times for the model's t0 aligned with the lightcurve's lc_t0.
         # The lightcurve times were already shifted in the constructor to be relative to lc_t0.
         shifted_times = times - params["t0"]
@@ -968,6 +973,11 @@ class MultiLightcurveSource(BaseLightcurveSource):
         params = self.get_local_params(state)
         model_ind = params["selected_lightcurve"]
         lc = self.lightcurves[model_ind]
+
+        # Check that the filters are all supported by the model.
+        for flt in np.unique(filters):
+            if flt not in lc.filters:
+                raise ValueError(f"Filter '{flt}' is not supported by LightcurveSource {model_ind}.")
 
         # Shift the times for the model's t0 aligned with the lightcurve's lc_t0.
         # The lightcurve times were already shifted in the constructor to be relative to lc_t0.

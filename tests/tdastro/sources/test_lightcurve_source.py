@@ -232,6 +232,11 @@ def test_create_lightcurve_source() -> None:
     # Timesteps 2.0 and 4.0 are from the r band which is linearly increasing with time.
     assert np.allclose(fluxes, [0.0, 0.0, 2.0, 1.2, 2.0, 1.4, 0.0, 0.0])
 
+    # A call to get_band_fluxes with an unsupported filter should raise an error.
+    query_filters = np.array(["u", "r", "u", "r", "u", "x", "u", "r", "r"])
+    with pytest.raises(ValueError):
+        lc_source.get_band_fluxes(pb_group, query_times, query_filters, graph_state)
+
 
 def test_create_lightcurve_source_unsorted() -> None:
     """Test that we fail if we try to create a LightcurveSource with unsorted lightcurves."""
@@ -452,31 +457,6 @@ def test_create_lightcurve_source_t0() -> None:
     assert np.allclose(fluxes2, [2.0, 1.15, 2.0, 1.3, 2.0, 1.5, 0.0, 0.0])
 
 
-def test_lightcurve_source_nonoverlap() -> None:
-    """Test that we can query the LightcurveSource with wavelengths that
-    do not overlap the lightcurves.
-    """
-    pb_group = _create_toy_passbands()
-    lightcurves = _create_toy_lightcurves()
-    del lightcurves["u"]  # Remove the u band lightcurve.
-
-    lc_source = LightcurveSource(lightcurves, pb_group, t0=0.0)
-    assert len(lc_source.lightcurves) == 2
-    assert len(lc_source.sed_values) == 2
-    assert np.allclose(lc_source.all_waves, pb_group.waves)
-    assert lc_source.filters == ["g", "r"]
-
-    # A call to get_band_fluxes should return the desired lightcurves.  We query
-    # u and g bands. Since u is not present, we should get zeros at those times.
-    graph_state = lc_source.sample_parameters(num_samples=1)
-    query_times = np.array([0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
-    query_filters = np.array(["g", "u", "g", "u", "g", "u", "g"])
-    fluxes = lc_source.get_band_fluxes(pb_group, query_times, query_filters, graph_state)
-    assert len(fluxes) == len(query_times)
-
-    assert np.allclose(fluxes, [0.0, 0.0, 3.0, 0.0, 3.0, 0.0, 3.0])
-
-
 def test_create_lightcurve_source_fail() -> None:
     """Test fail cases for creating the LightCurveSource object."""
     a_band = Passband(np.array([[400, 0.5], [500, 0.5], [600, 0.5]]), "LSST", "u")
@@ -597,6 +577,11 @@ def test_create_multilightcurve_source() -> None:
             assert np.allclose(fluxes[idx], expected_0)
         else:
             assert np.allclose(fluxes[idx], expected_1)
+
+    # A call to get_band_fluxes with an unsupported filter should raise an error.
+    query_filters[2] = "x"  # Change one filter to an unsupported one
+    with pytest.raises(ValueError):
+        source.get_band_fluxes(pb_group, query_times, query_filters, graph_state)
 
 
 def test_create_multilightcurve_source_fail() -> None:
