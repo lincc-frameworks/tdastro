@@ -33,6 +33,18 @@ features and models of the TDAstro package.
     PZFlow Source Demo <notebooks/using_pzflow>
 
 
+Citations
+-----------------------------------------------------------------------------------------
+
+The following note provides an overview of how to use the `citation_compass` package to
+track citations in your TDAstro simulations.
+
+.. toctree::
+    :maxdepth: 1
+
+    Citations <notebooks/citations>
+
+
 Example Simulations
 -----------------------------------------------------------------------------------------
 

@@ -98,3 +98,4 @@ This project is supported by Schmidt Sciences.
    API Reference <autoapi/index>
    Glossary <glossary>
    Contribution Guide <contributing>
+   Citations <citations>
