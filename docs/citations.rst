@@ -9,17 +9,19 @@ Base Libraries
 -------------------------------------------------------------------------------
 
 The following libraries are used by most TDAstro runs:
-- `astropy <https://www.astropy.org/>`_
-- `nested-pandas <https://nested-pandas.readthedocs.io/en/latest/>`_
-- `numpy <https://numpy.org/>`_
-- `pandas <https://pandas.pydata.org/>`_
-- `pooch <https://pooch.readthedocs.io/en/stable/>`_
-- `sncosmo <https://sncosmo.readthedocs.io/en/latest/>`_
+
+* `astropy <https://www.astropy.org/>`_
+* `nested-pandas <https://nested-pandas.readthedocs.io/en/latest/>`_
+* `numpy <https://numpy.org/>`_
+* `pandas <https://pandas.pydata.org/>`_
+* `pooch <https://pooch.readthedocs.io/en/stable/>`_
+* `sncosmo <https://sncosmo.readthedocs.io/en/latest/>`_
 
 Some runs may also use:
-- `jax <https://jax.readthedocs.io/en/latest/>`_
-- `matplotlib <https://matplotlib.org/>`_
-- `scipy <https://www.scipy.org/>`_
+
+* `jax <https://jax.readthedocs.io/en/latest/>`_
+* `matplotlib <https://matplotlib.org/>`_
+* `scipy <https://www.scipy.org/>`_
 
 Models, Effects, and Parameters
 -------------------------------------------------------------------------------
@@ -45,4 +47,4 @@ citations encountered during your simulations. Since Citation-Compass requires e
 will include packages used by TDAstro (such as dustmaps), but not the references on which they depend
 (such as the dustmaps themselves).
 
-For more information on how to use this package, please refer to the citations notebook <notebooks/citations>.
+For more information on how to use this package, please refer to the :doc:`citations notebook <notebooks/citations>`.
