@@ -1,5 +1,6 @@
 """The core functions for running the TDAstro simulation."""
 
+import citation_compass as cc
 import numpy as np
 import pandas as pd
 from nested_pandas import NestedFrame
@@ -16,6 +17,7 @@ def simulate_lightcurves(
     param_cols=None,
     apply_obs_mask=False,
     rng=None,
+    generate_citations=False,
 ):
     """Generate a number of simulations of the given source.
 
@@ -44,6 +46,8 @@ def simulate_lightcurves(
     rng : numpy.random._generator.Generator, optional
         A given numpy random number generator to use for this computation. If not
         provided, the function uses the node's random number generator.
+    generate_citations : bool, optional
+        If True, generate citations for the simulation and output them.
 
     Returns
     -------
@@ -145,4 +149,14 @@ def simulate_lightcurves(
     results = NestedFrame(data=results_dict, index=[i for i in range(num_samples)])
     nested_frame = pd.DataFrame(data=nested_dict, index=nested_index)
     results = results.add_nested(nested_frame, "lightcurve")
+
+    # If requested, generate citations for the simulation.
+    if generate_citations:
+        print(
+            "The following citations were called during this simulation. Note that this list is "
+            "provided for convenience and may be incomplete and we recommend the user confirm "
+            "which models, effects, and parameters were used."
+        )
+        cc.print_used_citations()
+
     return results
