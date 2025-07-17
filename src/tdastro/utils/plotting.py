@@ -30,6 +30,8 @@ def plot_lightcurves(
         Title of the plot. None by default.
     colormap: dict, optional
         A dictionary that provides mapping between filters and the colors to be plotted.
+    **kwargs : dict
+        Optional parameters to pass to the plotting function
     """
     # If no axes were given create them using either the given figure or
     # a newly created one (if no figure is given).
