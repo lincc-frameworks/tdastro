@@ -318,7 +318,7 @@ class PhysicalModel(ParameterizedNode):
                 times=rest_times,
                 wavelengths=rest_wavelengths,
                 rng_info=rng_info,
-                **params,
+                **params,  # Provide all the node's parameters to the effect.
             )
 
         # Post-effects are adjustments done to the flux density after computation.
@@ -333,7 +333,7 @@ class PhysicalModel(ParameterizedNode):
                 times=times,
                 wavelengths=wavelengths,
                 rng_info=rng_info,
-                **params,
+                **params,  # Provide all the node's parameters to the effect.
             )
         return flux_density
 
@@ -376,7 +376,8 @@ class PhysicalModel(ParameterizedNode):
 
         results = np.empty((graph_state.num_samples, len(times), len(wavelengths)))
         for sample_num, state in enumerate(graph_state):
-            # Compute the flux (applying all effects) and save the result.
+            # Compute the flux (handling redshift and applying all effects)
+            # then save the result to the array of all results.
             results[sample_num, :, :] = self._evaluate_single(
                 times,
                 wavelengths,
@@ -461,6 +462,8 @@ class PhysicalModel(ParameterizedNode):
                     "or a list where every entry matches the given filter's name: "
                     f"{passband_or_group.filter_name}."
                 )
+
+            # Compute the spectral fluxes at the same wavelengths used to define the passband.
             spectral_fluxes = self.evaluate(times, passband_or_group.waves, state, rng_info=rng_info)
             return passband_or_group.fluxes_to_bandflux(spectral_fluxes)
 
@@ -470,8 +473,11 @@ class PhysicalModel(ParameterizedNode):
 
         band_fluxes = np.empty((state.num_samples, len(times)))
         for filter_name in np.unique(filters):
+            # Compute the band fluxes for the times at which this filter is used.
             passband = passband_or_group[filter_name]
             filter_mask = filters == filter_name
+
+            # Compute the spectral fluxes at the same wavelengths used to define the passband.
             spectral_fluxes = self.evaluate(times[filter_mask], passband.waves, state, rng_info=rng_info)
             band_fluxes[:, filter_mask] = passband.fluxes_to_bandflux(spectral_fluxes)
 

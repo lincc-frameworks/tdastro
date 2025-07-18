@@ -1,3 +1,8 @@
+"""The Passband and PassbandGroup objects store information about the filters used
+to convert flux densities (as a function of wavelength) to bandfluxes. They also provide
+methods for loading and manipulating passband data.
+"""
+
 import logging
 from pathlib import Path
 from typing import Literal, Union
