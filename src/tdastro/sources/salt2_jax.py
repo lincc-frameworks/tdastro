@@ -38,7 +38,7 @@ class SALT2JaxModel(PhysicalModel, CiteClass):
       * redshift - The object's redshift. [from PhysicalModel]
       * t0 - The t0 of the zero phase, date. [from PhysicalModel]
       * x0 - The SALT2 x0 parameter.
-      * x1 - The SALT2 x0 parameter.
+      * x1 - The SALT2 x1 parameter.
 
     References
     ----------
@@ -86,7 +86,6 @@ class SALT2JaxModel(PhysicalModel, CiteClass):
         x0=None,
         x1=None,
         c=None,
-        t0=0.0,
         model_dir="",
         m0_filename="salt2_template_0.dat",
         m1_filename="salt2_template_1.dat",
