@@ -189,7 +189,7 @@ class ZTFOpsim(OpSim):
             The name of the opsim db file.
         sql_query : str
             The SQL query to use when loading the table.
-            Default = "SELECT * FROM observations"
+            Default: "SELECT * FROM observations"
         colmap : dict, optional
             A mapping of short column names to their names in the underlying table.
             If None then defaults to the ZTF column names.

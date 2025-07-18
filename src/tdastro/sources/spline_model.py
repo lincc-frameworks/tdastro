@@ -50,7 +50,7 @@ class SplineModel(PhysicalModel):
         A shape (T, W) matrix with flux values for each pair of time and wavelength.
         Fluxes provided in erg / s / cm^2 / Angstrom.
     amplitude : parameter
-        A unitless scaling parameter for the flux density values. Default = 1.0
+        A unitless scaling parameter for the flux density values. Default: 1.0
     time_degree : int
         The polynomial degree to use in the time dimension.
     wave_degree : int
@@ -111,9 +111,9 @@ class SplineModel(PhysicalModel):
             The input data file.
         format : str, optional
             The format of the input data such as 'ascii', 'ascii.ecsv', or 'fits'.
-            Default = 'ascii'
+            Default: 'ascii'
         amplitude : parameter
-            A unitless scaling parameter for the flux density values. Default = 1.0
+            A unitless scaling parameter for the flux density values. Default: 1.0
         time_degree : int
             The polynomial degree to use in the time dimension.
         wave_degree : int

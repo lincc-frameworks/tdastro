@@ -33,7 +33,7 @@ def simulate_lightcurves(
     passbands : PassbandGroup
         The passbands to use for generating the bandfluxes.
     apply_obs_mask: boolean
-        If True, apply obs_mask to filter interesting indices/times
+        If True, apply obs_mask to filter interesting indices/times.
     opsim_save_cols : list of str, optional
         A list of opsim columns to be saved as part of the results. This is used
         to save context information about how the lightcurves were generated.

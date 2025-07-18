@@ -38,6 +38,7 @@ function that generates the noise-free flux densities given information about th
 and model parameters (called graph_state). 
 
 .. code-block:: python
+
     def compute_flux(self, times, wavelengths, graph_state, **kwargs):
 
 A user using a particular physical model only needs to understand what parameters the model has
@@ -61,7 +62,7 @@ In this example, the parameter ``c`` is drawn from a predefined distribution, wh
 is drawn from a distribution that is itself parameterized by the ``host_mass`` parameter. TDAstro handles
 the sequential processing of the graph so that all parameters are consistently sampled for each object.
 
-See the :doc:`Introduction Demo notebook<notebooks/introduction_demo.ipynb>` for details on how to
+See the :doc:`Introduction notebook<notebooks/introduction>` for details on how to
 define the parameter DAG.
 
 

@@ -20,10 +20,10 @@ def read_grid_data(input_file, format="ascii", validate=False):
     format : str
         The file format. Should be one of the formats supported by
         astropy Tables such as 'ascii', 'ascii.ecsv', or 'fits'.
-        Default = 'ascii'
+        Default: 'ascii'
     validate : bool
         Perform additional validation on the input data.
-        Default = False
+        Default: False
 
     Returns
     -------

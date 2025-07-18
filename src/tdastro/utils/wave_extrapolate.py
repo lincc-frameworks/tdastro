@@ -161,7 +161,7 @@ class LinearDecay(WaveExtrapolationModel):
 class ExponentialDecay(WaveExtrapolationModel):
     """Exponential decay of the flux using the last valid point(s) down to zero.
 
-    f(t, λ) = f(t, λ_last) * exp(- rate * |λ - λ_last|)
+    f(t, λ) = f(t, λ_last) * exp(- rate * \\|λ - λ_last\\|)
 
     Attributes
     ----------

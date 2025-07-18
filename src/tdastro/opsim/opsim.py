@@ -230,7 +230,7 @@ class OpSim:
             The name of the opsim db file.
         sql_query : str
             The SQL query to use when loading the table.
-            Default = "SELECT * FROM observations"
+            Default: "SELECT * FROM observations"
         colmap : dict, optional
             A mapping of short column names to their names in the underlying table.
             If None, uses the default column names for the Rubin OpSim.
@@ -323,10 +323,10 @@ class OpSim:
             The name of the opsim db file.
         tablename : str
             The table to which to write.
-            Default = "observations"
+            Default: "observations"
         overwrite : bool
             Overwrite the existing DB file.
-            Default = False
+            Default: False
 
         Raise
         -----
