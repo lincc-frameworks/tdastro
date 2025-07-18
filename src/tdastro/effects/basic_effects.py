@@ -47,7 +47,7 @@ class ConstantDimming(EffectModel):
             A given numpy random number generator to use for this computation. If not
             provided, the function uses the node's random number generator.
         **kwargs : `dict`, optional
-           Any additional keyword arguments. This includes all of the
+           Any additional keyword arguments, including any additional
            parameters needed to apply the effect.
 
         Returns
