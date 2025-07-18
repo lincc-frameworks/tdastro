@@ -145,12 +145,12 @@ class SALT2JaxModel(PhysicalModel, CiteClass):
         good_times = (times > t0 + -20.0 * (1.0 + z)) & (times < t0 + 50.0 * (1.0 + z))
         return good_times
 
-    def compute_flux(self, phase, wavelengths, graph_state, **kwargs):
+    def compute_flux(self, times, wavelengths, graph_state, **kwargs):
         """Draw effect-free observations for this object.
 
         Parameters
         ----------
-        phase : numpy.ndarray
+        times : numpy.ndarray
             A length T array of rest frame timestamps.
         wavelengths : numpy.ndarray, optional
             A length N array of wavelengths (in angstroms).
@@ -165,9 +165,12 @@ class SALT2JaxModel(PhysicalModel, CiteClass):
         flux_density : numpy.ndarray
             A length T x N matrix of SED values (in nJy).
         """
+
+        params = self.get_local_params(graph_state)
+        phase = times - params["t0"]
+
         m0_vals = self._m0_model(phase, wavelengths)
         m1_vals = self._m1_model(phase, wavelengths)
-        params = self.get_local_params(graph_state)
 
         flux_density = (
             params["x0"]
