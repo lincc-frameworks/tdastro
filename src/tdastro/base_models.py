@@ -12,10 +12,14 @@ All model parameters (random variables in the probabilistic graph) must be added
 using the ParameterizedNode.add_parameter() function. This allows the graph to track
 which parameters to update and how to set them. Parameter's values can be set from a few
 sources:
+
 1) A constant (Example: A given standard deviation for a noise model)
+
 2) A static function or method (which does not have variables that are resampled).
+
 3) The result of evaluating a FunctionNode, which provides a computation using other
-   parameters in the graph.
+parameters in the graph.
+
 4) The parameters of another ParameterizedNode.
 
 We say that parameter X is dependent on parameter Y if the value of Y is necessary

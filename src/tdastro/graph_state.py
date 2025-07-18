@@ -79,11 +79,10 @@ class GraphState:
         """Check if the GraphState contains an entry.
 
         The key can be:
-        1) the name of a node (in which case we return True if the node exists),
-        2) the full name of a parameter (in which case we return True if the
-           combination of node and parameter exist), or
+        1) the name of a node (in which case we returns True if the node exists),
+        2) the full name of a parameter (returns True if the combination of node and parameter exist), or
         3) the name of a parameter in a GraphState with a single node (in which case we return True
-           if the parameter exists in that node).
+        if the parameter exists in that node).
 
         Parameters
         ----------
@@ -144,11 +143,10 @@ class GraphState:
         """Access an entry in the GraphState.
 
         The key can be:
-        1) the name of a node (in which case we return that node's dictionary of
-           parameter_name -> value),
+        1) the name of a node (in which case we return that node's dictionary of parameter_name -> value),
         2) the full name of a parameter (in which case we return the values), or
         3) the name of a parameter in a GraphState with a single node (in which case we
-           return that parameter's values.
+        return that parameter's values.
 
         Parameters
         ----------

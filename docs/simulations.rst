@@ -38,6 +38,7 @@ function that generates the noise-free flux densities given information about th
 and model parameters (called graph_state). 
 
 .. code-block:: python
+
     def compute_flux(self, times, wavelengths, graph_state, **kwargs):
 
 A user using a particular physical model only needs to understand what parameters the model has

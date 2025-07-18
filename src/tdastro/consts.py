@@ -20,11 +20,16 @@ Notes
 This is derived from two facts for a symmetric 2D Gaussian:
 1. FWHM² = 8 * ln(2) * sigma², where sigma is the standard deviation.
 2. The convolution of a Gaussian with itself at position of (x,y)=μ̄ is
-   1 / sigma² / (4 π).
-   E.g.
-   ∫ g²(x,y) dx dy = 1 / sigma² / (4π),
-   where
-   g(x,y) = 1 / (2π sigma²) exp(-(x²+y²)/2/sigma²).
+
+1 / sigma² / (4 π).
+
+E.g.
+
+∫ g²(x,y) dx dy = 1 / sigma² / (4π),
+
+where
+
+g(x,y) = 1 / (2π sigma²) exp(-(x²+y²)/2/sigma²).
 """
 
 ANGSTROM_TO_CM = (1.0 * u.AA).to_value(u.cm)

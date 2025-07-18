@@ -646,10 +646,9 @@ def oversample_opsim(
         The default is to include all bands found for the given pointing.
     strategy : str, optional
         The strategy to select prototype observations.
-        - "darkest_sky" selects the observations with the minimal sky brightness
-          (maximum "skyBrightness" value) in each band. This is the default.
-        - "random" selects the observations randomly. Fixed seed is used.
-
+        "darkest_sky" selects the observations with the minimal sky brightness
+        (maximum "skyBrightness" value) in each band. This is the default.
+        "random" selects the observations randomly. Fixed seed is used.
     """
     ra, dec = pointing
     observations = opsim.table.iloc[opsim.range_search(ra, dec, search_radius)]
