@@ -34,16 +34,17 @@ Defining a parameterized model
 The core idea behind TDAstro is that we want to generate light curves from parameterized models
 of physical objects. The ``PhysicalModel`` class defines the structure for modeling physical objects.
 New object types are derived from the ``PhysicalModel`` base class and implement a ``compute_flux()``
-function that generates the noise-free flux densities given information about the times, wavelengths,
-and model parameters (called graph_state). 
+function that generates the noise-free flux densities in the object's rest frame given information about
+the times, wavelengths, and model parameters (called graph_state). Both the times and wavelengths are
+converted to account for redshift before being passed to the ``compute_flux()`` function.
 
 .. code-block:: python
 
     def compute_flux(self, times, wavelengths, graph_state, **kwargs):
 
-A user using a particular physical model only needs to understand what parameters the model has
-and how they are set. A user creating a new physical model additionally needs to know how the noise-free
-flux density values are generated from those parameters.
+A user of a particular physical model only needs to understand what parameters the model has
+and how they are set. A user creating a new physical model additionally needs to know how the noise-free,
+rest frame flux density values are generated from those parameters.
 
 The parameters that are defined by a hierarchical model can be visualized by a Directed Acyclic Graph (DAG).
 This means that the parameters to our physical model, such as a type Ia supernova, can themselves be sampled
@@ -79,6 +80,8 @@ The ``eval()`` function handles the mechanics of the simulation, such as applyin
 times and wavelengths before calling the ``compute_flux()``.
 
 Additional effects can be applied to the noise-free light curves to produce more realistic light curves.
+The effects are applied in two batches. Rest frame effects are applied to the flux densities in the frame.
+The flux densities are then converted to the observer frame where the observer frame effects are applied.
 
 Finally, the raw flux densities are are converted into the magnitudes observed in each band using the
 ``PassbandGroup``.

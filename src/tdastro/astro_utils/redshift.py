@@ -1,3 +1,5 @@
+"""Utility functions for handling redshift and cosmological calculations."""
+
 import astropy.cosmology.units as cu
 from astropy import units as u
 

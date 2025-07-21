@@ -112,7 +112,7 @@ class ExtinctionEffect(EffectModel, CiteClass):
         ebv : float, optional
             The extinction parameter E(B-V). Raises an error if None is provided.
         **kwargs : `dict`, optional
-           Any additional keyword arguments. This includes all of the
+           Any additional keyword arguments, including any additional
            parameters needed to apply the effect.
 
         Returns

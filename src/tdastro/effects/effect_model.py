@@ -5,8 +5,15 @@ class EffectModel:
     """A physical or systematic effect to apply to an observation.
 
     Effects are not ParameterizedNodes but can have arguments that are
-    ParameterizedNodes. All settable parameters of the EffectModel
-    must be passed as keyword arguments to the apply() method.
+    ParameterizedNodes. These arguments are stored as parameters in the
+    source node (PhysicalModel) when add_effect() is called. This allows
+    the effect to easily use existing parameters from the source node as
+    well as new parameters specific to the effect. The source node samples
+    these parameters and passes them in the call to apply().
+
+    The EffectModel class is designed to be subclassed, and the
+    subclasses should implement the apply() method to define the
+    specific effect being applied.
 
     Attributes
     ----------
@@ -21,6 +28,7 @@ class EffectModel:
     def __init__(self, rest_frame=True, **kwargs):
         self.rest_frame = rest_frame
 
+        # Automatically include all keyword arguments as settable parameters.
         self.parameters = {}
         for key, value in kwargs.items():
             self.add_effect_parameter(key, value)
@@ -57,7 +65,7 @@ class EffectModel:
             A given numpy random number generator to use for this computation. If not
             provided, the function uses the node's random number generator.
         **kwargs : `dict`, optional
-           Any additional keyword arguments. This includes all of the
+           Any additional keyword arguments, including any additional
            parameters needed to apply the effect.
 
         Returns
