@@ -39,10 +39,10 @@ to produce realistic light curves using the above components.  See the
 :doc:`simulations <simulations>` page for a more detailed description of the process.
 
 For an overview of the package, we recommend starting with the notebooks in the "Getting Started"
-section of the :doc:`notebooks page <notebooks>`.
-
-The :doc:`glossary <glossary>` provides definitions of key terms, such as
+section of the :doc:`notebooks page <notebooks>`. The :doc:`glossary <glossary>` provides definitions of key terms, such as
 *GraphState*, *Node*, *Parameter*, *ParameterizedNode*, *PhysicalModel*, and *Source*.
+
+The `full source code <https://github.com/lincc-frameworks/tdastro>`_ is available on GitHub.
 
 
 Getting Started
@@ -66,8 +66,8 @@ See our selection of :doc:`tutorial notebooks <notebooks>` for usage examples.
 We recommend starting with the :doc:`introduction notebook <notebooks/introduction>`
 to get a high level overview.
 
-If you are interested in installing from source, or contributing to the package,
-see the :doc:`contribution guide <contributing>`.
+If you are interested in installing from `source <https://github.com/lincc-frameworks/tdastro>`_,
+or contributing to the package, see the :doc:`contribution guide <contributing>`.
 
 Running TDAstro in a Jupyter Notebook
 -------------------------------------------------------------------------------

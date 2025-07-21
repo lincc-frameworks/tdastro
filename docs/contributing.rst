@@ -1,6 +1,13 @@
 Contributing to TDAstro
 ===============================================================================
 
+The code
+--------------------------------------------------------------------------------
+
+The TDAstro code is hosted on GitHub at
+`https://github.com/lincc-frameworks/tdastro <https://github.com/lincc-frameworks/tdastro>`_.
+
+
 Find (or make) a new GitHub issue
 -------------------------------------------------------------------------------
 
