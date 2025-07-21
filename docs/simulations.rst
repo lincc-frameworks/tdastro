@@ -63,7 +63,7 @@ In this example, the parameter ``c`` is drawn from a predefined distribution, wh
 is drawn from a distribution that is itself parameterized by the ``host_mass`` parameter. TDAstro handles
 the sequential processing of the graph so that all parameters are consistently sampled for each object.
 
-See the :doc:`Introduction Demo notebook<notebooks/introduction_demo.ipynb>` for details on how to
+See the :doc:`Introduction notebook<notebooks/introduction>` for details on how to
 define the parameter DAG.
 
 
