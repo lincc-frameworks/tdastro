@@ -13,6 +13,7 @@ from scipy import integrate
 
 from tdastro.base_models import FunctionNode
 from tdastro.consts import M_SUN_G
+from tdastro.math_nodes.np_random import NumpyRandomFunc
 from tdastro.sources.physical_model import PhysicalModel
 
 
@@ -75,6 +76,8 @@ class AGN(PhysicalModel):
       * edd_ratio - The Eddington ratio.
       * dec - The object's declination in degrees. [from PhysicalModel]
       * distance - The object's luminosity distance in pc. [from PhysicalModel]
+      * inclination - The inclination of the accretion disk in radians (sampled uniformly
+        between 0 and pi/2).
       * L_bol - The bolometric luminosity in erg/s.
       * mag_i - The i band absolute magnitude.
       * ra - The object's right ascension in degrees. [from PhysicalModel]
@@ -102,6 +105,7 @@ class AGN(PhysicalModel):
         # Add the parameters for the AGN. t0 already set in PhysicalModel.
         self.add_parameter("blackhole_mass", blackhole_mass, **kwargs)
         self.add_parameter("edd_ratio", edd_ratio, **kwargs)
+        self.add_parameter("inclination", NumpyRandomFunc("uniform", low=0, high=np.pi / 2.0), **kwargs)
 
         # Add the derived parameters using FunctionNodes built from the object's static methods.
         # Each of these will be computed for each sample value of the input parameters.
@@ -436,7 +440,7 @@ class AGN(PhysicalModel):
             params["blackhole_accretion_rate"],
             constants.c.cgs.value / wavelengths,  # nu
             1,  # rin
-            0,  # i
+            params["inclination"],  # i
             1.0,  # d
             params["blackhole_mass"],
         )
