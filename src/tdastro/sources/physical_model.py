@@ -1,10 +1,20 @@
-"""The base PhysicalModel used for all sources."""
+"""The base PhysicalModel used for all sources. The PhysicalModel defines a
+recipe for computing SEDs from a source at given times and wavelengths, accounting for
+redshift and other effects.
 
+A BandfluxModel is a PhysicalModel that only computes band fluxes instead of the
+SEDs. This is used for models that are emperically fit from observed band fluxes.
+We strongly recommend using the full SED models (PhysicalModel) whenever possible
+since they more accurately simulate aspects such as the impact of redshift on rest
+frame effects.
+"""
+
+from abc import ABC
 from os import urandom
 
 import numpy as np
 
-from tdastro.astro_utils.passbands import Passband
+from tdastro.astro_utils.passbands import Passband, PassbandGroup
 from tdastro.astro_utils.redshift import RedshiftDistFunc, obs_to_rest_times_waves, rest_to_obs_flux
 from tdastro.base_models import ParameterizedNode
 from tdastro.graph_state import GraphState
@@ -484,3 +494,144 @@ class PhysicalModel(ParameterizedNode):
         if state.num_samples == 1:
             return band_fluxes[0, :]
         return band_fluxes
+
+
+class BandfluxModel(PhysicalModel, ABC):
+    """A model of a source of flux that is only defined by band pass values
+    in the observer frame (instead of a full SED).
+
+    Instead of calling `compute_flux()` the model calls `compute_bandflux()` during
+    its computation.
+
+    Note
+    ----
+    We strongly recommend using the full SED models (PhysicalModel) whenever possible
+    since they more accurately simulate aspects such as the impact of redshift on rest
+    frame effects.
+
+    Attributes
+    ----------
+    band_pass_effects : list of EffectModel
+        A list of effects to apply in to the band pass fluxes.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.band_pass_effects = []
+
+        # Override some of the defaults of PhysicalModel. Never apply redshift and
+        # do not allow background models.
+        self.apply_redshift = False
+        if "background" in kwargs:
+            raise ValueError("Lightcurve models do not support background models.")
+        self.background = None
+
+    def set_apply_redshift(self, apply_redshift):
+        """Toggles the apply_redshift setting.
+
+        Parameters
+        ----------
+        apply_redshift : bool
+            The new value for apply_redshift.
+        """
+        raise NotImplementedError("Lightcurve models do not support apply_redshift.")
+
+    def add_effect(self, effect):
+        """Add an effect to the model.
+
+        Parameters
+        ----------
+        effect : EffectModel
+            The effect to add.
+        """
+        # Add any effect parameters that are not already in the model.
+        for param_name, setter in effect.parameters.items():
+            if param_name not in self.setters:
+                self.add_parameter(param_name, setter, allow_gradient=False)
+
+        # Add the effect to the band pass effects list.
+        self.band_pass_effects.append(effect)
+
+    def compute_bandflux(self, times, filters, state, rng_info=None):
+        """Evaluate the model at the passband level for a single, given graph state.
+
+        Parameters
+        ----------
+        times : numpy.ndarray
+            A length T array of observer frame timestamps in MJD.
+        filters : numpy.ndarray
+            A length T array of filter names.
+        state : GraphState
+            An object mapping graph parameters to their values with num_samples=1.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
+        """
+        raise NotImplementedError
+
+    def get_band_fluxes(self, passband_or_group, times, filters, state, rng_info=None):
+        """Get the band fluxes for a given Passband or PassbandGroup.
+
+        Note
+        ----
+        This function does not compute SEDs and integrate them through the passbands, but
+        rather uses band fluxes directly.
+
+        Parameters
+        ----------
+        passband_or_group : Passband or PassbandGroup
+            The passband (or passband group) to use.
+        times : numpy.ndarray
+            A length T array of observer frame timestamps in MJD.
+        filters : numpy.ndarray or None
+            A length T array of filter names. It may be None if
+            passband_or_group is a Passband.
+        state : GraphState
+            An object mapping graph parameters to their values.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
+
+        Returns
+        -------
+        band_fluxes : numpy.ndarray
+            A matrix of the band fluxes. If only one sample is provided in the GraphState,
+            then returns a length T array. Otherwise returns a size S x T array where S is the
+            number of samples in the graph state.
+        """
+        if isinstance(passband_or_group, Passband):
+            if filters is not None and not np.all(filters == passband_or_group.filter_name):
+                raise ValueError(
+                    "If passband_or_group is a Passband, filters must either be None "
+                    "or a list where every entry matches the given filter's name: "
+                    f"{passband_or_group.filter_name}."
+                )
+            passband_or_group = PassbandGroup(given_passbands=[passband_or_group])
+
+        if filters is None:
+            raise ValueError("If passband_or_group is a PassbandGroup, filters must be provided.")
+        filters = np.asarray(filters)
+
+        # Check if we need to sample the graph.
+        if state is None:
+            state = self.sample_parameters(num_samples=1, rng_info=rng_info)
+
+        results = np.empty((state.num_samples, len(times)))
+        for sample_num, current_state in enumerate(state):
+            params = self.get_local_params(current_state)
+
+            # Compute the flux (applying all effects) and save the result.
+            band_flux = self.compute_bandflux(times, filters, current_state, rng_info=rng_info)
+            for effect in self.band_pass_effects:
+                band_flux = effect.apply(
+                    band_flux,
+                    times=times,
+                    filters=filters,
+                    rng_info=rng_info,
+                    **params,  # Provide all the node's parameters to the effect.
+                )
+            results[sample_num, :] = band_flux
+
+        if state.num_samples == 1:
+            return results[0, :]
+        return results

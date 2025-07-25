@@ -274,16 +274,14 @@ def test_create_lightcurve_source_baseline() -> None:
     with pytest.raises(ValueError):
         LightcurveSource(lightcurves, pb_group, t0=0.0, baseline={"u": 0.5, "g": 1.2})
 
-
-def test_lightcurve_source_no_effects() -> None:
-    """Test that we cannot add effects to a LightcurveSource."""
-    pb_group = _create_toy_passbands()
-    lightcurves = _create_toy_lightcurves()
-    lc_source = LightcurveSource(lightcurves, pb_group, t0=0.0)
-
+    # Test that we can add a constant dimming effect and it is applied in to the bandpass values.
     effect = ConstantDimming(flux_fraction=0.1)
-    with pytest.raises(NotImplementedError):
-        lc_source.add_effect(effect)
+    lc_source.add_effect(effect)
+    graph_state = lc_source.sample_parameters(num_samples=1)
+
+    fluxes = lc_source.get_band_fluxes(pb_group, query_times, query_filters, graph_state)
+    assert len(fluxes) == len(query_times)
+    assert np.allclose(fluxes, [0.05, 0.05, 0.005, 0.20, 0.12, 0.20, 0.14, 0.05, 0.005, 0.005])
 
 
 def test_create_lightcurve_source_periodic() -> None:
