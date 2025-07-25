@@ -17,7 +17,7 @@ from tdastro.astro_utils.mag_flux import mag2flux
 from tdastro.astro_utils.passbands import Passband, PassbandGroup
 from tdastro.consts import lsst_filter_plot_colors
 from tdastro.math_nodes.given_sampler import GivenValueSampler, GivenValueSelector
-from tdastro.sources.physical_model import PassbandModel
+from tdastro.sources.physical_model import BandfluxModel
 from tdastro.utils.io_utils import read_lclib_data
 
 logger = logging.getLogger(__name__)
@@ -352,7 +352,7 @@ class LightcurveData:
         ax.legend()
 
 
-class BaseLightcurveSource(PassbandModel, ABC):
+class BaseLightcurveSource(BandfluxModel, ABC):
     """A base class for lightcurve source models. This class is not meant to be used directly,
     but rather as a base for other lightcurve source models that may have additional functionality.
     It provides the basic structure (primarily SED basis functions) and validation for

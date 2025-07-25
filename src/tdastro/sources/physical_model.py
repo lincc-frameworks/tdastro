@@ -2,7 +2,7 @@
 recipe for computing SEDs from a source at given times and wavelengths, accounting for
 redshift and other effects.
 
-A PassbandModel is a PhysicalModel that only computes band fluxes instead of the
+A BandfluxModel is a PhysicalModel that only computes band fluxes instead of the
 SEDs. This is used for models that are emperically fit from observed band fluxes.
 We strongly recommend using the full SED models (PhysicalModel) whenever possible
 since they more accurately simulate aspects such as the impact of redshift on rest
@@ -496,7 +496,7 @@ class PhysicalModel(ParameterizedNode):
         return band_fluxes
 
 
-class PassbandModel(PhysicalModel, ABC):
+class BandfluxModel(PhysicalModel, ABC):
     """A model of a source of flux that is only defined by band pass values
     in the observer frame (instead of a full SED).
 
