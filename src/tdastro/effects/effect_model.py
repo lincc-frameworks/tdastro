@@ -74,3 +74,29 @@ class EffectModel:
             A length T x N matrix of flux densities after the effect is applied (in nJy).
         """
         raise NotImplementedError()
+
+    def apply_bandflux(self, bandfluxes, *, times=None, filters=None, rng_info=None, **kwargs):
+        """Apply the effect to band fluxes.
+
+        Parameters
+        ----------
+        bandfluxes : numpy.ndarray
+            A length T array of band fluxes (in nJy).
+        times : numpy.ndarray, optional
+            A length T array of times (in MJD).
+        filters : numpy.ndarray, optional
+            A length N array of filters. If not provided, the effect is applied to all
+            band fluxes.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
+        **kwargs : `dict`, optional
+           Any additional keyword arguments, including any additional
+           parameters needed to apply the effect.
+
+        Returns
+        -------
+        bandfluxes : numpy.ndarray
+            A length T array of band fluxes after the effect is applied (in nJy).
+        """
+        raise NotImplementedError()

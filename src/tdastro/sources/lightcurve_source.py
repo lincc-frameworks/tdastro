@@ -17,7 +17,7 @@ from tdastro.astro_utils.mag_flux import mag2flux
 from tdastro.astro_utils.passbands import Passband, PassbandGroup
 from tdastro.consts import lsst_filter_plot_colors
 from tdastro.math_nodes.given_sampler import GivenValueSampler, GivenValueSelector
-from tdastro.sources.physical_model import PhysicalModel
+from tdastro.sources.physical_model import PassbandModel
 from tdastro.utils.io_utils import read_lclib_data
 
 logger = logging.getLogger(__name__)
@@ -352,7 +352,7 @@ class LightcurveData:
         ax.legend()
 
 
-class BaseLightcurveSource(PhysicalModel, ABC):
+class BaseLightcurveSource(PassbandModel, ABC):
     """A base class for lightcurve source models. This class is not meant to be used directly,
     but rather as a base for other lightcurve source models that may have additional functionality.
     It provides the basic structure (primarily SED basis functions) and validation for
@@ -405,7 +405,7 @@ class BaseLightcurveSource(PhysicalModel, ABC):
         self.sed_values = self._create_sed_basis(self.filters, passbands)
 
         # Override some of the defaults of PhysicalModel. Never apply redshift and
-        # do not allow brackground models.
+        # do not allow background models.
         self.apply_redshift = False
         if "background" in kwargs:
             raise ValueError("Lightcurve models do not support background models.")
@@ -470,28 +470,6 @@ class BaseLightcurveSource(PhysicalModel, ABC):
 
         return sed_basis_values
 
-    def set_apply_redshift(self, apply_redshift):
-        """Toggles the apply_redshift setting.
-
-        Parameters
-        ----------
-        apply_redshift : bool
-            The new value for apply_redshift.
-        """
-        raise NotImplementedError("Lightcurve models do not support apply_redshift.")
-
-    def add_effect(self, effect):
-        """Add an effect to the model.
-
-        Parameters
-        ----------
-        effect : EffectModel
-            The effect to add.
-        """
-        raise NotImplementedError(
-            "Lightcurve-based models are defined in the observer frame and do not support effects."
-        )
-
     def compute_flux_given_lc(self, lc, times, wavelengths, graph_state):
         """Compute the flux density for a given lightcurve at specified times and wavelengths.
 
@@ -539,74 +517,6 @@ class BaseLightcurveSource(PhysicalModel, ABC):
 
         # Return the total flux density from all lightcurves.
         return flux_density
-
-    def compute_bandflux(self, times, filters, state, rng_info=None):
-        """Evaluate the model at the passband level for a single, given graph state.
-
-        Parameters
-        ----------
-        times : numpy.ndarray
-            A length T array of observer frame timestamps in MJD.
-        filters : numpy.ndarray
-            A length T array of filter names.
-        state : GraphState
-            An object mapping graph parameters to their values with num_samples=1.
-        rng_info : numpy.random._generator.Generator, optional
-            A given numpy random number generator to use for this computation. If not
-            provided, the function uses the node's random number generator.
-        """
-        raise NotImplementedError
-
-    def get_band_fluxes(self, passband_or_group, times, filters, state, rng_info=None) -> np.ndarray:
-        """Get the band fluxes for a given Passband or PassbandGroup.
-
-        Parameters
-        ----------
-        passband_or_group : Passband or PassbandGroup
-            The passband (or passband group) to use.
-        times : numpy.ndarray
-            A length T array of observer frame timestamps in MJD.
-        filters : numpy.ndarray or None
-            A length T array of filter names. It may be None if
-            passband_or_group is a Passband.
-        state : GraphState
-            An object mapping graph parameters to their values.
-        rng_info : numpy.random._generator.Generator, optional
-            A given numpy random number generator to use for this computation. If not
-            provided, the function uses the node's random number generator.
-
-        Returns
-        -------
-        band_fluxes : numpy.ndarray
-            A matrix of the band fluxes. If only one sample is provided in the GraphState,
-            then returns a length T array. Otherwise returns a size S x T array where S is the
-            number of samples in the graph state.
-        """
-        if isinstance(passband_or_group, Passband):
-            if filters is not None and not np.all(filters == passband_or_group.filter_name):
-                raise ValueError(
-                    "If passband_or_group is a Passband, filters must either be None "
-                    "or a list where every entry matches the given filter's name: "
-                    f"{passband_or_group.filter_name}."
-                )
-            passband_or_group = PassbandGroup(given_passbands=[passband_or_group])
-
-        if filters is None:
-            raise ValueError("If passband_or_group is a PassbandGroup, filters must be provided.")
-        filters = np.asarray(filters)
-
-        # Check if we need to sample the graph.
-        if state is None:
-            state = self.sample_parameters(num_samples=1, rng_info=rng_info)
-
-        results = np.empty((state.num_samples, len(times)))
-        for sample_num, current_state in enumerate(state):
-            # Compute the flux (applying all effects) and save the result.
-            results[sample_num, :] = self.compute_bandflux(times, filters, current_state)
-
-        if state.num_samples == 1:
-            return results[0, :]
-        return results
 
     def plot_sed_basis(self, ax=None, figure=None):
         """Plot the basis functions for the SED.  This is a debugging
