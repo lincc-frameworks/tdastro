@@ -62,6 +62,9 @@ def simulate_lightcurves(
     # Determine which of the of the simulated positions match opsim locations.
     ra = source.get_param(sample_states, "ra")
     dec = source.get_param(sample_states, "dec")
+    if num_samples == 1:
+        ra = np.array([ra])
+        dec = np.array([dec])
     all_obs_matches = opsim.range_search(ra, dec)
 
     # Get all times and all filters as numpy arrays so we can do easy subsets.
