@@ -155,6 +155,10 @@ class PassbandGroup:
             return True
         return False
 
+    def __iter__(self):
+        for pb in self.passbands.values():
+            yield pb
+
     @property
     def filters(self) -> list:
         """Return a list of filter names in the passband group."""
