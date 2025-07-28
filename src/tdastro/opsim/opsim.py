@@ -395,7 +395,7 @@ class OpSim:
         )
         return new_opsim
 
-    def is_observed(self, query_ra, query_dec, radius=None):
+    def is_observed(self, query_ra, query_dec, radius=None, t_min=None, t_max=None):
         """Check if the query point(s) fall within the field of view of any
         pointing in the survey.
 
@@ -408,6 +408,12 @@ class OpSim:
         radius : float or None, optional
             The angular radius of the observation (in degrees). If None
             uses the default radius for the OpSim.
+        t_min : float or None, optional
+            The minimum time (in MJD) for the observations to consider.
+            If None, no time filtering is applied.
+        t_max : float or None, optional
+            The maximum time (in MJD) for the observations to consider.
+            If None, no time filtering is applied.
 
         Returns
         -------
@@ -416,12 +422,12 @@ class OpSim:
             whether the query point is observed or a list of bools for an array
             of query points.
         """
-        inds = self.range_search(query_ra, query_dec, radius)
+        inds = self.range_search(query_ra, query_dec, radius, t_min=t_min, t_max=t_max)
         if np.isscalar(query_ra):
             return len(inds) > 0
         return [len(entry) > 0 for entry in inds]
 
-    def range_search(self, query_ra, query_dec, radius=None):
+    def range_search(self, query_ra, query_dec, radius=None, t_min=None, t_max=None):
         """Return the indices of the opsim pointings that fall within the field
         of view of the query point(s).
 
@@ -434,6 +440,12 @@ class OpSim:
         radius : float or None, optional
             The angular radius of the observation (in degrees). If None
             uses the default radius for the OpSim.
+        t_min : float or None, optional
+            The minimum time (in MJD) for the observations to consider.
+            If None, no time filtering is applied.
+        t_max : float or None, optional
+            The maximum time (in MJD) for the observations to consider.
+            If None, no time filtering is applied.
 
         Returns
         -------
@@ -443,14 +455,30 @@ class OpSim:
         """
         if query_ra is None or query_dec is None:
             raise ValueError("Query RA and dec must be provided for range search, but got None.")
-        if not np.isscalar(query_ra):
-            if np.isscalar(query_dec) or len(query_ra) != len(query_dec):
-                raise ValueError("Query RA and dec must have the same length.")
 
-            query_dec = np.asarray(query_dec)
+        # If the points are scalars, make them into length 1 arrays.
+        if query_ra is None:
+            raise ValueError("Query RA cannot be None.")
+        ra_scalar = np.isscalar(query_ra)
+        if ra_scalar:
+            query_ra = np.asarray([query_ra])
+        else:
             query_ra = np.asarray(query_ra)
-            if np.any(query_ra == None) or np.any(query_dec == None):  # noqa: E711
-                raise ValueError("Query RA and dec cannot contain None.")
+
+        if query_dec is None:
+            raise ValueError("Query Dec cannot be None.")
+        dec_scalar = np.isscalar(query_dec)
+        if dec_scalar:
+            query_dec = np.asarray([query_dec])
+        else:
+            query_dec = np.asarray(query_dec)
+
+        # Confirm the query RA and Dec have the same length.
+        if len(query_ra) != len(query_dec) or (ra_scalar != dec_scalar):
+            raise ValueError("Query RA and Dec must have the same length.")
+        if np.any(query_ra == None) or np.any(query_dec == None):  # noqa: E711
+            raise ValueError("Query RA and dec cannot contain None.")
+
         radius = self.radius if radius is None else radius
 
         # Transform the query point(s) to 3-d Cartesian coordinate(s).
@@ -463,9 +491,40 @@ class OpSim:
 
         # Adjust the angular radius to a cartesian search radius and perform the search.
         adjusted_radius = 2.0 * np.sin(0.5 * np.radians(radius))
-        return self._kd_tree.query_ball_point(cart_query, adjusted_radius)
+        inds = self._kd_tree.query_ball_point(cart_query, adjusted_radius)
 
-    def get_observations(self, query_ra, query_dec, radius=None, cols=None):
+        if t_min is not None or t_max is not None:
+            num_queries = len(query_ra)
+            times = self.table[self.colmap["time"]].to_numpy()
+
+            if t_min is None:
+                t_min = np.full(num_queries, -np.inf)
+            elif np.isscalar(t_min):
+                t_min = np.full(num_queries, t_min)
+            if len(t_min) != num_queries:
+                raise ValueError(f"t_min must be a scalar or an array of length {num_queries}.")
+
+            if t_max is None:
+                t_max = np.full(num_queries, np.inf)
+            elif np.isscalar(t_max):
+                t_max = np.full(num_queries, t_max)
+            if len(t_max) != num_queries:
+                raise ValueError(f"t_max must be a scalar or an array of length {num_queries}.")
+
+            # Run through each list of indices and filter by time. We need to do this
+            # iteratively, because the lists can have different lengths.
+            for idx, subinds in enumerate(inds):
+                if len(subinds) == 0:
+                    continue
+                time_mask = (times[subinds] >= t_min[idx]) & (times[subinds] <= t_max[idx])
+                inds[idx] = np.asarray(subinds)[time_mask]
+
+        # If the query was a scalar, we return a single list of indices.
+        if ra_scalar or dec_scalar:
+            inds = inds[0]
+        return inds
+
+    def get_observations(self, query_ra, query_dec, radius=None, cols=None, t_min=None, t_max=None):
         """Return the observation information when the query point falls within
         the field of view of a pointing in the survey.
 
@@ -481,13 +540,19 @@ class OpSim:
         cols : list
             A list of the names of columns to extract. If None returns all the
             columns.
+        t_min : float or None, optional
+            The minimum time (in MJD) for the observations to consider.
+            If None, no time filtering is applied.
+        t_max : float or None, optional
+            The maximum time (in MJD) for the observations to consider.
+            If None, no time filtering is applied.
 
         Returns
         -------
         results : dict
             A dictionary mapping the given column name to a numpy array of values.
         """
-        neighbors = self.range_search(query_ra, query_dec, radius)
+        neighbors = self.range_search(query_ra, query_dec, radius, t_min=t_min, t_max=t_max)
 
         results = {}
         if cols is None:
