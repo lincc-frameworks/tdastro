@@ -258,6 +258,37 @@ def test_create_single_graph_state_from_nested_dict():
         _ = GraphState.from_dict(input, num_samples=2)
 
 
+def test_create_single_graph_state_from_list():
+    """Test that we can create a single GraphState from a list of states."""
+    state1 = GraphState(num_samples=1)
+    state1.set("a", "v1", 1.0)
+    state1.set("a", "v2", 2.0)
+    state1.set("b", "v1", 3.0)
+
+    state2 = GraphState(num_samples=2)
+    state2.set("a", "v1", [1.0, 2.0])
+    state2.set("a", "v2", [2.0, 3.0])
+    state2.set("b", "v1", [3.0, 4.0])
+
+    dict1 = {"a.v1": 10.0, "a.v2": 11.0, "b.v1": 12.0}
+    state = GraphState.from_list([state1, dict1, state2])
+
+    assert len(state) == 3
+    assert state.num_samples == 4
+    assert np.array_equal(state["a"]["v1"], [1.0, 10.0, 1.0, 2.0])
+    assert np.array_equal(state["a"]["v2"], [2.0, 11.0, 2.0, 3.0])
+    assert np.array_equal(state["b"]["v1"], [3.0, 12.0, 3.0, 4.0])
+
+    # We raise an error if we get a state with different parameters.
+    state_missing = GraphState.from_dict({"a.v1": 10.0, "a.v2": 11.0})
+    with pytest.raises(ValueError):
+        _ = GraphState.from_list([state1, dict1, state2, state_missing])
+
+    state_extra = GraphState.from_dict({"a.v1": 10.0, "a.v2": 11.0, "b.v1": 12.0, "c.v1": 12.0})
+    with pytest.raises(ValueError):
+        _ = GraphState.from_list([state1, dict1, state2, state_extra])
+
+
 def test_create_multi_sample_graph_state_reference():
     """Test that we can create and access a multi-sample GraphState with variables
     that were created from each other (with and without references)."""

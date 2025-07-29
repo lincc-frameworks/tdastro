@@ -263,6 +263,63 @@ class GraphState:
                 raise ValueError("Input dictionary must either be flattened or nested.")
         return state
 
+    @classmethod
+    def from_list(cls, data):
+        """Concatenate a list of GraphStates or single state dictionaries into a single GraphState.
+        All the entries in the data must have the same set of parameters (keys).
+
+        Parameters
+        ----------
+        data : list of GraphState or dict
+            A list of the individual GraphState information to combine.
+
+        Returns
+        -------
+        GraphState
+            The corresponding graph state.
+        """
+        if data is None or len(data) == 0:
+            raise ValueError("Cannot concatenate an empty list")
+
+        # Convert everything into GraphStates (if they are not already) and extract
+        # the basic information.
+        all_param_full_names = None
+        graph_states = []
+        total_samples = 0
+        for current in data:
+            if isinstance(current, dict):
+                current = GraphState.from_dict(current)
+            elif not isinstance(current, GraphState):
+                raise TypeError(f"Concatenate takes either GraphState or dict. Got {type(current)}")
+
+            # Check that this is either the first GraphState we have seen or has the same parameters
+            # as the earlier GraphStates we have seen.
+            current_full_names = set(current.get_all_params_names())
+            if all_param_full_names is None:
+                all_param_full_names = current_full_names
+            elif all_param_full_names != current_full_names:
+                raise ValueError(
+                    f"The sets of parameters do not match. Expected {all_param_full_names}."
+                    f"Received {current_full_names}."
+                )
+
+            total_samples += current.num_samples
+            graph_states.append(current)
+
+        # Allocate space for the concatenated states and fill that result.
+        result = GraphState(num_samples=total_samples)
+        for full_name in all_param_full_names:
+            node_name, param_name = full_name.split(".")
+
+            # Create a numpy array that is the concatenation of all the values
+            # from each of the GraphStates.
+            values_list = []
+            for current in graph_states:
+                values_list.append(np.atleast_1d(current[full_name]))
+            values = np.concatenate(values_list)
+            result.set(node_name, param_name, values, force_copy=False, fixed=False)
+        return result
+
     def get_all_params_names(self):
         """Get the full name of all the parameters.
 
