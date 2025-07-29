@@ -352,10 +352,6 @@ def test_opsim_range_search():
         _ = ops_data.range_search([1.0, 2.3], [4.5, 6.7, 8.9], 0.5)
     with pytest.raises(ValueError):
         _ = ops_data.range_search([1.0, 2.3], [4.5, None], 0.5)
-    with pytest.raises(ValueError):
-        _ = ops_data.range_search([1.0], 4.5, 0.5)
-    with pytest.raises(ValueError):
-        _ = ops_data.range_search(1.0, [4.5], 0.5)
 
 
 def test_opsim_get_observations():

@@ -457,24 +457,12 @@ class OpSim:
             raise ValueError("Query RA and dec must be provided for range search, but got None.")
 
         # If the points are scalars, make them into length 1 arrays.
-        if query_ra is None:
-            raise ValueError("Query RA cannot be None.")
-        ra_scalar = np.isscalar(query_ra)
-        if ra_scalar:
-            query_ra = np.asarray([query_ra])
-        else:
-            query_ra = np.asarray(query_ra)
-
-        if query_dec is None:
-            raise ValueError("Query Dec cannot be None.")
-        dec_scalar = np.isscalar(query_dec)
-        if dec_scalar:
-            query_dec = np.asarray([query_dec])
-        else:
-            query_dec = np.asarray(query_dec)
+        is_scalar = np.isscalar(query_ra) and np.isscalar(query_dec)
+        query_ra = np.atleast_1d(query_ra)
+        query_dec = np.atleast_1d(query_dec)
 
         # Confirm the query RA and Dec have the same length.
-        if len(query_ra) != len(query_dec) or (ra_scalar != dec_scalar):
+        if len(query_ra) != len(query_dec):
             raise ValueError("Query RA and Dec must have the same length.")
         if np.any(query_ra == None) or np.any(query_dec == None):  # noqa: E711
             raise ValueError("Query RA and dec cannot contain None.")
@@ -499,15 +487,15 @@ class OpSim:
 
             if t_min is None:
                 t_min = np.full(num_queries, -np.inf)
-            elif np.isscalar(t_min):
-                t_min = np.full(num_queries, t_min)
+            else:
+                t_min = np.atleast_1d(t_min)
             if len(t_min) != num_queries:
                 raise ValueError(f"t_min must be a scalar or an array of length {num_queries}.")
 
             if t_max is None:
                 t_max = np.full(num_queries, np.inf)
-            elif np.isscalar(t_max):
-                t_max = np.full(num_queries, t_max)
+            else:
+                t_max = np.atleast_1d(t_max)
             if len(t_max) != num_queries:
                 raise ValueError(f"t_max must be a scalar or an array of length {num_queries}.")
 
@@ -520,7 +508,7 @@ class OpSim:
                 inds[idx] = np.asarray(subinds)[time_mask]
 
         # If the query was a scalar, we return a single list of indices.
-        if ra_scalar or dec_scalar:
+        if is_scalar:
             inds = inds[0]
         return inds
 
