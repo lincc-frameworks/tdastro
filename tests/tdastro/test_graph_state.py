@@ -32,6 +32,9 @@ def test_create_single_sample_graph_state():
     with pytest.raises(KeyError):
         _ = state["a.v1.v2"]
 
+    # We can access a list of all the parameter names.
+    assert state.get_all_params_names() == ["a.v1", "a.v2", "b.v1"]
+
     # We can create a human readable string representation of the GraphState.
     debug_str = str(state)
     assert debug_str == "a:\n    v1: 1.0\n    v2: 2.0\nb:\n    v1: 3.0"
@@ -137,6 +140,9 @@ def test_create_multi_sample_graph_state():
     assert np.allclose(state["a"]["v1"], [1.0, 1.0, 1.0, 1.0, 1.0])
     assert np.allclose(state["a"]["v2"], [2.0, 2.5, 3.0, 3.5, 4.0])
     assert np.allclose(state["b"]["v1"], [-2.0, -2.5, -3.0, -3.5, -4.0])
+
+    # We can access a list of all the parameter names.
+    assert state.get_all_params_names() == ["a.v1", "a.v2", "b.v1"]
 
     # Check tht we can get all the values for a specific node and sample.
     a_vals = state.get_node_state("a")

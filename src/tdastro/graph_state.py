@@ -229,6 +229,20 @@ class GraphState:
         data_table = ascii.read(filename, format="ecsv")
         return GraphState.from_table(data_table)
 
+    def get_all_params_names(self):
+        """Get the full name of all the parameters.
+
+        Returns
+        -------
+        names : list
+            A list of all the parameter names.
+        """
+        names = []
+        for node_name, params in self.states.items():
+            for param_name in params:
+                names.append(self.extended_param_name(node_name, param_name))
+        return names
+
     def get_node_state(self, node_name, sample_num=0):
         """Get a dictionary of all parameters local to the given node
         for a single sample state.
@@ -453,7 +467,7 @@ class GraphState:
     def to_table(self):
         """Flatten the graph state to an AstroPy Table with columns for each parameter.
 
-        The column names are: {node_name}{separator}{param_name}
+        The column names are: {node_name}.{param_name}
 
         Returns
         -------
@@ -469,7 +483,7 @@ class GraphState:
     def to_dict(self):
         """Flatten the graph state to a dictionary with columns for each parameter.
 
-        The column names are: {node_name}{separator}{param_name}
+        The column names are: {node_name}.{param_name}
 
         Returns
         -------
