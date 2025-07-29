@@ -278,8 +278,8 @@ class GraphState:
         GraphState
             The corresponding graph state.
         """
-        if data is None or len(data) == 0:
-            raise ValueError("Cannot concatenate an empty list")
+        if len(data) == 0:
+            raise ValueError("Cannot concatenate an empty list.")
 
         # Convert everything into GraphStates (if they are not already) and extract
         # the basic information.

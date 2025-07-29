@@ -9,6 +9,7 @@ def test_create_single_sample_graph_state():
     state = GraphState()
     assert len(state) == 0
     assert state.num_samples == 1
+    assert state.get_all_params_names() == []
 
     state.set("a", "v1", 1.0)
     state.set("a", "v2", 2.0)
@@ -140,6 +141,10 @@ def test_create_multiple_graph_state_from_nested_dict():
 
     # We can access a list of all the parameter names.
     assert state.get_all_params_names() == ["a.v1", "a.v2", "b.v1", "c.v3", "c.v2"]
+
+    # Fail is we use nested names (no separator), but do not have dictionaries.
+    with pytest.raises(ValueError):
+        GraphState.from_dict({"a": 1, "b": 2}, num_samples=1)
 
 
 def test_graph_state_contains():
@@ -287,6 +292,14 @@ def test_create_single_graph_state_from_list():
     state_extra = GraphState.from_dict({"a.v1": 10.0, "a.v2": 11.0, "b.v1": 12.0, "c.v1": 12.0})
     with pytest.raises(ValueError):
         _ = GraphState.from_list([state1, dict1, state2, state_extra])
+
+    # Fail on invalid list item.
+    with pytest.raises(TypeError):
+        _ = GraphState.from_list([state1, dict1, state2, 1.0])
+
+    # Fail on empty list.
+    with pytest.raises(ValueError):
+        _ = GraphState.from_list([])
 
 
 def test_create_multi_sample_graph_state_reference():
