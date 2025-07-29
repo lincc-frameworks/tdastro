@@ -229,6 +229,40 @@ class GraphState:
         data_table = ascii.read(filename, format="ecsv")
         return GraphState.from_table(data_table)
 
+    @classmethod
+    def from_dict(cls, data, num_samples=1):
+        """Create a GraphState from either a flattened dictionary, where the keys of the
+        dictionary are {node_name}.{param_name}, or a nested dictionary, where
+        data[node_name][param_name] = value.
+
+        Parameters
+        ----------
+        data : dict
+            The dictionary mapping the parameter identifier (node name and parameter name)
+            to their values.
+        num_samples : int
+            The number of samples.
+            Default:  1
+
+        Returns
+        -------
+        GraphState
+            The corresponding graph state.
+        """
+        state = GraphState(num_samples=num_samples)
+        for id1, val1 in data.items():
+            if "." in id1:
+                # Handle the flattened array by splitting the key.
+                node_name, param_name = id1.split(".")
+                state.set(node_name, param_name, val1, force_copy=True, fixed=False)
+            elif isinstance(val1, dict):
+                # Handle the nested array by iterating over the second dictionary's entries.
+                for param_name, values in val1.items():
+                    state.set(id1, param_name, values, force_copy=True, fixed=False)
+            else:
+                raise ValueError("Input dictionary must either be flattened or nested.")
+        return state
+
     def get_all_params_names(self):
         """Get the full name of all the parameters.
 
