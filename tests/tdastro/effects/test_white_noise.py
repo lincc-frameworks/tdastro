@@ -24,6 +24,26 @@ def test_white_noise() -> None:
         _ = white_noise.apply(values)
 
 
+def test_white_noise_bandflux() -> None:
+    """Test that we can sample a WhiteNoise object at the bandflux level."""
+    values = np.full(10, 100.0)
+
+    # We can apply the noise.
+    white_noise = WhiteNoise(white_noise_sigma=0.1)
+    values = white_noise.apply_bandflux(values, white_noise_sigma=0.1)
+    assert not np.all(values == 100.0)
+    assert np.all(np.abs(values - 100.0) <= 1.0)
+
+    # We can override the default value using the parameters.
+    values = white_noise.apply_bandflux(values, white_noise_sigma=20.0)
+    assert not np.all(values == 100.0)
+    assert not np.all(np.abs(values - 100.0) <= 1.0)
+
+    # We fail if we do not pass in the expected parameters.
+    with pytest.raises(ValueError):
+        _ = white_noise.apply_bandflux(values)
+
+
 def test_static_source_white_noise() -> None:
     """Test that we can sample and create a StaticSource object with white noise."""
     model = StaticSource(

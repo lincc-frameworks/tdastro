@@ -3,8 +3,13 @@
 This module supports a variety of external dustmaps libaries, but
 was primarily designed to work with the dustmaps package:
 https://github.com/gregreen/dustmaps
+
+Note that the dustmaps package is not included by default, because it uses
+dependencies that may not be compatible with all systems. Users can manually
+install dustmaps in their environment with “pip install dustmaps”.
 """
 
+import importlib
 import logging
 from pathlib import Path
 
@@ -12,7 +17,6 @@ import numpy as np
 import pooch
 from astropy.coordinates import SkyCoord
 from citation_compass import CiteClass
-from sfdmap2 import sfdmap
 
 from tdastro import _TDASTRO_BASE_DATA_DIR
 from tdastro.base_models import FunctionNode
@@ -63,7 +67,8 @@ class DustmapWrapper(DustEBV, CiteClass):
         outputs, you should include the corresponding ebv_func to transform the result
         into ebv if needed.
     ebv_func : function, optional
-        A function to translate the result of the dustmap query into an ebv.
+        A function to translate the result of the dustmap query into an ebv. This is
+        not needed for dustmaps that already produce ebv values.
     RA : parameter
         The object's right ascension (in degrees).
     dec : parameter
@@ -105,6 +110,7 @@ class DustmapWrapper(DustEBV, CiteClass):
         coord = SkyCoord(ra, dec, frame="icrs", unit="deg")
         dustmap_value = self._dust_map.query(coord)
 
+        # Only translate the value to ebv if the dust map does not provide the result in ebv.
         if self._ebv_func is not None:
             return self._ebv_func(dustmap_value)
         return dustmap_value
@@ -240,6 +246,15 @@ class SFDMap(DustEBV):
             The dust map object.
         """
         logger = logging.getLogger(__name__)
+
+        # Check that we have the sfdmap2 package installed (since it is not installed by default).
+        if importlib.util.find_spec("sfdmap2") is None:
+            raise ImportError(
+                "The sfdmap2 package is required to use the SFDMap effect and not installed by default. "
+                "You can install sfdmap2 using `pip install sfdmap2`."
+            )
+        else:
+            from sfdmap2 import sfdmap
 
         data_dir = Path(data_dir) if data_dir is not None else self._default_map_dir
         logger.debug(f"Loading SFD dust map data from {data_dir}")

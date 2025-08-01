@@ -95,3 +95,9 @@ def test_numpy_random_given_rng():
     value1 = np_node1.generate(rng_info=np.random.default_rng(1))
     value2 = np_node2.generate(rng_info=np.random.default_rng(2))
     assert value1 != pytest.approx(value2)
+
+
+def test_numpy_choice_fails():
+    """Test that we cannot use NumpyRandomFunc with a choice distribution."""
+    with pytest.raises(ValueError):
+        NumpyRandomFunc("choice", a=5)

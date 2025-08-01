@@ -5,8 +5,15 @@ class EffectModel:
     """A physical or systematic effect to apply to an observation.
 
     Effects are not ParameterizedNodes but can have arguments that are
-    ParameterizedNodes. All settable parameters of the EffectModel
-    must be passed as keyword arguments to the apply() method.
+    ParameterizedNodes. These arguments are stored as parameters in the
+    source node (PhysicalModel) when add_effect() is called. This allows
+    the effect to easily use existing parameters from the source node as
+    well as new parameters specific to the effect. The source node samples
+    these parameters and passes them in the call to apply().
+
+    The EffectModel class is designed to be subclassed, and the
+    subclasses should implement the apply() method to define the
+    specific effect being applied.
 
     Attributes
     ----------
@@ -21,12 +28,18 @@ class EffectModel:
     def __init__(self, rest_frame=True, **kwargs):
         self.rest_frame = rest_frame
 
+        # Automatically include all keyword arguments as settable parameters.
         self.parameters = {}
         for key, value in kwargs.items():
             self.add_effect_parameter(key, value)
 
     def add_effect_parameter(self, name, setter):
         """Add a parameter to the effect.
+
+        Note
+        ----
+        These parameters are automatically added to the corresponding source
+        nodes so they are sampled and recorded with the model's other parameters.
 
         Parameters
         ----------
@@ -52,12 +65,38 @@ class EffectModel:
             A given numpy random number generator to use for this computation. If not
             provided, the function uses the node's random number generator.
         **kwargs : `dict`, optional
-           Any additional keyword arguments. This includes all of the
+           Any additional keyword arguments, including any additional
            parameters needed to apply the effect.
 
         Returns
         -------
         flux_density : numpy.ndarray
             A length T x N matrix of flux densities after the effect is applied (in nJy).
+        """
+        raise NotImplementedError()
+
+    def apply_bandflux(self, bandfluxes, *, times=None, filters=None, rng_info=None, **kwargs):
+        """Apply the effect to band fluxes.
+
+        Parameters
+        ----------
+        bandfluxes : numpy.ndarray
+            A length T array of band fluxes (in nJy).
+        times : numpy.ndarray, optional
+            A length T array of times (in MJD).
+        filters : numpy.ndarray, optional
+            A length N array of filters. If not provided, the effect is applied to all
+            band fluxes.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
+        **kwargs : `dict`, optional
+           Any additional keyword arguments, including any additional
+           parameters needed to apply the effect.
+
+        Returns
+        -------
+        bandfluxes : numpy.ndarray
+            A length T array of band fluxes after the effect is applied (in nJy).
         """
         raise NotImplementedError()

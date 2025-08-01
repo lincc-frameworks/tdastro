@@ -1,26 +1,26 @@
 """A collection of sampled parameters from a statistic distribution.
 
 Model parameters are random variables that are sampled together in a joint distribution
-using a graph of dependencies. For example the functions:
+using a graph of dependencies. For example, the functions::
 
-f(a, b) = x
-g(c) = y
-h(x, y) = z
+    f(a, b) = x
+    g(c) = y
+    h(x, y) = z
 
 indicate that x depends on a and b, y depends on c, and z depends on x and y (and thus on a, b, and c
-as well). These would form a graph that looks like:
+as well). These would form a graph that looks like::
 
-a -\
-    x - \
-b -/     \
-          z
-c -- y -- /
+    a - \\
+         x -- \\
+    b - /      \\
+                z
+    c -- y --- /
 
 Within TDAstro, variables are grouped into logical sets called nodes. The combination of node name
 and variable name are used to indicate specific values, allowing us to use the same variable names
 in multiple nodes. For example a node to generate samples from a Gaussian distribution may have internal
 parameters called mean and scale that might take on different values depending on what the node is generating.
-We could have one mean for an object's brightness and another for it's positional relative to the center
+We could have one mean for an object's brightness and another for its positional relative to the center
 of a host galaxy.
 """
 
@@ -31,7 +31,7 @@ from astropy.table import Table
 
 class GraphState:
     """A class to hold the state(s) of the each variable for one or more samples of the random
-    variables in the graph. Each entry is index by a combination of node's (unique) name and
+    variables in the graph. Each entry is indexed by a combination of node's (unique) name and
     variable's name.  This allows nodes to have parameters with the same name, such as ra and dec.
 
     Attributes
@@ -78,10 +78,11 @@ class GraphState:
     def __contains__(self, key):
         """Check if the GraphState contains an entry.
 
-        The key can be:
+        The key can be::
+
         1) the name of a node (in which case we return True if the node exists),
         2) the full name of a parameter (in which case we return True if the
-           combination of node and parameter exist), or
+           combination of node and parameter exists), or
         3) the name of a parameter in a GraphState with a single node (in which case we return True
            if the parameter exists in that node).
 
@@ -137,21 +138,19 @@ class GraphState:
                 if not np.allclose(var_value, other_params[var_name]):
                     return False
 
-        # Check that the 'fixed' dictionary is the same.
-        if self.fixed_vars != other.fixed_vars:
-            return False
-
-        return True
+        # Finally check that the 'fixed' dictionary is the same.
+        return self.fixed_vars == other.fixed_vars
 
     def __getitem__(self, key):
         """Access an entry in the GraphState.
 
-        The key can be:
+        The key can be::
+
         1) the name of a node (in which case we return that node's dictionary of
            parameter_name -> value),
         2) the full name of a parameter (in which case we return the values), or
         3) the name of a parameter in a GraphState with a single node (in which case we
-           return that parameter's values.
+           return that parameter's values).
 
         Parameters
         ----------
@@ -271,7 +270,7 @@ class GraphState:
         value : any
             The new value of the parameter.
         force_copy : bool
-            Make a copy of data in an array. If set to False this will link
+            Make a copy of data in an array. If set to False, this will link
             to the array, saving memory and computation time.
             Default: False
         fixed : bool
@@ -328,7 +327,7 @@ class GraphState:
         inputs : GraphState or dict
             Values to copy.
         force_copy : bool
-            Make a copy of data in an array. If set to False this will link
+            Make a copy of data in an array. If set to False, this will link
             to the array, saving memory and computation time.
             Default: False
         all_fixed : bool
@@ -337,7 +336,8 @@ class GraphState:
 
         Raises
         ------
-        ValueError if the input an invalid number of samples.
+        ValueError
+            If the input an invalid number of samples.
         """
         if isinstance(inputs, GraphState):
             if self.num_samples != inputs.num_samples and inputs.num_samples != 1:
@@ -518,7 +518,8 @@ def transpose_dict_of_list(input_dict, num_elem):
 
     Raises
     ------
-    ValueError if any of the iterables have different lengths.
+    ValueError
+        If any of the iterables have different lengths.
     """
     if num_elem < 1:
         raise ValueError(f"Trying to transpose a dictionary with {num_elem} elements")

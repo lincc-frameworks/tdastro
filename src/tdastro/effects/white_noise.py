@@ -41,7 +41,7 @@ class WhiteNoise(EffectModel):
             A given numpy random number generator to use for this computation. If not
             provided, the function uses the node's random number generator.
         **kwargs : `dict`, optional
-           Any additional keyword arguments. This includes all of the
+           Any additional keyword arguments, including any additional
            parameters needed to apply the effect.
 
         Returns
@@ -55,3 +55,45 @@ class WhiteNoise(EffectModel):
         if rng_info is None:
             rng_info = np.random.default_rng()
         return rng_info.normal(loc=flux_density, scale=white_noise_sigma)
+
+    def apply_bandflux(
+        self,
+        bandfluxes,
+        *,
+        times=None,
+        filters=None,
+        white_noise_sigma=None,
+        rng_info=None,
+        **kwargs,
+    ):
+        """Apply the effect to band fluxes.
+
+        Parameters
+        ----------
+        bandfluxes : numpy.ndarray
+            A length T array of band fluxes (in nJy).
+        times : numpy.ndarray, optional
+            A length T array of times (in MJD).
+        filters : numpy.ndarray, optional
+            A length N array of filters. If not provided, the effect is applied to all
+            band fluxes.
+        white_noise_sigma : float, optional
+            The scale of the noise. Raises an error if None is provided.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
+        **kwargs : `dict`, optional
+           Any additional keyword arguments, including any additional
+           parameters needed to apply the effect.
+
+        Returns
+        -------
+        bandfluxes : numpy.ndarray
+            A length T array of band fluxes after the effect is applied (in nJy).
+        """
+        if white_noise_sigma is None:
+            raise ValueError("white_noise_sigma must be provided")
+
+        if rng_info is None:
+            rng_info = np.random.default_rng()
+        return rng_info.normal(loc=bandfluxes, scale=white_noise_sigma)

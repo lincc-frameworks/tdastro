@@ -99,6 +99,9 @@ class OpSim:
         "ra": "fieldRA",
         "time": "observationStartMJD",
         "zp": "zp_nJy",  # We add this column to the table
+        "seeing": "seeingFwhmEff",
+        "skybrightness": "skyBrightness",
+        "nexposure": "numExposures",
     }
 
     # Default survey values.
@@ -161,6 +164,13 @@ class OpSim:
         """Get the column names."""
         return self.table.columns
 
+    def get_filters(self):
+        """Get the unique filters in the OpSim table."""
+        colname = self.colmap.get("filter", "filter")
+        if colname not in self.table.columns:
+            raise KeyError(f"No filters column found in OpSim table. Expected column: {colname}")
+        return np.unique(self.table[colname])
+
     def has_columns(self, columns):
         """Checks whether OpSim has a column or columns while accounting
         for the colmap.
@@ -220,7 +230,7 @@ class OpSim:
             The name of the opsim db file.
         sql_query : str
             The SQL query to use when loading the table.
-            Default = "SELECT * FROM observations"
+            Default: "SELECT * FROM observations"
         colmap : dict, optional
             A mapping of short column names to their names in the underlying table.
             If None, uses the default column names for the Rubin OpSim.
@@ -313,10 +323,10 @@ class OpSim:
             The name of the opsim db file.
         tablename : str
             The table to which to write.
-            Default = "observations"
+            Default: "observations"
         overwrite : bool
             Overwrite the existing DB file.
-            Default = False
+            Default: False
 
         Raise
         -----
@@ -385,7 +395,7 @@ class OpSim:
         )
         return new_opsim
 
-    def is_observed(self, query_ra, query_dec, radius=None):
+    def is_observed(self, query_ra, query_dec, radius=None, t_min=None, t_max=None):
         """Check if the query point(s) fall within the field of view of any
         pointing in the survey.
 
@@ -398,6 +408,12 @@ class OpSim:
         radius : float or None, optional
             The angular radius of the observation (in degrees). If None
             uses the default radius for the OpSim.
+        t_min : float or None, optional
+            The minimum time (in MJD) for the observations to consider.
+            If None, no time filtering is applied.
+        t_max : float or None, optional
+            The maximum time (in MJD) for the observations to consider.
+            If None, no time filtering is applied.
 
         Returns
         -------
@@ -406,12 +422,12 @@ class OpSim:
             whether the query point is observed or a list of bools for an array
             of query points.
         """
-        inds = self.range_search(query_ra, query_dec, radius)
+        inds = self.range_search(query_ra, query_dec, radius, t_min=t_min, t_max=t_max)
         if np.isscalar(query_ra):
             return len(inds) > 0
         return [len(entry) > 0 for entry in inds]
 
-    def range_search(self, query_ra, query_dec, radius=None):
+    def range_search(self, query_ra, query_dec, radius=None, t_min=None, t_max=None):
         """Return the indices of the opsim pointings that fall within the field
         of view of the query point(s).
 
@@ -424,6 +440,12 @@ class OpSim:
         radius : float or None, optional
             The angular radius of the observation (in degrees). If None
             uses the default radius for the OpSim.
+        t_min : float or None, optional
+            The minimum time (in MJD) for the observations to consider.
+            If None, no time filtering is applied.
+        t_max : float or None, optional
+            The maximum time (in MJD) for the observations to consider.
+            If None, no time filtering is applied.
 
         Returns
         -------
@@ -433,14 +455,18 @@ class OpSim:
         """
         if query_ra is None or query_dec is None:
             raise ValueError("Query RA and dec must be provided for range search, but got None.")
-        if not np.isscalar(query_ra):
-            if np.isscalar(query_dec) or len(query_ra) != len(query_dec):
-                raise ValueError("Query RA and dec must have the same length.")
 
-            query_dec = np.asarray(query_dec)
-            query_ra = np.asarray(query_ra)
-            if np.any(query_ra == None) or np.any(query_dec == None):  # noqa: E711
-                raise ValueError("Query RA and dec cannot contain None.")
+        # If the points are scalars, make them into length 1 arrays.
+        is_scalar = np.isscalar(query_ra) and np.isscalar(query_dec)
+        query_ra = np.atleast_1d(query_ra)
+        query_dec = np.atleast_1d(query_dec)
+
+        # Confirm the query RA and Dec have the same length.
+        if len(query_ra) != len(query_dec):
+            raise ValueError("Query RA and Dec must have the same length.")
+        if np.any(query_ra == None) or np.any(query_dec == None):  # noqa: E711
+            raise ValueError("Query RA and dec cannot contain None.")
+
         radius = self.radius if radius is None else radius
 
         # Transform the query point(s) to 3-d Cartesian coordinate(s).
@@ -453,9 +479,40 @@ class OpSim:
 
         # Adjust the angular radius to a cartesian search radius and perform the search.
         adjusted_radius = 2.0 * np.sin(0.5 * np.radians(radius))
-        return self._kd_tree.query_ball_point(cart_query, adjusted_radius)
+        inds = self._kd_tree.query_ball_point(cart_query, adjusted_radius)
 
-    def get_observations(self, query_ra, query_dec, radius=None, cols=None):
+        if t_min is not None or t_max is not None:
+            num_queries = len(query_ra)
+            times = self.table[self.colmap["time"]].to_numpy()
+
+            if t_min is None:
+                t_min = np.full(num_queries, -np.inf)
+            else:
+                t_min = np.atleast_1d(t_min)
+            if len(t_min) != num_queries:
+                raise ValueError(f"t_min must be a scalar or an array of length {num_queries}.")
+
+            if t_max is None:
+                t_max = np.full(num_queries, np.inf)
+            else:
+                t_max = np.atleast_1d(t_max)
+            if len(t_max) != num_queries:
+                raise ValueError(f"t_max must be a scalar or an array of length {num_queries}.")
+
+            # Run through each list of indices and filter by time. We need to do this
+            # iteratively, because the lists can have different lengths.
+            for idx, subinds in enumerate(inds):
+                if len(subinds) == 0:
+                    continue
+                time_mask = (times[subinds] >= t_min[idx]) & (times[subinds] <= t_max[idx])
+                inds[idx] = np.asarray(subinds)[time_mask]
+
+        # If the query was a scalar, we return a single list of indices.
+        if is_scalar:
+            inds = inds[0]
+        return inds
+
+    def get_observations(self, query_ra, query_dec, radius=None, cols=None, t_min=None, t_max=None):
         """Return the observation information when the query point falls within
         the field of view of a pointing in the survey.
 
@@ -471,13 +528,19 @@ class OpSim:
         cols : list
             A list of the names of columns to extract. If None returns all the
             columns.
+        t_min : float or None, optional
+            The minimum time (in MJD) for the observations to consider.
+            If None, no time filtering is applied.
+        t_max : float or None, optional
+            The maximum time (in MJD) for the observations to consider.
+            If None, no time filtering is applied.
 
         Returns
         -------
         results : dict
             A dictionary mapping the given column name to a numpy array of values.
         """
-        neighbors = self.range_search(query_ra, query_dec, radius)
+        neighbors = self.range_search(query_ra, query_dec, radius, t_min=t_min, t_max=t_max)
 
         results = {}
         if cols is None:
@@ -510,19 +573,22 @@ class OpSim:
         # By the effective FWHM definition, see
         # https://smtn-002.lsst.io/v/OPSIM-1171/index.html
         # We need it in pixel^2
-        footprint = GAUSS_EFF_AREA2FWHM_SQ * (observations["seeingFwhmEff"] / self.pixel_scale) ** 2
+        footprint = (
+            GAUSS_EFF_AREA2FWHM_SQ
+            * (observations[self.colmap.get("seeing", "seeingFwhmEff")] / self.pixel_scale) ** 2
+        )
 
-        zp = observations["zp_nJy"]
+        zp = observations[self.colmap.get("zp", "zp_nJy")]
 
         # Table value is in mag/arcsec^2
-        sky_njy_angular = mag2flux(observations["skyBrightness"])
+        sky_njy_angular = mag2flux(observations[self.colmap.get("skybrightness", "skyBrightness")])
         # We need electrons per pixel^2
         sky = sky_njy_angular * self.pixel_scale**2 / zp
 
         return poisson_bandflux_std(
             bandflux,
-            total_exposure_time=observations["visitExposureTime"],
-            exposure_count=observations["numExposures"],
+            total_exposure_time=observations[self.colmap.get("exptime", "visitExposureTime")],
+            exposure_count=observations[self.colmap.get("nexposure", "numExposures")],
             footprint=footprint,
             sky=sky,
             zp=zp,
