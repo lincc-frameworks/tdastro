@@ -146,7 +146,7 @@ def test_simulate_with_time_window(test_data_dir):
     # values that match the opsim.
     source = StaticSource(
         brightness=1000.0,
-        t0=20.0,
+        t0=GivenValueList([20.0, 15.0]),
         ra=15.0,
         dec=10.0,
         redshift=0.0,
@@ -155,16 +155,20 @@ def test_simulate_with_time_window(test_data_dir):
 
     results = simulate_lightcurves(
         source,
-        1,
+        2,
         opsim_db,
         passband_group,
-        time_window_offset=(5.0, 10.0),  # This will create a time window of (15.0, 30.0)
+        time_window_offset=(5.0, 10.0),
     )
-    assert len(results) == 1
+    assert len(results) == 2
 
-    # We should simulate the observations that are only within the time window (15.0, 30.0)
-    # and at the matching RA/Dec (the even indices).
+    # We should simulate the observations that are only within the time window, (15.0, 30.0) for the
+    # first samples and (10.0, 25.0) for the second sample, and at the matching RA/Dec (the even indices).
     assert np.array_equal(
         results["lightcurve"][0]["mjd"],
         np.array([16.0, 18.0, 20.0, 22.0, 24.0, 26.0, 28.0, 30.0]),
+    )
+    assert np.array_equal(
+        results["lightcurve"][1]["mjd"],
+        np.array([10.0, 12.0, 14.0, 16.0, 18.0, 20.0, 22.0, 24.0]),
     )
