@@ -129,8 +129,14 @@ class SplineModel(PhysicalModel):
         times, wavelengths, flux = read_grid_data(input_file, format=format, validate=True)
         return cls(times, wavelengths, flux, amplitude, time_degree, wave_degree, **kwargs)
 
-    def minwave(self):
+    def minwave(self, graph_state=None):
         """Get the minimum wavelength of the model.
+
+        Parameters
+        ----------
+        graph_state : GraphState, optional
+            An object mapping graph parameters to their values. Not used
+            for this model.
 
         Returns
         -------
@@ -140,8 +146,14 @@ class SplineModel(PhysicalModel):
         """
         return self._wavelengths[0]
 
-    def maxwave(self):
+    def maxwave(self, graph_state=None):
         """Get the maximum wavelength of the model.
+
+        Parameters
+        ----------
+        graph_state : GraphState, optional
+            An object mapping graph parameters to their values. Not used
+            for this model.
 
         Returns
         -------

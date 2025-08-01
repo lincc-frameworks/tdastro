@@ -210,8 +210,14 @@ class LinearWavelengthSource(PhysicalModel):
         self.min_wave = min_wave
         self.max_wave = max_wave
 
-    def minwave(self):
+    def minwave(self, graph_state=None):
         """Get the minimum wavelength of the model.
+
+        Parameters
+        ----------
+        graph_state : GraphState, optional
+            An object mapping graph parameters to their values. Not used
+            for this model.
 
         Returns
         -------
@@ -221,12 +227,18 @@ class LinearWavelengthSource(PhysicalModel):
         """
         return self.min_wave
 
-    def maxwave(self):
+    def maxwave(self, graph_state=None):
         """Get the maximum wavelength of the model.
+
+        Parameters
+        ----------
+        graph_state : GraphState, optional
+            An object mapping graph parameters to their values. Not used
+            for this model.
 
         Returns
         -------
-        maximum : float or None
+        maxwave : float or None
             The maximum wavelength of the model (in angstroms) or None
             if the model does not have a defined maximum wavelength.
         """

@@ -116,8 +116,14 @@ class PhysicalModel(ParameterizedNode):
             seed = int.from_bytes(urandom(4), "big")
         self._rng = np.random.default_rng(seed=seed)
 
-    def minwave(self):
+    def minwave(self, graph_state=None):
         """Get the minimum supported wavelength of the model.
+
+        Parameters
+        ----------
+        graph_state : GraphState, optional
+            An object mapping graph parameters to their values. If provided,
+            the function will use the graph state to compute the minimum wavelength.
 
         Returns
         -------
@@ -127,8 +133,14 @@ class PhysicalModel(ParameterizedNode):
         """
         return None
 
-    def maxwave(self):
+    def maxwave(self, graph_state=None):
         """Get the maximum supported wavelength of the model.
+
+        Parameters
+        ----------
+        graph_state : GraphState, optional
+            An object mapping graph parameters to their values. If provided,
+            the function will use the graph state to compute the maximum wavelength.
 
         Returns
         -------
@@ -236,12 +248,12 @@ class PhysicalModel(ParameterizedNode):
             A length T x N matrix of SED values (in nJy).
         """
         min_query_wave = np.min(wavelengths)
-        min_valid_wave = self.minwave()
+        min_valid_wave = self.minwave(graph_state=graph_state)
         if min_valid_wave is None:
             min_valid_wave = min_query_wave
 
         max_query_wave = np.max(wavelengths)
-        max_valid_wave = self.maxwave()
+        max_valid_wave = self.maxwave(graph_state=graph_state)
         if max_valid_wave is None:
             max_valid_wave = max_query_wave
 

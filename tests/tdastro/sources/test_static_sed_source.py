@@ -1,0 +1,129 @@
+import numpy as np
+import pytest
+from tdastro.sources.static_sed_source import StaticSEDSource
+
+
+def test_single_static_sed() -> None:
+    """Test that we can create and sample a StaticSEDSource object with a single SED."""
+    sed = np.array(
+        [
+            [100.0, 200.0, 300.0, 400.0],  # Wavelengths
+            [10.0, 20.0, 20.0, 10.0],  # fluxes
+        ]
+    )
+    model = StaticSEDSource(sed, node_label="test")
+    assert len(model) == 1
+
+    times = np.array([1, 2, 3, 10, 20])
+    wavelengths = np.array([50.0, 100.0, 150.0, 200.0, 250.0, 300.0, 350.0, 400.0, 450.0])
+
+    values = model.evaluate(times, wavelengths)
+    assert values.shape == (5, 9)
+
+    expected = np.array([0.0, 10.0, 15.0, 20.0, 20.0, 20.0, 15.0, 10.0, 0.0])
+    for t_idx in range(5):
+        assert np.array_equal(values[t_idx, :], expected)
+
+
+def test_static_sed_fail() -> None:
+    """Test that we correctly fail on bad SEDs."""
+    # Non-numpy arrays
+    with pytest.raises(ValueError):
+        _ = StaticSEDSource([None], node_label="test")
+    with pytest.raises(ValueError):
+        _ = StaticSEDSource([1.0], node_label="test")
+
+    # Incorrectly shaped data.
+    sed = np.array(
+        [
+            [100.0, 200.0, 400.0],  # Wavelengths
+            [10.0, 20.0, 20.0],  # fluxes
+            [0.0, 0.0, 0.0],  # Other row
+        ]
+    )
+    with pytest.raises(ValueError):
+        _ = StaticSEDSource([sed], node_label="test")
+
+    # Wavelengths unsorted.
+    sed = np.array(
+        [
+            [100.0, 200.0, 400.0, 300.0],  # Wavelengths
+            [10.0, 20.0, 20.0, 10.0],  # fluxes
+        ]
+    )
+    with pytest.raises(ValueError):
+        _ = StaticSEDSource([sed], node_label="test")
+
+
+def test_multiple_static_seds() -> None:
+    """Test that we can create and sample a StaticSEDSource object with a multiple SEDs."""
+    sed0 = np.array(
+        [
+            [100.0, 200.0, 300.0, 400.0],  # Wavelengths
+            [10.0, 20.0, 20.0, 10.0],  # fluxes
+        ]
+    )
+    sed1 = np.array(
+        [
+            [100.0, 200.0, 300.0, 400.0],  # Wavelengths
+            [20.0, 40.0, 40.0, 20.0],  # fluxes
+        ]
+    )
+    model = StaticSEDSource([sed0, sed1], weights=[0.25, 0.75], node_label="test")
+    assert len(model) == 2
+
+    # Check that all of the indices are 0 or 1 and the split is approximately 25/75
+    params = model.sample_parameters(num_samples=10_000)
+    inds_0 = params["test"]["selected_idx"] == 0
+    inds_1 = params["test"]["selected_idx"] == 1
+    assert np.all(inds_0 | inds_1)
+    assert 1_500 < np.count_nonzero(inds_0) < 3_500
+    assert 6_500 < np.count_nonzero(inds_1) < 8_500
+
+    times = np.array([1, 2, 3])
+    wavelengths = np.array([50.0, 100.0, 150.0, 200.0, 250.0, 300.0, 350.0, 400.0, 450.0])
+    values = model.evaluate(times, wavelengths, params)
+
+    expected_0 = np.tile([0.0, 10.0, 15.0, 20.0, 20.0, 20.0, 15.0, 10.0, 0.0], 3).reshape(3, 9)
+    expected_1 = 2.0 * expected_0
+
+    for idx in range(10_000):
+        if inds_0[idx]:
+            assert np.array_equal(values[idx], expected_0)
+        else:
+            assert np.array_equal(values[idx], expected_1)
+
+
+def test_multiple_static_seds_min_max():
+    """Test that we can get the min and max wavelengths from a StaticSEDSource object with multiple SEDs."""
+    sed0 = np.array(
+        [
+            [100.0, 200.0, 300.0, 400.0],  # Wavelengths
+            [10.0, 20.0, 20.0, 10.0],  # fluxes
+        ]
+    )
+    sed1 = np.array(
+        [
+            [200.0, 300.0, 400.0, 500.0],  # Wavelengths
+            [20.0, 40.0, 40.0, 20.0],  # fluxes
+        ]
+    )
+    model = StaticSEDSource([sed0, sed1], weights=[0.5, 0.5], node_label="test")
+
+    states = model.sample_parameters(num_samples=1)
+
+    # Force the selected_idx to be 0 for the test.
+    states.set("test", "selected_idx", 0)
+    assert model.minwave(states) == 100.0
+    assert model.maxwave(states) == 400.0
+
+    # Force the selected_idx to be 1 for the test.
+    states.set("test", "selected_idx", 1)
+    assert model.minwave(states) == 200.0
+    assert model.maxwave(states) == 500.0
+
+    # We fail if we do not pass in the states.
+    with pytest.raises(ValueError):
+        _ = model.minwave()
+    with pytest.raises(ValueError):
+        _ = model.maxwave()
