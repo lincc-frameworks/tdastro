@@ -1,9 +1,36 @@
 import numpy as np
+import pytest
 from tdastro.astro_utils.passbands import PassbandGroup
 from tdastro.math_nodes.given_sampler import GivenValueList
 from tdastro.opsim.opsim import OpSim
-from tdastro.simulate import simulate_lightcurves
+from tdastro.simulate import get_time_windows, simulate_lightcurves
 from tdastro.sources.basic_sources import StaticSource
+
+
+def test_get_time_windows():
+    """Test the get_time_windows function with various inputs."""
+    assert get_time_windows(None, None) == (None, None)
+    assert get_time_windows(0.0, None) == (None, None)
+    assert get_time_windows(None, (1.0, 2.0)) == (None, None)
+
+    result = get_time_windows(0.0, (1.0, 2.0))
+    assert np.array_equal(result[0], np.array([-1.0]))
+    assert np.array_equal(result[1], np.array([2.0]))
+
+    result = get_time_windows(1.0, (None, 2.0))
+    assert result[0] is None
+    assert np.array_equal(result[1], np.array([3.0]))
+
+    result = get_time_windows(-10.0, (1.0, None))
+    assert np.array_equal(result[0], np.array([-11.0]))
+    assert result[1] is None
+
+    result = get_time_windows(np.array([0.0, 1.0, 2.0]), (1.0, 2.0))
+    assert np.array_equal(result[0], np.array([-1.0, 0.0, 1.0]))
+    assert np.array_equal(result[1], np.array([2.0, 3.0, 4.0]))
+
+    with pytest.raises(ValueError):
+        get_time_windows(0.0, (1.0, 2.0, 3.0))
 
 
 def test_simulate_lightcurves(test_data_dir):
