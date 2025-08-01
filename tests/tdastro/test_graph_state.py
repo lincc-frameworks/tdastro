@@ -9,6 +9,7 @@ def test_create_single_sample_graph_state():
     state = GraphState()
     assert len(state) == 0
     assert state.num_samples == 1
+    assert state.get_all_params_names() == []
 
     state.set("a", "v1", 1.0)
     state.set("a", "v2", 2.0)
@@ -31,6 +32,9 @@ def test_create_single_sample_graph_state():
         _ = state["c.v1"]
     with pytest.raises(KeyError):
         _ = state["a.v1.v2"]
+
+    # We can access a list of all the parameter names.
+    assert state.get_all_params_names() == ["a.v1", "a.v2", "b.v1"]
 
     # We can create a human readable string representation of the GraphState.
     debug_str = str(state)
@@ -95,6 +99,54 @@ def test_create_single_sample_graph_state():
         _ = state.extract_single_sample(5)
 
 
+def test_create_single_graph_state_from_flattened_dict():
+    """Test that we can create a single GraphState from a flattened dictionary."""
+    input = {
+        "a.v1": 1.0,
+        "b.v1": 2.0,
+        "c.v3": 3.0,
+        "a.v2": 4.0,
+        "c.v2": 5.0,
+    }
+    state = GraphState.from_dict(input, num_samples=1)
+
+    assert len(state) == 5
+    assert state.num_samples == 1
+    assert state["a"]["v1"] == 1.0
+    assert state["b"]["v1"] == 2.0
+    assert state["c"]["v3"] == 3.0
+    assert state["a"]["v2"] == 4.0
+    assert state["c"]["v2"] == 5.0
+
+    # We can access a list of all the parameter names.
+    assert state.get_all_params_names() == ["a.v1", "a.v2", "b.v1", "c.v3", "c.v2"]
+
+
+def test_create_multiple_graph_state_from_nested_dict():
+    """Test that we can create a single GraphState from a nested dictionary."""
+    input = {
+        "a": {"v1": 1.0, "v2": 4.0},
+        "b": {"v1": 2.0},
+        "c": {"v3": 3.0, "v2": 5.0},
+    }
+    state = GraphState.from_dict(input, num_samples=1)
+
+    assert len(state) == 5
+    assert state.num_samples == 1
+    assert state["a"]["v1"] == 1.0
+    assert state["b"]["v1"] == 2.0
+    assert state["c"]["v3"] == 3.0
+    assert state["a"]["v2"] == 4.0
+    assert state["c"]["v2"] == 5.0
+
+    # We can access a list of all the parameter names.
+    assert state.get_all_params_names() == ["a.v1", "a.v2", "b.v1", "c.v3", "c.v2"]
+
+    # Fail is we use nested names (no separator), but do not have dictionaries.
+    with pytest.raises(ValueError):
+        GraphState.from_dict({"a": 1, "b": 2}, num_samples=1)
+
+
 def test_graph_state_contains():
     """Test that we can use the 'in' operator in GraphState."""
     state = GraphState()
@@ -138,6 +190,9 @@ def test_create_multi_sample_graph_state():
     assert np.allclose(state["a"]["v2"], [2.0, 2.5, 3.0, 3.5, 4.0])
     assert np.allclose(state["b"]["v1"], [-2.0, -2.5, -3.0, -3.5, -4.0])
 
+    # We can access a list of all the parameter names.
+    assert state.get_all_params_names() == ["a.v1", "a.v2", "b.v1"]
+
     # Check tht we can get all the values for a specific node and sample.
     a_vals = state.get_node_state("a")
     assert len(a_vals) == 2
@@ -160,6 +215,91 @@ def test_create_multi_sample_graph_state():
     # Error if we send an array of the wrong length.
     with pytest.raises(ValueError):
         state.set("b", "v2", [-2.0, -2.5, -3.0, -3.5, -4.0, 1.0])
+
+
+def test_create_multi_graph_state_from_flattened_dict():
+    """Test that we can create a multi-sample GraphState from a flattened dictionary."""
+    input = {
+        "a.v1": [1.0, 2.0, 3.0],
+        "b.v1": [2.0, 4.0, 6.0],
+        "c.v3": [3.0, 6.0, 9.0],
+        "a.v2": [4.0, 3.0, 2.0],
+        "c.v2": [5.0, 5.0, 5.0],
+    }
+    state = GraphState.from_dict(input, num_samples=3)
+
+    assert len(state) == 5
+    assert state.num_samples == 3
+    assert np.array_equal(state["a"]["v1"], [1.0, 2.0, 3.0])
+    assert np.array_equal(state["a"]["v2"], [4.0, 3.0, 2.0])
+    assert np.array_equal(state["b"]["v1"], [2.0, 4.0, 6.0])
+    assert np.array_equal(state["c"]["v2"], [5.0, 5.0, 5.0])
+    assert np.array_equal(state["c"]["v3"], [3.0, 6.0, 9.0])
+
+    # We raise an error if we get the number of samples wrong.
+    with pytest.raises(ValueError):
+        _ = GraphState.from_dict(input, num_samples=4)
+
+
+def test_create_single_graph_state_from_nested_dict():
+    """Test that we can create a single GraphState from a nested dictionary."""
+    input = {
+        "a": {"v1": [1.0, 2.0, 3.0], "v2": [4.0, 3.0, 2.0]},
+        "b": {"v1": [2.0, 4.0, 6.0]},
+        "c": {"v3": [3.0, 6.0, 9.0], "v2": [5.0, 5.0, 5.0]},
+    }
+    state = GraphState.from_dict(input, num_samples=3)
+
+    assert len(state) == 5
+    assert state.num_samples == 3
+    assert np.array_equal(state["a"]["v1"], [1.0, 2.0, 3.0])
+    assert np.array_equal(state["a"]["v2"], [4.0, 3.0, 2.0])
+    assert np.array_equal(state["b"]["v1"], [2.0, 4.0, 6.0])
+    assert np.array_equal(state["c"]["v2"], [5.0, 5.0, 5.0])
+    assert np.array_equal(state["c"]["v3"], [3.0, 6.0, 9.0])
+
+    # We raise an error if we get the number of samples wrong.
+    with pytest.raises(ValueError):
+        _ = GraphState.from_dict(input, num_samples=2)
+
+
+def test_create_single_graph_state_from_list():
+    """Test that we can create a single GraphState from a list of states."""
+    state1 = GraphState(num_samples=1)
+    state1.set("a", "v1", 1.0)
+    state1.set("a", "v2", 2.0)
+    state1.set("b", "v1", 3.0)
+
+    state2 = GraphState(num_samples=2)
+    state2.set("a", "v1", [1.0, 2.0])
+    state2.set("a", "v2", [2.0, 3.0])
+    state2.set("b", "v1", [3.0, 4.0])
+
+    dict1 = {"a.v1": 10.0, "a.v2": 11.0, "b.v1": 12.0}
+    state = GraphState.from_list([state1, dict1, state2])
+
+    assert len(state) == 3
+    assert state.num_samples == 4
+    assert np.array_equal(state["a"]["v1"], [1.0, 10.0, 1.0, 2.0])
+    assert np.array_equal(state["a"]["v2"], [2.0, 11.0, 2.0, 3.0])
+    assert np.array_equal(state["b"]["v1"], [3.0, 12.0, 3.0, 4.0])
+
+    # We raise an error if we get a state with different parameters.
+    state_missing = GraphState.from_dict({"a.v1": 10.0, "a.v2": 11.0})
+    with pytest.raises(ValueError):
+        _ = GraphState.from_list([state1, dict1, state2, state_missing])
+
+    state_extra = GraphState.from_dict({"a.v1": 10.0, "a.v2": 11.0, "b.v1": 12.0, "c.v1": 12.0})
+    with pytest.raises(ValueError):
+        _ = GraphState.from_list([state1, dict1, state2, state_extra])
+
+    # Fail on invalid list item.
+    with pytest.raises(TypeError):
+        _ = GraphState.from_list([state1, dict1, state2, 1.0])
+
+    # Fail on empty list.
+    with pytest.raises(ValueError):
+        _ = GraphState.from_list([])
 
 
 def test_create_multi_sample_graph_state_reference():
