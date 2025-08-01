@@ -1,18 +1,15 @@
+import h5py
 import numpy as np
-from pathlib import Path
-
+from astropy import units as u
 from citation_compass import CiteClass
 
-from astropy import units as u
-import h5py
-from tdastro.astro_utils.unit_utils import flam_to_fnu
-from tdastro.sources.physical_model import PhysicalModel
-from tdastro.effects.extinction import ExtinctionEffect
-from tdastro.base_models import FunctionNode
 from tdastro import _TDASTRO_BASE_DATA_DIR
+from tdastro.astro_utils.unit_utils import flam_to_fnu
+from tdastro.effects.extinction import ExtinctionEffect
+from tdastro.sources.physical_model import PhysicalModel
 
 
-class bayesnModel(PhysicalModel, CiteClass):
+class BayesnModel(PhysicalModel, CiteClass):
     """A bayesian model for supernova type Ia
 
     The model is defined in (Mandel et al 2022) as:
@@ -245,13 +242,13 @@ class bayesnModel(PhysicalModel, CiteClass):
             alpha[i] = (3 / h[i]) * (y[i + 1] - y[i]) - (3 / h[i - 1]) * (y[i] - y[i - 1])
 
         # Step 2: Forward elimination (Thomas algorithm for tridiagonal system)
-        l = np.ones(n)
+        wave = np.ones(n)
         mu = np.zeros(n)
         z = np.zeros(n)
         for i in range(1, n - 1):
-            l[i] = 2 * (x[i + 1] - x[i - 1]) - h[i - 1] * mu[i - 1]
-            mu[i] = h[i] / l[i]
-            z[i] = (alpha[i] - h[i - 1] * z[i - 1]) / l[i]
+            wave[i] = 2 * (x[i + 1] - x[i - 1]) - h[i - 1] * mu[i - 1]
+            mu[i] = h[i] / wave[i]
+            z[i] = (alpha[i] - h[i - 1] * z[i - 1]) / wave[i]
 
         # Step 3: Back substitution to solve for second derivatives
         M = np.zeros(n)
