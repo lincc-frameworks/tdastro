@@ -16,6 +16,7 @@ from tdastro.base_models import FunctionNode
 from tdastro.effects.white_noise import WhiteNoise
 from tdastro.math_nodes.np_random import NumpyRandomFunc
 from tdastro.sources.basic_sources import LinearWavelengthSource, StepSource
+from tdastro.sources.lightcurve_source import LightcurveSource
 from tdastro.sources.sncomso_models import SncosmoWrapperModel
 
 # ASV runs from copy of the project (benchmarks/env/....). So we load the
@@ -28,7 +29,7 @@ def _load_test_passbands():
     """Load passbands to use in various benchmarks."""
     passbands_dir = _TEST_DATA_DIR / "passbands"
     passbands = PassbandGroup(
-        passband_parameters=[
+        given_passbands=[
             {
                 "filter_name": "g",
                 "survey": "LSST",
@@ -190,3 +191,25 @@ class TimeSuite:
             flam_unit=u.erg / u.second / u.cm**2 / u.AA,
             fnu_unit=u.nJy,
         )
+
+    def time_lightcurve_source(self):
+        """Time the creation and query of a LightcurveSource."""
+        lc_times = np.linspace(0.0, 6 * np.pi, 100)
+        g_gluxes = np.sin(lc_times) + 3.0
+        r_gluxes = np.cos(lc_times) + 5.0
+
+        lightcurves = {
+            "g": np.column_stack((lc_times, g_gluxes)),
+            "r": np.column_stack((lc_times, r_gluxes)),
+        }
+        lc_source = LightcurveSource(
+            lightcurves,
+            self.passbands,
+            lc_t0=0.0,
+            periodic=True,
+            baseline=None,
+            t0=0.0,
+        )
+
+        # Sample the lightcurve source to ensure it works.
+        _ = lc_source.evaluate(self.times, self.wavelengths)

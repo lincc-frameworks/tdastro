@@ -113,7 +113,7 @@ def load_and_register_passband(passbands_dir, to_use):
 
     # Do the actual loading and processing.
     passbands = PassbandGroup(
-        passband_parameters=passband_list,
+        passband_list,
         survey="LSST",
         units="nm",
         trim_quantile=0.001,

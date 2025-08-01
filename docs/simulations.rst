@@ -25,21 +25,26 @@ The main simulation components in TDAstro include:
 * The ``PassbandGroup`` contains the filter information of the telescope and is used
   to calculate the fluxes in each band.
 
+See the :doc:`Glossary <glossary>` for definitions of key terms, such as
+*GraphState*, *Node*, *Parameter*, *ParameterizedNode*, *PhysicalModel*, and *Source*.
+
 Defining a parameterized model
 -------------------------------------------------------------------------------
 
 The core idea behind TDAstro is that we want to generate light curves from parameterized models
 of physical objects. The ``PhysicalModel`` class defines the structure for modeling physical objects.
 New object types are derived from the ``PhysicalModel`` base class and implement a ``compute_flux()``
-function that generates the noise-free flux densities given information about the times, wavelengths,
-and model parameters (called graph_state). 
+function that generates the noise-free flux densities in the object's rest frame given information about
+the times, wavelengths, and model parameters (called graph_state). Both the times and wavelengths are
+converted to account for redshift before being passed to the ``compute_flux()`` function.
 
 .. code-block:: python
+
     def compute_flux(self, times, wavelengths, graph_state, **kwargs):
 
-A user using a particular physical model only needs to understand what parameters the model has
-and how they are set. A user creating a new physical model additionally needs to know how the noise-free
-flux density values are generated from those parameters.
+A user of a particular physical model only needs to understand what parameters the model has
+and how they are set. A user creating a new physical model additionally needs to know how the noise-free,
+rest frame flux density values are generated from those parameters.
 
 The parameters that are defined by a hierarchical model can be visualized by a Directed Acyclic Graph (DAG).
 This means that the parameters to our physical model, such as a type Ia supernova, can themselves be sampled
@@ -58,7 +63,7 @@ In this example, the parameter ``c`` is drawn from a predefined distribution, wh
 is drawn from a distribution that is itself parameterized by the ``host_mass`` parameter. TDAstro handles
 the sequential processing of the graph so that all parameters are consistently sampled for each object.
 
-See the :doc:`Introduction Demo notebook<notebooks/introduction_demo.ipynb>` for details on how to
+See the :doc:`Introduction notebook<notebooks/introduction>` for details on how to
 define the parameter DAG.
 
 
@@ -75,6 +80,8 @@ The ``eval()`` function handles the mechanics of the simulation, such as applyin
 times and wavelengths before calling the ``compute_flux()``.
 
 Additional effects can be applied to the noise-free light curves to produce more realistic light curves.
+The effects are applied in two batches. Rest frame effects are applied to the flux densities in the frame.
+The flux densities are then converted to the observer frame where the observer frame effects are applied.
 
 Finally, the raw flux densities are are converted into the magnitudes observed in each band using the
 ``PassbandGroup``.

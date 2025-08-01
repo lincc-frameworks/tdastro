@@ -12,7 +12,8 @@ from tdastro.math_nodes.np_random import NumpyRandomFunc
 
 
 class GivenValueList(FunctionNode):
-    """A FunctionNode that returns given results for a single parameter.
+    """A FunctionNode that returns given results for a single parameter
+    in the order in which they are provided.
 
     Attributes
     ----------
@@ -79,17 +80,32 @@ class GivenValueSampler(NumpyRandomFunc):
 
     Attributes
     ----------
-    values : list or numpy.ndarray
-        The values to select from.
+    values : int, list, or numpy.ndarray
+        The values to select from. If an integer is provided, it is treated as a range
+        from 0 to that value - 1.
     _num_values : int
         The number of values that can be sampled.
+    _weights : numpy.ndarray, optional
+        The weights for each value, if provided. If None, all values are equally likely.
     """
 
-    def __init__(self, values, seed=None, **kwargs):
+    def __init__(self, values, weights=None, seed=None, **kwargs):
+        if isinstance(values, int):
+            values = np.arange(values)
         self.values = np.asarray(values)
+
         self._num_values = len(values)
         if self._num_values == 0:
             raise ValueError("No values provided for NumpySamplerNode")
+
+        # Compute the normalized weights for each value.
+        if weights is not None:
+            self._weights = np.asarray(weights)
+            if len(self._weights) != self._num_values:
+                raise ValueError("Weights must match the number of values provided.")
+            self._weights /= np.sum(self._weights)
+        else:
+            self._weights = None
 
         super().__init__("uniform", seed=seed, **kwargs)
 
@@ -116,11 +132,41 @@ class GivenValueSampler(NumpyRandomFunc):
         rng = rng_info if rng_info is not None else self._rng
 
         if graph_state.num_samples == 1:
-            inds = rng.integers(0, self._num_values)
+            inds = rng.choice(self._num_values, p=self._weights)
         else:
-            inds = rng.integers(0, self._num_values, size=graph_state.num_samples)
+            inds = rng.choice(self._num_values, size=graph_state.num_samples, p=self._weights)
+        results = self.values[inds]
+        self._save_results(results, graph_state)
 
-        return self.values[inds]
+        return results
+
+
+class GivenValueSelector(FunctionNode):
+    """A FunctionNode that selects a single value from a list of parameters.
+
+    Parameters
+    ----------
+    values : float, list, or numpy.ndarray
+        The values that can be selected.
+    index : parameter
+        The parameter that selects which value to return. This should return an
+        integer index corresponding to the position in `values`.
+    **kwargs : dict, optional
+        Any additional keyword arguments.
+    """
+
+    def __init__(self, values, index, **kwargs):
+        # The index parameter will automatically be added as input by the FunctionNode constructor.
+        super().__init__(self._select, index=index, **kwargs)
+        self.values = np.asarray(values)
+        if len(values) == 0:
+            raise ValueError("No values provided for GivenValueList")
+
+    def _select(self, index):
+        """Select the value at the given index."""
+        if np.any(index < 0) or np.any(index >= len(self.values)):
+            raise IndexError(f"Index {index} out of bounds for values of length {len(self.values)}")
+        return self.values[index]
 
 
 class TableSampler(NumpyRandomFunc):

@@ -10,20 +10,21 @@ individual values (often floats) or arrays of samples.
 
 All model parameters (random variables in the probabilistic graph) must be added using
 using the ParameterizedNode.add_parameter() function. This allows the graph to track
-which parameters to update and how to set them. Parameter's values can be set from a few
+which parameters to update and how to set them. A parameter's values can be set from a few
 sources:
-1) A constant (Example: A given standard deviation for a noise model)
+
+1) A constant (e.g., a given standard deviation for a noise model).
 2) A static function or method (which does not have variables that are resampled).
 3) The result of evaluating a FunctionNode, which provides a computation using other
    parameters in the graph.
 4) The parameters of another ParameterizedNode.
 
 We say that parameter X is dependent on parameter Y if the value of Y is necessary
-to compute the value of X. For example if X is set by evaluating a FunctionNode that
+to compute the value of X. For example, if X is set by evaluating a FunctionNode that
 uses parameter Y in the computation, X is dependent on Y. The dependencies impose an
 ordering of model parameters in the graph. Y must be computed before X.
 
-ParameterNodes provide semantic groupings of individual parameters. For example we may
+ParameterNodes provide semantic groupings of individual parameters. For example, we may
 have a ParameterNode representing the information needed for a Type Ia supernova.
 That node's parameters would include the variables needed to evaluate the supernova's
 lightcurve. Each of these parameters might depend on parameters in other nodes, such
@@ -31,19 +32,19 @@ as those of the host galaxy.
 
 The execution graph is processed by starting at the final node, examining each
 model parameter for that node, and recursively proceeding 'up' the graph for any
-of its parameters that has a dependency. For example the function.
+of its parameters that has a dependency. For example, the function::
 
-f(a, b) = x
-g(c) = y
-h(x, y) = z
+    f(a, b) = x
+    g(c) = y
+    h(x, y) = z
 
-would form the graph:
+would form the graph::
 
-a -\
-    x - \
-b -/     \
-          z
-c -- y -- /
+    a - \\
+         x -- \\
+    b - /      \\
+                z
+    c -- y --- /
 
 where z is the 'bottom' node. Parameters a, b, and c would be at the 'top' of the
 graph because they have no dependencies.  Such parameters are set by constants or
@@ -69,15 +70,15 @@ class ParameterSource:
         The name of the parent node.
     source_type : int
         The type of source as defined by the class variables.
-        Default = 0
+        Default: 0
     value : any
         The information that actually sets the parameter. Either a constant
         or the attribute name of a dependency node.
     dependency : ParameterizedNode or None
-        The node on which this parameter is dependent
+        The node on which this parameter is dependent.
     allow_gradient : bool
         Allow gradients to be computed at this variable.
-        Default = False
+        Default: False
     """
 
     # Class variables for the source enum.
@@ -104,7 +105,7 @@ class ParameterSource:
             The constant value to use.
         allow_gradient : bool
             Allow a gradient to be computed at this variable.
-            Default = True
+            Default: True
         """
         if callable(value):
             raise ValueError(f"Using set_as_constant on callable {value}")
@@ -179,7 +180,7 @@ class ParameterizedNode:
     node_label : str
         An optional human readable identifier (name) for the current node.
     node_string : str
-        The full string used to identify a node. This is a combination of the nodes position
+        The full string used to identify a node. This is a combination of the node's position
         in the graph (if known), node_label (if provided), and class information. This is
         used to access the parameters for this node in the graph_state.
     setters : dict
@@ -288,10 +289,7 @@ class ParameterizedNode:
             return False
 
         setter = self.setters[name]
-        if setter.source_type == ParameterSource.CONSTANT and setter.value is None:
-            return False
-
-        return True
+        return not (setter.source_type == ParameterSource.CONSTANT and setter.value is None)
 
     def get_param(self, graph_state, name, default=None):
         """Get the value of a parameter stored in this node or a default value.
@@ -317,7 +315,8 @@ class ParameterizedNode:
 
         Raises
         ------
-        ValueError if graph_state is None.
+        ValueError
+            If graph_state is None.
         """
         if graph_state is None:
             raise ValueError(f"Unable to look up parameter={name}. No graph_state given.")
@@ -345,8 +344,10 @@ class ParameterizedNode:
 
         Raises
         ------
-        KeyError if no parameters have been set for this node.
-        ValueError if graph_state is None.
+        KeyError
+            If no parameters have been set for this node.
+        ValueError
+            If graph_state is None.
         """
         if graph_state is None:
             raise ValueError("No graph_state given.")
@@ -378,9 +379,10 @@ class ParameterizedNode:
 
         Raises
         ------
-        Raise a KeyError if there is a parameter collision or the parameter
-        cannot be found.
-        Raise a ValueError if the setter type is not supported.
+        KeyError
+            If there is a parameter collision or the parameter cannot be found.
+        ValueError
+            If the setter type is not supported.
         """
         # Set the node's position in the graph to None to indicate that the
         # structure might have changed. It needs to be updated with set_graph_positions().
@@ -468,14 +470,14 @@ class ParameterizedNode:
         allow_gradient : bool or None
             Allow gradients to be computed for this variable. If set to None uses the default
             for the setter type (True for constant and False for everything else).
-            Default = None
+            Default: None
         **kwargs : dict, optional
            All other keyword arguments, possibly including the parameter setters.
 
         Raises
         ------
-        Raise a KeyError if there is a parameter collision or the parameter
-        cannot be found.
+        KeyError
+            If there is a parameter collision or the parameter cannot be found.
         """
         # Check for parameter collision and add a place holder value to the 'setters' dictionary.
         if hasattr(self, name) and name not in self.setters:
@@ -555,7 +557,8 @@ class ParameterizedNode:
 
         Raises
         ------
-        Raise a KeyError if the sampling encounters an error with the order of dependencies.
+        KeyError
+            If the sampling encounters an error with the order of dependencies.
         """
         node_str = str(self)
         if node_str in seen_nodes:
@@ -631,7 +634,8 @@ class ParameterizedNode:
 
         Raises
         ------
-        Raise a ValueError the sampling encounters a problem with the order of dependencies.
+        ValueError
+            If the sampling encounters a problem with the order of dependencies.
         """
         # If the graph structure has never been set, do that now.
         if self.node_pos is None:
@@ -660,7 +664,7 @@ class ParameterizedNode:
             The partial results so far. This is modified in place by the function.
             A dictionary mapping node name to a dictionary mapping each variable's name
             to its value.
-            Default : None
+            Default: None
 
         Returns
         -------
@@ -697,7 +701,7 @@ class FunctionNode(ParameterizedNode):
     """A class to wrap functions and their argument settings.
 
     The node can compute the result using a given function (the func
-    parameter) or through the compute() method. If no func=None
+    parameter) or through the compute() method. If func=None
     then the user must override compute().
 
     Attributes
@@ -717,7 +721,7 @@ class FunctionNode(ParameterizedNode):
     node_label : str, optional
         An identifier (or name) for the current node.
     outputs : list of str, optional
-        The output model parameters of this function. If None uses
+        The output model parameters of this function. If None, uses
         a single model parameter result.
     fixed_params : dict, optional
         A dictionary mapping a parameter name in the function to its fixed value.
@@ -726,20 +730,23 @@ class FunctionNode(ParameterizedNode):
 
     Examples
     --------
-    my_func = TDFunc(random.randint, a=1, b=10)
-    value1 = my_func()      # Sample from default range
-    value2 = my_func(b=20)  # Sample from extended range
+
+    ::
+
+        my_func = TDFunc(random.randint, a=1, b=10)
+        value1 = my_func()      # Sample from default range
+        value2 = my_func(b=20)  # Sample from extended range
 
     Note
     ----
     All the function's parameters that will be used need to be specified
     in either the default_args dict, object_args list, or as a kwarg in the
     constructor. Arguments cannot be first given during function call.
-    For example the following will fail (because b is not defined in the
-    constructor):
+    For example, the following will fail (because b is not defined in the
+    constructor)::
 
-    my_func = TDFunc(random.randint, a=1)
-    value1 = my_func(b=10.0)
+        my_func = TDFunc(random.randint, a=1)
+        value1 = my_func(b=10.0)
     """
 
     def __init__(self, func, node_label=None, outputs=None, fixed_params=None, **kwargs):
@@ -780,7 +787,7 @@ class FunctionNode(ParameterizedNode):
         pass
 
     def _update_node_string(self, new_str=None):
-        """Update the node's string. A Function node's string includes
+        """Update the node's string. A FunctionNode's string includes
         the function name in addition to the class name.
         """
         if new_str is None:
@@ -860,7 +867,8 @@ class FunctionNode(ParameterizedNode):
 
         Raises
         ------
-        ValueError is func attribute is None.
+        ValueError
+            If func attribute is None.
         """
         if self.func is None:
             raise ValueError(
@@ -876,8 +884,8 @@ class FunctionNode(ParameterizedNode):
         return results
 
     def generate(self, given_args=None, num_samples=1, rng_info=None, **kwargs):
-        """A helper function that regenerates the parameters for this nodes and the
-        ones above it, then returns the the output or this individual node.
+        """A helper function that regenerates the parameters for this node and the
+        nodes above it, then returns the output for this individual node.
 
         This is used both for testing and for computing JAX gradients.
 

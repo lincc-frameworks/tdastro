@@ -5,7 +5,7 @@ import numpy as np
 
 
 def plot_lightcurves(
-    fluxes, times, fluxerrs=None, filters=None, ax=None, figure=None, title=None, colormap=None
+    fluxes, times, fluxerrs=None, filters=None, ax=None, figure=None, title=None, colormap=None, **kwargs
 ):
     """Plot one or more lightcurves.
 
@@ -30,6 +30,8 @@ def plot_lightcurves(
         Title of the plot. None by default.
     colormap: dict, optional
         A dictionary that provides mapping between filters and the colors to be plotted.
+    **kwargs : dict
+        Optional parameters to pass to the plotting function
     """
     # If no axes were given create them using either the given figure or
     # a newly created one (if no figure is given).
@@ -74,6 +76,7 @@ def plot_lightcurves(
                 marker="o",
                 label=filter,
                 color=colormap[filter],
+                **kwargs,
             )
         else:
             ax.errorbar(
@@ -83,6 +86,7 @@ def plot_lightcurves(
                 fmt="o",
                 label=filter,
                 color=colormap[filter],
+                **kwargs,
             )
 
     # Set the title and axis labels.

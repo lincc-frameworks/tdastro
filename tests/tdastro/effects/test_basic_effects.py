@@ -5,7 +5,7 @@ from tdastro.sources.basic_sources import StaticSource
 
 
 def test_constant_dimming() -> None:
-    """Test that we can sample and create a ConstantDimming."""
+    """Test that we can create and sample a ConstantDimming object."""
     values = np.full((5, 3), 100.0)
 
     # We can apply the noise.
@@ -16,6 +16,20 @@ def test_constant_dimming() -> None:
     # We fail if we do not pass in the expected parameters.
     with pytest.raises(ValueError):
         _ = effect.apply(values)
+
+
+def test_constant_dimming_bandflux() -> None:
+    """Test that we can sample a ConstantDimming object at the bandflux level."""
+    values = np.full(10, 100.0)
+
+    # We can apply the noise.
+    effect = ConstantDimming(flux_fraction=0.1)
+    values = effect.apply_bandflux(values, flux_fraction=0.1)
+    assert np.all(values == 10.0)
+
+    # We fail if we do not pass in the expected parameters.
+    with pytest.raises(ValueError):
+        _ = effect.apply_bandflux(values)
 
 
 def test_static_source_constant_dimming() -> None:

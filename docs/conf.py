@@ -29,6 +29,9 @@ extensions = ["sphinx.ext.mathjax", "sphinx.ext.napoleon", "sphinx.ext.viewcode"
 extensions.append("autoapi.extension")
 extensions.append("nbsphinx")
 
+# Allow notebook execution errors to not break the build
+nbsphinx_allow_errors = True
+
 # -- sphinx-copybutton configuration ----------------------------------------
 extensions.append("sphinx_copybutton")
 ## sets up the expected prompt text from console blocks, and excludes it from
@@ -56,3 +59,6 @@ autoapi_add_toc_tree_entry = False
 autoapi_member_order = "bysource"
 
 html_theme = "sphinx_rtd_theme"
+
+# Support use of arbitrary section titles in docstrings
+napoleon_custom_sections = ["Citations"]

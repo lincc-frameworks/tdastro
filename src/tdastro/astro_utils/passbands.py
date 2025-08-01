@@ -1,6 +1,11 @@
+"""The Passband and PassbandGroup objects store information about the filters used
+to convert flux densities (as a function of wavelength) to bandfluxes. They also provide
+methods for loading and manipulating passband data.
+"""
+
 import logging
 from pathlib import Path
-from typing import Literal, Optional, Union
+from typing import Literal, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -40,43 +45,27 @@ class PassbandGroup:
         A dictionary mapping the filter name to a list of matching passband full names.
     """
 
-    def __init__(
-        self,
-        preset: str = None,
-        passband_parameters: Optional[list] = None,
-        table_dir: Optional[Union[str, Path]] = None,
-        given_passbands: Optional[list] = None,
-        filters_to_load: Optional[list] = None,
-        **kwargs,
-    ):
+    def __init__(self, given_passbands, filters=None, **kwargs):
         """Construct a PassbandGroup object.
 
         Parameters
         ----------
-        preset : str, optional
-            A pre-defined set of passbands to load. If using a preset, passband_parameters will be ignored.
-        passband_parameters : list of dict, optional
-            A list of dictionaries of passband parameters used to create Passband objects.
-            Each dictionary must contain the following:
-            - survey : str
-            - filter_name : str
-            Dictionaries may also contain the following optional parameters:
-            - table_path : str or Path
-            - table_url : str
-            - delta_wave : float
-            - trim_quantile : float
-            - units : str (either 'nm' or 'A')
-            If survey is not LSST (or other survey with defined defaults), either a table_path or table_url
-            must be provided.
-        table_dir : str, optional
-            The path to the directory containing the passband tables. If a table_path has not been specified
-            in the passband_parameters dictionary, table paths will be set to
-            {table_dir}/{survey}/{filter_name}.dat. If None, the table path will be set to a default path.
-        given_passbands : list, optional
-            A list of Passband objects from which to create the PassbandGroup. These
-            overwrite any passbands with the same full name provided by either
-            preset or passband_parameters.
-        filters_to_load : list, optional
+        given_passbands : Passband, list of Passband, or dict
+            A list of all the passbands to include in this group. These can either be
+            Passband objects or dictionaries of passband parameters with the following keys:
+            - required:
+                - survey : str - The name of the survey to which the passband belongs, e.g., "LSST".
+                - filter_name : str - The name of the filter, e.g., "u".
+            - one of the following:
+                - table_data : np.ndarray - The transmission table data as a (N, 2) array where
+                    the first column is wavelengths and the second column is transmission values.
+                - table_path : str or Path - The path of the file from which to load the passband.
+                - table_url : str - The URL from which to download the passband file.
+            - optional:
+                - delta_wave : float
+                - trim_quantile : float
+                - units : str (either 'nm' or 'A')
+        filters : list, optional
             A list of filters to include in this PassbandGroup. If None, includes all filters.
             Otherwise drops filters that do not occur and throws an error if a filter is missing.
             Used for loading a subset of the filters.
@@ -87,53 +76,44 @@ class PassbandGroup:
         self._in_band_wave_indices = {}
         self._filter_to_name = {}
 
-        if preset is None and passband_parameters is None and given_passbands is None:
-            raise ValueError(
-                "PassbandGroup must be initialized with one of a preset, a list"
-                "of Passband objects, or passband_parameters."
-            )
+        # If we are given a single Passband object or a single dictionary, wrap it in a list.
+        if isinstance(given_passbands, Passband):
+            given_passbands = [given_passbands]
+        elif isinstance(given_passbands, dict):
+            given_passbands = [given_passbands]
+        elif given_passbands is None or len(given_passbands) == 0:
+            raise ValueError("No passbands provided to PassbandGroup.")
 
-        if preset is not None:
-            self.add_preset(preset, table_dir=table_dir, **kwargs)
+        for pb in given_passbands:
+            if isinstance(pb, Passband):
+                # If we are given a Passband object, add it directly.
+                self.passbands[pb.full_name] = pb
+            elif isinstance(pb, dict):
+                # If we are given a dictionary of parameters, create a Passband from it.
+                params = pb.copy()
 
-        elif passband_parameters is not None:
-            for parameters in passband_parameters:
-                # Add any missing parameters from kwargs
+                # Add any missing parameters from kwargs.
                 for key, value in kwargs.items():
-                    if key not in parameters:
-                        parameters[key] = value
+                    if key not in params:
+                        params[key] = value
 
-                # Set the table path if it is not already set and a table_dir is provided
-                if "table_path" not in parameters:
-                    if table_dir is not None:
-                        parameters["table_path"] = Path(
-                            table_dir,
-                            parameters["survey"],
-                            f"{parameters['filter_name']}.dat",
-                        )
-                elif isinstance(parameters["table_path"], str):
-                    parameters["table_path"] = Path(parameters["table_path"])
-
-                passband = Passband.from_file(**parameters)
+                passband = Passband.from_file(**params)
                 self.passbands[passband.full_name] = passband
-
-        # Load any additional passbands from the given list.
-        if given_passbands is not None:
-            for pb_obj in given_passbands:
-                self.passbands[pb_obj.full_name] = pb_obj
+            else:
+                raise TypeError(f"Expected a Passband object or a dictionary of parameters. Got {type(pb)}.")
 
         # Prune any filters that are not on the given list and check for any missing filters.
         # We match on either the full name or the filter name.
-        if filters_to_load is not None:
-            filters_to_load = set(filters_to_load)
-            filters_remaining = filters_to_load.copy()
+        if filters is not None:
+            filters = set(filters)
+            filters_remaining = filters.copy()
             all_bands = list(self.passbands.keys())
 
             for pb_name in all_bands:
                 pb_obj = self.passbands[pb_name]
-                if pb_name in filters_to_load:
+                if pb_name in filters:
                     filters_remaining.discard(pb_name)
-                elif pb_obj.filter_name in filters_to_load:
+                elif pb_obj.filter_name in filters:
                     filters_remaining.discard(pb_obj.filter_name)
                 else:
                     del self.passbands[pb_name]
@@ -146,10 +126,7 @@ class PassbandGroup:
 
     def __str__(self) -> str:
         """Return a string representation of the PassbandGroup."""
-        return (
-            f"PassbandGroup containing {len(self.passbands)} passbands: "
-            f"{', '.join(self.passbands.keys())}"
-        )
+        return f"PassbandGroup containing {len(self.passbands)} passbands: {', '.join(self.passbands.keys())}"
 
     def __len__(self) -> int:
         return len(self.passbands)
@@ -178,14 +155,23 @@ class PassbandGroup:
             return True
         return False
 
+    def __iter__(self):
+        for pb in self.passbands.values():
+            yield pb
+
+    @property
+    def filters(self) -> list:
+        """Return a list of filter names in the passband group."""
+        return list(self._filter_to_name.keys())
+
     @classmethod
     def from_dir(
         cls,
         dir_path: Union[str, Path],
-        filters: Optional[list] = None,
-        delta_wave: Optional[float] = 5.0,
-        trim_quantile: Optional[float] = 1e-3,
-        units: Optional[Literal["nm", "A"]] = "A",
+        filters: list | None = None,
+        delta_wave: float | None = 5.0,
+        trim_quantile: float | None = 1e-3,
+        units: Literal["nm", "A"] | None = "A",
     ):
         """Load the passbands from a directory where the directorty name corresponds
         to the survey and the file names correspond to the filters:
@@ -195,8 +181,10 @@ class PassbandGroup:
         ----------
         dir_path : str or Path
             The path to the passband files including the survey directory.
-        filters : list, set, or None, optional
-            A list of filters to load.
+        filters : list, optional
+            A list of filters to include in this PassbandGroup. If None, includes all filters.
+            Otherwise drops filters that do not occur and throws an error if a filter is missing.
+            Used for loading a subset of the filters.
         delta_wave : float or None, optional
             The grid step of the wave grid, in angstroms.
             It is typically used to downsample transmission using linear interpolation.
@@ -219,45 +207,54 @@ class PassbandGroup:
         for entry in dir_path.iterdir():
             if entry.is_file():
                 filter_name = entry.stem
-                params = {
-                    "survey": dir_path.name,
-                    "filter_name": filter_name,
-                    "table_path": dir_path / entry,
-                    "delta_wave": delta_wave,
-                    "trim_quantile": trim_quantile,
-                    "units": units,
-                }
-                all_params.append(params)
 
-        # Do the actual loading. The subsetting of filters happens here.
-        return PassbandGroup(passband_parameters=all_params, filters_to_load=filters)
+                # If a list of filters is provided, skip the ones that are not in the list.
+                if filters is None or filter_name in filters:
+                    params = {
+                        "survey": dir_path.name,
+                        "filter_name": filter_name,
+                        "table_path": dir_path / entry,
+                        "delta_wave": delta_wave,
+                        "trim_quantile": trim_quantile,
+                        "units": units,
+                    }
+                    all_params.append(params)
 
-    def add_passband(self, passband) -> None:
-        """Manually add a passband to the group.
+        return PassbandGroup(given_passbands=all_params, filters=filters)
 
-        Parameters
-        ----------
-        passband : Passband
-            The passband to add to the group.
-        """
-        self.passbands[passband.full_name] = passband
-        self._update_internal_data()
-
-    def add_preset(self, preset: str, table_dir: Optional[str], **kwargs) -> None:
-        """Load a pre-defined set of passbands and add it to the group.
+    @classmethod
+    def from_preset(cls, preset: str, table_dir=None, filters=None, **kwargs) -> None:
+        """Create a passband group from a pre-defined set of passbands.
 
         Parameters
         ----------
         preset : str
             The name of the pre-defined set of passbands to load.
         table_dir : str, optional
-            The path to the base directory containing the passband tables. The full path to the tables
-            will be {table_dir}/{survey}/{filter_name}.dat.
+            The path to the directory in which to store cached passband tables. If the passband
+            exists in this directory, it will be loaded from there; otherwise it will be downloaded
+            and saved in that directory.
+            The full path to the tables will be {table_dir}/{survey}/{filter_name}.dat.
+        filters : list, optional
+            A list of filters to include in this PassbandGroup. If None, includes all filters.
+            Otherwise drops filters that do not occur and throws an error if a filter is missing.
+            Used for loading a subset of the filters.
         **kwargs
             Additional keyword arguments to pass to the Passband constructor.
         """
         logger.info(f"Loading passbands from preset {preset}")
+        passbands = []
+
         if preset == "LSST":
+            # Check that units are what is expected for this preset.
+            if "units" not in kwargs:
+                kwargs["units"] = "nm"
+            elif kwargs["units"] != "nm":
+                raise ValueError(
+                    "LSST passbands are expected to be in nanometers (nm). "
+                    "Please set units='nm' in the kwargs."
+                )
+
             if table_dir is None:
                 table_dir = Path(_TDASTRO_BASE_DATA_DIR, "passbands", "LSST")
             else:
@@ -274,15 +271,31 @@ class PassbandGroup:
                     table_url=url,
                     **kwargs,
                 )
-                self.passbands[pb.full_name] = pb
+                passbands.append(pb)
         elif preset == "ZTF":
             for filter_name in ["g", "r", "i"]:
                 sn_pb = get_bandpass(f"ztf{filter_name}")
                 pb = Passband.from_sncosmo("ZTF", filter_name, sn_pb, **kwargs)
-                self.passbands[pb.full_name] = pb
+                passbands.append(pb)
         else:
             raise ValueError(f"Unknown passband preset: {preset}")
 
+        # Remove any filters that were not in the list to load.
+        if filters is not None:
+            passbands = [pb for pb in passbands if pb.filter_name in filters]
+
+        # Build the actual PassbandGroup object.
+        return cls(given_passbands=passbands, filters=filters, **kwargs)
+
+    def add_passband(self, passband) -> None:
+        """Manually add a passband to the group.
+
+        Parameters
+        ----------
+        passband : Passband
+            The passband to add to the group.
+        """
+        self.passbands[passband.full_name] = passband
         self._update_internal_data()
 
     def _update_internal_data(self) -> None:
@@ -380,9 +393,7 @@ class PassbandGroup:
         filter_name_mask = np.isin(filters, list(self._filter_to_name.keys()))
         return full_name_mask | filter_name_mask
 
-    def process_transmission_tables(
-        self, delta_wave: Optional[float] = 5.0, trim_quantile: Optional[float] = 1e-3
-    ):
+    def process_transmission_tables(self, delta_wave: float | None = 5.0, trim_quantile: float | None = 1e-3):
         """Process the transmission tables for all passbands in the group; recalculate group's wave attribute.
 
         Parameters
@@ -511,9 +522,9 @@ class Passband:
         table_values: np.array,
         survey: str,
         filter_name: str,
-        delta_wave: Optional[float] = 5.0,
-        trim_quantile: Optional[float] = 1e-3,
-        units: Optional[Literal["nm", "A"]] = "A",
+        delta_wave: float | None = 5.0,
+        trim_quantile: float | None = 1e-3,
+        units: Literal["nm", "A"] | None = "A",
     ):
         """Construct a Passband object.
 
@@ -580,21 +591,18 @@ class Passband:
         # Check that they have the (approximately) same transmission tables.
         if self.processed_transmission_table.shape != other.processed_transmission_table.shape:
             return False
-        if not np.allclose(self.processed_transmission_table, other.processed_transmission_table):
-            return False
-
-        return True
+        return np.allclose(self.processed_transmission_table, other.processed_transmission_table)
 
     @classmethod
     def from_file(
         cls,
         survey: str,
         filter_name: str,
-        delta_wave: Optional[float] = 5.0,
-        trim_quantile: Optional[float] = 1e-3,
-        table_path: Optional[Union[str, Path]] = None,
-        table_url: Optional[str] = None,
-        units: Optional[Literal["nm", "A"]] = "A",
+        delta_wave: float | None = 5.0,
+        trim_quantile: float | None = 1e-3,
+        table_path: Union[str, Path] | None = None,
+        table_url: str | None = None,
+        units: Literal["nm", "A"] | None = "A",
         force_download: bool = False,
     ):
         """Construct a Passband object from a file, downloading it if needed.
@@ -734,8 +742,8 @@ class Passband:
 
     def process_transmission_table(
         self,
-        delta_wave: Optional[float] = 5.0,
-        trim_quantile: Optional[float] = 1e-3,
+        delta_wave: float | None = 5.0,
+        trim_quantile: float | None = 1e-3,
     ):
         """Process the transmission table.
 
@@ -753,7 +761,7 @@ class Passband:
 
         self.waves = self.processed_transmission_table[:, 0]
 
-    def _interpolate_transmission_table(self, table: np.ndarray, delta_wave: Optional[float]) -> np.ndarray:
+    def _interpolate_transmission_table(self, table: np.ndarray, delta_wave: float | None) -> np.ndarray:
         """Interpolate the transmission table to a new wave grid.
 
         Parameters
@@ -786,7 +794,7 @@ class Passband:
         interpolated_transmissions = spline(new_wavelengths)
         return np.column_stack((new_wavelengths, interpolated_transmissions))
 
-    def _trim_transmission_by_quantile(self, table: np.ndarray, trim_quantile: Optional[float]) -> np.ndarray:
+    def _trim_transmission_by_quantile(self, table: np.ndarray, trim_quantile: float | None) -> np.ndarray:
         """Trim the transmission table so that it only includes the central (100 - 2*trim_quartile)% of rows.
 
         E.g., if trim_quantile is 1e-3, the transmission table will be trimmed to include only the central
