@@ -440,10 +440,10 @@ class OpSim:
         radius : float or None, optional
             The angular radius of the observation (in degrees). If None
             uses the default radius for the OpSim.
-        t_min : float or None, optional
+        t_min : float, numpy.ndarray or None, optional
             The minimum time (in MJD) for the observations to consider.
             If None, no time filtering is applied.
-        t_max : float or None, optional
+        t_max : float, numpy.ndarray or None, optional
             The maximum time (in MJD) for the observations to consider.
             If None, no time filtering is applied.
 
