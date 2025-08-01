@@ -104,12 +104,12 @@ class bayesnModel(PhysicalModel, CiteClass):
         Rv = None,
         t0 = 0.0,
         Amplitude = 1.,
-        _M20_model_path = "bayesn-model-files/BAYESN.M20",
+        _M20_model_path = _TDASTRO_BASE_DATA_DIR / "bayesn-model-files/BAYESN.M20",
         W0_filename = "W0.txt",
         W1_filename = "W1.txt",
         l_knots_filename = "l_knots.txt",
         tau_knots_filename = "tau_knots.txt",
-        hsiao_model_path = "bayesn-model-files/hsiao.h5",
+        hsiao_model_path = _TDASTRO_BASE_DATA_DIR / "bayesn-model-files/hsiao.h5",
         **kwargs
     ):
 
@@ -122,11 +122,11 @@ class bayesnModel(PhysicalModel, CiteClass):
         self.add_parameter("Amplitude", Amplitude, **kwargs)
 
         # load the data files.
-        self._W0_ = np.loadtxt(_TDASTRO_BASE_DATA_DIR / _M20_model_path / W0_filename)
-        self._W1_ = np.loadtxt(_TDASTRO_BASE_DATA_DIR / _M20_model_path / W1_filename)
-        self._l_knots_ = np.loadtxt(_TDASTRO_BASE_DATA_DIR / _M20_model_path / l_knots_filename)
-        self._tau_knots_ = np.loadtxt(_TDASTRO_BASE_DATA_DIR / _M20_model_path / tau_knots_filename)
-        with h5py.File(_TDASTRO_BASE_DATA_DIR / hsiao_model_path, 'r') as file:
+        self._W0_ = np.loadtxt(_M20_model_path / W0_filename)
+        self._W1_ = np.loadtxt(_M20_model_path / W1_filename)
+        self._l_knots_ = np.loadtxt(_M20_model_path / l_knots_filename)
+        self._tau_knots_ = np.loadtxt(_M20_model_path / tau_knots_filename)
+        with h5py.File(hsiao_model_path, 'r') as file:
             data = file['default']
             self._hsiao_phase = data['phase'][()].astype('float64')
             self._hsiao_wave = data['wave'][()].astype('float64')

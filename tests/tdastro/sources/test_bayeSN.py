@@ -55,6 +55,8 @@ def test_bayesn_matchness(test_data_dir):
                          dec=0,
                          redshift=redshift,
                          node_label="source",
+                         _M20_model_path = test_data_dir / "bayesn-model-files/BAYESN.M20",
+                         hsiao_model_path = test_data_dir / "bayesn-model-files/hsiao.h5",
                          Amplitude=np.power(10.,-0.4*(distmod + m_abs)),
     )
     flux_density = model.evaluate(times, wavelengths)
