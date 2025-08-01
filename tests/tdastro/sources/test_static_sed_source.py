@@ -92,3 +92,38 @@ def test_multiple_static_seds() -> None:
             assert np.array_equal(values[idx], expected_0)
         else:
             assert np.array_equal(values[idx], expected_1)
+
+
+def test_multiple_static_seds_min_max():
+    """Test that we can get the min and max wavelengths from a StaticSEDSource object with multiple SEDs."""
+    sed0 = np.array(
+        [
+            [100.0, 200.0, 300.0, 400.0],  # Wavelengths
+            [10.0, 20.0, 20.0, 10.0],  # fluxes
+        ]
+    )
+    sed1 = np.array(
+        [
+            [200.0, 300.0, 400.0, 500.0],  # Wavelengths
+            [20.0, 40.0, 40.0, 20.0],  # fluxes
+        ]
+    )
+    model = StaticSEDSource([sed0, sed1], weights=[0.5, 0.5], node_label="test")
+
+    states = model.sample_parameters(num_samples=1)
+
+    # Force the selected_idx to be 0 for the test.
+    states.set("test", "selected_idx", 0)
+    assert model.minwave(states) == 100.0
+    assert model.maxwave(states) == 400.0
+
+    # Force the selected_idx to be 1 for the test.
+    states.set("test", "selected_idx", 1)
+    assert model.minwave(states) == 200.0
+    assert model.maxwave(states) == 500.0
+
+    # We fail if we do not pass in the states.
+    with pytest.raises(ValueError):
+        _ = model.minwave()
+    with pytest.raises(ValueError):
+        _ = model.maxwave()

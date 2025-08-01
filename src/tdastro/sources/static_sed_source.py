@@ -67,6 +67,42 @@ class StaticSEDSource(PhysicalModel):
         """Get the number of lightcurves."""
         return len(self.sed_values)
 
+    def minwave(self, graph_state=None):
+        """Get the minimum wavelength of the model.
+
+        Parameters
+        ----------
+        graph_state : GraphState, optional
+            An object mapping graph parameters to their values. Not used
+            for this model.
+
+        Returns
+        -------
+        minwave : float or None
+            The minimum wavelength of the model (in angstroms) or None
+            if the model does not have a defined minimum wavelength.
+        """
+        idx = self.get_param(graph_state, "selected_idx")
+        return self.sed_values[idx][0, 0]
+
+    def maxwave(self, graph_state=None):
+        """Get the maximum wavelength of the model.
+
+        Parameters
+        ----------
+        graph_state : GraphState, optional
+            An object mapping graph parameters to their values. Not used
+            for this model.
+
+        Returns
+        -------
+        maxwave : float or None
+            The maximum wavelength of the model (in angstroms) or None
+            if the model does not have a defined maximum wavelength.
+        """
+        idx = self.get_param(graph_state, "selected_idx")
+        return self.sed_values[idx][0, -1]
+
     def compute_flux(self, times, wavelengths, graph_state):
         """Draw effect-free observer frame flux densities.
 
@@ -82,9 +118,7 @@ class StaticSEDSource(PhysicalModel):
         Returns
         -------
         flux_density : numpy.ndarray
-            A length T x N matrix of observer frame SED values (in nJy). These are generated
-            from non-overlapping box-shaped SED basis functions for each filter and
-            scaled by the lightcurve values.
+            A length T x N matrix of observer frame SED values (in nJy).
         """
         # Use the SED selected by the sampler node to compute the flux density.
         model_ind = self.get_param(graph_state, "selected_idx")

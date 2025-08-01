@@ -94,8 +94,14 @@ class SncosmoWrapperModel(PhysicalModel, CiteClass):
         """Return a list of the model's parameter values."""
         return self.source.parameters
 
-    def minwave(self):
+    def minwave(self, graph_state=None):
         """Get the minimum wavelength of the model.
+
+        Parameters
+        ----------
+        graph_state : GraphState, optional
+            An object mapping graph parameters to their values. Not used
+            for this model.
 
         Returns
         -------
@@ -105,12 +111,18 @@ class SncosmoWrapperModel(PhysicalModel, CiteClass):
         """
         return self.source.minwave()
 
-    def maxwave(self):
+    def maxwave(self, graph_state=None):
         """Get the maximum wavelength of the model.
+
+        Parameters
+        ----------
+        graph_state : GraphState, optional
+            An object mapping graph parameters to their values. Not used
+            for this model.
 
         Returns
         -------
-        maximum : float or None
+        maxwave : float or None
             The maximum wavelength of the model (in angstroms) or None
             if the model does not have a defined maximum wavelength.
         """

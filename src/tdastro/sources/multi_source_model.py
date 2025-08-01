@@ -219,6 +219,42 @@ class AdditiveMultiSourceModel(MultiSourceModel):
         else:
             self.weights = weights
 
+    def minwave(self, graph_state=None):
+        """Get the minimum wavelength of the model. For additive models, this is
+        the minimum wavelength of all sources.
+
+        Parameters
+        ----------
+        graph_state : GraphState, optional
+            An object mapping graph parameters to their values. If provided,
+            the function will use the graph state to compute the minimum wavelength.
+
+        Returns
+        -------
+        minwave : float or None
+            The minimum wavelength of the model (in angstroms) or None
+            if the model does not have a defined minimum wavelength.
+        """
+        return min(source.minwave(graph_state=graph_state) for source in self.sources)
+
+    def maxwave(self, graph_state=None):
+        """Get the maximum wavelength of the model. For additive models, this is
+        the maximum wavelength of all sources.
+
+        Parameters
+        ----------
+        graph_state : GraphState, optional
+            An object mapping graph parameters to their values. If provided,
+            the function will use the graph state to compute the maximum wavelength.
+
+        Returns
+        -------
+        maxwave : float or None
+            The maximum wavelength of the model (in angstroms) or None
+            if the model does not have a defined maximum wavelength.
+        """
+        return max(source.maxwave(graph_state=graph_state) for source in self.sources)
+
     def _evaluate_single(self, times, wavelengths, state, rng_info=None, **kwargs):
         """Evaluate the model and apply the effects for a single, given graph state.
         This function applies redshift, computes the flux density for the object,
@@ -305,6 +341,42 @@ class RandomMultiSourceModel(MultiSourceModel):
         self.source_map = {name: src for name, src in zip(source_names, sources, strict=False)}
         self._sampler_node = GivenValueSampler(source_names, weights=weights)
         self.add_parameter("selected_source", value=self._sampler_node, allow_gradient=False)
+
+    def minwave(self, graph_state=None):
+        """Get the minimum wavelength of the model.
+
+        Parameters
+        ----------
+        graph_state : GraphState, optional
+            An object mapping graph parameters to their values. If provided,
+            the function will use the graph state to compute the minimum wavelength.
+
+        Returns
+        -------
+        minwave : float or None
+            The minimum wavelength of the model (in angstroms) or None
+            if the model does not have a defined minimum wavelength.
+        """
+        idx = self.get_param(graph_state, "selected_source")
+        return self.sources[idx].minwave(graph_state=graph_state)
+
+    def maxwave(self, graph_state=None):
+        """Get the maximum wavelength of the model.
+
+        Parameters
+        ----------
+        graph_state : GraphState, optional
+            An object mapping graph parameters to their values. If provided,
+            the function will use the graph state to compute the maximum wavelength.
+
+        Returns
+        -------
+        maxwave : float or None
+            The maximum wavelength of the model (in angstroms) or None
+            if the model does not have a defined maximum wavelength.
+        """
+        idx = self.get_param(graph_state, "selected_source")
+        return self.sources[idx].maxwave(graph_state=graph_state)
 
     def _evaluate_single(self, times, wavelengths, state, rng_info=None, **kwargs):
         """Evaluate the model and apply the effects for a single, given graph state.
