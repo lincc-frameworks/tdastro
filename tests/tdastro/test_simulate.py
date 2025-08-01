@@ -114,3 +114,57 @@ def test_simulate_single_lightcurve(test_data_dir):
         param_cols=["source.brightness"],
     )
     assert len(results) == 1
+
+
+def test_simulate_with_time_window(test_data_dir):
+    """Test an end to end run of simulating with a limited time window."""
+    # Create a toy OpSim database with two pointings over a series of tiems.
+    # Create a fake opsim data frame with just time, RA, and dec.
+    values = {
+        "observationStartMJD": np.arange(50.0),
+        "fieldRA": np.array([15.0 if i % 2 == 0 else 180.0 for i in range(50)]),
+        "fieldDec": np.array([10.0 if i % 2 == 0 else -10.0 for i in range(50)]),
+        "filter": np.full(50, "g"),
+        # We add the remaining values so the OpSim can compute noise, but they are
+        # arbitrary and not tested in this test.
+        "zp_nJy": np.ones(50),
+        "seeingFwhmEff": np.ones(50) * 0.7,
+        "visitExposureTime": np.ones(50) * 30.0,
+        "numExposures": np.ones(50) * 1,
+        "skyBrightness": np.full(50, 20.0),
+    }
+    opsim_db = OpSim(values)
+
+    # Load the passband data for the griz filters only.
+    passband_group = PassbandGroup.from_preset(
+        preset="LSST",
+        table_dir=test_data_dir / "passbands",
+        filters=["g", "r", "i", "z"],
+    )
+
+    # Create a static source with known brightnesses and RA, dec
+    # values that match the opsim.
+    source = StaticSource(
+        brightness=1000.0,
+        t0=20.0,
+        ra=15.0,
+        dec=10.0,
+        redshift=0.0,
+        node_label="source",
+    )
+
+    results = simulate_lightcurves(
+        source,
+        1,
+        opsim_db,
+        passband_group,
+        time_window_offset=(5.0, 10.0),  # This will create a time window of (15.0, 30.0)
+    )
+    assert len(results) == 1
+
+    # We should simulate the observations that are only within the time window (15.0, 30.0)
+    # and at the matching RA/Dec (the even indices).
+    assert np.array_equal(
+        results["lightcurve"][0]["mjd"],
+        np.array([16.0, 18.0, 20.0, 22.0, 24.0, 26.0, 28.0, 30.0]),
+    )
