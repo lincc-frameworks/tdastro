@@ -2,7 +2,6 @@ import h5py
 import numpy as np
 from astropy import units as u
 from citation_compass import CiteClass
-
 from tdastro import _TDASTRO_BASE_DATA_DIR
 from tdastro.astro_utils.unit_utils import flam_to_fnu
 from tdastro.effects.extinction import ExtinctionEffect

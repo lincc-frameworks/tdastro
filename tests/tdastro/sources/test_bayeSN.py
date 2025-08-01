@@ -2,7 +2,6 @@ import numpy as np
 import pytest
 from astropy.cosmology import FlatLambdaCDM
 from citation_compass import find_in_citations
-
 from tdastro.sources.bayesn import BayesnModel
 
 
