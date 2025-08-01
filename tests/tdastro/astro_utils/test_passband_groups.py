@@ -102,6 +102,10 @@ def test_passband_group_access(tmp_path):
     assert "c" in pb_group
     assert "d" in pb_group
 
+    # Check that we can iterate through the passbands.
+    for idx, pb in enumerate(pb_group):
+        assert pb == pb_list[idx]
+
     # Check that we can filter a list of filter_names by whether they occur in the passband group.
     filters = ["a", "b", "e", "f", "c", "1", "2", "d", "a", "a"]
     expected = [True, True, False, False, True, False, False, True, True, True]

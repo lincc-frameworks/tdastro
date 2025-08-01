@@ -28,6 +28,7 @@ features and models of the TDAstro package.
     Passband Demo <notebooks/passband-demo>
     Adding New Source Types <notebooks/adding_sources>
     Adding New Effect Types <notebooks/adding_effects>
+    Combining Sources (including Hosts/Sources) <notebooks/host_source_models>
     Lightcurve Source Demo <notebooks/lightcurve_source_demo>
     Advanced Sampling Techniques <notebooks/advanced_sampling>
     PZFlow Source Demo <notebooks/using_pzflow>

@@ -3,6 +3,10 @@
 This module supports a variety of external dustmaps libaries, but
 was primarily designed to work with the dustmaps package:
 https://github.com/gregreen/dustmaps
+
+Note that the dustmaps package is not included by default, because it uses
+dependencies that may not be compatible with all systems. Users can manually
+install dustmaps in their environment with “pip install dustmaps”.
 """
 
 import importlib
@@ -63,7 +67,8 @@ class DustmapWrapper(DustEBV, CiteClass):
         outputs, you should include the corresponding ebv_func to transform the result
         into ebv if needed.
     ebv_func : function, optional
-        A function to translate the result of the dustmap query into an ebv.
+        A function to translate the result of the dustmap query into an ebv. This is
+        not needed for dustmaps that already produce ebv values.
     RA : parameter
         The object's right ascension (in degrees).
     dec : parameter
@@ -105,6 +110,7 @@ class DustmapWrapper(DustEBV, CiteClass):
         coord = SkyCoord(ra, dec, frame="icrs", unit="deg")
         dustmap_value = self._dust_map.query(coord)
 
+        # Only translate the value to ebv if the dust map does not provide the result in ebv.
         if self._ebv_func is not None:
             return self._ebv_func(dustmap_value)
         return dustmap_value
