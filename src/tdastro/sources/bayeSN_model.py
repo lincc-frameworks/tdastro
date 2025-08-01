@@ -12,13 +12,11 @@ from tdastro.base_models import FunctionNode
 from tdastro import _TDASTRO_BASE_DATA_DIR
 
 
-
-
 class bayesnModel(PhysicalModel, CiteClass):
     """A bayesian model for supernova type Ia
 
     The model is defined in (Mandel et al 2022) as:
-    
+
     flux(time, wave) = H_grid * 10 ** (-0.4 * W_grid) * 10 ** (-0.4 * (distmod _ m_abs))
 
     This class is based on the bayesian implementation at:
@@ -29,7 +27,7 @@ class bayesnModel(PhysicalModel, CiteClass):
         * dec - The object's declination in degrees. [from PhysicalModel]
         * redshift - The object's redshift. [from PhysicalModel]
         * t0 - The t0 of the zero phase, date. [from Physical Model]
-        * Amplitude - The fixed normalisation factor for distance modulus. [from Amplitude class] 
+        * Amplitude - The fixed normalisation factor for distance modulus. [from Amplitude class]
         * theta - The bayeSN theta parameter.
         * Av - The bayeSN Av parameter.
         * Rv - The bayeSN Rv parameter.
@@ -81,7 +79,7 @@ class bayesnModel(PhysicalModel, CiteClass):
     W1_filename: str
         The file name of the W1 matrix.
         Default: "W1.txt"
-    l_knots_filename 
+    l_knots_filename
         The file name of the knot values of wavelegnths for interpolation
         Default: "l_knots.txt"
     tau_knots_filename: str
@@ -96,23 +94,22 @@ class bayesnModel(PhysicalModel, CiteClass):
 
     # A class variable for the units so we are not computing them each time.
     _FLAM_UNIT = u.erg / u.second / u.cm**2 / u.AA
-    
-    def __init__(
-        self, 
-        theta = None,
-        Av = None,
-        Rv = None,
-        t0 = 0.0,
-        Amplitude = 1.,
-        _M20_model_path = _TDASTRO_BASE_DATA_DIR / "bayesn-model-files/BAYESN.M20",
-        W0_filename = "W0.txt",
-        W1_filename = "W1.txt",
-        l_knots_filename = "l_knots.txt",
-        tau_knots_filename = "tau_knots.txt",
-        hsiao_model_path = _TDASTRO_BASE_DATA_DIR / "bayesn-model-files/hsiao.h5",
-        **kwargs
-    ):
 
+    def __init__(
+        self,
+        theta=None,
+        Av=None,
+        Rv=None,
+        t0=0.0,
+        Amplitude=1.0,
+        _M20_model_path=_TDASTRO_BASE_DATA_DIR / "bayesn-model-files/BAYESN.M20",
+        W0_filename="W0.txt",
+        W1_filename="W1.txt",
+        l_knots_filename="l_knots.txt",
+        tau_knots_filename="tau_knots.txt",
+        hsiao_model_path=_TDASTRO_BASE_DATA_DIR / "bayesn-model-files/hsiao.h5",
+        **kwargs,
+    ):
         super().__init__(t0=t0, **kwargs)
 
         # define model specific parameters.
@@ -126,61 +123,60 @@ class bayesnModel(PhysicalModel, CiteClass):
         self._W1_ = np.loadtxt(_M20_model_path / W1_filename)
         self._l_knots_ = np.loadtxt(_M20_model_path / l_knots_filename)
         self._tau_knots_ = np.loadtxt(_M20_model_path / tau_knots_filename)
-        with h5py.File(hsiao_model_path, 'r') as file:
-            data = file['default']
-            self._hsiao_phase = data['phase'][()].astype('float64')
-            self._hsiao_wave = data['wave'][()].astype('float64')
-            self._hsiao_flux = data['flux'][()].astype('float64')
-
+        with h5py.File(hsiao_model_path, "r") as file:
+            data = file["default"]
+            self._hsiao_phase = data["phase"][()].astype("float64")
+            self._hsiao_wave = data["wave"][()].astype("float64")
+            self._hsiao_flux = data["flux"][()].astype("float64")
 
     # HELPER FUNCTIONs:
     def compute_invkd(self, x):
         """
         Compute the operator matrix K^{-1}D to get second derivatives for natural cubic spline.
-    
+
         Parameters
         ----------
         x : (n,) array_like
             Knot positions (non-uniform, strictly increasing).
-    
+
         Returns
         -------
         invKD : (n, n) ndarray
             Matrix such that M = invKD @ y gives second derivatives of y.
         """
         n = len(x)
-        K = np.zeros((n-2, n-2)) # Tridiagonal matrix from spline equation
-        D = np.zeros((n-2, n)) # Derivative matrix
+        K = np.zeros((n - 2, n - 2))  # Tridiagonal matrix from spline equation
+        D = np.zeros((n - 2, n))  # Derivative matrix
 
         # Construct tridiagonal matrix K
-        for j in range(1, n-1):
+        for j in range(1, n - 1):
             i = j - 1
-            h0 = x[j] - x[j-1]
-            h1 = x[j+1] - x[j]
+            h0 = x[j] - x[j - 1]
+            h1 = x[j + 1] - x[j]
             if i > 0:
-                K[i, i-1] = h0 / 6 # Subdiagonal
-            K[i, i] = (h0 + h1) / 3 # Main diagonal
+                K[i, i - 1] = h0 / 6  # Subdiagonal
+            K[i, i] = (h0 + h1) / 3  # Main diagonal
             if i < n - 3:
-                K[i, i+1] = h1 / 6 # Superdiagonal
+                K[i, i + 1] = h1 / 6  # Superdiagonal
 
         # Construct matrix D for computing second derivatives
-        for j in range(1, n-1):
+        for j in range(1, n - 1):
             i = j - 1
-            h0 = x[j] - x[j-1]
-            h1 = x[j+1] - x[j]
-            D[i, j-1] = 1 / h0
-            D[i, j]   = -1 / h0 - 1 / h1
-            D[i, j+1] = 1 / h1
+            h0 = x[j] - x[j - 1]
+            h1 = x[j + 1] - x[j]
+            D[i, j - 1] = 1 / h0
+            D[i, j] = -1 / h0 - 1 / h1
+            D[i, j + 1] = 1 / h1
 
         # SOlve linear system to get inverse matrix of K times D
         invKD = np.zeros((n, n))
         invKD[1:-1, :] = np.linalg.solve(K, D)
         return invKD
-    
+
     def natural_cubic_spline_basis_matrix_from_invkd(self, x, xq_array, invKD):
         """
         Compute basis matrix J for multiple query points using precomputed second derivative matrix.
-    
+
         Parameters
         ----------
         x : (n,) array_like
@@ -189,7 +185,7 @@ class bayesnModel(PhysicalModel, CiteClass):
             Query points.
         invKD : (n, n) array_like
             Precomputed matrix such that second_derivatives = invKD @ y.
-    
+
         Returns
         -------
         J : (m, n) ndarray
@@ -199,9 +195,9 @@ class bayesnModel(PhysicalModel, CiteClass):
         xq_array = np.asarray(xq_array)
         n = len(x)
         m = len(xq_array)
-    
+
         J = np.zeros((m, n))
-        
+
         # Find indices of intervals for each query point
         idxs = np.searchsorted(x, xq_array) - 1
         idxs = np.clip(idxs, 0, n - 2)
@@ -227,14 +223,14 @@ class bayesnModel(PhysicalModel, CiteClass):
     def compute_second_derivatives_1d(self, x, y):
         """
         Compute natural cubic spline second derivatives (M) for 1D input.
-    
+
         Parameters
         ----------
         x : (n,) array_like
             Knot positions.
         y : (n,) array_like
             Values at knots.
-    
+
         Returns
         -------
         M : (n,) ndarray
@@ -246,27 +242,27 @@ class bayesnModel(PhysicalModel, CiteClass):
         # Step1: Compute RHS alpha for the linear system
         alpha = np.zeros(n)
         for i in range(1, n - 1):
-            alpha[i] = (3/h[i])*(y[i+1] - y[i]) - (3/h[i-1])*(y[i] - y[i-1])
+            alpha[i] = (3 / h[i]) * (y[i + 1] - y[i]) - (3 / h[i - 1]) * (y[i] - y[i - 1])
 
         # Step 2: Forward elimination (Thomas algorithm for tridiagonal system)
         l = np.ones(n)
         mu = np.zeros(n)
         z = np.zeros(n)
         for i in range(1, n - 1):
-            l[i] = 2*(x[i+1] - x[i-1]) - h[i-1]*mu[i-1]
-            mu[i] = h[i]/l[i]
-            z[i] = (alpha[i] - h[i-1]*z[i-1])/l[i]
+            l[i] = 2 * (x[i + 1] - x[i - 1]) - h[i - 1] * mu[i - 1]
+            mu[i] = h[i] / l[i]
+            z[i] = (alpha[i] - h[i - 1] * z[i - 1]) / l[i]
 
         # Step 3: Back substitution to solve for second derivatives
         M = np.zeros(n)
         for j in range(n - 2, 0, -1):
-            M[j] = z[j] - mu[j]*M[j+1]
+            M[j] = z[j] - mu[j] * M[j + 1]
         return M
-    
+
     def compute_2d_second_derivatives(self, x, y, z):
         """
         Compute second derivatives in both x and y directions for 2D natural cubic spline.
-    
+
         Parameters
         ----------
         x : (n,) array_like
@@ -275,7 +271,7 @@ class bayesnModel(PhysicalModel, CiteClass):
             Knot positions in y.
         z : (n, m) array_like
             Function values on 2D grid.
-    
+
         Returns
         -------
         Mx : (n, m) ndarray
@@ -296,11 +292,11 @@ class bayesnModel(PhysicalModel, CiteClass):
             My[i, :] = self.compute_second_derivatives_1d(y, z[i, :])
 
         return Mx, My
-    
+
     def evaluate_natural_spline_2d_vectorized(self, x, y, z, Mx, My, xq, yq):
         """
         Vectorized 2D natural cubic spline evaluation using second derivatives.
-    
+
         Parameters
         ----------
         x : (n,) array_like
@@ -317,7 +313,7 @@ class bayesnModel(PhysicalModel, CiteClass):
             Query positions in x.
         yq : (q,) array_like
             Query positions in y.
-    
+
         Returns
         -------
         Zq : (p, q) ndarray
@@ -327,10 +323,10 @@ class bayesnModel(PhysicalModel, CiteClass):
         yq = np.atleast_1d(yq)
         nx, ny = len(x), len(y)
         px, py = len(xq), len(yq)
-    
+
         xi_idx = np.clip(np.searchsorted(x, xq) - 1, 0, nx - 2)
         yj_idx = np.clip(np.searchsorted(y, yq) - 1, 0, ny - 2)
-    
+
         Zq = np.zeros((px, py))
 
         # Loop over y query points
@@ -340,9 +336,9 @@ class bayesnModel(PhysicalModel, CiteClass):
             hy = y[y1_idx] - y[y0_idx]
             ay = (y[y1_idx] - yq[j]) / hy
             by = 1 - ay
-    
-            f_y0 = [] # Interpolated values along x at y0
-            f_y1 = [] # Interpolated values along x at y1
+
+            f_y0 = []  # Interpolated values along x at y0
+            f_y1 = []  # Interpolated values along x at y1
 
             # Loop over x query points
             for i in range(px):
@@ -351,44 +347,47 @@ class bayesnModel(PhysicalModel, CiteClass):
                 hx = x[x1_idx] - x[x0_idx]
                 ax = (x[x1_idx] - xq[i]) / hx
                 bx = 1 - ax
-    
+
                 # Values at 4 corners
                 z00 = z[x0_idx, y0_idx]
                 z10 = z[x1_idx, y0_idx]
                 z01 = z[x0_idx, y1_idx]
                 z11 = z[x1_idx, y1_idx]
-    
+
                 Mx00 = Mx[x0_idx, y0_idx]
                 Mx10 = Mx[x1_idx, y0_idx]
                 Mx01 = Mx[x0_idx, y1_idx]
                 Mx11 = Mx[x1_idx, y1_idx]
-    
+
                 # Interpolate in x for both fixed y0 and y1
-                fx0 = ((ax**3 * Mx00 + bx**3 * Mx10) * hx / 6 +
-                       (ax * (z00 - Mx00 * hx**2 / 6) + bx * (z10 - Mx10 * hx**2 / 6)))
-                fx1 = ((ax**3 * Mx01 + bx**3 * Mx11) * hx / 6 +
-                       (ax * (z01 - Mx01 * hx**2 / 6) + bx * (z11 - Mx11 * hx**2 / 6)))
-    
+                fx0 = (ax**3 * Mx00 + bx**3 * Mx10) * hx / 6 + (
+                    ax * (z00 - Mx00 * hx**2 / 6) + bx * (z10 - Mx10 * hx**2 / 6)
+                )
+                fx1 = (ax**3 * Mx01 + bx**3 * Mx11) * hx / 6 + (
+                    ax * (z01 - Mx01 * hx**2 / 6) + bx * (z11 - Mx11 * hx**2 / 6)
+                )
+
                 f_y0.append(fx0)
                 f_y1.append(fx1)
 
             # Interpolate final result in y
             f_y0 = np.array(f_y0)
             f_y1 = np.array(f_y1)
-    
+
             # Spline in y using fx0 and fx1
             My0 = My[xi_idx, y0_idx]
             My1 = My[xi_idx, y1_idx]
-    
-            Zq[:, j] = ((ay**3 * My0 + by**3 * My1) * hy / 6 +
-                        (ay * (f_y0 - My0 * hy**2 / 6) + by * (f_y1 - My1 * hy**2 / 6)))
-    
+
+            Zq[:, j] = (ay**3 * My0 + by**3 * My1) * hy / 6 + (
+                ay * (f_y0 - My0 * hy**2 / 6) + by * (f_y1 - My1 * hy**2 / 6)
+            )
+
         return Zq
 
     def evaluate_2d_cubic_spline(self, x, y, z, xq, yq):
         """
         Evaluate 2D natural cubic spline at given query points with auto second derivative computation.
-    
+
         Parameters
         ----------
         x : (n,) array_like
@@ -401,7 +400,7 @@ class bayesnModel(PhysicalModel, CiteClass):
             Query points in x.
         yq : (q,) array_like
             Query points in y.
-    
+
         Returns
         -------
         Zq : (p, q) ndarray
@@ -444,7 +443,7 @@ class bayesnModel(PhysicalModel, CiteClass):
         # Compute the mask.
         good_times = (times > t0 + -20.0 * (1.0 + z)) & (times < t0 + 50.0 * (1.0 + z))
         return good_times
-    
+
     # MAIN FUNCTION:
     def compute_flux(self, times, wavelengths, graph_state, **kwargs):
         """Draw effect-free observations for this object.
@@ -457,7 +456,7 @@ class bayesnModel(PhysicalModel, CiteClass):
             A length N array of rest frame wavelengths (in angstroms).
         graph_state : GraphState
             An object mapping graph parameters to their values.
-            
+
         **kwargs : dict, optional
             Any additional keyword arguments.
 
@@ -466,7 +465,7 @@ class bayesnModel(PhysicalModel, CiteClass):
         flux_density : numpy.ndarray
             A length T x N matrix of SED values (in nJy).
         """
-        
+
         W_0 = self._W0_
         W_1 = self._W1_
         l_knots = self._l_knots_
@@ -489,16 +488,15 @@ class bayesnModel(PhysicalModel, CiteClass):
         H_grid = self.evaluate_2d_cubic_spline(hsiao_phase, hsiao_wave, hsiao_flux, tau, wavelengths)
         flux_density = H_grid * 10 ** (-0.4 * W_grid)
 
-
         # Apply dust extinction law
         # Get ebv such that ebv = Rv/Av
-        ebv = params["Av"]/params["Rv"]
+        ebv = params["Av"] / params["Rv"]
         ext = ExtinctionEffect(extinction_model="F99", ebv=ebv)
         flux_density = ext.apply(flux_density, tau, wavelengths, ebv)
 
         # Apply the fixed distance modulus normalisation factor effect
         flux_density = flux_density * params["Amplitude"]
-        
+
         # Convert to the correct units.
         flux_density = flam_to_fnu(
             flux_density,
