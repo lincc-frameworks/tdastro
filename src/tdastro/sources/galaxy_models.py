@@ -1,21 +1,21 @@
 import numpy as np
 from astropy.coordinates import angular_separation
 
-from tdastro.sources.physical_model import PhysicalModel
+from tdastro.sources.physical_model import SEDModel
 
 
-class GaussianGalaxy(PhysicalModel):
+class GaussianGalaxy(SEDModel):
     """A galaxy with constant brightness that falls of as a Guassian
     as the distance from the center increases.
 
     Parameterized values include:
       * brightness - The inherent brightness at the center of the galaxy.
-      * dec - The object's declination in degrees. [from PhysicalModel]
-      * distance - The object's luminosity distance in pc. [from PhysicalModel]
+      * dec - The object's declination in degrees. [from BasePhysicalModel]
+      * distance - The object's luminosity distance in pc. [from BasePhysicalModel]
       * galaxy_radius_std - The standard deviation of the brightness in degrees.
-      * ra - The object's right ascension in degrees. [from PhysicalModel]
-      * redshift - The object's redshift. [from PhysicalModel]
-      * t0 - No effect for a GuassianGalaxy [from PhysicalModel]
+      * ra - The object's right ascension in degrees. [from BasePhysicalModel]
+      * redshift - The object's redshift. [from BasePhysicalModel]
+      * t0 - No effect for a GuassianGalaxy [from BasePhysicalModel]
 
     Parameters
     ----------

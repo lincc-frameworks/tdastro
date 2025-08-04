@@ -208,11 +208,6 @@ def test_create_lightcurve_source() -> None:
     assert len(lc_source.sed_values) == 3
     assert np.allclose(lc_source.all_waves, pb_group.waves)
     assert lc_source.filters == ["u", "g", "r"]
-    assert lc_source.apply_redshift is False
-
-    # Check that we fail if we try to turn on redshift.
-    with pytest.raises(NotImplementedError):
-        lc_source.set_apply_redshift(True)
 
     # Check that no two SED basis functions overlap.
     for f1 in lc_source.filters:
@@ -535,11 +530,6 @@ def test_create_multilightcurve_source() -> None:
     )
     assert len(source.lightcurves) == 2
     assert set(source.filters) == {"u", "g", "r"}
-    assert source.apply_redshift is False
-
-    # We fail if we try to turn on redshift.
-    with pytest.raises(NotImplementedError):
-        source.set_apply_redshift(True)
 
     # Check that we sample the lightcurves correctly.
     graph_state = source.sample_parameters(num_samples=1_000)
@@ -630,7 +620,6 @@ def test_create_multilightcurve_from_lclib_file(test_data_dir):
     source = MultiLightcurveSource.from_lclib_file(lc_file, pb_group, t0=0.0)
     assert len(source.lightcurves) == 3
     assert set(source.filters) == {"u", "g", "r", "i", "z"}
-    assert source.apply_redshift is False
 
 
 def test_create_multilightcurve_from_lclib_file_filtered(test_data_dir):
@@ -647,4 +636,3 @@ def test_create_multilightcurve_from_lclib_file_filtered(test_data_dir):
     source = MultiLightcurveSource.from_lclib_file(lc_file, pb_group, t0=0.0, filters=["u", "g", "r"])
     assert len(source.lightcurves) == 3
     assert set(source.filters) == {"u", "g", "r"}
-    assert source.apply_redshift is False

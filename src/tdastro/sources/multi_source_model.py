@@ -1,4 +1,4 @@
-"""Multiple source models wrap multiple PhysicalModels, allowing the
+"""Multiple source models wrap multiple BasePhysicalModels, allowing the
 user to define such operations as additive models, where each source
 contributes to the total flux density, or random source models, where
 only one source is selected at random for each flux calculation.
@@ -8,11 +8,11 @@ import numpy as np
 
 from tdastro.graph_state import GraphState
 from tdastro.math_nodes.given_sampler import GivenValueSampler
-from tdastro.sources.physical_model import PhysicalModel
+from tdastro.sources.physical_model import SEDModel
 
 
-class MultiSourceModel(PhysicalModel):
-    """A MultiSourceModel wraps multiple PhysicalModels.
+class MultiSourceModel(SEDModel):
+    """A MultiSourceModel wraps multiple SEDModels.
 
     All rest frame effects are applied to each source, allowing different redshifts
     for each source (for unresolved sources).  The observer frame effects are applied
@@ -24,14 +24,14 @@ class MultiSourceModel(PhysicalModel):
     Attributes
     ----------
     sources : list
-        A list of PhysicalModel objects to use in the flux calculation.
+        A list of SEDModel objects to use in the flux calculation.
     num_sources : int
         The number of sources in the model.
 
     Parameters
     ----------
     sources : list
-        A list of PhysicalModel objects to use in the flux calculation.
+        A list of SEDModel objects to use in the flux calculation.
     **kwargs : dict, optional
         Any additional keyword arguments.
     """
@@ -43,11 +43,11 @@ class MultiSourceModel(PhysicalModel):
     ):
         super().__init__(**kwargs)
 
-        # Check that all sources are PhysicalModel objects and they do not contain
+        # Check that all sources are SEDModel objects and they do not contain
         # observer frame effects.
         for source in sources:
-            if not isinstance(source, PhysicalModel):
-                raise ValueError("All sources must be PhysicalModel objects.")
+            if not isinstance(source, SEDModel):
+                raise ValueError("All sources must be SEDModel objects.")
             if len(source.obs_frame_effects) > 0:
                 raise ValueError("A MultiSourceModel cannot contain sources with observer frame effects.")
         self.sources = sources
@@ -186,7 +186,7 @@ class AdditiveMultiSourceModel(MultiSourceModel):
     Attributes
     ----------
     sources : list
-        A list of PhysicalModel objects to use in the flux calculation.
+        A list of SEDModel objects to use in the flux calculation.
     weights : numpy.ndarray, optional
         A length N array of weights to apply to each source. If None, all sources
         will be weighted equally.
@@ -196,7 +196,7 @@ class AdditiveMultiSourceModel(MultiSourceModel):
     Parameters
     ----------
     sources : list
-        A list of PhysicalModel objects to use in the flux calculation.
+        A list of SEDModel objects to use in the flux calculation.
     weights : numpy.ndarray, optional
         A length N array of weights to apply to each source. If None, all sources
         will be weighted equally.
@@ -276,14 +276,14 @@ class RandomMultiSourceModel(MultiSourceModel):
     Attributes
     ----------
     source_map : dict
-        A dictionary mapping each source name (or index) to a PhysicalModel object.
+        A dictionary mapping each source name (or index) to a SEDModel object.
     num_sources : int
         The number of sources in the model.
 
     Parameters
     ----------
     sources : list
-        A list of PhysicalModel objects to use in the flux calculation.
+        A list of SEDModel objects to use in the flux calculation.
     weights : numpy.ndarray, optional
         A length N array indicating the relative weight from which to select
         a source at random. If None, all sources will be weighted equally.

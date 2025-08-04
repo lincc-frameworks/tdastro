@@ -1,12 +1,12 @@
-"""The base PhysicalModel used for all sources. The PhysicalModel defines a
-recipe for computing SEDs from a source at given times and wavelengths, accounting for
-redshift and other effects.
+"""The base classes for all sources.
 
-A BandfluxModel is a PhysicalModel that only computes band fluxes instead of the
-SEDs. This is used for models that are emperically fit from observed band fluxes.
-We strongly recommend using the full SED models (PhysicalModel) whenever possible
-since they more accurately simulate aspects such as the impact of redshift on rest
-frame effects.
+The code supports two types of models: 1) SEDModels define recipes for computing SEDs
+from a source at given times and wavelengths, accounting for redshift and other effects.
+2) BandfluxModels only computes band fluxes instead of the SEDs. This is used for models
+that are empirically fit from observed band fluxes.
+
+We strongly recommend using the full SED models (SEDModels) whenever possible since they
+more accurately simulate aspects such as the impact of redshift on rest frame effects.
 """
 
 from abc import ABC
@@ -20,8 +20,9 @@ from tdastro.base_models import ParameterizedNode
 from tdastro.graph_state import GraphState
 
 
-class PhysicalModel(ParameterizedNode):
-    """A physical model of a source of flux.
+class BasePhysicalModel(ParameterizedNode, ABC):
+    """The abstract base class used to represent a physical model of a source. This includes
+    basic attributes, such as right ascension, declination, redshift, and distance.
 
     Physical models can have fixed attributes (where you need to create a new model or use
     a setter function to change them) and settable model parameters that can be passed functions
@@ -35,18 +36,6 @@ class PhysicalModel(ParameterizedNode):
       * ra - The object's right ascension in degrees.
       * redshift - The object's redshift.
       * t0 - The t0 of the zero phase (if applicable), date.
-
-    Attributes
-    ----------
-    apply_redshift : bool
-        Indicates whether to apply the redshift.
-    rest_frame_effects : list of EffectModel
-        A list of effects to apply in the rest frame.
-    obs_frame_effects : list of EffectModel
-        A list of effects to apply in the observer frame.
-    wave_extrapolation : WaveExtrapolationModel, optional
-        The extrapolation model to use for wavelengths that fall outside
-        the model's defined bounds.  If None then the model will use all zeros.
 
     Parameters
     ----------
@@ -62,9 +51,6 @@ class PhysicalModel(ParameterizedNode):
         The object's luminosity distance (in pc). If no value is provided and
         a cosmology parameter is given, the model will try to derive from
         the redshift and the cosmology.
-    wave_extrapolation : WaveExtrapolationModel, optional
-        The extrapolation model to use for wavelengths that fall outside
-        the model's defined bounds.  If None then the model will use all zeros.
     seed : int, optional
         The seed for a random number generator.
     **kwargs : dict, optional
@@ -78,7 +64,6 @@ class PhysicalModel(ParameterizedNode):
         redshift=None,
         t0=None,
         distance=None,
-        wave_extrapolation=None,
         seed=None,
         **kwargs,
     ):
@@ -99,16 +84,6 @@ class PhysicalModel(ParameterizedNode):
             self.add_parameter("distance", self._redshift_func, allow_gradient=False)
         else:
             self.add_parameter("distance", None, allow_gradient=False)
-
-        # Initialize the effect settings to their default values.
-        self.apply_redshift = redshift is not None
-
-        # Set the default effects.
-        self.rest_frame_effects = []
-        self.obs_frame_effects = []
-
-        # Set the extrapolation for values outside the model's defined bounds.
-        self.wave_extrapolation = wave_extrapolation
 
         # Get a default random number generator for this object, using the
         # given seed if one is provided.
@@ -137,6 +112,116 @@ class PhysicalModel(ParameterizedNode):
             if the model does not have a defined maximum wavelength.
         """
         return None
+
+    def add_effect(self, effect):
+        """Add an effect to the model. This effect will be applied to all
+        fluxes densities simulated by the model.
+
+        Any effect parameters that are not already in the model
+        will be added to this node's parameters.
+
+        Parameters
+        ----------
+        effect : EffectModel
+            The effect to add.
+        """
+        raise NotImplementedError
+
+    def mask_by_time(self, times, graph_state=None):
+        """Compute a mask for whether a given time is of interest for a given object.
+        For example, a user can use this function to generate a mask to include
+        only the observations of interest for a window around the supernova.
+
+        Parameters
+        ----------
+        times : numpy.ndarray
+            A length T array of observer frame timestamps in MJD.
+        graph_state : GraphState, optional
+            An object mapping graph parameters to their values.
+
+        Returns
+        -------
+        time_mask : numpy.ndarray
+            A length T array of Booleans indicating whether the time is of interest.
+        """
+        return np.full(len(times), True)
+
+    def sample_parameters(self, given_args=None, num_samples=1, rng_info=None):
+        """Sample the model's underlying parameters if they are provided by a function
+        or ParameterizedModel.
+
+        Parameters
+        ----------
+        given_args : dict, optional
+            A dictionary representing the given arguments for this sample run.
+            This can be used as the JAX PyTree for differentiation.
+        num_samples : int
+            A count of the number of samples to compute.
+            Default: 1
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
+        **kwargs : dict, optional
+            All the keyword arguments, including the values needed to sample
+            parameters.
+
+        Returns
+        -------
+        graph_state : GraphState
+            An object mapping graph parameters to their values.
+        """
+        # If the graph has not been sampled ever, update the node positions for
+        # every node (model, background, effects).
+        if self.node_pos is None:
+            self.set_graph_positions()
+
+        graph_state = GraphState(num_samples)
+        if given_args is not None:
+            graph_state.update(given_args, all_fixed=True)
+
+        # We use the same seen_nodes for all sampling calls so each node
+        # is sampled at most one time regardless of link structure.
+        seen_nodes = {}
+        self._sample_helper(graph_state, seen_nodes, rng_info=rng_info)
+
+        return graph_state
+
+
+class SEDModel(BasePhysicalModel):
+    """A model of a source of flux that is defined at the SED level.
+
+    Attributes
+    ----------
+    rest_frame_effects : list of EffectModel
+        A list of effects to apply in the rest frame.
+    obs_frame_effects : list of EffectModel
+        A list of effects to apply in the observer frame.
+    wave_extrapolation : WaveExtrapolationModel, optional
+        The extrapolation model to use for wavelengths that fall outside
+        the model's defined bounds.  If None then the model will use all zeros.
+
+    Parameters
+    ----------
+    wave_extrapolation : WaveExtrapolationModel, optional
+        The extrapolation model to use for wavelengths that fall outside
+        the model's defined bounds.  If None then the model will use all zeros.
+    """
+
+    def __init__(
+        self,
+        wave_extrapolation=None,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+
+        # Initialize the effect settings to their default values.
+        self.apply_redshift = kwargs.get("redshift") is not None
+        self.rest_frame_effects = []
+        self.obs_frame_effects = []
+
+        # Set the extrapolation for values outside the model's defined bounds.
+        self.wave_extrapolation = wave_extrapolation
 
     def set_apply_redshift(self, apply_redshift):
         """Toggles the apply_redshift setting. If set to True, the model will
@@ -172,25 +257,6 @@ class PhysicalModel(ParameterizedNode):
             self.rest_frame_effects.append(effect)
         else:
             self.obs_frame_effects.append(effect)
-
-    def mask_by_time(self, times, graph_state=None):
-        """Compute a mask for whether a given time is of interest for a given object.
-        For example, a user can use this function to generate a mask to include
-        only the observations of interest for a window around the supernova.
-
-        Parameters
-        ----------
-        times : numpy.ndarray
-            A length T array of observer frame timestamps in MJD.
-        graph_state : GraphState, optional
-            An object mapping graph parameters to their values.
-
-        Returns
-        -------
-        time_mask : numpy.ndarray
-            A length T array of Booleans indicating whether the time is of interest.
-        """
-        return np.full(len(times), True)
 
     def compute_flux(self, times, wavelengths, graph_state, **kwargs):
         """Draw effect-free rest frame flux densities.
@@ -400,46 +466,6 @@ class PhysicalModel(ParameterizedNode):
             return results[0, :, :]
         return results
 
-    def sample_parameters(self, given_args=None, num_samples=1, rng_info=None):
-        """Sample the model's underlying parameters if they are provided by a function
-        or ParameterizedModel.
-
-        Parameters
-        ----------
-        given_args : dict, optional
-            A dictionary representing the given arguments for this sample run.
-            This can be used as the JAX PyTree for differentiation.
-        num_samples : int
-            A count of the number of samples to compute.
-            Default: 1
-        rng_info : numpy.random._generator.Generator, optional
-            A given numpy random number generator to use for this computation. If not
-            provided, the function uses the node's random number generator.
-        **kwargs : dict, optional
-            All the keyword arguments, including the values needed to sample
-            parameters.
-
-        Returns
-        -------
-        graph_state : GraphState
-            An object mapping graph parameters to their values.
-        """
-        # If the graph has not been sampled ever, update the node positions for
-        # every node (model, background, effects).
-        if self.node_pos is None:
-            self.set_graph_positions()
-
-        graph_state = GraphState(num_samples)
-        if given_args is not None:
-            graph_state.update(given_args, all_fixed=True)
-
-        # We use the same seen_nodes for all sampling calls so each node
-        # is sampled at most one time regardless of link structure.
-        seen_nodes = {}
-        self._sample_helper(graph_state, seen_nodes, rng_info=rng_info)
-
-        return graph_state
-
     def get_band_fluxes(self, passband_or_group, times, filters, state, rng_info=None) -> np.ndarray:
         """Get the band fluxes for a given Passband or PassbandGroup.
 
@@ -496,7 +522,7 @@ class PhysicalModel(ParameterizedNode):
         return band_fluxes
 
 
-class BandfluxModel(PhysicalModel, ABC):
+class BandfluxModel(BasePhysicalModel, ABC):
     """A model of a source of flux that is only defined by band pass values
     in the observer frame (instead of a full SED).
 
@@ -505,7 +531,7 @@ class BandfluxModel(PhysicalModel, ABC):
 
     Note
     ----
-    We strongly recommend using the full SED models (PhysicalModel) whenever possible
+    We strongly recommend using the full SED models (SEDModel) whenever possible
     since they more accurately simulate aspects such as the impact of redshift on rest
     frame effects.
 
@@ -518,13 +544,6 @@ class BandfluxModel(PhysicalModel, ABC):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.band_pass_effects = []
-
-        # Override some of the defaults of PhysicalModel. Never apply redshift and
-        # do not allow background models.
-        self.apply_redshift = False
-        if "background" in kwargs:
-            raise ValueError("Lightcurve models do not support background models.")
-        self.background = None
 
     def set_apply_redshift(self, apply_redshift):
         """Toggles the apply_redshift setting.

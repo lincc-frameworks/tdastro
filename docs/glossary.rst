@@ -1,6 +1,10 @@
 Glossary
 ========================================================================================
 
+**BandfluxModel**: A ``BandfluxModel`` is a subclass of the ``BasePhysicalModel`` class that represents the flux density of a source in a specific band, such as the g-band or r-band (instead of a full spectral energy distribution).
+
+**BasePhysicalModel**: ``BasePhysicalModel`` is a superclass for all nodes that represent physical phenomena that produce flux. ``BasePhysicalModel`` itself is a subclass of the ``ParameterizedNode``.
+
 **EffectModel**: An ``EffectModel`` applies some transform to the flux density of an object. Example effects include extinction due to dust or white noise.
 
 **Filter**: A filter corresponds to the physical filter used on a telescope to limit the wavelengths of light that hit the detector.  Filters are represented by ``Passband`` objects.
@@ -23,8 +27,10 @@ Glossary
 
 **PassbandGroup**: A ``PassbandGroup`` object implements a collection of ``Passband`` objects, providing convenient helper functions for loading and processing multiple passbands. Generally users will use a single ``PassbandGroup`` corresponding to the filters on the instrument being simulated.
 
-**PhysicalModel**: ``PhysicalModel`` is a superclass for all nodes that represent physical phenomena that produce flux. ``PhysicalModel`` itself is a subclass of the ``ParameterizedNode``.
+**Physical model**: A physical model is an object of some subclass of ``BasePhysicalModel`` (usually also subclasses of ``SEDModel`` or ``BandfluxModel``) that represents a physical phenomenon that produces flux.
 
 **Rest Frame**: The reference frame of the object being simulated. Observations in the rest frame do not account for effects like dust extinction or redshift, because they are local to the object.
 
-**Source**: Source is used to refer to any physical phenomena that produces (is the *source* of) flux. All sources are implemented as subclasses of the ``PhysicalModel`` class.
+**SEDModel**: ``SEDModel`` is a subclass of the ``BasePhysicalModel`` class that specifically represents the spectral energy distribution of a source.
+
+**Source**: Source is used to refer to any physical phenomena that produces (is the *source* of) flux. All sources are implemented as subclasses of the ``SEDModel`` or ``BandfluxModel`` classes.
