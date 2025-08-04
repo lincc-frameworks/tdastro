@@ -427,7 +427,7 @@ def test_passband_group_fluxes_to_bandfluxes(passbands_dir):
 
 
 def test_passband_group_wrapped_from_physical_source(passbands_dir, tmp_path):
-    """Test get_band_fluxes, SEDModel's wrapped version of PassbandGroup's fluxes_to_bandfluxes."""
+    """Test evaluate_bandflux, SEDModel's wrapped version of PassbandGroup's fluxes_to_bandfluxes."""
     times = np.array([1.0, 2.0, 3.0])
     wavelengths = np.array([10.0, 20.0, 30.0])
     fluxes = np.array([[1.0, 5.0, 1.0], [5.0, 10.0, 5.0], [1.0, 5.0, 3.0]])
@@ -442,7 +442,7 @@ def test_passband_group_wrapped_from_physical_source(passbands_dir, tmp_path):
     n_lsst_bands = len(lsst_passband_group.passbands)
     n_times = len(test_times)
 
-    fluxes_source_model = model.get_band_fluxes(
+    fluxes_source_model = model.evaluate_bandflux(
         lsst_passband_group,
         times=np.repeat(test_times, n_lsst_bands),
         filters=np.tile(list(lsst_passband_group.passbands.keys()), n_times),
@@ -452,7 +452,7 @@ def test_passband_group_wrapped_from_physical_source(passbands_dir, tmp_path):
         filter_name: fluxes_source_model[i::n_lsst_bands]
         for i, filter_name in enumerate(lsst_passband_group.passbands)
     }
-    evaluated_fluxes = model.evaluate(test_times, lsst_passband_group.waves, state)
+    evaluated_fluxes = model.evaluate_sed(test_times, lsst_passband_group.waves, state)
     result_from_passband_group = lsst_passband_group.fluxes_to_bandfluxes(evaluated_fluxes)
 
     # Check the two dicts are the same
@@ -463,7 +463,7 @@ def test_passband_group_wrapped_from_physical_source(passbands_dir, tmp_path):
     # Using toy passband group:
     toy_passband_group = create_toy_passband_group(tmp_path, delta_wave=20, trim_quantile=None)
     n_toy_bands = len(toy_passband_group.passbands)
-    fluxes_source_model = model.get_band_fluxes(
+    fluxes_source_model = model.evaluate_bandflux(
         toy_passband_group,
         times=np.repeat(test_times, n_toy_bands),
         filters=np.tile(list(toy_passband_group.passbands.keys()), n_times),
@@ -473,7 +473,7 @@ def test_passband_group_wrapped_from_physical_source(passbands_dir, tmp_path):
         filter_name: fluxes_source_model[i::n_toy_bands]
         for i, filter_name in enumerate(toy_passband_group.passbands)
     }
-    evaluated_fluxes = model.evaluate(test_times, toy_passband_group.waves, state)
+    evaluated_fluxes = model.evaluate_sed(test_times, toy_passband_group.waves, state)
     result_from_passband_group = toy_passband_group.fluxes_to_bandfluxes(evaluated_fluxes)
 
     # Check the two dicts are the same

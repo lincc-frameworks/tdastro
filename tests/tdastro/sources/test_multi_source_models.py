@@ -19,7 +19,7 @@ def test_additive_multi_source_node() -> None:
     times = np.array([0.0, 1.5, 3.0])
     wavelengths = np.array([1000.0, 2000.0])
 
-    values = model.evaluate(times, wavelengths, state)
+    values = model.evaluate_sed(times, wavelengths, state)
     assert values.shape == (3, 2)
     assert np.allclose(values, [[10.0, 10.0], [25.0, 25.0], [10.0, 10.0]])
 
@@ -62,7 +62,7 @@ def test_additive_multi_source_node_resample() -> None:
     times = np.array([0.0, 1.5, 3.0])
     wavelengths = np.array([1000.0, 2000.0])
 
-    values = model.evaluate(times, wavelengths, state)
+    values = model.evaluate_sed(times, wavelengths, state)
     assert values.shape == (1000, 3, 2)
 
     assert np.allclose(values[:, 0, 0], state["my_static_source"]["brightness"])
@@ -96,7 +96,7 @@ def test_additive_multi_source_node_redshift() -> None:
     contrib1 = np.array([[0.0, 0.0], [10.0, 10.0], [10.0, 10.0], [0.0, 0.0], [0.0, 0.0]])
     contrib2 = np.array([[0.0, 0.0], [0.0, 0.0], [20.0, 20.0], [20.0, 20.0], [20.0, 20.0]])
 
-    values = model.evaluate(times, wavelengths, state)
+    values = model.evaluate_sed(times, wavelengths, state)
     assert values.shape == (5, 2)
     assert np.allclose(values, contrib1 + contrib2)
 
@@ -120,7 +120,7 @@ def test_additive_multi_source_node_effects_rest_frame() -> None:
     state = model.sample_parameters()
     times = np.array([0.5, 1.5, 2.5, 3.5, 4.5])
     wavelengths = np.array([1000.0, 2000.0])
-    values = model.evaluate(times, wavelengths, state)
+    values = model.evaluate_sed(times, wavelengths, state)
     assert values.shape == (5, 2)
 
     contrib1 = np.array([[0.0, 0.0], [5.0, 5.0], [5.0, 5.0], [0.0, 0.0], [0.0, 0.0]])
@@ -146,7 +146,7 @@ def test_additive_multi_source_node_effects_rest_frame_add() -> None:
     state = model.sample_parameters()
     times = np.array([0.5, 1.5, 2.5, 3.5, 4.5])
     wavelengths = np.array([1000.0, 2000.0])
-    values = model.evaluate(times, wavelengths, state)
+    values = model.evaluate_sed(times, wavelengths, state)
     assert values.shape == (5, 2)
 
     contrib1 = np.array([[0.0, 0.0], [5.0, 5.0], [5.0, 5.0], [0.0, 0.0], [0.0, 0.0]])
@@ -172,7 +172,7 @@ def test_additive_multi_source_node_effects_obs_frame() -> None:
     state = model.sample_parameters()
     times = np.array([0.5, 1.5, 2.5, 3.5, 4.5])
     wavelengths = np.array([1000.0, 2000.0])
-    values = model.evaluate(times, wavelengths, state)
+    values = model.evaluate_sed(times, wavelengths, state)
     assert values.shape == (5, 2)
 
     contrib1 = np.array([[0.0, 0.0], [5.0, 5.0], [5.0, 5.0], [0.0, 0.0], [0.0, 0.0]])
@@ -214,7 +214,7 @@ def test_random_multi_source_node() -> None:
     # When we evaluate the model, we should get the expected values.
     times = np.array([0.0, 1.5, 3.0])
     wavelengths = np.array([1000.0, 2000.0])
-    values = model.evaluate(times, wavelengths, state)
+    values = model.evaluate_sed(times, wavelengths, state)
 
     assert values.shape == (10_000, 3, 2)
     assert np.all((values == 10.0) | (values == 15.0))

@@ -47,7 +47,7 @@ before being passed to the ``compute_flux()`` function.
 
     def compute_flux(self, times, wavelengths, graph_state, **kwargs):
 
-For new Bandflux-type models, the class needs to implement a ``get_band_fluxes()`` function that generates the
+For new Bandflux-type models, the class needs to implement a ``evaluate_bandflux()`` function that generates the
 band fluxes in the observer frame given the times, wavelengths, and model parameters (called graph_state). These
 models do not account for redshift, since simulation is done in the observer frame.
 

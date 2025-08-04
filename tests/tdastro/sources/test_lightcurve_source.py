@@ -215,11 +215,11 @@ def test_create_lightcurve_source() -> None:
             if f1 != f2:
                 assert np.count_nonzero(lc_source.sed_values[f1] * lc_source.sed_values[f2]) == 0
 
-    # A call to get_band_fluxes should return the desired lightcurves.  We only use two of the passbands.
+    # A call to evaluate_bandflux should return the desired lightcurves.  We only use two of the passbands.
     graph_state = lc_source.sample_parameters(num_samples=1)
     query_times = np.array([0.0, 0.5, 1.0, 2.0, 3.0, 4.0, 20.0, 21.0])
     query_filters = np.array(["u", "r", "u", "r", "u", "r", "u", "r"])
-    fluxes = lc_source.get_band_fluxes(pb_group, query_times, query_filters, graph_state)
+    fluxes = lc_source.evaluate_bandflux(pb_group, query_times, query_filters, graph_state)
     assert len(fluxes) == len(query_times)
 
     # Timesteps 0.0, 0.5, 20.0, and 21.0 fall outside the range of the model and are set to 0.0.
@@ -227,10 +227,10 @@ def test_create_lightcurve_source() -> None:
     # Timesteps 2.0 and 4.0 are from the r band which is linearly increasing with time.
     assert np.allclose(fluxes, [0.0, 0.0, 2.0, 1.2, 2.0, 1.4, 0.0, 0.0])
 
-    # A call to get_band_fluxes with an unsupported filter should raise an error.
+    # A call to evaluate_bandflux with an unsupported filter should raise an error.
     query_filters = np.array(["u", "r", "u", "r", "u", "x", "u", "r", "r"])
     with pytest.raises(ValueError):
-        lc_source.get_band_fluxes(pb_group, query_times, query_filters, graph_state)
+        lc_source.evaluate_bandflux(pb_group, query_times, query_filters, graph_state)
 
 
 def test_create_lightcurve_source_unsorted() -> None:
@@ -251,11 +251,11 @@ def test_create_lightcurve_source_baseline() -> None:
     baseline = {"u": 0.5, "g": 1.2, "r": 0.05}
     lc_source = LightcurveSource(lightcurves, pb_group, t0=0.0, baseline=baseline)
 
-    # A call to get_band_fluxes should return the desired lightcurves.  We only use two of the passbands.
+    # A call to evaluate_bandflux should return the desired lightcurves.  We only use two of the passbands.
     graph_state = lc_source.sample_parameters(num_samples=1)
     query_times = np.array([-100.0, 0.0, 0.5, 1.0, 2.0, 3.0, 4.0, 20.0, 21.0, 1000.0])
     query_filters = np.array(["u", "u", "r", "u", "r", "u", "r", "u", "r", "r"])
-    fluxes = lc_source.get_band_fluxes(pb_group, query_times, query_filters, graph_state)
+    fluxes = lc_source.evaluate_bandflux(pb_group, query_times, query_filters, graph_state)
     assert len(fluxes) == len(query_times)
 
     # Timesteps -100.0, 0.0, 0.5, 20.0, 21.0, 1000.0 all fall outside the range of the model
@@ -274,7 +274,7 @@ def test_create_lightcurve_source_baseline() -> None:
     lc_source.add_effect(effect)
     graph_state = lc_source.sample_parameters(num_samples=1)
 
-    fluxes = lc_source.get_band_fluxes(pb_group, query_times, query_filters, graph_state)
+    fluxes = lc_source.evaluate_bandflux(pb_group, query_times, query_filters, graph_state)
     assert len(fluxes) == len(query_times)
     assert np.allclose(fluxes, [0.05, 0.05, 0.005, 0.20, 0.12, 0.20, 0.14, 0.05, 0.005, 0.005])
 
@@ -299,11 +299,11 @@ def test_create_lightcurve_source_periodic() -> None:
     }
     lc_source = LightcurveSource(lightcurves, pb_group, t0=0.0, periodic=True)
 
-    # A call to get_band_fluxes should return the desired lightcurves.
+    # A call to evaluate_bandflux should return the desired lightcurves.
     graph_state = lc_source.sample_parameters(num_samples=1)
     query_times = np.array([1.0, 5.0, 11.0, 15.0, 21.0, 25.0, 51.0])
     query_filters = np.full(len(query_times), "r")
-    fluxes = lc_source.get_band_fluxes(pb_group, query_times, query_filters, graph_state)
+    fluxes = lc_source.evaluate_bandflux(pb_group, query_times, query_filters, graph_state)
     assert len(fluxes) == len(query_times)
 
     # Time steps 1.0, 11.0, 21.0, and 51.0 are all wrapped to the same point.
@@ -327,23 +327,23 @@ def test_create_lightcurve_source_periodic() -> None:
     query_times = np.array([0.0, 1.0, 2.0, 3.0, 4.0])
     query_filters = np.full(len(query_times), "r")
 
-    # A call to get_band_fluxes should return the desired lightcurves. Since t0=0.0, query
+    # A call to evaluate_bandflux should return the desired lightcurves. Since t0=0.0, query
     # time 0.0 should correspond to the start of the lightcurve's period.
     graph_state = lc_source.sample_parameters(num_samples=1)
-    fluxes = lc_source.get_band_fluxes(pb_group, query_times, query_filters, graph_state)
+    fluxes = lc_source.evaluate_bandflux(pb_group, query_times, query_filters, graph_state)
     assert np.allclose(fluxes, [0.0, 1.0, 2.0, 3.0, 2.5])
 
     # We can also auto-derive lc_t0 from the lightcurves.
     lc_source = LightcurveSource(lightcurves, pb_group, t0=0.0, periodic=True)
     graph_state = lc_source.sample_parameters(num_samples=1)
-    fluxes = lc_source.get_band_fluxes(pb_group, query_times, query_filters, graph_state)
+    fluxes = lc_source.evaluate_bandflux(pb_group, query_times, query_filters, graph_state)
     assert np.allclose(fluxes, [0.0, 1.0, 2.0, 3.0, 2.5])
 
     # If we use t0=1.0, we are saying the period starts at 1.0 for this sample, so a
     # query time of 0.0 should wrap around and return the *last* value of the lightcurve.
     lc_source = LightcurveSource(lightcurves, pb_group, t0=1.0, periodic=True)
     graph_state = lc_source.sample_parameters(num_samples=1)
-    fluxes = lc_source.get_band_fluxes(pb_group, query_times, query_filters, graph_state)
+    fluxes = lc_source.evaluate_bandflux(pb_group, query_times, query_filters, graph_state)
     assert np.allclose(fluxes, [1.5, 0.0, 1.0, 2.0, 3.0])
 
 
@@ -370,7 +370,7 @@ def test_create_lightcurve_source_periodic_complex_offsets() -> None:
     # Check query times relative to 60676.0 (4 days after the period started).
     query_times = 60676.0 + np.array([0.0, 0.5, 1.0, 2.0, 6.5, 12.0])
     query_filters = np.full(len(query_times), "r")
-    fluxes = lc_source.get_band_fluxes(pb_group, query_times, query_filters, graph_state)
+    fluxes = lc_source.evaluate_bandflux(pb_group, query_times, query_filters, graph_state)
     assert np.allclose(fluxes, [1.0, 0.5, 0.0, 1.0, 4.5, 1.0])
 
 
@@ -407,13 +407,13 @@ def test_create_lightcurve_source_numpy() -> None:
     assert np.allclose(lc_source.all_waves, pb_group.waves)
     assert set(lc_source.filters) == set(["u", "g", "r"])
 
-    # A call to get_band_fluxes should return the desired lightcurves.
+    # A call to evaluate_bandflux should return the desired lightcurves.
     graph_state = lc_source.sample_parameters(num_samples=1)
     query_times = np.array([0.5, 0.6, 1.8, 2.3, 2.8, 3.0, 3.5, 4.0])
     query_filters = np.array(["u", "g", "r", "r", "r", "g", "u", "u"])
     expected = np.array([10.05, 11.0, 10.85, 10.8, 10.75, 11.0, 10.35, 10.4])
 
-    fluxes = lc_source.get_band_fluxes(pb_group, query_times, query_filters, graph_state)
+    fluxes = lc_source.evaluate_bandflux(pb_group, query_times, query_filters, graph_state)
     assert len(fluxes) == len(expected)
     assert np.allclose(fluxes, expected)
 
@@ -427,7 +427,7 @@ def test_create_lightcurve_source_t0() -> None:
     graph_state = lc_source.sample_parameters(num_samples=1)  # needed for t0
     query_times = 60676.0 + np.array([0.0, 0.5, 1.0, 2.0, 3.0, 4.0, 20.0, 21.0])
     query_filters = np.array(["u", "r", "u", "r", "u", "r", "u", "r"])
-    fluxes = lc_source.get_band_fluxes(pb_group, query_times, query_filters, graph_state)
+    fluxes = lc_source.evaluate_bandflux(pb_group, query_times, query_filters, graph_state)
     assert len(fluxes) == len(query_times)
 
     # Timesteps +0.0, +0.5, +20.0, and +21.0 fall outside the range of the model and are set to 0.0.
@@ -439,7 +439,7 @@ def test_create_lightcurve_source_t0() -> None:
     # Test that we can also handle a lightcurve with a different lc_t0.
     lc_source2 = LightcurveSource(lightcurves, pb_group, t0=60676.0, lc_t0=1.0)
     graph_state2 = lc_source2.sample_parameters(num_samples=1)  # needed for t0
-    fluxes2 = lc_source2.get_band_fluxes(pb_group, query_times, query_filters, graph_state2)
+    fluxes2 = lc_source2.evaluate_bandflux(pb_group, query_times, query_filters, graph_state2)
 
     # Timesteps +20.0 and +21.0 fall outside the range of the model and are set to 0.0.
     # Timesteps +0.0, +1.0 and +3.0 correspond to the original times (in the lightcurve definition)
@@ -553,7 +553,7 @@ def test_create_multilightcurve_source() -> None:
 
     query_times = np.array([-1.0, 1.0, 2.0, 3.0, 4.0, 20.0, 21.0])
     query_filters = np.full(len(query_times), "g")
-    fluxes = source.get_band_fluxes(pb_group, query_times, query_filters, graph_state)
+    fluxes = source.evaluate_bandflux(pb_group, query_times, query_filters, graph_state)
     assert len(fluxes) == 1_000
 
     # Check that we sampled from the lightcurve that we said we did.
@@ -566,10 +566,10 @@ def test_create_multilightcurve_source() -> None:
         else:
             assert np.allclose(fluxes[idx], expected_1)
 
-    # A call to get_band_fluxes with an unsupported filter should raise an error.
+    # A call to evaluate_bandflux with an unsupported filter should raise an error.
     query_filters[2] = "x"  # Change one filter to an unsupported one
     with pytest.raises(ValueError):
-        source.get_band_fluxes(pb_group, query_times, query_filters, graph_state)
+        source.evaluate_bandflux(pb_group, query_times, query_filters, graph_state)
 
 
 def test_create_multilightcurve_source_fail() -> None:

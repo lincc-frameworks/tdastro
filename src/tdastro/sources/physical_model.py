@@ -413,7 +413,7 @@ class SEDModel(BasePhysicalModel):
             )
         return flux_density
 
-    def evaluate(self, times, wavelengths, graph_state=None, given_args=None, rng_info=None, **kwargs):
+    def evaluate_sed(self, times, wavelengths, graph_state=None, given_args=None, rng_info=None, **kwargs):
         """Draw observations for this object and apply the noise.
 
         Parameters
@@ -466,7 +466,7 @@ class SEDModel(BasePhysicalModel):
             return results[0, :, :]
         return results
 
-    def get_band_fluxes(self, passband_or_group, times, filters, state, rng_info=None) -> np.ndarray:
+    def evaluate_bandflux(self, passband_or_group, times, filters, state, rng_info=None) -> np.ndarray:
         """Get the band fluxes for a given Passband or PassbandGroup.
 
         Parameters
@@ -500,7 +500,7 @@ class SEDModel(BasePhysicalModel):
                 )
 
             # Compute the spectral fluxes at the same wavelengths used to define the passband.
-            spectral_fluxes = self.evaluate(times, passband_or_group.waves, state, rng_info=rng_info)
+            spectral_fluxes = self.evaluate_sed(times, passband_or_group.waves, state, rng_info=rng_info)
             return passband_or_group.fluxes_to_bandflux(spectral_fluxes)
 
         if filters is None:
@@ -514,7 +514,7 @@ class SEDModel(BasePhysicalModel):
             filter_mask = filters == filter_name
 
             # Compute the spectral fluxes at the same wavelengths used to define the passband.
-            spectral_fluxes = self.evaluate(times[filter_mask], passband.waves, state, rng_info=rng_info)
+            spectral_fluxes = self.evaluate_sed(times[filter_mask], passband.waves, state, rng_info=rng_info)
             band_fluxes[:, filter_mask] = passband.fluxes_to_bandflux(spectral_fluxes)
 
         if state.num_samples == 1:
@@ -588,7 +588,7 @@ class BandfluxModel(BasePhysicalModel, ABC):
         """
         raise NotImplementedError
 
-    def get_band_fluxes(self, passband_or_group, times, filters, state, rng_info=None):
+    def evaluate_bandflux(self, passband_or_group, times, filters, state, rng_info=None):
         """Get the band fluxes for a given Passband or PassbandGroup.
 
         Note

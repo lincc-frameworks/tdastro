@@ -271,7 +271,7 @@ class LightcurveData:
 
         return cls(lightcurves, lc_t0=lc_t0, periodic=periodic, baseline=baseline)
 
-    def evaluate(self, times, filter):
+    def evaluate_sed(self, times, filter):
         """Get the bandflux values for a given filter at the specified times. These can
         be multiplied by a basis SED function to produce estimated SED values
         for the given filter at the specified times or can be used directly as bandfluxes.
@@ -501,7 +501,7 @@ class BaseLightcurveSource(BandfluxModel, ABC):
 
             # Compute the multipliers for the SEDs at different time steps along this lightcurve.
             # We use the lightcurve's baseline value for all times outside the lightcurve's range.
-            sed_time_mult = lc.evaluate(shifted_times, filter)
+            sed_time_mult = lc.evaluate_sed(shifted_times, filter)
 
             # The contribution of this filter to the overall SED is the lightcurve's (interpolated)
             # value at each time multiplied by the SED values at each query wavelength.
@@ -676,7 +676,7 @@ class LightcurveSource(BaseLightcurveSource):
         band_fluxes = np.zeros(len(times))
         for filter in self.lightcurves.filters:
             filter_mask = filters == filter
-            band_fluxes[filter_mask] = self.lightcurves.evaluate(shifted_times[filter_mask], filter)
+            band_fluxes[filter_mask] = self.lightcurves.evaluate_sed(shifted_times[filter_mask], filter)
 
         return band_fluxes
 
@@ -889,6 +889,6 @@ class MultiLightcurveSource(BaseLightcurveSource):
         band_fluxes = np.zeros(len(times))
         for filter in lc.filters:
             filter_mask = filters == filter
-            band_fluxes[filter_mask] = lc.evaluate(shifted_times[filter_mask], filter)
+            band_fluxes[filter_mask] = lc.evaluate_sed(shifted_times[filter_mask], filter)
 
         return band_fluxes

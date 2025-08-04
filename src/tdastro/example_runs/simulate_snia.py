@@ -189,7 +189,7 @@ def draw_single_random_sn(
     res["filters"] = filters
 
     # Compute the fluxes over all wavelengths.
-    flux_nJy = source.evaluate(times, wave_obs, graph_state=state, rng_info=rng_info)
+    flux_nJy = source.evaluate_sed(times, wave_obs, graph_state=state, rng_info=rng_info)
     res["flux_nJy"] = flux_nJy
     res["flux_flam"] = fnu_to_flam(
         flux_nJy,
@@ -201,7 +201,7 @@ def draw_single_random_sn(
     res["flux_fnu"] = flux_nJy
 
     # Compute the band_flixes over just the given filters.
-    bandfluxes_perfect = source.get_band_fluxes(passbands, times, filters, state)
+    bandfluxes_perfect = source.evaluate_bandflux(passbands, times, filters, state)
     res["bandfluxes_perfect"] = bandfluxes_perfect
 
     bandfluxes_error = opsim.bandflux_error_point_source(bandfluxes_perfect, obs_index)
