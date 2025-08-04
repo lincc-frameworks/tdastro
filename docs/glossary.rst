@@ -27,10 +27,10 @@ Glossary
 
 **PassbandGroup**: A ``PassbandGroup`` object implements a collection of ``Passband`` objects, providing convenient helper functions for loading and processing multiple passbands. Generally users will use a single ``PassbandGroup`` corresponding to the filters on the instrument being simulated.
 
-**Physical model**: A physical model is an object of some subclass of ``BasePhysicalModel`` (usually also subclasses of ``SEDModel`` or ``BandfluxModel``) that represents a physical phenomenon that produces flux.
+**Physical model**: A physical model is an object of some subclass of ``BasePhysicalModel`` (usually also subclasses of ``SEDModel`` or ``BandfluxModel``) that represents a physical phenomenon that produces flux. Also called a *source*.
 
 **Rest Frame**: The reference frame of the object being simulated. Observations in the rest frame do not account for effects like dust extinction or redshift, because they are local to the object.
 
 **SEDModel**: ``SEDModel`` is a subclass of the ``BasePhysicalModel`` class that specifically represents the spectral energy distribution of a source.
 
-**Source**: Source is used to refer to any physical phenomena that produces (is the *source* of) flux. All sources are implemented as subclasses of the ``SEDModel`` or ``BandfluxModel`` classes.
+**Source**: Source is used to refer to any physical phenomena that produces (is the *source* of) flux. All sources are implemented as subclasses of the ``SEDModel`` or ``BandfluxModel`` classes. Also called a *physical model*.

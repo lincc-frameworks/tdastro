@@ -35,8 +35,9 @@ Defining a parameterized model
 
 The core idea behind TDAstro is that we want to generate light curves from parameterized models
 of physical objects. The ``BasePhysicalModel`` class defines the structure for modeling physical objects and
-if subclassed into ``SEDModel`` (for models that simulate spectral energy distributions) and ``BandfluxModel``
-(for models that simulate band fluxes).  New object types can be derived from either of these two subclasses.
+is subclassed into ``SEDModel`` (for models that simulate the full spectral energy distributions) and
+``BandfluxModel`` (for models that simulate band fluxes).  New object types can be derived from either
+of these two subclasses.
 
 For new SED-type models, the class needs to implement a ``compute_flux()`` function that generates the
 noise-free flux densities in the object's rest frame given information about the times, wavelengths, and
@@ -47,8 +48,8 @@ before being passed to the ``compute_flux()`` function.
 
     def compute_flux(self, times, wavelengths, graph_state, **kwargs):
 
-For new Bandflux-type models, the class needs to implement a ``evaluate_bandflux()`` function that generates the
-band fluxes in the observer frame given the times, wavelengths, and model parameters (called graph_state). These
+For new Bandflux-type models, the class needs to implement a ``compute_bandflux()`` function that generates the
+band fluxes in the observer frame given the times, bands, and model parameters (called graph_state). These
 models do not account for redshift, since simulation is done in the observer frame.
 
 A user of a particular physical model only needs to understand what parameters the model has
@@ -84,8 +85,8 @@ to get concrete values for each parameter in the model. This combination of para
 state (and stored in a ``GraphState`` object), because it represents the sampled state of the DAG.
 
 Next, the ``OpSim`` is used to determine at what times and in which bands the object will be evaluated.
-These times and wavelengths are based into the object's ``eval()`` function along with the graph state.
-The ``eval()`` function handles the mechanics of the simulation, such as applying redshifts to both the
+These times and wavelengths are based into the object's ``evaluate_sed()`` function along with the graph state.
+The ``evaluate_sed()`` function handles the mechanics of the simulation, such as applying redshifts to both the
 times and wavelengths before calling the ``compute_flux()``.
 
 Additional effects can be applied to the noise-free light curves to produce more realistic light curves.

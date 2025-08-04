@@ -34,9 +34,9 @@ The main simulation components in TDAstro include:
 * The ``PassbandGroup`` contains the filter information of the telescope and is used
   to calculate the fluxes in each band.
 
-TDAstro can generate numerous random realizations of the parameters for the ``SEDModel`` or
-``BandfluxModel``, and then apply the effects to these realizations. The ``Opsim`` component
-is used to produce realistic light curves using the above components.  See the
+TDAstro can generate numerous random realizations of the parameters for the physical source model 
+(``SEDModel`` or ``BandfluxModel``), and then apply the effects to these realizations. The ``Opsim``
+component is used to produce realistic light curves using the above components.  See the
 :doc:`simulations <simulations>` page for a more detailed description of the process.
 
 For an overview of the package, we recommend starting with the notebooks in the "Getting Started"
