@@ -15,7 +15,7 @@ class GaussianGalaxy(SEDModel):
       * galaxy_radius_std - The standard deviation of the brightness in degrees.
       * ra - The object's right ascension in degrees. [from BasePhysicalModel]
       * redshift - The object's redshift. [from BasePhysicalModel]
-      * t0 - No effect for a GuassianGalaxy [from BasePhysicalModel]
+      * t0 - No effect for a GuassianGalaxy. [from BasePhysicalModel]
 
     Parameters
     ----------

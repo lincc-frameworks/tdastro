@@ -2,7 +2,7 @@
 
 The code supports two types of models: 1) SEDModels define recipes for computing SEDs
 from a source at given times and wavelengths, accounting for redshift and other effects.
-2) BandfluxModels only computes band fluxes instead of the SEDs. This is used for models
+2) BandfluxModels only compute band fluxes instead of the SEDs. This is used for models
 that are empirically fit from observed band fluxes.
 
 We strongly recommend using the full SED models (SEDModels) whenever possible since they

@@ -26,7 +26,7 @@ class SplineModel(SEDModel):
       * distance - The object's luminosity distance in pc. [from BasePhysicalModel]
       * ra - The object's right ascension in degrees. [from BasePhysicalModel]
       * redshift - The object's redshift. [from BasePhysicalModel]
-      * t0 - The time corresponding to the t=0.0 in the model data [from BasePhysicalModel]
+      * t0 - The time corresponding to the t=0.0 in the model data. [from BasePhysicalModel]
 
     Attributes
     ----------
