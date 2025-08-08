@@ -8,6 +8,45 @@ from nested_pandas import NestedFrame
 from tdastro.astro_utils.noise_model import apply_noise
 
 
+def get_time_windows(t0, time_window_offset):
+    """Get the time windows for each sample state based on the time window offset.
+
+    Parameters
+    ----------
+    t0 : float or np.ndarray, optional
+        The reference time (t0) for the time windows.
+    time_window_offset : tuple(float, float), optional
+        A tuple specifying the time window offset (before, after) t0 in days.
+        If None, no time window is applied.
+
+    Returns
+    -------
+    start_times : np.ndarray or None
+        The start times for each sample t0 - time_window_offset[0]. If a before time is given,
+        this is always returned as an array (even if t0 is a scalar). None returned if there is
+        no start time.
+    end_times : np.ndarray or None
+        The end times for each sample t0 - time_window_offset[1]. If an after time is given,
+        this is always returned as an array (even if t0 is a scalar). None returned if there is
+        no end time.
+    """
+    # If the source did not have a t0 or we do not have a time_window_offset,
+    # we cannot apply a time window.
+    if t0 is None or time_window_offset is None:
+        return None, None
+    if len(time_window_offset) != 2:
+        raise ValueError("time_window_offset must be a tuple of (before, after) in days.")
+    before, after = time_window_offset
+
+    # If t0 is a scalar apply the offset directly.
+    if np.isscalar(t0):
+        t0 = np.array([t0])
+    start_times = t0 - before if before is not None else None
+    end_times = t0 + after if after is not None else None
+
+    return start_times, end_times
+
+
 def simulate_lightcurves(
     source,
     num_samples,
@@ -16,6 +55,7 @@ def simulate_lightcurves(
     opsim_save_cols=None,
     param_cols=None,
     apply_obs_mask=False,
+    time_window_offset=None,
     rng=None,
     generate_citations=False,
 ):
@@ -34,6 +74,11 @@ def simulate_lightcurves(
         The passbands to use for generating the bandfluxes.
     apply_obs_mask: boolean
         If True, apply obs_mask to filter interesting indices/times.
+    time_window_offset : tuple(float, float), optional
+        A tuple specifying the time window offset (before, after) t0 in days.
+        This is used to filter the observations to only those within the specified
+        time window (t0 - before, t0 + after). If None or the model does not have a
+        t0 specified, no time window is applied.
     opsim_save_cols : list of str, optional
         A list of opsim columns to be saved as part of the results. This is used
         to save context information about how the lightcurves were generated.
@@ -65,7 +110,11 @@ def simulate_lightcurves(
     if num_samples == 1:
         ra = np.array([ra])
         dec = np.array([dec])
-    all_obs_matches = opsim.range_search(ra, dec)
+    start_times, end_times = get_time_windows(
+        source.get_param(sample_states, "t0"),
+        time_window_offset,
+    )
+    all_obs_matches = opsim.range_search(ra, dec, t_min=start_times, t_max=end_times)
 
     # Get all times and all filters as numpy arrays so we can do easy subsets.
     all_times = np.asarray(opsim["time"].values, dtype=float)
