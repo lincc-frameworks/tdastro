@@ -404,12 +404,8 @@ class BaseLightcurveSource(BandfluxModel, ABC):
         self.all_waves = passbands.waves
         self.sed_values = self._create_sed_basis(self.filters, passbands)
 
-        # Override some of the defaults of PhysicalModel. Never apply redshift and
-        # do not allow background models.
+        # Never apply redshift.
         self.apply_redshift = False
-        if "background" in kwargs:
-            raise ValueError("Lightcurve models do not support background models.")
-        self.background = None
 
         # Check that t0 is set.
         if "t0" not in kwargs or kwargs["t0"] is None:
