@@ -225,7 +225,7 @@ class AdditiveMultiSourceModel(MultiSourceModel):
 
         Note
         ----
-        Wavelength extrapolation is handled by each source.  So the actual wavelength's
+        Wavelength extrapolation is handled by each source. So the actual wavelength's
         can be evaluated outside the range of each source.
 
         Parameters
