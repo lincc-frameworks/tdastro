@@ -221,7 +221,12 @@ class AdditiveMultiSourceModel(MultiSourceModel):
 
     def minwave(self, graph_state=None):
         """Get the minimum wavelength of the model. For additive models, this is
-        the minimum wavelength of all sources.
+        the maximum of the minimum wavelength of all sources.
+
+        Note
+        ----
+        Wavelength extrapolation is handled by each source. So the actual wavelength's
+        can be evaluated outside the range of each source.
 
         Parameters
         ----------
@@ -235,11 +240,16 @@ class AdditiveMultiSourceModel(MultiSourceModel):
             The minimum wavelength of the model (in angstroms) or None
             if the model does not have a defined minimum wavelength.
         """
-        return min(source.minwave(graph_state=graph_state) for source in self.sources)
+        return max(source.minwave(graph_state=graph_state) for source in self.sources)
 
     def maxwave(self, graph_state=None):
         """Get the maximum wavelength of the model. For additive models, this is
-        the maximum wavelength of all sources.
+        the minimum of the maximum wavelength of all sources.
+
+        Note
+        ----
+        Wavelength extrapolation is handled by each source. So the actual wavelength's
+        can be evaluated outside the range of each source.
 
         Parameters
         ----------
@@ -253,7 +263,7 @@ class AdditiveMultiSourceModel(MultiSourceModel):
             The maximum wavelength of the model (in angstroms) or None
             if the model does not have a defined maximum wavelength.
         """
-        return max(source.maxwave(graph_state=graph_state) for source in self.sources)
+        return min(source.maxwave(graph_state=graph_state) for source in self.sources)
 
     def _evaluate_single(self, times, wavelengths, state, rng_info=None, **kwargs):
         """Evaluate the model and apply the effects for a single, given graph state.
@@ -280,7 +290,10 @@ class AdditiveMultiSourceModel(MultiSourceModel):
         flux_density : numpy.ndarray
             A length T x N matrix of SED values (in nJy).
         """
-        # Compute the weighted sum of contributions from each source.
+        # Compute the weighted sum of contributions from each source. Since we use each
+        # source's _evaluate_single function, the rest frame effects are applied
+        # correctly for each source and wavelength extrapolation is handled by each source
+        # (allowing them to have different wavelength ranges).
         flux_density = np.zeros((len(times), len(wavelengths)))
         for source, weight in zip(self.sources, self.weights, strict=False):
             flux_density += weight * source._evaluate_single(

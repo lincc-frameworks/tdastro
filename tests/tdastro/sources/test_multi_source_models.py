@@ -209,13 +209,14 @@ def test_additive_multi_source_node_min_max() -> None:
     )
     model1 = StaticSEDSource([sed1], node_label="sed1")
 
+    # The reported min/max wavelengths are the overlap of the sources.
     model = AdditiveMultiSourceModel(
         [model0, model1],
         node_label="test",
     )
     states = model.sample_parameters(num_samples=1)
-    assert model.minwave(states) == 100.0
-    assert model.maxwave(states) == 500.0
+    assert model.minwave(states) == 200.0
+    assert model.maxwave(states) == 400.0
 
 
 def test_random_multi_source_node() -> None:
