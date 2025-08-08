@@ -424,8 +424,7 @@ class PhysicalModel(ParameterizedNode):
         graph_state : GraphState
             An object mapping graph parameters to their values.
         """
-        # If the graph has not been sampled ever, update the node positions for
-        # every node (model, background, effects).
+        # If the graph has not been sampled ever, update the node positions for every node.
         if self.node_pos is None:
             self.set_graph_positions()
 
@@ -519,12 +518,8 @@ class BandfluxModel(PhysicalModel, ABC):
         super().__init__(*args, **kwargs)
         self.band_pass_effects = []
 
-        # Override some of the defaults of PhysicalModel. Never apply redshift and
-        # do not allow background models.
+        # Never apply redshift.
         self.apply_redshift = False
-        if "background" in kwargs:
-            raise ValueError("Lightcurve models do not support background models.")
-        self.background = None
 
     def set_apply_redshift(self, apply_redshift):
         """Toggles the apply_redshift setting.

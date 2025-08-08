@@ -126,8 +126,7 @@ class MultiSourceModel(PhysicalModel):
         graph_state : GraphState
             An object mapping graph parameters to their values.
         """
-        # If the graph has not been sampled ever, update the node positions for
-        # every node (model, background, effects).
+        # If the graph has not been sampled ever, update the node positions for every node.
         if self.node_pos is None:
             self.set_graph_positions()
 
