@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 from tdastro.astro_utils.passbands import PassbandGroup
+from tdastro.graph_state import GraphState
 from tdastro.math_nodes.given_sampler import GivenValueList
 from tdastro.opsim.opsim import OpSim
 from tdastro.simulate import get_time_windows, simulate_lightcurves
@@ -80,6 +81,13 @@ def test_simulate_lightcurves(test_data_dir):
         # Check that we extract one of the parameters.
         assert results["source_brightness"][idx] == given_brightness[idx]
 
+    # Check that we saved and can reassemble the GraphStates
+    assert "params" in results
+    state = GraphState.from_list(results["params"].values)
+    assert state.num_samples == 5
+    assert np.allclose(state["source.ra"], opsim_db["ra"].values[0:5])
+    assert np.allclose(state["source.dec"], opsim_db["dec"].values[0:5])
+
 
 def test_simulate_single_lightcurve(test_data_dir):
     """Test an end to end run of simulating a single lightcurves."""
@@ -114,6 +122,13 @@ def test_simulate_single_lightcurve(test_data_dir):
         param_cols=["source.brightness"],
     )
     assert len(results) == 1
+
+    # Check that we saved and can reassemble the GraphStates
+    assert "params" in results
+    state = GraphState.from_list(results["params"].values)
+    assert state.num_samples == 1
+    assert state["source.ra"] == opsim_db["ra"].values[0]
+    assert state["source.dec"] == opsim_db["dec"].values[0]
 
 
 def test_simulate_with_time_window(test_data_dir):
