@@ -17,7 +17,7 @@ def test_single_static_sed() -> None:
     times = np.array([1, 2, 3, 10, 20])
     wavelengths = np.array([50.0, 100.0, 150.0, 200.0, 250.0, 300.0, 350.0, 400.0, 450.0])
 
-    values = model.evaluate(times, wavelengths)
+    values = model.evaluate_sed(times, wavelengths)
     assert values.shape == (5, 9)
 
     expected = np.array([0.0, 10.0, 15.0, 20.0, 20.0, 20.0, 15.0, 10.0, 0.0])
@@ -82,7 +82,7 @@ def test_multiple_static_seds() -> None:
 
     times = np.array([1, 2, 3])
     wavelengths = np.array([50.0, 100.0, 150.0, 200.0, 250.0, 300.0, 350.0, 400.0, 450.0])
-    values = model.evaluate(times, wavelengths, params)
+    values = model.evaluate_sed(times, wavelengths, params)
 
     expected_0 = np.tile([0.0, 10.0, 15.0, 20.0, 20.0, 20.0, 15.0, 10.0, 0.0], 3).reshape(3, 9)
     expected_1 = 2.0 * expected_0

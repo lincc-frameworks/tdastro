@@ -22,7 +22,7 @@ def test_sncomso_models_hsiao() -> None:
     #     model = sncosmo.Model(source='hsiao')
     #     model.set(z=0.0, t0=0.0, amplitude=2.0e10)
     #     model.flux(5., [4000., 4100., 4200.])
-    fluxes_fnu = model.evaluate([5.0], [4000.0, 4100.0, 4200.0])
+    fluxes_fnu = model.evaluate_sed([5.0], [4000.0, 4100.0, 4200.0])
     fluxes_flam = fnu_to_flam(
         fluxes_fnu,
         [4000.0, 4100.0, 4200.0],
@@ -54,7 +54,7 @@ def test_sncomso_models_hsiao_t0() -> None:
     #     model = sncosmo.Model(source='hsiao')
     #     model.set(z=0.0, t0=55000., amplitude=2.0e10)
     #     model.flux(54990., [4000., 4100., 4200.])
-    fluxes_fnu = model.evaluate([54990.0], [4000.0, 4100.0, 4200.0])
+    fluxes_fnu = model.evaluate_sed([54990.0], [4000.0, 4100.0, 4200.0])
     fluxes_flam = fnu_to_flam(
         fluxes_fnu,
         [4000.0, 4100.0, 4200.0],
@@ -89,7 +89,7 @@ def test_sncomso_models_bounds() -> None:
     ]
 
     # Check that columns 0, 4, and 5 are all zeros and the other columns are not.
-    fluxes_fnu = model.evaluate([54990.0, 54990.5], wavelengths)
+    fluxes_fnu = model.evaluate_sed([54990.0, 54990.5], wavelengths)
     assert np.all(fluxes_fnu[:, 0] == 0.0)
     assert not np.any(fluxes_fnu[:, 1:4] == 0.0)
     assert np.all(fluxes_fnu[:, 4:6] == 0.0)
@@ -117,7 +117,7 @@ def test_sncomso_models_linear_extrapolate() -> None:
     ]
 
     # Check that columns 0, 4, 5, and 6 are correctly extrapolated.
-    fluxes_fnu = model.evaluate([54990.0, 54990.5], wavelengths)
+    fluxes_fnu = model.evaluate_sed([54990.0, 54990.5], wavelengths)
     assert np.all(fluxes_fnu[:, 0:6] > 0.0)
     assert np.all(fluxes_fnu[:, 0] < fluxes_fnu[:, 1])
     assert np.all(fluxes_fnu[:, 4] < fluxes_fnu[:, 3])

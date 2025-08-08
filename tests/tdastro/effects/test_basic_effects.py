@@ -47,7 +47,7 @@ def test_static_source_constant_dimming() -> None:
     state = model.sample_parameters()
     times = np.array([1, 2, 3, 4, 5, 10])
     wavelengths = np.array([100.0, 200.0, 300.0])
-    values = model.evaluate(times, wavelengths, state)
+    values = model.evaluate_sed(times, wavelengths, state)
     assert values.shape == (6, 3)
     assert np.all(values == 1.0)
 
@@ -59,6 +59,6 @@ def test_static_source_constant_dimming() -> None:
     assert len(model2.obs_frame_effects) == 1
 
     state2 = model2.sample_parameters()
-    values2 = model2.evaluate(times, wavelengths, state2)
+    values2 = model2.evaluate_sed(times, wavelengths, state2)
     assert values2.shape == (6, 3)
     assert np.all(values2 == 5.0)

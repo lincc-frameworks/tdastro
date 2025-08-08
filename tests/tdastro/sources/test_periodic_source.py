@@ -22,7 +22,7 @@ def test_periodicity(period, t0):
     source = SineSource(period=period, t0=t0)
     times = np.linspace(0, max_time, max_time * 100 + 1)
     wavelengths = np.linspace(100, 200, 3)
-    fluxes = source.evaluate(times, wavelengths)
+    fluxes = source.evaluate_sed(times, wavelengths)
 
     # Test that the flux is periodic on boundaries.
     np.testing.assert_allclose(fluxes[0], fluxes[-1])

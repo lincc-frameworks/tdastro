@@ -63,7 +63,7 @@ def simulate_lightcurves(
 
     Parameters
     ----------
-    source : PhysicalModel
+    source : SEDModel
         The source to draw from. This may have its own parameters which
         will be randomly sampled with each draw.
     num_samples : int
@@ -168,7 +168,7 @@ def simulate_lightcurves(
             obs_filters = all_filters[obs_index]
 
         # Compute the band_fluxes and errors over just the given filters.
-        bandfluxes_perfect = source.get_band_fluxes(passbands, obs_times, obs_filters, state)
+        bandfluxes_perfect = source.evaluate_bandflux(passbands, obs_times, obs_filters, state)
         bandfluxes_error = opsim.bandflux_error_point_source(bandfluxes_perfect, obs_index)
         bandfluxes = apply_noise(bandfluxes_perfect, bandfluxes_error, rng=rng)
 

@@ -10,18 +10,18 @@ from citation_compass import CiteClass
 from sncosmo.models import get_source
 
 from tdastro.astro_utils.unit_utils import flam_to_fnu
-from tdastro.sources.physical_model import PhysicalModel
+from tdastro.sources.physical_model import SEDModel
 
 
-class SncosmoWrapperModel(PhysicalModel, CiteClass):
+class SncosmoWrapperModel(SEDModel, CiteClass):
     """A wrapper for sncosmo models.
 
     Parameterized values include:
-      * dec - The object's declination in degrees. [from PhysicalModel]
-      * distance - The object's luminosity distance in pc. [from PhysicalModel]
-      * ra - The object's right ascension in degrees. [from PhysicalModel]
-      * redshift - The object's redshift. [from PhysicalModel]
-      * t0 - The t0 of the zero phase, date. [from PhysicalModel]
+      * dec - The object's declination in degrees. [from BasePhysicalModel]
+      * distance - The object's luminosity distance in pc. [from BasePhysicalModel]
+      * ra - The object's right ascension in degrees. [from BasePhysicalModel]
+      * redshift - The object's redshift. [from BasePhysicalModel]
+      * t0 - The t0 of the zero phase, date. [from BasePhysicalModel]
     Additional parameterized values are used for specific sncosmo models.
 
     References

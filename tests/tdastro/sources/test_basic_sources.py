@@ -39,13 +39,13 @@ def test_static_source() -> None:
     times = np.array([1, 2, 3, 4, 5, 10])
     wavelengths = np.array([100.0, 200.0, 300.0])
 
-    values = model.evaluate(times, wavelengths, state)
+    values = model.evaluate_sed(times, wavelengths, state)
     assert values.shape == (6, 3)
     assert np.all(values == 10.0)
 
     # We can set a value we have already added.
     model.set_parameter("brightness", 5.0)
-    values = model.evaluate(times, wavelengths)
+    values = model.evaluate_sed(times, wavelengths)
     assert values.shape == (6, 3)
     assert np.all(values == 5.0)
 
@@ -115,7 +115,7 @@ def test_step_source() -> None:
     wavelengths = np.array([100.0, 200.0])
     expected = np.array([[0.0, 0.0], [15.0, 15.0], [15.0, 15.0], [0.0, 0.0]])
 
-    values = model.evaluate(times, wavelengths, state)
+    values = model.evaluate_sed(times, wavelengths, state)
     assert values.shape == (4, 2)
     assert np.array_equal(values, expected)
 
@@ -165,7 +165,7 @@ def test_sin_wave_source() -> None:
     wavelengths = np.array([100.0, 200.0])
     expected = np.array([[0.0, 0.0], [7.5, 7.5], [15.0, 15.0], [7.5, 7.5], [0.0, 0.0]])
 
-    values = model.evaluate(times, wavelengths, state)
+    values = model.evaluate_sed(times, wavelengths, state)
     assert values.shape == (5, 2)
     assert np.allclose(values, expected)
 
@@ -179,7 +179,7 @@ def test_linear_wavelength_source() -> None:
     wavelengths = np.array([0.0, 1000.0, 2000.0])
     expected = np.tile(np.array([1.0, 101.0, 201.0]), (len(times), 1))
 
-    values = model.evaluate(times, wavelengths, state)
+    values = model.evaluate_sed(times, wavelengths, state)
     assert values.shape == (20, 3)
     assert np.allclose(values, expected)
 
@@ -191,7 +191,7 @@ def test_linear_wavelength_source_redeshift() -> None:
 
     times = np.arange(0.0, 10.0, 0.5)
     wavelengths = np.array([0.0, 1000.0, 1111.1, 1500.0, 2000.0])
-    values = model.evaluate(times, wavelengths, state)
+    values = model.evaluate_sed(times, wavelengths, state)
     assert values.shape == (20, 5)
 
     # The shifted (rest frame) wavelengths are given by the equation:
@@ -211,7 +211,7 @@ def test_linear_wavelength_source_bounds() -> None:
 
     times = np.arange(0.0, 10.0, 0.5)
     wavelengths = np.array([500.0, 1000.0, 1500.0, 2000.0, 2500.0])
-    values = model.evaluate(times, wavelengths, state)
+    values = model.evaluate_sed(times, wavelengths, state)
 
     # Without any extrapolation, we zero pad the data.
     expected = np.tile(np.array([0.0, 101.0, 151.0, 201.0, 0.0]), (len(times), 1))
@@ -226,7 +226,7 @@ def test_linear_wavelength_source_bounds() -> None:
         wave_extrapolation=ConstantExtrapolation(value=100.0),
     )
     state2 = model2.sample_parameters()
-    values2 = model2.evaluate(times, wavelengths, state2)
+    values2 = model2.evaluate_sed(times, wavelengths, state2)
     expected2 = np.tile(np.array([100.0, 101.0, 151.0, 201.0, 100.0]), (len(times), 1))
     assert np.allclose(values2, expected2)
 
@@ -240,6 +240,6 @@ def test_linear_wavelength_source_bounds() -> None:
     )
     wavelengths3 = np.array([500.0, 950.0, 1000.0, 1500.0, 2000.0, 2050.0, 2300.0])
     state3 = model3.sample_parameters()
-    values3 = model3.evaluate(times, wavelengths3, state3)
+    values3 = model3.evaluate_sed(times, wavelengths3, state3)
     expected3 = np.tile(np.array([0.0, 50.5, 101.0, 151.0, 201.0, 100.5, 0.0]), (len(times), 1))
     assert np.allclose(values3, expected3)

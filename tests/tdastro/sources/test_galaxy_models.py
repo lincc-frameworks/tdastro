@@ -41,7 +41,7 @@ def test_gaussian_galaxy() -> None:
     wavelengths = np.array([100.0, 200.0, 300.0])
 
     # All the measured fluxes should have some contribution from the background object.
-    values = combined_source.evaluate(times, wavelengths)
+    values = combined_source.evaluate_sed(times, wavelengths)
     assert values.shape == (6, 3)
     assert np.all(values > 100.0)
     assert np.all(values <= 110.0)

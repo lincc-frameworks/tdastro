@@ -3,19 +3,19 @@
 import numpy as np
 
 from tdastro.math_nodes.given_sampler import GivenValueSampler
-from tdastro.sources.physical_model import PhysicalModel
+from tdastro.sources.physical_model import SEDModel
 
 
-class StaticSEDSource(PhysicalModel):
+class StaticSEDSource(SEDModel):
     """A StaticSEDSource randomly selects an SED at each evaluation and computes
     the flux from that SED at all time steps.
 
     Parameterized values include:
-      * dec - The object's declination in degrees. [from PhysicalModel]
-      * distance - The object's luminosity distance in pc. [from PhysicalModel]
-      * ra - The object's right ascension in degrees. [from PhysicalModel]
-      * redshift - The object's redshift. [from PhysicalModel]
-      * t0 - The t0 of the zero phase, date. [from PhysicalModel. Not used.]
+      * dec - The object's declination in degrees. [from BasePhysicalModel]
+      * distance - The object's luminosity distance in pc. [from BasePhysicalModel]
+      * ra - The object's right ascension in degrees. [from BasePhysicalModel]
+      * redshift - The object's redshift. [from BasePhysicalModel]
+      * t0 - The t0 of the zero phase, date. [from BasePhysicalModel. Not used.]
 
     Attributes
     ----------
