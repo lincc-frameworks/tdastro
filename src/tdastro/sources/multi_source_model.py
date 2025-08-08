@@ -221,11 +221,11 @@ class AdditiveMultiSourceModel(MultiSourceModel):
 
     def minwave(self, graph_state=None):
         """Get the minimum wavelength of the model. For additive models, this is
-        the maximum of the minimum wavelength of all sources.
+        a list of minimums for each source.
 
         Note
         ----
-        Wavelength extrapolation is handled by each source. So the actual wavelength's
+        Wavelength extrapolation is handled by each source.  So the actual wavelength's
         can be evaluated outside the range of each source.
 
         Parameters
@@ -236,15 +236,14 @@ class AdditiveMultiSourceModel(MultiSourceModel):
 
         Returns
         -------
-        minwave : float or None
-            The minimum wavelength of the model (in angstroms) or None
-            if the model does not have a defined minimum wavelength.
+        minwave : list of float or None
+            The minimum wavelength of the each source (in angstroms) or None
         """
-        return max(source.minwave(graph_state=graph_state) for source in self.sources)
+        return [source.minwave(graph_state=graph_state) for source in self.sources]
 
     def maxwave(self, graph_state=None):
         """Get the maximum wavelength of the model. For additive models, this is
-        the minimum of the maximum wavelength of all sources.
+        a list of maximums for each source.
 
         Note
         ----
@@ -259,11 +258,10 @@ class AdditiveMultiSourceModel(MultiSourceModel):
 
         Returns
         -------
-        maxwave : float or None
-            The maximum wavelength of the model (in angstroms) or None
-            if the model does not have a defined maximum wavelength.
+        maxwave : list of float or None
+            The maximum wavelength of the each source (in angstroms) or None
         """
-        return min(source.maxwave(graph_state=graph_state) for source in self.sources)
+        return [source.maxwave(graph_state=graph_state) for source in self.sources]
 
     def _evaluate_single(self, times, wavelengths, state, rng_info=None, **kwargs):
         """Evaluate the model and apply the effects for a single, given graph state.
