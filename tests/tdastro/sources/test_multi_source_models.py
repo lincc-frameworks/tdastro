@@ -4,6 +4,7 @@ from tdastro.effects.basic_effects import ConstantDimming
 from tdastro.math_nodes.np_random import NumpyRandomFunc
 from tdastro.sources.basic_sources import StaticSource, StepSource
 from tdastro.sources.multi_source_model import AdditiveMultiSourceModel, RandomMultiSourceModel
+from tdastro.sources.static_sed_source import StaticSEDSource
 
 
 def test_additive_multi_source_node() -> None:
@@ -190,6 +191,34 @@ def test_additive_multi_source_node_effects_fail() -> None:
         _ = AdditiveMultiSourceModel([source1, source2], node_label="my_multi_source")
 
 
+def test_additive_multi_source_node_min_max() -> None:
+    """Test that we can get the correct wavelength limits for a AdditiveMultiSourceModel."""
+    sed0 = np.array(
+        [
+            [100.0, 200.0, 300.0, 400.0],  # Wavelengths
+            [10.0, 20.0, 20.0, 10.0],  # fluxes
+        ]
+    )
+    model0 = StaticSEDSource([sed0], node_label="sed0")
+
+    sed1 = np.array(
+        [
+            [200.0, 300.0, 400.0, 500.0],  # Wavelengths
+            [20.0, 40.0, 40.0, 20.0],  # fluxes
+        ]
+    )
+    model1 = StaticSEDSource([sed1], node_label="sed1")
+
+    # The reported min/max wavelengths are the overlap of the sources.
+    model = AdditiveMultiSourceModel(
+        [model0, model1],
+        node_label="test",
+    )
+    states = model.sample_parameters(num_samples=1)
+    assert np.array_equal(model.minwave(states), [100.0, 200.0])
+    assert np.array_equal(model.maxwave(states), [400.0, 500.0])
+
+
 def test_random_multi_source_node() -> None:
     """Test that we can create and evaluate a RandomMultiSourceModel."""
     source1 = StaticSource(brightness=10.0, node_label="source1")
@@ -220,3 +249,45 @@ def test_random_multi_source_node() -> None:
     assert np.all((values == 10.0) | (values == 15.0))
     assert np.sum(values == 10.0) > 7000 * 5
     assert np.sum(values == 15.0) > 1000 * 5
+
+
+def test_random_multi_source_node_min_max() -> None:
+    """Test that we can get the correct wavelength limits for a RandomMultiSourceModel."""
+    sed0 = np.array(
+        [
+            [100.0, 200.0, 300.0, 400.0],  # Wavelengths
+            [10.0, 20.0, 20.0, 10.0],  # fluxes
+        ]
+    )
+    model0 = StaticSEDSource([sed0], node_label="sed0")
+
+    sed1 = np.array(
+        [
+            [200.0, 300.0, 400.0, 500.0],  # Wavelengths
+            [20.0, 40.0, 40.0, 20.0],  # fluxes
+        ]
+    )
+    model1 = StaticSEDSource([sed1], node_label="sed1")
+
+    model = RandomMultiSourceModel(
+        [model0, model1],
+        weights=[0.5, 0.5],
+        node_label="test",
+    )
+    states = model.sample_parameters(num_samples=1)
+
+    # Force the selected_source to be 0 for the test.
+    states.set("test", "selected_source", 0)
+    assert model.minwave(states) == 100.0
+    assert model.maxwave(states) == 400.0
+
+    # Force the selected_source to be 1 for the test.
+    states.set("test", "selected_source", 1)
+    assert model.minwave(states) == 200.0
+    assert model.maxwave(states) == 500.0
+
+    # We fail if we do not pass in the states.
+    with pytest.raises(ValueError):
+        _ = model.minwave()
+    with pytest.raises(ValueError):
+        _ = model.maxwave()
