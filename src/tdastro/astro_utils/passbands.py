@@ -10,6 +10,7 @@ from typing import Literal, Union
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.integrate
+from astropy.io.votable import parse
 from citation_compass import cite_function
 from sncosmo import Bandpass, get_bandpass
 
@@ -286,6 +287,64 @@ class PassbandGroup:
 
         # Build the actual PassbandGroup object.
         return cls(given_passbands=passbands, filters=filters, **kwargs)
+
+    @classmethod
+    @cite_function
+    def from_svo(
+        cls,
+        all_filters: list[str],
+        delta_wave: float | None = 5.0,
+        trim_quantile: float | None = 1e-3,
+        table_dir: Union[str, Path] | None = None,
+        force_download: bool = False,
+        **kwargs,
+    ):
+        """Create a PassbandGroup object from the SVO Filter Profile Service given a list
+        of full filter names in the form of "{SURVEY}/{CAMERA}.{FILTER}".
+
+        References
+        ----------
+        This research has made use of the SVO Filter Profile Service "Carlos Rodrigo",
+        funded by MCIN/AEI/10.13039/501100011033/ through grant PID2023-146210NB-I00
+        * Rodrigo, C., Cruz, P., Aguilar, J.F., et al. 2024; https://ui.adsabs.harvard.edu/abs/2024A%26A...689A..93R/abstract
+        * Rodrigo, C., Solano, E., Bayo, A., 2012; https://ui.adsabs.harvard.edu/abs/2012ivoa.rept.1015R/abstract
+        * Rodrigo, C., Solano, E., 2020; https://ui.adsabs.harvard.edu/abs/2020sea..confE.182R/abstract
+
+        Parameters
+        ----------
+        all_filters : list[str]
+            A list of full filter names to load from the SVO Filter Profile Service in the
+            form of "{SURVEY}/{CAMERA}.{FILTER}". This can include filters from multiple surveys.
+        delta_wave : float or None, optional
+            The grid step of the wave grid, in angstroms.
+            It is typically used to downsample transmission using linear interpolation.
+            Default is 5 angstroms. If None the original grid is used.
+        trim_quantile : float or None, optional
+            The quantile to trim the transmission table by. For example, if trim_quantile is 1e-3, the
+            transmission table will be trimmed to include only the central 99.8% of the area under the
+            transmission curve.
+        table_dir : str, optional
+            The path to the base directory in which to store cached passband tables. If the passband
+            exists in this directory, it will be loaded from there; otherwise it will be downloaded
+            and saved in that directory.
+        force_download : bool, optional
+            If True, the transmission table will be downloaded even if it already exists locally. Default is
+            False.
+        **kwargs
+            Additional keyword arguments to pass to the Passband constructor.
+        """
+        passband_list = []
+        for full_filter_name in all_filters:
+            pb = Passband.from_svo(
+                full_filter_name,
+                delta_wave=delta_wave,
+                trim_quantile=trim_quantile,
+                table_dir=table_dir,
+                force_download=force_download,
+                **kwargs,
+            )
+            passband_list.append(pb)
+        return cls(given_passbands=passband_list, **kwargs)
 
     def add_passband(self, passband) -> None:
         """Manually add a passband to the group.
@@ -652,14 +711,14 @@ class Passband:
             raise RuntimeError(f"Failed to download passband table from {table_url}.")
 
         # Load the table and create the passband.
-        loaded_table = Passband.load_transmission_table(table_path)
+        loaded_table = Passband.load_transmission_table(table_path, wave_units=units)
         return Passband(
             loaded_table,
             survey,
             filter_name,
             delta_wave,
             trim_quantile,
-            units=units,
+            units="A",  # All loaded tables are pre-converted to Angstroms
         )
 
     @classmethod
@@ -690,25 +749,98 @@ class Passband:
             units="A",  # All sncosmo bandpasses are in Angstroms
         )
 
-    @staticmethod
-    def load_transmission_table(table_path: Union[str, Path], **kwargs) -> np.ndarray:
-        """Load a transmission table from a file.
+    @classmethod
+    @cite_function
+    def from_svo(
+        cls,
+        full_filter_name,
+        delta_wave: float | None = 5.0,
+        trim_quantile: float | None = 1e-3,
+        table_dir: Union[str, Path] | None = None,
+        force_download: bool = False,
+        **kwargs,
+    ):
+        """Create a Passband object from the SVO Filter Profile Service.
 
-        Table must have 2 columns: wavelengths and transmissions; wavelengths must be
+        References
+        ----------
+        This research has made use of the SVO Filter Profile Service "Carlos Rodrigo",
+        funded by MCIN/AEI/10.13039/501100011033/ through grant PID2023-146210NB-I00
+        * Rodrigo, C., Cruz, P., Aguilar, J.F., et al. 2024; https://ui.adsabs.harvard.edu/abs/2024A%26A...689A..93R/abstract
+        * Rodrigo, C., Solano, E., Bayo, A., 2012; https://ui.adsabs.harvard.edu/abs/2012ivoa.rept.1015R/abstract
+        * Rodrigo, C., Solano, E., 2020; https://ui.adsabs.harvard.edu/abs/2020sea..confE.182R/abstract
+
+        Parameters
+        ----------
+        full_filter_name : str
+            The full name of the survey and filter in the SVO database in the form of
+            "{SURVEY}/{CAMERA}.{FILTER}", e.g., "SLOAN/SDSS.u".
+        delta_wave : float or None, optional
+            The grid step of the wave grid, in angstroms.
+            It is typically used to downsample transmission using linear interpolation.
+            Default is 5 angstroms. If None the original grid is used.
+        trim_quantile : float or None, optional
+            The quantile to trim the transmission table by. For example, if trim_quantile is 1e-3, the
+            transmission table will be trimmed to include only the central 99.8% of the area under the
+            transmission curve.
+        table_dir : str, optional
+            The path to the base directory in which to store cached passband tables. If the passband
+            exists in this directory, it will be loaded from there; otherwise it will be downloaded
+            and saved in that directory.
+        force_download : bool, optional
+            If True, the transmission table will be downloaded even if it already exists locally. Default is
+            False.
+        **kwargs
+            Additional keyword arguments to pass to the Passband constructor.
+        """
+        # Parse the filter name to get the survey and filter and use it to construct the file
+        # path and URL to the SVO database.
+        survey, filter = full_filter_name.split(".")
+
+        if table_dir is None:
+            table_dir = Path(_TDASTRO_BASE_DATA_DIR, "passbands", survey)
+        else:
+            table_dir = Path(table_dir) / survey
+        table_path = Path(table_dir, f"{filter}.xml")
+        table_url = f"https://svo2.cab.inta-csic.es/svo/theory/fps3/fps.php?ID={full_filter_name}"
+
+        return cls.from_file(
+            survey=survey,
+            filter_name=filter,
+            delta_wave=delta_wave,
+            trim_quantile=trim_quantile,
+            table_path=table_path,
+            table_url=table_url,
+            force_download=force_download,
+            **kwargs,
+        )
+
+    @staticmethod
+    def load_transmission_table(
+        table_path: Union[str, Path],
+        wave_units: Literal["nm", "A"] = "A",
+        **kwargs,
+    ) -> np.ndarray:
+        """Load a transmission table from a file in either VOTable of ASCII format.
+
+        ASCII tables must have 2 columns: wavelengths and transmissions; wavelengths must be
         strictly increasing.
 
         Parameters
         ----------
         table_path : str or Path
-            The path to the transmission table file. If no file exists at this location, the
-            file will be downloaded from table_url.
+            The path to the transmission table file.
+        wave_units : Literal['nm','A'], optional
+            Denotes whether the wavelength units of the table are nanometers ('nm') or Angstroms ('A').
+            By default 'A'. Does not affect the output units of the class, only the interpretation of the
+            provided passband table.
         **kwargs : dict
             Additional keyword arguments to pass to the reader method.
 
         Returns
         -------
         np.ndarray
-            A 2D array of wavelengths and transmissions.
+            A 2D array of wavelengths (in Angstroms) and transmissions.
         """
         logger.info(f"Loading passband from file: {table_path}")
 
@@ -716,16 +848,48 @@ class Passband:
         if not table_path.exists():
             raise FileNotFoundError(f"Transmission table not found at {table_path}")
 
-        # Add default delimiter if not provided
-        if (table_path.suffix == ".csv" or table_path.suffix == ".ecsv") and "delimiter" not in kwargs:
-            kwargs["delimiter"] = ","
+        # Check if the file is in a VOTable format.
+        if table_path.suffix in [".xml", ".vot", ".votable"]:
+            table = parse(table_path).get_first_table()
 
-        # Load the table.
-        loaded_table = np.loadtxt(table_path, **kwargs)
+            # Check that we have the correct data.
+            if len(table.fields) != 2:
+                raise ValueError("VOTable must have exactly 2 columns.")
+            if not table.fields[0].name.lower().startswith("wave"):
+                raise ValueError("VOTable first column must be named 'wavelength'.")
+
+            # Transform the table from rows of (wavelength, transmission) tuples to a 2D array.
+            loaded_table = np.zeros((len(table.array), 2), dtype=float)
+            loaded_table[:, 0] = table.array[table.fields[0].name]
+            loaded_table[:, 1] = table.array[table.fields[1].name]
+
+            # Read the wavelength units from the VOTable.
+            wave_unit_name = table.fields[0].unit.name.lower()
+            if wave_unit_name in ["nm", "nanometers", "namo", "nanometer"]:
+                wave_units = "nm"
+            elif wave_unit_name in ["a", "aa", "angstrom", "angstroms"]:
+                wave_units = "A"
+            else:
+                raise ValueError(f"Unsupported wavelength unit in VOTable: {wave_unit_name}")
+        elif table_path.suffix in [".csv", ".ecsv", ".txt", ".dat"]:
+            # Add default delimiter if not provided
+            if (table_path.suffix == ".csv" or table_path.suffix == ".ecsv") and "delimiter" not in kwargs:
+                kwargs["delimiter"] = ","
+
+            # Load the table.
+            loaded_table = np.loadtxt(table_path, **kwargs)
+        else:
+            raise ValueError(f"Unsupported file format for transmission table: {table_path.suffix}")
 
         # Check that the table has the correct shape
         if loaded_table.size == 0 or loaded_table.shape[1] != 2:
             raise ValueError("Transmission table must have exactly 2 columns.")
+
+        # If the table is given in nanometers, convert to Angstroms (by multiplying by 10.0).
+        if wave_units == "nm":
+            loaded_table[:, 0] *= 10.0
+        elif wave_units != "A":
+            raise ValueError(f"Unknown wavelength units {wave_units}. Expected 'nm' or 'A'.")
 
         # Check that wavelengths are strictly increasing. If there are duplicates then
         # we average the values.
