@@ -701,6 +701,120 @@ class LightcurveSource(BaseLightcurveSource):
         self.lightcurves.plot_lightcurves(times=times, ax=ax, figure=figure)
 
 
+class StaticLightcurveSource(BaseLightcurveSource):
+    """A model that generates either the SED or bandflux of a source based on
+    a given static bandflux for each filter.
+
+    Parameterized values include:
+      * dec - The object's declination in degrees.
+      * ra - The object's right ascension in degrees.
+
+    Attributes
+    ----------
+    lightcurves : dict
+        A dictionary mapping the filter names to a single bandflux (in nJy) in that filter.
+    filters : list
+        A list of all supported filters in the lightcurve model.
+    sed_values : dict
+        A dictionary mapping filters to the SED basis values for that passband.
+        These SED values are scaled by the lightcurve and added for the
+        final SED.
+    all_waves : numpy.ndarray
+        A 1d array of all of the wavelengths used by the passband group.
+
+    Parameters
+    ----------
+    lightcurves : dict
+        A dictionary mapping the filter names to a single bandflux (in nJy) in that filter.
+    passbands : Passband or PassbandGroup
+        The passband or passband group to use for defining the lightcurve.
+    """
+
+    def __init__(
+        self,
+        lightcurves,
+        passbands,
+        **kwargs,
+    ):
+        self.filters = list(lightcurves.keys())
+
+        # Copy and verify the lightcurves input.
+        self.lightcurves = {}
+        for filter, bandflux in lightcurves.items():
+            if not isinstance(bandflux, int | float):
+                raise ValueError(
+                    f"Lightcurve for filter '{filter}' must be a single bandflux value (in nJy)."
+                )
+            self.lightcurves[filter] = bandflux
+
+        super().__init__(passbands, self.filters, **kwargs)
+
+    def compute_flux(self, times, wavelengths, graph_state):
+        """Draw effect-free observer frame flux densities.
+
+        Parameters
+        ----------
+        times : numpy.ndarray
+            A length T array of observer frame timestamps in MJD.
+        wavelengths : numpy.ndarray, optional
+            A length N array of observer frame wavelengths (in angstroms).
+        graph_state : GraphState
+            An object mapping graph parameters to their values.
+
+        Returns
+        -------
+        flux_density : numpy.ndarray
+            A length T x N matrix of observer frame SED values (in nJy). These are generated
+            from non-overlapping box-shaped SED basis functions for each filter and
+            scaled by the lightcurve values.
+        """
+        flux_density = np.zeros((len(times), len(wavelengths)))
+        for filter in self.filters:
+            # Compute the SED values for the wavelengths we are actually sampling.
+            sed_waves = np.interp(
+                wavelengths,  # The query wavelengths
+                self.all_waves,  # All of the passband group's wavelengths
+                self.sed_values[filter],  # The SED values at each of the passband group's wavelengths
+                left=0.0,  # Do not extrapolate in wavelength
+                right=0.0,  # Do not extrapolate in wavelength
+            )
+
+            # The contribution of this filter to the overall SED is the lightcurve's (constant)
+            # value at each time multiplied by the SED values at each query wavelength.
+            sed_flux = np.tile(sed_waves * self.lightcurves[filter], (len(times), 1))
+            flux_density += sed_flux
+
+        # Return the total flux density from all lightcurves.
+        return flux_density
+
+    def compute_bandflux(self, times, filters, state, **kwargs):
+        """Evaluate the model at the passband level for a single, given graph state.
+
+        Parameters
+        ----------
+        times : numpy.ndarray
+            A length T array of observer frame timestamps in MJD.
+        filters : numpy.ndarray
+            A length T array of filter names.
+        state : GraphState
+            An object mapping graph parameters to their values with num_samples=1.
+        **kwargs : dict
+            Additional keyword arguments, not used in this method.
+
+        Returns
+        -------
+        band_fluxes : numpy.ndarray
+            A length T matrix of observer frame passband fluxes (in nJy).
+        """
+        band_fluxes = np.zeros(len(times))
+        for flt in np.unique(filters):
+            if flt not in self.filters:
+                raise ValueError(f"Filter '{flt}' is not supported by StaticLightcurveSource.")
+            band_fluxes[filters == flt] = self.lightcurves[flt]
+
+        return band_fluxes
+
+
 class MultiLightcurveSource(BaseLightcurveSource):
     """A MultiLightcurveSource randomly selects a lightcurve at each evaluation
     computes the flux from that source. The models can generate either the SED or
