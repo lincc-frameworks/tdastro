@@ -345,6 +345,33 @@ def test_passband_ztf_preset():
         assert "ZTF_r" not in group
 
 
+def test_passband_group_from_svo():
+    """Test that we can load a PassbandGroup from the SVO database."""
+
+    # Mock the Passband.from_svo method to return a predefined Passband object.
+    # This function is already tested in test_passband.py.
+    def _mock_from_svo(full_filter_name, *args, **kwargs):
+        """Return a predefined Passband object instead of downloading the transmission table."""
+        survey, filter = full_filter_name.split(".")
+        return Passband(
+            np.array([[6000, 0.5], [6005, 0.6], [6010, 0.7]]),
+            survey=survey,
+            filter_name=filter,
+        )
+
+    # Mock the get_bandpass portion of the download method
+    with patch("tdastro.astro_utils.passbands.Passband.from_svo", side_effect=_mock_from_svo):
+        group = PassbandGroup.from_svo(
+            ["SLOAN/SDSS.u", "SLOAN/SDSS.g", "SLOAN/SDSS.r", "SLOAN/SDSS.i", "SLOAN/SDSS.z"]
+        )
+        assert len(group) == 5
+        assert "SLOAN/SDSS_u" in group
+        assert "SLOAN/SDSS_g" in group
+        assert "SLOAN/SDSS_r" in group
+        assert "SLOAN/SDSS_i" in group
+        assert "SLOAN/SDSS_z" in group
+
+
 def test_passband_invalid_preset():
     """Test that we throw an error when given an invalid preset name."""
     with pytest.raises(ValueError):
