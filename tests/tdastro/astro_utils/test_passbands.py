@@ -143,6 +143,12 @@ def test_passband_load_transmission_table(passbands_dir, tmp_path):
         a_band.load_transmission_table(test_pb_file_name)
 
 
+def test_passband_load_vo_transmission_table(test_data_dir):
+    """Test the load_transmission_table method of the Passband class using VOTable data."""
+    table = Passband.load_transmission_table(test_data_dir / "passbands" / "Palomar" / "g.xml")
+    assert table.shape == (2000, 2)
+
+
 def test_passband_download_transmission_table(tmp_path):
     """Test the functionality of downloading the transmission table Passband class."""
     # Initialize a Passband object

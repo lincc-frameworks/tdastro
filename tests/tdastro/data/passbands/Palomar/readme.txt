@@ -1,0 +1,1 @@
+This directory contains a single filter (Palomar.ZTF.g) from the SVO Filter Profile Server ("Carlos Rodrigo", funded by MCIN/AEI/10.13039/501100011033/ through grant PID2023-146210NB-I00) for use in testing.

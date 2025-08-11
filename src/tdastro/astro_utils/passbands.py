@@ -10,6 +10,7 @@ from typing import Literal, Union
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.integrate
+from astropy.io.votable import parse
 from citation_compass import cite_function
 from sncosmo import Bandpass, get_bandpass
 
@@ -652,14 +653,14 @@ class Passband:
             raise RuntimeError(f"Failed to download passband table from {table_url}.")
 
         # Load the table and create the passband.
-        loaded_table = Passband.load_transmission_table(table_path)
+        loaded_table = Passband.load_transmission_table(table_path, wave_units=units)
         return Passband(
             loaded_table,
             survey,
             filter_name,
             delta_wave,
             trim_quantile,
-            units=units,
+            units="A",  # All loaded tables are pre-converted to Angstroms
         )
 
     @classmethod
@@ -691,24 +692,31 @@ class Passband:
         )
 
     @staticmethod
-    def load_transmission_table(table_path: Union[str, Path], **kwargs) -> np.ndarray:
-        """Load a transmission table from a file.
+    def load_transmission_table(
+        table_path: Union[str, Path],
+        wave_units: Literal["nm", "A"] = "A",
+        **kwargs,
+    ) -> np.ndarray:
+        """Load a transmission table from a file in either VOTable of ASCII format.
 
-        Table must have 2 columns: wavelengths and transmissions; wavelengths must be
+        ASCII tables must have 2 columns: wavelengths and transmissions; wavelengths must be
         strictly increasing.
 
         Parameters
         ----------
         table_path : str or Path
-            The path to the transmission table file. If no file exists at this location, the
-            file will be downloaded from table_url.
+            The path to the transmission table file.
+        wave_units : Literal['nm','A'], optional
+            Denotes whether the wavelength units of the table are nanometers ('nm') or Angstroms ('A').
+            By default 'A'. Does not affect the output units of the class, only the interpretation of the
+            provided passband table.
         **kwargs : dict
             Additional keyword arguments to pass to the reader method.
 
         Returns
         -------
         np.ndarray
-            A 2D array of wavelengths and transmissions.
+            A 2D array of wavelengths (in Angstroms) and transmissions.
         """
         logger.info(f"Loading passband from file: {table_path}")
 
@@ -716,16 +724,48 @@ class Passband:
         if not table_path.exists():
             raise FileNotFoundError(f"Transmission table not found at {table_path}")
 
-        # Add default delimiter if not provided
-        if (table_path.suffix == ".csv" or table_path.suffix == ".ecsv") and "delimiter" not in kwargs:
-            kwargs["delimiter"] = ","
+        # Check if the file is in a VOTable format.
+        if table_path.suffix in [".xml", ".vot", ".votable"]:
+            table = parse(table_path).get_first_table()
 
-        # Load the table.
-        loaded_table = np.loadtxt(table_path, **kwargs)
+            # Check that we have the correct data.
+            if len(table.fields) != 2:
+                raise ValueError("VOTable must have exactly 2 columns.")
+            if not table.fields[0].name.lower().startswith("wave"):
+                raise ValueError("VOTable first column must be named 'wavelength'.")
+
+            # Transform the table from rows of (wavelength, transmission) tuples to a 2D array.
+            loaded_table = np.zeros((len(table.array), 2), dtype=float)
+            loaded_table[:, 0] = table.array[table.fields[0].name]
+            loaded_table[:, 1] = table.array[table.fields[1].name]
+
+            # Read the wavelength units from the VOTable.
+            wave_unit_name = table.fields[0].unit.name.lower()
+            if wave_unit_name in ["nm", "nanometers", "namo", "nanometer"]:
+                wave_units = "nm"
+            elif wave_unit_name in ["a", "aa", "angstrom", "angstroms"]:
+                wave_units = "A"
+            else:
+                raise ValueError(f"Unsupported wavelength unit in VOTable: {wave_unit_name}")
+        elif table_path.suffix in [".csv", ".ecsv", ".txt", ".dat"]:
+            # Add default delimiter if not provided
+            if (table_path.suffix == ".csv" or table_path.suffix == ".ecsv") and "delimiter" not in kwargs:
+                kwargs["delimiter"] = ","
+
+            # Load the table.
+            loaded_table = np.loadtxt(table_path, **kwargs)
+        else:
+            raise ValueError(f"Unsupported file format for transmission table: {table_path.suffix}")
 
         # Check that the table has the correct shape
         if loaded_table.size == 0 or loaded_table.shape[1] != 2:
             raise ValueError("Transmission table must have exactly 2 columns.")
+
+        # If the table is given in nanometers, convert to Angstroms (by multiplying by 10.0).
+        if wave_units == "nm":
+            loaded_table[:, 0] *= 10.0
+        elif wave_units != "A":
+            raise ValueError(f"Unknown wavelength units {wave_units}. Expected 'nm' or 'A'.")
 
         # Check that wavelengths are strictly increasing. If there are duplicates then
         # we average the values.
