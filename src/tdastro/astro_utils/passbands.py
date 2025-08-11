@@ -691,6 +691,72 @@ class Passband:
             units="A",  # All sncosmo bandpasses are in Angstroms
         )
 
+    @classmethod
+    @cite_function
+    def from_svo(
+        cls,
+        full_filter_name,
+        delta_wave: float | None = 5.0,
+        trim_quantile: float | None = 1e-3,
+        table_dir: Union[str, Path] | None = None,
+        force_download: bool = False,
+        **kwargs,
+    ):
+        """Create a Passband object from the SVO Filter Profile Service.
+
+        References
+        ----------
+        This research has made use of the SVO Filter Profile Service "Carlos Rodrigo",
+        funded by MCIN/AEI/10.13039/501100011033/ through grant PID2023-146210NB-I00
+        * Rodrigo, C., Cruz, P., Aguilar, J.F., et al. 2024; https://ui.adsabs.harvard.edu/abs/2024A%26A...689A..93R/abstract
+        * Rodrigo, C., Solano, E., Bayo, A., 2012; https://ui.adsabs.harvard.edu/abs/2012ivoa.rept.1015R/abstract
+        * Rodrigo, C., Solano, E., 2020; https://ui.adsabs.harvard.edu/abs/2020sea..confE.182R/abstract
+
+        Parameters
+        ----------
+        full_filter_name : str
+            The full name of the survey and filter in the SVO database in the form of "{SURVEY}.{FILTER}",
+            e.g., "LSST.u" or "SLOAN/SDSS.u".
+        delta_wave : float or None, optional
+            The grid step of the wave grid, in angstroms.
+            It is typically used to downsample transmission using linear interpolation.
+            Default is 5 angstroms. If None the original grid is used.
+        trim_quantile : float or None, optional
+            The quantile to trim the transmission table by. For example, if trim_quantile is 1e-3, the
+            transmission table will be trimmed to include only the central 99.8% of the area under the
+            transmission curve.
+        table_dir : str, optional
+            The path to the base directory in which to store cached passband tables. If the passband
+            exists in this directory, it will be loaded from there; otherwise it will be downloaded
+            and saved in that directory.
+        force_download : bool, optional
+            If True, the transmission table will be downloaded even if it already exists locally. Default is
+            False.
+        **kwargs
+            Additional keyword arguments to pass to the Passband constructor.
+        """
+        # Parse the filter name to get the survey and filter and use it to construct the file
+        # path and URL to the SVO database.
+        survey, filter = full_filter_name.split(".")
+
+        if table_dir is None:
+            table_dir = Path(_TDASTRO_BASE_DATA_DIR, "passbands", survey)
+        else:
+            table_dir = Path(table_dir) / survey
+        table_path = Path(table_dir, f"{filter}.xml")
+        table_url = f"https://svo2.cab.inta-csic.es/svo/theory/fps3/fps.php?ID={full_filter_name}"
+
+        return cls.from_file(
+            survey=survey,
+            filter_name=filter,
+            delta_wave=delta_wave,
+            trim_quantile=trim_quantile,
+            table_path=table_path,
+            table_url=table_url,
+            force_download=force_download,
+            **kwargs,
+        )
+
     @staticmethod
     def load_transmission_table(
         table_path: Union[str, Path],
