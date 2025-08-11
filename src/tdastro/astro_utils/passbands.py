@@ -300,7 +300,7 @@ class PassbandGroup:
         **kwargs,
     ):
         """Create a PassbandGroup object from the SVO Filter Profile Service given a list
-        of full filter names in the form of "{SURVEY}.{FILTER}".
+        of full filter names in the form of "{SURVEY}/{CAMERA}.{FILTER}".
 
         References
         ----------
@@ -314,7 +314,7 @@ class PassbandGroup:
         ----------
         all_filters : list[str]
             A list of full filter names to load from the SVO Filter Profile Service in the
-            form of "{SURVEY}.{FILTER}". This can include filters from multiple surveys.
+            form of "{SURVEY}/{CAMERA}.{FILTER}". This can include filters from multiple surveys.
         delta_wave : float or None, optional
             The grid step of the wave grid, in angstroms.
             It is typically used to downsample transmission using linear interpolation.
@@ -773,8 +773,8 @@ class Passband:
         Parameters
         ----------
         full_filter_name : str
-            The full name of the survey and filter in the SVO database in the form of "{SURVEY}.{FILTER}",
-            e.g., "LSST.u" or "SLOAN/SDSS.u".
+            The full name of the survey and filter in the SVO database in the form of
+            "{SURVEY}/{CAMERA}.{FILTER}", e.g., "SLOAN/SDSS.u".
         delta_wave : float or None, optional
             The grid step of the wave grid, in angstroms.
             It is typically used to downsample transmission using linear interpolation.
