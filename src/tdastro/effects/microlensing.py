@@ -9,7 +9,9 @@ from tdastro.math_nodes.given_sampler import BinarySampler
 
 
 class Microlensing(EffectModel, CiteClass):
-    """The base model for microlensing sources.
+    """A simple microlensing effect that can be applied to basic sources. For more
+    complex sources, such as those blended by the microlensing event, it is recommended
+    to create a new source model.
 
     This model is a pure Paczynski/point-source point-lens (PSPL) model, without any
     additional effects. They can be added later. At the moment no values are parametrized,
@@ -61,7 +63,11 @@ class Microlensing(EffectModel, CiteClass):
 
         # Add a parameter that indicates whether or not we apply microlensing that
         # is drawn from a distribution with the given probability.
-        self.add_effect_parameter("apply_microlensing", BinarySampler(probability))
+        if probability < 1.0:
+            self.add_effect_parameter("apply_microlensing", BinarySampler(probability))
+        else:
+            # Don't bother to add another node if we will always apply it.
+            self.add_effect_parameter("apply_microlensing", True)
 
         # Create the microlensing model once.
         self.VBM = VBMicrolensing.VBMicrolensing()
