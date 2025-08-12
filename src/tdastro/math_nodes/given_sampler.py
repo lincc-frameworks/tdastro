@@ -11,6 +11,56 @@ from tdastro.base_models import FunctionNode
 from tdastro.math_nodes.np_random import NumpyRandomFunc
 
 
+class BinarySampler(NumpyRandomFunc):
+    """A FunctionNode that randomly returns True or False according
+    to a given probability. This function is particularly useful in
+    probabilistically applying effects or making decisions in the
+    simulation.
+
+    Attributes
+    ----------
+    probability : float
+        The probability of returning True.
+    """
+
+    def __init__(self, probability, seed=None, **kwargs):
+        if probability < 0 or probability > 1:
+            raise ValueError("Probability must be between 0 and 1.")
+        self.probability = probability
+
+        super().__init__("uniform", seed=seed, **kwargs)
+
+    def compute(self, graph_state, rng_info=None, **kwargs):
+        """Return the given values.
+
+        Parameters
+        ----------
+        graph_state : GraphState
+            An object mapping graph parameters to their values. This object is modified
+            in place as it is sampled.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
+        **kwargs : dict, optional
+            Additional function arguments.
+
+        Returns
+        -------
+        results : any
+            The result of the computation. This return value is provided so that testing
+            functions can easily access the results.
+        """
+        rng = rng_info if rng_info is not None else self._rng
+
+        if graph_state.num_samples == 1:
+            results = rng.random() < self.probability
+        else:
+            results = rng.random(graph_state.num_samples) < self.probability
+        self._save_results(results, graph_state)
+
+        return results
+
+
 class GivenValueList(FunctionNode):
     """A FunctionNode that returns given results for a single parameter
     in the order in which they are provided.
