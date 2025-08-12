@@ -5,6 +5,7 @@ from astropy.table import Table
 from tdastro.base_models import FunctionNode
 from tdastro.graph_state import GraphState
 from tdastro.math_nodes.given_sampler import (
+    BinarySampler,
     GivenValueList,
     GivenValueSampler,
     GivenValueSelector,
@@ -23,6 +24,18 @@ def _test_func(value1, value2):
         The second parameter.
     """
     return value1 + value2
+
+
+def test_binary_sampler():
+    """Test that we can retrieve results from a BinarySampler."""
+    binary_node = BinarySampler(0.75, node_label="test", seed=55)
+
+    single_state = binary_node.sample_parameters(num_samples=1)
+    assert isinstance(single_state["test"]["function_node_result"], bool)
+
+    many_states = binary_node.sample_parameters(num_samples=10_000)
+    assert len(many_states["test"]["function_node_result"]) == 10_000
+    assert 7000 < np.count_nonzero(many_states["test"]["function_node_result"]) < 8000
 
 
 def test_given_value_list():
