@@ -5,6 +5,7 @@ import VBMicrolensing
 from citation_compass import CiteClass
 
 from tdastro.effects.effect_model import EffectModel
+from tdastro.math_nodes.given_sampler import BinarySampler
 
 
 class Microlensing(EffectModel, CiteClass):
@@ -34,10 +35,6 @@ class Microlensing(EffectModel, CiteClass):
     ----------
     VBM : VBMicrolensing
         The microlensing model.
-    probability : float
-        The probability of the microlensing event occurring.
-    rng : numpy.random.Generator
-        The default random number generator used for this effect.
 
     Parameters
     ----------
@@ -60,15 +57,12 @@ class Microlensing(EffectModel, CiteClass):
         self.add_effect_parameter("u_0", u_0)
         self.add_effect_parameter("t_E", t_E)
 
-        if probability < 0 or probability > 1:
-            raise ValueError("Probability must be between 0 and 1.")
-        self.probability = probability
+        # Add a parameter that indicates whether or not we apply microlensing that
+        # is drawn from a distribution with the given probability.
+        self.add_effect_parameter("apply_microlensing", BinarySampler(probability))
 
         # Create the microlensing model once.
         self.VBM = VBMicrolensing.VBMicrolensing()
-
-        # Create a default random number generator.
-        self.rng = np.random.default_rng()
 
         # Override the default rest_frame parameter.
         self.rest_frame = rest_frame
@@ -79,6 +73,7 @@ class Microlensing(EffectModel, CiteClass):
         times=None,
         wavelengths=None,
         *,
+        apply_microlensing=None,
         microlensing_t0=None,
         u_0=None,
         t_E=None,
@@ -95,6 +90,8 @@ class Microlensing(EffectModel, CiteClass):
             A length T array of times (in MJD). Not used for this effect.
         wavelengths : numpy.ndarray, optional
             A length N array of wavelengths (in angstroms). Not used for this effect.
+        apply_microlensing : bool
+            Whether or not to apply microlensing.
         microlensing_t0 : float
             The time of the microlensing peak, in days.
         u_0 : float
@@ -114,10 +111,8 @@ class Microlensing(EffectModel, CiteClass):
         flux_density : numpy.ndarray
             A length T x N matrix of flux densities after the effect is applied (in nJy).
         """
-        # Skip the computation is the probability
-        if rng_info is None:
-            rng_info = self.rng
-        if rng_info.random() > self.probability:
+        # Skip the microlensing application if needed.
+        if not apply_microlensing:
             return flux_density
 
         if microlensing_t0 is None:
@@ -147,6 +142,7 @@ class Microlensing(EffectModel, CiteClass):
         self,
         bandfluxes,
         *,
+        apply_microlensing=None,
         microlensing_t0=None,
         u_0=None,
         t_E=None,
@@ -166,6 +162,8 @@ class Microlensing(EffectModel, CiteClass):
         filters : numpy.ndarray, optional
             A length N array of filters. If not provided, the effect is applied to all
             band fluxes.
+        apply_microlensing : bool
+            Whether or not to apply microlensing.
         microlensing_t0 : float
             The time of the microlensing peak, in days.
         u_0 : float
@@ -185,6 +183,10 @@ class Microlensing(EffectModel, CiteClass):
         bandfluxes : numpy.ndarray
             A length T array of band fluxes after the effect is applied (in nJy).
         """
+        # If we do not apply microlensing, we can skip the entire computation.
+        if not apply_microlensing:
+            return bandfluxes
+
         if microlensing_t0 is None:
             raise ValueError("microlensing_t0 must be provided")
         if u_0 is None:
