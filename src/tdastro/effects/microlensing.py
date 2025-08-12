@@ -38,8 +38,6 @@ class Microlensing(EffectModel, CiteClass):
 
     Parameters
     ----------
-    probability : float
-        The probability of the microlensing event occurring.
     microlensing_t0 : parameter
         The time of the microlensing peak, in days.
     u_0 : parameter
@@ -47,11 +45,15 @@ class Microlensing(EffectModel, CiteClass):
         of peak in Einstein radii.
     t_E : parameter
         Einstein timescale, in days.
+    probability : float, optional
+        The probability of the microlensing event occurring. Default: 1.0
+    rest_frame : bool, optional
+        Whether to use the rest frame for the microlensing model. Default: True
     **kwargs : dict, optional
         Any additional keyword arguments.
     """
 
-    def __init__(self, probability, microlensing_t0, u_0, t_E, rest_frame=True, **kwargs):
+    def __init__(self, microlensing_t0, u_0, t_E, probability=1.0, rest_frame=True, **kwargs):
         super().__init__(**kwargs)
         self.add_effect_parameter("microlensing_t0", microlensing_t0)
         self.add_effect_parameter("u_0", u_0)
@@ -206,4 +208,5 @@ class Microlensing(EffectModel, CiteClass):
 
         # array of magnifications at each time in time_stamp
         bandfluxes = bandfluxes * np.asarray(vbm_results[0])
+
         return bandfluxes
