@@ -630,7 +630,7 @@ class BandfluxModel(PhysicalModel, ABC):
             # Compute the flux (applying all effects) and save the result.
             band_flux = self.compute_bandflux(times, filters, current_state, rng_info=rng_info)
             for effect in self.band_pass_effects:
-                band_flux = effect.apply(
+                band_flux = effect.apply_bandflux(
                     band_flux,
                     times=times,
                     filters=filters,
