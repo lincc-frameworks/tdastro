@@ -106,7 +106,7 @@ in each of the filters.
 In addition to being a convenient helper function, generating the data at the band flux level allows
 certain models to skip SED generation. In particular a ``BandfluxModel`` is a subclass of the ``PhysicalModel``
 whose computation is only defined at the band flux level. An example of this are models of empirically
-fit light curves, such as those form LCLIB. Since we do not have the underlying SEDs for these types of models,
+fit light curves, such as those from LCLIB. Since we do not have the underlying SEDs for these types of models,
 so we can only work with them at the band flux level. See the
 :doc:`lightcurve source <notebooks/lightcurve_source_demo>` for an example of this type of model.
 
