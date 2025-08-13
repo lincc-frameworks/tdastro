@@ -1,6 +1,8 @@
 Glossary
 ========================================================================================
 
+**BandfluxModel**: A ``BandfluxModel`` is a subclass of the ``PhysicalModel`` class that represents the flux density of a source in a specific band, such as the g-band or r-band (instead of a full spectral energy distribution).
+
 **EffectModel**: An ``EffectModel`` applies some transform to the flux density of an object. Example effects include extinction due to dust or white noise.
 
 **Filter**: A filter corresponds to the physical filter used on a telescope to limit the wavelengths of light that hit the detector.  Filters are represented by ``Passband`` objects.

@@ -455,8 +455,11 @@ def test_oversample_opsim(opsim_shorten):
         assert np.all(oversampled["observationStartMJD"] >= time_range[0]), "time range is not correct"
         assert np.all(oversampled["observationStartMJD"] <= time_range[1]), "time range is not correct"
         assert set(oversampled["filter"]) == set(bands), "oversampled table has the wrong bands"
+
+        num_sky_brightness = oversampled["skyBrightness"].unique().size
+        num_filters = oversampled["filter"].unique().size
         assert (
-            oversampled["skyBrightness"].unique().size >= oversampled["filter"].unique().size
+            num_sky_brightness >= num_filters
         ), "there should be at least as many skyBrightness values as bands"
         assert oversampled["skyBrightness"].isna().sum() == 0, "skyBrightness has NaN values"
 

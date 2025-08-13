@@ -19,7 +19,7 @@ and test pipelines. TDAstro aims to provide a flexible, scalable, and user-frien
 time-domain simulation software with realistic effects and survey strategies.
 
 The software package consists of multiple stages:
-1. A flexible framework for consistently sampling model parameters (and hyper-parameters),
+1. A flexible framework for consistently sampling model parameters (and hyperparameters),
 2. Realistic models of time varying phenomena (such as supernovae and AGNs),
 3. Effect models (such as dust extinction), and
 4. Survey characteristics (such as cadence, filters, and noise).
