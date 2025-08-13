@@ -79,6 +79,14 @@ These times and wavelengths are based into the object's ``evaluate()`` function 
 The ``evaluate()`` function handles the mechanics of the simulation, such as applying redshifts to both the
 times and wavelengths before calling the ``compute_flux()``.
 
+.. figure:: _static/compute_flux.png
+   :class: no-scaled-link
+   :scale: 80 %
+   :align: center
+   :alt: An example of the compute_flux function
+
+   An example of the compute_flux function
+
 Additional effects can be applied to the noise-free light curves to produce more realistic light curves.
 The effects are applied in two batches. Rest frame effects are applied to the flux densities in the frame.
 The flux densities are then converted to the observer frame where the observer frame effects are applied.
