@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from tdastro.sources.static_sed_source import StaticSEDSource
+from tdastro.sources.static_sed_source import StaticBandfluxSource, StaticSEDSource
 
 
 def test_single_static_sed() -> None:
@@ -127,3 +127,52 @@ def test_multiple_static_seds_min_max():
         _ = model.minwave()
     with pytest.raises(ValueError):
         _ = model.maxwave()
+
+
+def test_single_static_bandflux() -> None:
+    """Test that we can create and sample a StaticBandfluxSource object with a single bandflux."""
+    bandflux = {
+        "r": 10.0,
+        "g": 20.0,
+        "b": 30.0,
+    }
+    model = StaticBandfluxSource(bandflux, node_label="test")
+    assert len(model) == 1
+
+    times = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+    filters = ["r", "r", "g", "b", "r", "g", "b", "g", "b", "r"]
+    expected = np.array([10.0, 10.0, 20.0, 30.0, 10.0, 20.0, 30.0, 20.0, 30.0, 10.0])
+
+    state = model.sample_parameters(num_samples=1)
+    fluxes = model.get_band_fluxes(None, times, filters, state)
+    assert len(fluxes) == 10
+    assert np.array_equal(fluxes, expected)
+
+
+def test_multiple_static_bandflux() -> None:
+    """Test that we can create and sample a StaticBandfluxSource object with multiple bandfluxes."""
+    bandflux0 = {"r": 10.0, "g": 20.0, "b": 30.0}
+    bandflux1 = {"r": 15.0, "g": 25.0, "b": 35.0}
+    model = StaticBandfluxSource([bandflux0, bandflux1], weights=[0.25, 0.75], node_label="test")
+    assert len(model) == 2
+
+    # Check that all of the indices are 0 or 1 and the split is approximately 25/75
+    params = model.sample_parameters(num_samples=10_000)
+    inds_0 = params["test"]["selected_idx"] == 0
+    inds_1 = params["test"]["selected_idx"] == 1
+    assert np.all(inds_0 | inds_1)
+    assert 1_500 < np.count_nonzero(inds_0) < 3_500
+    assert 6_500 < np.count_nonzero(inds_1) < 8_500
+
+    times = np.array([1, 2, 3, 4, 5])
+    filters = ["r", "r", "g", "b", "r"]
+    expected0 = np.array([10.0, 10.0, 20.0, 30.0, 10.0])
+    expected1 = np.array([15.0, 15.0, 25.0, 35.0, 15.0])
+
+    fluxes = model.get_band_fluxes(None, times, filters, params)
+    assert fluxes.shape == (10_000, 5)
+    for idx in range(10_000):
+        if inds_0[idx]:
+            assert np.array_equal(fluxes[idx], expected0)
+        else:
+            assert np.array_equal(fluxes[idx], expected1)

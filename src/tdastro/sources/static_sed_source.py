@@ -1,9 +1,9 @@
-"""Models that generate the a constant SED or at all times."""
+"""Models that generate a constant SED or bandflux at all times."""
 
 import numpy as np
 
 from tdastro.math_nodes.given_sampler import GivenValueSampler
-from tdastro.sources.physical_model import SEDModel
+from tdastro.sources.physical_model import BandfluxModel, SEDModel
 
 
 class StaticSEDSource(SEDModel):
@@ -137,3 +137,80 @@ class StaticSEDSource(SEDModel):
         # We repeat the interpolated SED values at each time.
         flux_density = np.tile(sed_fluxes, num_times).reshape(num_times, num_waves)
         return flux_density
+
+
+class StaticBandfluxSource(BandfluxModel):
+    """A StaticBandfluxSource randomly selects a mapping of bandfluxes at each evaluation
+    and uses that at all time steps.
+
+    Parameterized values include:
+      * dec - The object's declination in degrees. [from PhysicalModel]
+      * distance - The object's luminosity distance in pc. [from PhysicalModel]
+      * ra - The object's right ascension in degrees. [from PhysicalModel]
+      * redshift - The object's redshift. [from PhysicalModel]
+      * t0 - The t0 of the zero phase, date. [from PhysicalModel. Not used.]
+
+    Attributes
+    ----------
+    bandflux_values : list of dict
+       A list of bandflux mappings from which to sample. Each mapping is represented as a
+       dictionary where the key is the filter name and the value is the bandflux (in nJy).
+
+    Parameters
+    ----------
+    bandflux_values : dict or list
+       A single bandflux mapping or a list of bandflux mappings from which to sample. Each mapping is
+       represented as a dictionary where the key is the filter name and the value is the bandflux (in nJy).
+    weights : numpy.ndarray, optional
+        A length N array indicating the relative weight from which to select
+        a source at random. If None, all sources will be weighted equally.
+    """
+
+    def __init__(
+        self,
+        bandflux_values,
+        weights=None,
+        **kwargs,
+    ):
+        # If only a single bandflux mapping was passed, then put it in a list by itself.
+        if isinstance(bandflux_values, dict):
+            self.bandflux_values = [bandflux_values]
+        else:
+            self.bandflux_values = bandflux_values
+
+        super().__init__(**kwargs)
+
+        # Create a parameter that indicates which bandflux mapping was sampled in each simulation.
+        source_inds = [i for i in range(len(self.bandflux_values))]
+        self._sampler_node = GivenValueSampler(source_inds, weights=weights)
+        self.add_parameter("selected_idx", value=self._sampler_node, allow_gradient=False)
+
+    def __len__(self):
+        """Get the number of lightcurves."""
+        return len(self.bandflux_values)
+
+    def compute_bandflux(self, times, filters, state, rng_info=None):
+        """Evaluate the model at the passband level for a single, given graph state.
+
+        Parameters
+        ----------
+        times : numpy.ndarray
+            A length T array of observer frame timestamps in MJD.
+        filters : numpy.ndarray
+            A length T array of filter names.
+        state : GraphState
+            An object mapping graph parameters to their values with num_samples=1.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
+        """
+        # Get the selected bandflux mapping index and values.
+        model_ind = self.get_param(state, "selected_idx")
+        model_bandflux = self.bandflux_values[model_ind]
+
+        # Fill in the bandflux values corresponding to the filter at each time.
+        bandflux = np.zeros(len(times), dtype=float)
+        for filter in np.unique(filters):
+            filter_mask = filters == filter
+            bandflux[filter_mask] = model_bandflux[filter]
+        return bandflux

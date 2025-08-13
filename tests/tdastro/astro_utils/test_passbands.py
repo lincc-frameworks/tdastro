@@ -143,6 +143,12 @@ def test_passband_load_transmission_table(passbands_dir, tmp_path):
         a_band.load_transmission_table(test_pb_file_name)
 
 
+def test_passband_load_vo_transmission_table(test_data_dir):
+    """Test the load_transmission_table method of the Passband class using VOTable data."""
+    table = Passband.load_transmission_table(test_data_dir / "passbands" / "Palomar" / "ZTF" / "g.xml")
+    assert table.shape == (2000, 2)
+
+
 def test_passband_download_transmission_table(tmp_path):
     """Test the functionality of downloading the transmission table Passband class."""
     # Initialize a Passband object
@@ -203,6 +209,14 @@ def test_passband_from_sncosmo(passbands_dir):
     assert ztf_band._loaded_table is not None
     assert np.allclose(ztf_band._loaded_table[:, 0], sn_pb.wave)
     assert np.allclose(ztf_band._loaded_table[:, 1], sn_pb.trans)
+
+
+def test_passband_from_svo(passbands_dir):
+    """Test that we can load data from SVO passbands."""
+    pb = Passband.from_svo("Palomar/ZTF.g", table_dir=passbands_dir, force_download=False)
+    assert pb.survey == "Palomar/ZTF"
+    assert pb.filter_name == "g"
+    assert pb.full_name == "Palomar/ZTF_g"
 
 
 def test_process_transmission_table(passbands_dir, tmp_path):

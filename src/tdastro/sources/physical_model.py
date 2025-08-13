@@ -14,7 +14,7 @@ from os import urandom
 
 import numpy as np
 
-from tdastro.astro_utils.passbands import Passband, PassbandGroup
+from tdastro.astro_utils.passbands import Passband
 from tdastro.astro_utils.redshift import RedshiftDistFunc, obs_to_rest_times_waves, rest_to_obs_flux
 from tdastro.base_models import ParameterizedNode
 from tdastro.graph_state import GraphState
@@ -610,8 +610,9 @@ class BandfluxModel(BasePhysicalModel, ABC):
 
         Parameters
         ----------
-        passband_or_group : Passband or PassbandGroup
-            The passband (or passband group) to use.
+        passband_or_group : Passband or PassbandGroup.
+            The passband (or passband group) to use. For BandfluxModel based sources, this is
+            not used (since the model does not compute SEDs) and can safely be set to None.
         times : numpy.ndarray
             A length T array of observer frame timestamps in MJD.
         filters : numpy.ndarray or None
@@ -630,17 +631,8 @@ class BandfluxModel(BasePhysicalModel, ABC):
             then returns a length T array. Otherwise returns a size S x T array where S is the
             number of samples in the graph state.
         """
-        if isinstance(passband_or_group, Passband):
-            if filters is not None and not np.all(filters == passband_or_group.filter_name):
-                raise ValueError(
-                    "If passband_or_group is a Passband, filters must either be None "
-                    "or a list where every entry matches the given filter's name: "
-                    f"{passband_or_group.filter_name}."
-                )
-            passband_or_group = PassbandGroup(given_passbands=[passband_or_group])
-
         if filters is None:
-            raise ValueError("If passband_or_group is a PassbandGroup, filters must be provided.")
+            raise ValueError("A list of filters must be provided for BandfluxModel based sources.")
         filters = np.asarray(filters)
 
         # Check if we need to sample the graph.
@@ -654,7 +646,7 @@ class BandfluxModel(BasePhysicalModel, ABC):
             # Compute the flux (applying all effects) and save the result.
             band_flux = self.compute_bandflux(times, filters, current_state, rng_info=rng_info)
             for effect in self.band_pass_effects:
-                band_flux = effect.apply(
+                band_flux = effect.apply_bandflux(
                     band_flux,
                     times=times,
                     filters=filters,
