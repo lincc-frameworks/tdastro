@@ -63,7 +63,7 @@ def test_static_source_white_noise() -> None:
     state = model.sample_parameters()
     times = np.array([1, 2, 3, 4, 5, 10])
     wavelengths = np.array([100.0, 200.0, 300.0])
-    values = model.evaluate(times, wavelengths, state)
+    values = model.evaluate_sed(times, wavelengths, state)
     assert values.shape == (6, 3)
 
     # We get noisy values around 10.0.
@@ -71,8 +71,8 @@ def test_static_source_white_noise() -> None:
     assert np.all(np.abs(values - 10.0) < 3.0)
 
     # Test that if we pass in an rng, we control the randomness.
-    values1 = model.evaluate(times, wavelengths, state, rng_info=np.random.default_rng(100))
-    values2 = model.evaluate(times, wavelengths, state, rng_info=np.random.default_rng(100))
+    values1 = model.evaluate_sed(times, wavelengths, state, rng_info=np.random.default_rng(100))
+    values2 = model.evaluate_sed(times, wavelengths, state, rng_info=np.random.default_rng(100))
     assert not np.any(values1 == 10.0)
     assert np.all(values1 == values2)
 
@@ -97,7 +97,7 @@ def test_static_source_white_noise_obs_frame() -> None:
     state = model.sample_parameters()
     times = np.array([1, 2, 3, 4, 5, 10])
     wavelengths = np.array([100.0, 200.0, 300.0])
-    values = model.evaluate(times, wavelengths, state)
+    values = model.evaluate_sed(times, wavelengths, state)
     assert values.shape == (6, 3)
 
     # We get noisy values around 10.0.

@@ -6,7 +6,7 @@ class EffectModel:
 
     Effects are not ParameterizedNodes but can have arguments that are
     ParameterizedNodes. These arguments are stored as parameters in the
-    source node (PhysicalModel) when add_effect() is called. This allows
+    source node (BasePhysicalModel) when add_effect() is called. This allows
     the effect to easily use existing parameters from the source node as
     well as new parameters specific to the effect. The source node samples
     these parameters and passes them in the call to apply().

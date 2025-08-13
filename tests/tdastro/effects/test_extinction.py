@@ -64,7 +64,7 @@ def test_constant_dust_extinction():
     times = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
     wavelengths = np.array([7000.0, 5200.0, 4800.0])  # Red, green, blue
     states = model.sample_parameters(num_samples=3)
-    fluxes = model.evaluate(times, wavelengths, states)
+    fluxes = model.evaluate_sed(times, wavelengths, states)
 
     assert fluxes.shape == (3, 5, 3)
     assert np.all(fluxes < 100.0)
@@ -94,7 +94,7 @@ def test_dustmap_chain():
     times = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
     wavelengths = np.array([7000.0, 5200.0])
     states = model.sample_parameters(num_samples=3)
-    fluxes = model.evaluate(times, wavelengths, states)
+    fluxes = model.evaluate_sed(times, wavelengths, states)
 
     assert fluxes.shape == (3, 5, 2)
     assert np.all(fluxes < 100.0)
