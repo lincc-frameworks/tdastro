@@ -16,7 +16,7 @@ The main simulation components in TDAstro include:
 
 * A statistical simulation step where the hyperparameters of the model are drawn
   from one or more prior distributions.
-* A model that defines the properties of the time-domain source, which can 
+* ``PhysicalModel`` defines the properties of the time-domain source, which can 
   also include a host-galaxy model, and is used to generate the noise-free light curves.
 * ``Opsim`` contains the survey information such as survey strategy and observing
   conditions. It is used to specify the observing times and bands.
@@ -75,8 +75,8 @@ to get concrete values for each parameter in the model. This combination of para
 state (and stored in a ``GraphState`` object), because it represents the sampled state of the DAG.
 
 Next, the ``OpSim`` is used to determine at what times and in which bands the object will be evaluated.
-These times and wavelengths are based into the object's ``evaluate()`` function along with the graph state.
-The ``evaluate()`` function handles the mechanics of the simulation, such as applying redshifts to both the
+These times and wavelengths are based into the object's ``eval()`` function along with the graph state.
+The ``eval()`` function handles the mechanics of the simulation, such as applying redshifts to both the
 times and wavelengths before calling the ``compute_flux()``.
 
 Additional effects can be applied to the noise-free light curves to produce more realistic light curves.
@@ -87,40 +87,11 @@ Finally, the raw flux densities are are converted into the magnitudes observed i
 ``PassbandGroup``.
 
 
-Generating band flux curves
--------------------------------------------------------------------------------
-
-All sources provide a helper function, ``get_band_fluxes()``, that wraps the combination of
-evaluation and integration with the passbands. This function takes the passband information,
-a list of times, and a list of filter names. It returns the band flux at each of those times
-in each of the filters.
-
-.. figure:: _static/GetBandFluxes.png
-   :class: no-scaled-link
-   :scale: 80 %
-   :align: center
-   :alt: An example of the get_band_fluxes function
-
-   An example of the get_band_fluxes function
-
-In addition to being a convenient helper function, generating the data at the band flux level allows
-certain models to skip SED generation. In particular a ``BandfluxModel`` is a subclass of the ``PhysicalModel``
-whose computation is only defined at the band flux level. An example of this are models of empirically
-fit light curves, such as those form LCLIB. Since we do not have the underlying SEDs for these types of models,
-so we can only work with them at the band flux level. See the
-:doc:`lightcurve source <notebooks/lightcurve_source_demo>` for an example of this type of model.
-
-**Note** that most models in TDAstro operate at the SED level and we *strongly* encourage new models to
-produce SEDs where possible. Working at the finer grained level allows more comprehensive and accurate
-simulations, such as accounting for wavelength and time compression due to redshift. The models that generate
-band fluxes directly will not account for all of these factors.
-
-
 Examples
 -------------------------------------------------------------------------------
 
 After loading the necessary information (such as ``PassbandGroup`` and ``Opsim``),
-and defining the physical model for our source, we can generate light curves with realistic
+and defining the ``PhysicalModel``, we can generate light curves with realistic
 cadence and noise.
 
 .. figure:: _static/lightcurves.png
