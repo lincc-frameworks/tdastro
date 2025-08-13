@@ -20,18 +20,36 @@ class EffectModel:
     rest_frame : bool
         Whether the effect is applied in the rest frame of the observation (True)
         or in the observed frame (False).
+    effect_name : string
+        The name of the effect for logging and accessing parameters. If no name is
+        provided, the class name is used.
     parameters : dict
         A dictionary of parameters for the effect. Maps the parameter names to
         their setters.
     """
 
-    def __init__(self, rest_frame=True, **kwargs):
+    def __init__(self, *, rest_frame=True, effect_name=None, **kwargs):
         self.rest_frame = rest_frame
+
+        # Save the name of this effect.
+        if effect_name is None:
+            effect_name = self.__class__.__name__
+            effect_name = effect_name.replace(".", "_")
+        self.effect_name = effect_name
 
         # Automatically include all keyword arguments as settable parameters.
         self.parameters = {}
         for key, value in kwargs.items():
             self.add_effect_parameter(key, value)
+
+    def __str__(self):
+        return self.effect_name
+
+    def __repr__(self):
+        # We only include the parameter names because the values may be dynamically
+        # sampled during the simulation.
+        params = ",".join(self.parameters.keys())
+        return f"{self.effect_name}({params})"
 
     def add_effect_parameter(self, name, setter):
         """Add a parameter to the effect.

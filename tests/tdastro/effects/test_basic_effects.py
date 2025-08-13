@@ -6,10 +6,12 @@ from tdastro.sources.basic_sources import StaticSource
 
 def test_constant_dimming() -> None:
     """Test that we can create and sample a ConstantDimming object."""
-    values = np.full((5, 3), 100.0)
+    effect = ConstantDimming(flux_fraction=0.1)
+    assert str(effect) == "ConstantDimming"
+    assert repr(effect) == "ConstantDimming(flux_fraction)"
 
     # We can apply the noise.
-    effect = ConstantDimming(flux_fraction=0.1)
+    values = np.full((5, 3), 100.0)
     values = effect.apply(values, flux_fraction=0.1)
     assert np.all(values == 10.0)
 
