@@ -1,6 +1,5 @@
 import numpy as np
 import pytest
-from tdastro.astro_utils.passbands import Passband, PassbandGroup
 from tdastro.sources.static_sed_source import StaticBandfluxSource, StaticSEDSource
 
 
@@ -130,20 +129,8 @@ def test_multiple_static_seds_min_max():
         _ = model.maxwave()
 
 
-def _create_toy_passbands() -> PassbandGroup:
-    """Create a toy passband group with three passbands where the first passband
-    has no overlap while the second two overlap each other for half the range.
-    """
-    a_band = Passband(np.array([[400, 0.5], [500, 0.5], [600, 0.5]]), "LSST", "u")
-    b_band = Passband(np.array([[800, 0.8], [900, 0.8], [1000, 0.8]]), "LSST", "g")
-    c_band = Passband(np.array([[900, 0.6], [1000, 0.6], [1100, 0.6]]), "LSST", "r")
-    d_band = Passband(np.array([[900, 0.6], [1000, 0.6], [1100, 0.6]]), "LSST", "b")
-    return PassbandGroup(given_passbands=[a_band, b_band, c_band, d_band])
-
-
 def test_single_static_bandflux() -> None:
     """Test that we can create and sample a StaticBandfluxSource object with a single bandflux."""
-    pb_group = _create_toy_passbands()
     bandflux = {
         "r": 10.0,
         "g": 20.0,
@@ -157,14 +144,13 @@ def test_single_static_bandflux() -> None:
     expected = np.array([10.0, 10.0, 20.0, 30.0, 10.0, 20.0, 30.0, 20.0, 30.0, 10.0])
 
     state = model.sample_parameters(num_samples=1)
-    fluxes = model.get_band_fluxes(pb_group, times, filters, state)
+    fluxes = model.get_band_fluxes(None, times, filters, state)
     assert len(fluxes) == 10
     assert np.array_equal(fluxes, expected)
 
 
 def test_multiple_static_bandflux() -> None:
     """Test that we can create and sample a StaticBandfluxSource object with multiple bandfluxes."""
-    pb_group = _create_toy_passbands()
     bandflux0 = {"r": 10.0, "g": 20.0, "b": 30.0}
     bandflux1 = {"r": 15.0, "g": 25.0, "b": 35.0}
     model = StaticBandfluxSource([bandflux0, bandflux1], weights=[0.25, 0.75], node_label="test")
@@ -183,7 +169,7 @@ def test_multiple_static_bandflux() -> None:
     expected0 = np.array([10.0, 10.0, 20.0, 30.0, 10.0])
     expected1 = np.array([15.0, 15.0, 25.0, 35.0, 15.0])
 
-    fluxes = model.get_band_fluxes(pb_group, times, filters, params)
+    fluxes = model.get_band_fluxes(None, times, filters, params)
     assert fluxes.shape == (10_000, 5)
     for idx in range(10_000):
         if inds_0[idx]:
