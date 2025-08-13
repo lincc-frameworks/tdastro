@@ -185,6 +185,10 @@ class PhysicalModel(ParameterizedNode):
         else:
             self.obs_frame_effects.append(effect)
 
+    def list_effects(self):
+        """Return a list of all effects in the order in which they are applied."""
+        return self.rest_frame_effects + self.obs_frame_effects
+
     def mask_by_time(self, times, graph_state=None):
         """Compute a mask for whether a given time is of interest for a given object.
         For example, a user can use this function to generate a mask to include
@@ -558,6 +562,10 @@ class BandfluxModel(PhysicalModel, ABC):
 
         # Add the effect to the band pass effects list.
         self.band_pass_effects.append(effect)
+
+    def list_effects(self):
+        """Return a list of all effects in the order in which they are applied."""
+        return self.band_pass_effects
 
     def compute_bandflux(self, times, filters, state, rng_info=None):
         """Evaluate the model at the passband level for a single, given graph state.

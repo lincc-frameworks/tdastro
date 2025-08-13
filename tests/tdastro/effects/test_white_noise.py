@@ -6,10 +6,12 @@ from tdastro.sources.basic_sources import StaticSource
 
 def test_white_noise() -> None:
     """Test that we can sample and create a WhiteNoise object."""
-    values = np.full((5, 3), 100.0)
+    white_noise = WhiteNoise(white_noise_sigma=0.1)
+    assert str(white_noise) == "WhiteNoise"
+    assert repr(white_noise) == "WhiteNoise(white_noise_sigma)"
 
     # We can apply the noise.
-    white_noise = WhiteNoise(white_noise_sigma=0.1)
+    values = np.full((5, 3), 100.0)
     values = white_noise.apply(values, white_noise_sigma=0.1)
     assert not np.all(values == 100.0)
     assert np.all(np.abs(values - 100.0) <= 1.0)
