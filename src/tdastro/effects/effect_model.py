@@ -46,7 +46,7 @@ class EffectModel:
         return self.effect_name
 
     def __repr__(self):
-        # We only return the parameter names, because the values may be dynamically
+        # We only include the parameter names because the values may be dynamically
         # sampled during the simulation.
         params = ",".join(self.parameters.keys())
         return f"{self.effect_name}({params})"
