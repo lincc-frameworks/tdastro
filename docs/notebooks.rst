@@ -56,6 +56,7 @@ The following notebooks provide example simulations using the TDAstro package.
 
     PLAsTiCC SNIa <notebooks/pre_executed/plasticc_snia>
     Resampling LCLIB <notebooks/pre_executed/lclib_example>
+    Microlensing Effect Example <notebooks/microlensing>
 
 
 Running TDAstro in a Jupyter Notebook
