@@ -48,19 +48,32 @@ The `full source code <https://github.com/lincc-frameworks/tdastro>`_ is availab
 Getting Started
 -------------------------------------------------------------------------------
 
-You can install TDAstro via pip. We recommend that you do so in a virtual environment. 
-To create and start a new virtual environment named "tdastro" from the terminal:
+You can install TDAstro from PyPI with pip or from conda-forge with conda. We recommend using a dedicated environment.
 
-.. code-block:: bash
+.. tab-set::
 
-   >> python3 -m venv ~/envs/tdastro
-   >> source ~/envs/tdastro/bin/activate
+    .. tab-item:: pip
 
-You can then directly install the software from pip:
+        .. code-block:: bash
 
-.. code-block:: bash
+           >> # Create a virtual environment
+           >> python3 -m venv ~/envs/tdastro
+           >> # Activate it
+           >> source ~/envs/tdastro/bin/activate
+           >> # Install from PyPI
+           >> python -m pip install tdastro
 
-   >> pip install tdastro
+    .. tab-item:: conda
+
+        .. code-block:: bash
+
+          >> # Create a virtual environment
+          >> conda create -p tdastro python=3.12
+          >> # Activate it
+          >> conda activate tdastro
+          >> # Install from conda-forge channel
+          >> conda install conda-forge::tdastro
+
 
 See our selection of :doc:`tutorial notebooks <notebooks>` for usage examples.
 We recommend starting with the :doc:`introduction notebook <notebooks/introduction>`

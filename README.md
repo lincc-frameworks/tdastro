@@ -5,6 +5,8 @@ Time-Domain Forward-Modeling for the Rubin Era
 [![Template](https://img.shields.io/badge/Template-LINCC%20Frameworks%20Python%20Project%20Template-brightgreen)](https://lincc-ppt.readthedocs.io/en/latest/)
 
 [![PyPI](https://img.shields.io/pypi/v/tdastro?color=blue&logo=pypi&logoColor=white)](https://pypi.org/project/tdastro/)
+[![Conda Version](https://img.shields.io/conda/vn/conda-forge/citation-compass.svg)](https://anaconda.org/conda-forge/citation-compass)
+
 [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/lincc-frameworks/tdastro/smoke-test.yml)](https://github.com/lincc-frameworks/tdastro/actions/workflows/smoke-test.yml)
 [![Codecov](https://codecov.io/gh/lincc-frameworks/tdastro/branch/main/graph/badge.svg)](https://codecov.io/gh/lincc-frameworks/tdastro)
 [![Benchmarks](https://img.shields.io/github/actions/workflow/status/lincc-frameworks/tdastro/asv-main.yml?label=benchmarks)](https://lincc-frameworks.github.io/tdastro/)
@@ -26,6 +28,19 @@ The software package consists of multiple stages:
 
 For an overview of the package, we recommend starting with introduction notebook 
 (at `notebooks/introduction.ipynb`).
+
+
+## Installation
+
+Install from PyPI or conda-forge:
+
+```
+pip install tdastro
+```
+
+```
+conda install conda-forge::tdastro
+```
 
 
 ## Dev Guide - Getting Started

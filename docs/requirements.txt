@@ -7,4 +7,5 @@ nbsphinx
 sphinx
 sphinx-autoapi
 sphinx-copybutton
+sphinx-design
 sphinx-rtd-theme

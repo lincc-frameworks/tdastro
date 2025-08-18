@@ -34,6 +34,8 @@ nbsphinx_allow_errors = True
 
 # -- sphinx-copybutton configuration ----------------------------------------
 extensions.append("sphinx_copybutton")
+# Enable tab-set and tab-item directives used in .rst files
+extensions.append("sphinx_design")
 ## sets up the expected prompt text from console blocks, and excludes it from
 ## the text that goes into the clipboard.
 copybutton_exclude = ".linenos, .gp"
