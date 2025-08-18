@@ -488,7 +488,7 @@ def test_oversample_opsim(opsim_shorten):
 
 def test_fixture_oversampled_observations(oversampled_observations):
     """Test the fixture oversampled_observations."""
-    assert len(oversampled_observations) == 36_500
+    assert len(oversampled_observations) == 7_300
     assert set(oversampled_observations["filter"]) == {"g", "r"}
     assert oversampled_observations["skyBrightness"].isna().sum() == 0
     assert oversampled_observations["skyBrightness"].unique().size >= 2
@@ -496,4 +496,4 @@ def test_fixture_oversampled_observations(oversampled_observations):
     assert np.all(oversampled_observations["observationStartMJD"] <= 61771.0)
     np.testing.assert_allclose(oversampled_observations["fieldRA"], 0.0)
     np.testing.assert_allclose(oversampled_observations["fieldDec"], 0.0)
-    np.testing.assert_allclose(np.diff(oversampled_observations["observationStartMJD"]), 0.01)
+    np.testing.assert_allclose(np.diff(oversampled_observations["observationStartMJD"]), 0.05)
