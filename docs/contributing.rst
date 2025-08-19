@@ -44,13 +44,14 @@ development using the following commands:
 
 .. code-block:: bash
 
-   >> pip install -e .'[dev]'
+   >> pip install -e .'[dev,all_astro]'
    >> pre-commit install
 
 
 Notes:
 
-1) The single quotes around ``'[dev]'`` may not be required for your operating system.
+1) The single quotes around ``'[dev]'`` or ``'[dev,all_astro]'`` may not be required for
+   your operating system.
 2) ``pre-commit install`` will initialize pre-commit for this local repository, so
    that a set of tests will be run prior to completing a local commit. For more
    information, see the Python Project Template documentation on
