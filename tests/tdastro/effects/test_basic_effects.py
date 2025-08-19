@@ -46,7 +46,10 @@ def test_static_source_constant_dimming() -> None:
     assert len(model.rest_frame_effects) == 1
     assert len(model.obs_frame_effects) == 0
 
+    # Check that the flux_fraction parameter is stores in the source node.
     state = model.sample_parameters()
+    assert state["my_static_source"]["flux_fraction"] == 0.1
+
     times = np.array([1, 2, 3, 4, 5, 10])
     wavelengths = np.array([100.0, 200.0, 300.0])
     values = model.evaluate(times, wavelengths, state)
@@ -64,3 +67,20 @@ def test_static_source_constant_dimming() -> None:
     values2 = model2.evaluate(times, wavelengths, state2)
     assert values2.shape == (6, 3)
     assert np.all(values2 == 5.0)
+
+
+def test_static_source_constant_dimming_alt_params() -> None:
+    """Test that we can turn off adding parameters, but this will fail."""
+    model = StaticSource(brightness=10.0, node_label="my_static_source")
+    effect = ConstantDimming(flux_fraction=0.2)
+    model.add_effect(effect, skip_params=True)
+
+    # Check that we sample the value from source node.
+    state = model.sample_parameters()
+    print(state)
+    assert "flux_fraction" not in state["my_static_source"]
+
+    times = np.array([1, 2, 3, 4, 5, 10])
+    wavelengths = np.array([100.0, 200.0, 300.0])
+    with pytest.raises(ValueError):
+        _ = model.evaluate(times, wavelengths, state)
