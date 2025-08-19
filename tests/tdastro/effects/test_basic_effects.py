@@ -77,7 +77,6 @@ def test_static_source_constant_dimming_alt_params() -> None:
 
     # Check that we sample the value from source node.
     state = model.sample_parameters()
-    print(state)
     assert "flux_fraction" not in state["my_static_source"]
 
     times = np.array([1, 2, 3, 4, 5, 10])
