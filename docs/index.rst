@@ -74,6 +74,11 @@ You can install TDAstro from PyPI with pip or from conda-forge with conda. We re
           >> # Install from conda-forge channel
           >> conda install conda-forge::tdastro
 
+Since TDAstro relies on a large number of existing packages, not all of the packages
+are installed in the default configuration. For example the microlensing package
+(`VBMicrolensing`) is not included by default. If you try to import a module that is
+not installed, TDAstro will raise an ImportError with information on which packages
+you need to install. You will need to install these manually.
 
 See our selection of :doc:`tutorial notebooks <notebooks>` for usage examples.
 We recommend starting with the :doc:`introduction notebook <notebooks/introduction>`
