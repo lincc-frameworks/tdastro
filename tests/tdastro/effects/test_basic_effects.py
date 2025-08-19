@@ -46,7 +46,7 @@ def test_static_source_constant_dimming() -> None:
     assert len(model.rest_frame_effects) == 1
     assert len(model.obs_frame_effects) == 0
 
-    # Check that the flux_fraction parameter is stores in the source node.
+    # Check that the flux_fraction parameter is stored in the source node.
     state = model.sample_parameters()
     assert state["my_static_source"]["flux_fraction"] == 0.1
 

@@ -671,7 +671,7 @@ class BandfluxModel(PhysicalModel, ABC):
         params = self.get_local_params(state)
 
         # Compute the flux (applying all effects) and save the result. Note that
-        # BandfluxModel do not apply redshift, so all effects are applied in observer frame.
+        # BandfluxModel does not apply redshift, so all effects are applied in observer frame.
         band_fluxes = self.compute_bandflux(times, filters, state, rng_info=rng_info)
         for effect in self.band_pass_effects:
             band_fluxes = effect.apply_bandflux(
