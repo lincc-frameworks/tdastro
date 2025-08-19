@@ -61,13 +61,6 @@ development using the following commands:
 >> pre-commit install
 ```
 
-to install all of the optional astro libraries, use:
-
-```
->> pip install -e .'[dev]'
->> pre-commit install
-```
-
 Notes:
 1. The single quotes around `'[dev]'` may not be required for your operating system.
 2. `pre-commit install` will initialize pre-commit for this local repository, so
