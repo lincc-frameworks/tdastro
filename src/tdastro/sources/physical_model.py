@@ -546,6 +546,8 @@ class PhysicalModel(ParameterizedNode):
         if filters is None:
             raise ValueError("If passband_or_group is a PassbandGroup, filters must be provided.")
         filters = np.asarray(filters)
+        if len(filters) != len(times):
+            raise ValueError("Filters array must have the same length as times array.")
 
         # If we only have a single sample, we can return the band fluxes directly.
         if state.num_samples == 1:
