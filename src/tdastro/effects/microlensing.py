@@ -1,15 +1,6 @@
 """An effect that adds microlensing magnification."""
 
 import numpy as np
-
-try:
-    import VBMicrolensing
-except ImportError as err:
-    raise ImportError(
-        "VBMicrolensing package is not installed be default. To use the microlensing effect, "
-        "please install it. For example, you can install it with `pip install VBMicrolensing`."
-    ) from err
-
 from citation_compass import CiteClass
 
 from tdastro.effects.effect_model import EffectModel
@@ -78,6 +69,13 @@ class Microlensing(EffectModel, CiteClass):
             self.add_effect_parameter("apply_microlensing", True)
 
         # Create the microlensing model once.
+        try:
+            import VBMicrolensing
+        except ImportError as err:
+            raise ImportError(
+                "VBMicrolensing package is not installed be default. To use the microlensing effect, "
+                "please install it. For example, you can install it with `pip install VBMicrolensing`."
+            ) from err
         self.VBM = VBMicrolensing.VBMicrolensing()
 
         # Override the default rest_frame parameter.

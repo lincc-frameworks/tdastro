@@ -46,14 +46,8 @@ dev = [
     "pytest",
     "pytest-cov", # Used to report total code coverage
     "ruff", # Used for static linting of files
-]
-
-# Install all the optional astro dependencies with `pip install '.[all_astro]'`
-# (include the single quotes)
-all_astro = [
     "VBMicrolensing",  # used for microlensing tests
 ]
-
 
 [build-system]
 requires = [

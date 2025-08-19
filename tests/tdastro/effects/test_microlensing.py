@@ -1,17 +1,8 @@
 import numpy as np
-import pytest
+from tdastro.effects.microlensing import Microlensing
 from tdastro.sources.basic_sources import StaticSource
 
-try:
-    from tdastro.effects.microlensing import Microlensing
-except ImportError:
-    # If the microlensing effect is not available, we skip the tests.
-    _skip_microlensing_tests = True
-else:
-    _skip_microlensing_tests = False
 
-
-@pytest.mark.skipif(_skip_microlensing_tests, reason="Microlensing package not available")
 def test_microlensing() -> None:
     """Test that we can apply a basic microlensing effect."""
     num_times = 50
@@ -42,7 +33,6 @@ def test_microlensing() -> None:
         assert np.all(np.diff(values[5:num_times, wave_idx]) <= 0)
 
 
-@pytest.mark.skipif(_skip_microlensing_tests, reason="Microlensing package not available")
 def test_microlensing_bandflux() -> None:
     """Test that we can apply a basic microlensing effect at the bandflux level."""
     num_times = 50
@@ -71,7 +61,6 @@ def test_microlensing_bandflux() -> None:
     assert np.all(np.diff(values[5:num_times]) <= 0)
 
 
-@pytest.mark.skipif(_skip_microlensing_tests, reason="Microlensing package not available")
 def test_static_source_microlensing() -> None:
     """Test that we can apply microlensing to a StaticSource."""
     num_times = 50
