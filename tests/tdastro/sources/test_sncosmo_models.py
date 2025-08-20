@@ -10,9 +10,9 @@ from tdastro.sources.sncomso_models import SncosmoWrapperModel
 from tdastro.utils.wave_extrapolate import ExponentialDecay
 
 
-def _fake_sncosmo_data_dir():
-    """A function for pointing to the test data directory."""
-    return Path(_TDASTRO_TEST_DATA_DIR) / "fake_sncosmo"
+def _fake_nugent_data_path(*args, **kwargs):
+    """A function for pointing to the test data directory's version of the nugent model file."""
+    return str(Path(_TDASTRO_TEST_DATA_DIR) / "fake_sncosmo" / "models" / "nugent" / "sn1a_flux.v1.2.dat")
 
 
 def test_sncomso_models_hsiao() -> None:
@@ -87,7 +87,7 @@ def test_sncomso_models_bounds() -> None:
     # Use a massively subsampled version of the 'nugent-sn1a' model (only 3 time steps)
     # that is cached in the test data directory. This is okay because we are only using
     # the model's wavelength bounds.
-    with patch("sncosmo.builtins.get_rootdir", side_effect=_fake_sncosmo_data_dir):
+    with patch("sncosmo.utils.DataMirror.abspath", side_effect=_fake_nugent_data_path):
         model = SncosmoWrapperModel("nugent-sn1a", amplitude=2.0e10, t0=0.0)
     min_w = model.source.minwave()
     max_w = model.source.maxwave()
@@ -113,7 +113,7 @@ def test_sncomso_models_linear_extrapolate() -> None:
     # Use a massively subsampled version of the 'nugent-sn1a' model (only 3 time steps)
     # that is cached in the test data directory. This is okay because we are only using
     # the model's wavelength bounds.
-    with patch("sncosmo.builtins.get_rootdir", side_effect=_fake_sncosmo_data_dir):
+    with patch("sncosmo.utils.DataMirror.abspath", side_effect=_fake_nugent_data_path):
         model = SncosmoWrapperModel(
             "nugent-sn1a",
             amplitude=2.0e10,
