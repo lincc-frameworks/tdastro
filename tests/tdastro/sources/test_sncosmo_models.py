@@ -12,13 +12,12 @@ from tdastro.utils.wave_extrapolate import ExponentialDecay
 
 def _fake_sncosmo_data_dir():
     """A function for pointing to the test data directory."""
-    return Path(_TDASTRO_TEST_DATA_DIR) / "toy_sncosmo"
+    return Path(_TDASTRO_TEST_DATA_DIR) / "fake_sncosmo"
 
 
 def test_sncomso_models_hsiao() -> None:
     """Test that we can create and evalue a 'hsiao' model."""
     model = SncosmoWrapperModel("hsiao", t0=0.0, amplitude=2.0e10)
-
     state = model.sample_parameters()
     assert model.get_param(state, "amplitude") == 2.0e10
     assert model.get_param(state, "t0") == 0.0
