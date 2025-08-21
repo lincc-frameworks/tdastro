@@ -6,6 +6,66 @@ import numpy as np
 from astropy.table import Table
 
 
+def read_numpy_data(file_path):
+    """Read in a numpy array from different formats depending on the file extension.
+    Automatically detects handles files in .npy, .npz, .csv, .ecsv, and .txt
+    formats.
+
+    Parameters
+    ----------
+    file_path : str
+        The path to the file to read.
+
+    Returns
+    -------
+    data : numpy.ndarray
+        The data read from the file.
+    """
+    file_path = Path(file_path)
+    if not file_path.is_file():
+        raise FileNotFoundError(f"File {file_path} not found.")
+
+    # Load the data according to the format.
+    if file_path.suffix == ".npy":
+        data = np.load(file_path)
+    elif file_path.suffix == ".npz":
+        # For npz files, extract the first array
+        data = np.load(file_path)["arr_0"]
+    elif file_path.suffix in [".csv", ".ecsv"]:
+        data = np.loadtxt(file_path, delimiter=",", comments="#")
+    elif file_path.suffix in [".txt"]:
+        data = np.loadtxt(file_path, comments="#")
+    else:
+        raise ValueError(f"Unsupported file format: {file_path.suffix}.")
+
+    return data
+
+
+def write_numpy_data(file_path, data):
+    """Write a numpy array to a file in a format determined by the file extension.
+    Automatically detects handles files in .npy, .npz, .csv, .ecsv, and .txt
+    formats.
+
+    Parameters
+    ----------
+    file_path : str
+        The path to the file to write.
+    data : numpy.ndarray
+        The data to write to the file.
+    """
+    file_path = Path(file_path)
+    if file_path.suffix == ".npy":
+        np.save(file_path, data)
+    elif file_path.suffix == ".npz":
+        np.savez_compressed(file_path, arr_0=data)
+    elif file_path.suffix in [".csv", ".ecsv"]:
+        np.savetxt(file_path, data, delimiter=",")
+    elif file_path.suffix in [".txt", ".dat"]:
+        np.savetxt(file_path, data)
+    else:
+        raise ValueError(f"Unsupported file format: {file_path.suffix}.")
+
+
 def read_grid_data(input_file, format="ascii", validate=False):
     """Read 2-d grid data from a text, csv, ecsv, or fits file.
 
