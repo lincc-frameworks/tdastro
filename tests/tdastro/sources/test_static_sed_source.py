@@ -89,7 +89,7 @@ def test_static_sed_from_file(tmp_path) -> None:
             [0.0, 0.0, 0.0, 0.0],  # Other row
         ]
     )
-    file_path_invalid = tmp_path / f"test_sed.{fmt}"
+    file_path_invalid = tmp_path / f"test_sed.csv"
     write_numpy_data(file_path_invalid, test_sed_invalid.T)
 
     with pytest.raises(ValueError):

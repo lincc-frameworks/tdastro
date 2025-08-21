@@ -8,7 +8,7 @@ from astropy.table import Table
 
 def read_numpy_data(file_path):
     """Read in a numpy array from different formats depending on the file extension.
-    Automatically detects handles files in .npy, .npz, .csv, .ecsv, and .txt
+    Automatically detects and handles files in .npy, .npz, .csv, .ecsv, and .txt
     formats.
 
     Parameters
@@ -43,7 +43,7 @@ def read_numpy_data(file_path):
 
 def write_numpy_data(file_path, data):
     """Write a numpy array to a file in a format determined by the file extension.
-    Automatically detects handles files in .npy, .npz, .csv, .ecsv, and .txt
+    Automatically detects and handles files in .npy, .npz, .csv, .ecsv, and .txt
     formats.
 
     Parameters
