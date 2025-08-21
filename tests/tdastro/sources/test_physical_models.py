@@ -138,7 +138,7 @@ def test_physical_model_get_band_fluxes(passbands_dir):
     with pytest.raises(ValueError):
         _band_fluxes = static_source.get_band_fluxes(passbands, times=times, filters=None, state=state)
     # It should fail if single passband is provided, but with multiple filter names.
-    with pytest.raises(ValueError):
+    with pytest.raises(KeyError):
         _band_fluxes = static_source.get_band_fluxes(passbands.passbands["LSST_r"], times, filters, state)
 
     band_fluxes = static_source.get_band_fluxes(passbands, times, filters, state)
