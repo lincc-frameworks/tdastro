@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 from tdastro.sources.static_sed_source import StaticBandfluxSource, StaticSEDSource
+from tdastro.utils.io_utils import write_numpy_data
 
 
 def test_single_static_sed() -> None:
@@ -53,6 +54,46 @@ def test_static_sed_fail() -> None:
     )
     with pytest.raises(ValueError):
         _ = StaticSEDSource([sed], node_label="test")
+
+
+def test_static_sed_from_file(tmp_path) -> None:
+    """Test that we can create a StaticSEDSource object from a file."""
+    test_sed = np.array(
+        [
+            [100.0, 200.0, 300.0, 400.0],  # Wavelengths
+            [10.0, 20.0, 20.0, 10.0],  # fluxes
+        ]
+    )
+    times = np.array([1, 2, 3, 10, 20])
+    wavelengths = np.array([50.0, 100.0, 150.0, 200.0, 250.0, 300.0, 350.0, 400.0, 450.0])
+    expected = np.array([0.0, 10.0, 15.0, 20.0, 20.0, 20.0, 15.0, 10.0, 0.0])
+
+    for fmt in ["npy", "npz", "txt", "csv"]:
+        file_path = tmp_path / f"test_sed.{fmt}"
+        write_numpy_data(file_path, test_sed.T)
+
+        model = StaticSEDSource.from_file(file_path, node_label="test")
+        assert len(model) == 1
+
+        values = model.evaluate(times, wavelengths)
+        assert values.shape == (5, 9)
+
+        for t_idx in range(5):
+            assert np.array_equal(values[t_idx, :], expected)
+
+    # Try an invalid array shape.
+    test_sed_invalid = np.array(
+        [
+            [100.0, 200.0, 300.0, 400.0],  # Wavelengths
+            [10.0, 20.0, 20.0, 10.0],  # fluxes
+            [0.0, 0.0, 0.0, 0.0],  # Other row
+        ]
+    )
+    file_path_invalid = tmp_path / "test_sed.csv"
+    write_numpy_data(file_path_invalid, test_sed_invalid.T)
+
+    with pytest.raises(ValueError):
+        _ = StaticSEDSource.from_file(file_path_invalid, node_label="test")
 
 
 def test_multiple_static_seds() -> None:

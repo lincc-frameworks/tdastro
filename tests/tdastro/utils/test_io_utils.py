@@ -1,6 +1,29 @@
 import numpy as np
 import pytest
-from tdastro.utils.io_utils import read_grid_data, read_lclib_data
+from tdastro.utils.io_utils import read_grid_data, read_lclib_data, read_numpy_data, write_numpy_data
+
+
+def test_read_write_numpy_data(tmp_path):
+    """Test reading and writing numpy data."""
+    data = np.arange(100, dtype=float).reshape((25, 4))
+
+    for fmt in [".npy", ".npz", ".csv", ".ecsv", ".txt"]:
+        file_path = tmp_path / f"test{fmt}"
+        assert not file_path.exists()
+
+        write_numpy_data(file_path, data)
+        assert file_path.exists()
+
+        loaded_data = read_numpy_data(file_path)
+        np.testing.assert_allclose(data, loaded_data)
+
+    # Test a file that does not exist.
+    with pytest.raises(FileNotFoundError):
+        _ = read_numpy_data(tmp_path / "no_such_file_here.npy")
+
+    # Test an unsupported file format.
+    with pytest.raises(ValueError):
+        write_numpy_data(tmp_path / "test.invalid", data)
 
 
 def test_read_grid_data_good(grid_data_good_file):

@@ -4,6 +4,7 @@ import numpy as np
 
 from tdastro.math_nodes.given_sampler import GivenValueSampler
 from tdastro.sources.physical_model import BandfluxModel, PhysicalModel
+from tdastro.utils.io_utils import read_numpy_data
 
 
 class StaticSEDSource(PhysicalModel):
@@ -66,6 +67,30 @@ class StaticSEDSource(PhysicalModel):
     def __len__(self):
         """Get the number of lightcurves."""
         return len(self.sed_values)
+
+    @classmethod
+    def from_file(cls, sed_file, **kwargs):
+        """Load a static SED from a file containing a two column array where the
+        first column is wavelength (in angstroms) and the second column is flux (in nJy).
+
+        Parameters
+        ----------
+        sed_file : str or Path
+            The path to the SED file to load.
+        **kwargs : dict
+            Additional keyword arguments to pass to the StaticSEDSource constructor.
+
+        Returns
+        -------
+        StaticSEDSource
+            An instance of StaticSEDSource with the loaded SED data.
+        """
+        # Load the SED data from the file (automatically detected format)
+        sed_data = read_numpy_data(sed_file)
+        if sed_data.ndim != 2 or sed_data.shape[1] != 2:
+            raise ValueError(f"SED data from {sed_file} must be a two column array.")
+
+        return cls(sed_values=sed_data.T, **kwargs)
 
     def minwave(self, graph_state=None):
         """Get the minimum wavelength of the model.
