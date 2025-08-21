@@ -81,6 +81,20 @@ def test_static_sed_from_file(tmp_path) -> None:
         for t_idx in range(5):
             assert np.array_equal(values[t_idx, :], expected)
 
+    # Try an invalid array shape.
+    test_sed_invalid = np.array(
+        [
+            [100.0, 200.0, 300.0, 400.0],  # Wavelengths
+            [10.0, 20.0, 20.0, 10.0],  # fluxes
+            [0.0, 0.0, 0.0, 0.0],  # Other row
+        ]
+    )
+    file_path_invalid = tmp_path / f"test_sed.{fmt}"
+    write_numpy_data(file_path_invalid, test_sed_invalid.T)
+
+    with pytest.raises(ValueError):
+        _ = StaticSEDSource.from_file(file_path_invalid, node_label="test")
+
 
 def test_multiple_static_seds() -> None:
     """Test that we can create and sample a StaticSEDSource object with a multiple SEDs."""
