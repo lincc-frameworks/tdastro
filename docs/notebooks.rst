@@ -32,7 +32,6 @@ features and models of the TDAstro package.
     Combining Sources (including Hosts/Sources) <notebooks/host_source_models>
     Lightcurve Source Demo <notebooks/lightcurve_source_demo>
     Advanced Sampling Techniques <notebooks/advanced_sampling>
-    PZFlow Source Demo <notebooks/using_pzflow>
 
 
 Citations
@@ -55,10 +54,11 @@ The following notebooks provide example simulations using the TDAstro package.
 .. toctree::
     :maxdepth: 1
 
-    Microlensing Effect Example <notebooks/microlensing>
+    Microlensing Effect Example <notebooks/pre_executed/microlensing>
     PLAsTiCC SNIa <notebooks/pre_executed/plasticc_snia>
+    PZFlow Source Demo <notebooks/pre_executed/using_pzflow>
     Resampling LCLIB <notebooks/pre_executed/lclib_example>
-    Synphot-based Models <notebooks/synphot_example>
+    Synphot-based Models <notebooks/pre_executed/synphot_example>
 
 
 Running TDAstro in a Jupyter Notebook

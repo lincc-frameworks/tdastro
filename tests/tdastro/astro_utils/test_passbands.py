@@ -210,6 +210,20 @@ def test_passband_from_sncosmo(passbands_dir):
     assert np.allclose(ztf_band._loaded_table[:, 0], sn_pb.wave)
     assert np.allclose(ztf_band._loaded_table[:, 1], sn_pb.trans)
 
+    def _mock_get_bandpass(name):
+        """Return a predefined Bandpass object instead of downloading the transmission table."""
+        return Bandpass(np.array([6000, 6005, 6010]), np.array([0.5, 0.6, 0.7]))
+
+    # Check that we can load the sncosmo passband from just the filter and survey.
+    with patch("sncosmo.get_bandpass", side_effect=_mock_get_bandpass):
+        ztf_band2 = Passband.from_sncosmo("ZTF", "g", "ztfg")
+        assert np.allclose(ztf_band2._loaded_table[:, 0], sn_pb.wave)
+        assert np.allclose(ztf_band2._loaded_table[:, 1], sn_pb.trans)
+
+    # Check that an error occurs if we pass None
+    with pytest.raises(ValueError):
+        _ = Passband.from_sncosmo("ZTF", "g", None)
+
 
 def test_passband_from_svo(passbands_dir):
     """Test that we can load data from SVO passbands."""
