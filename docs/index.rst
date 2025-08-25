@@ -78,7 +78,12 @@ Since TDAstro relies on a large number of existing packages, not all of the pack
 are installed in the default configuration. For example the microlensing (`VBMicrolensing`)
 and sncosmo (`sncosmo`) packages are not included by default. If you try to import a module
 that is not installed, TDAstro will raise an ImportError with information on which packages
-you need to install. You will need to install these manually.
+you need to install. You will need to install these manually. You can also install all optional
+dependencies with:
+
+.. code-block:: bash
+
+   >> python -m pip install 'tdastro[all]'
 
 See our selection of :doc:`tutorial notebooks <notebooks>` for usage examples.
 We recommend starting with the :doc:`introduction notebook <notebooks/introduction>`
