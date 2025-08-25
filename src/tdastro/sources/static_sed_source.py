@@ -123,8 +123,10 @@ class StaticSEDSource(PhysicalModel):
         if waves is None:
             waves = np.array(sp_model.waveset * u.angstrom)
 
-        # Extract the SED data from the synphot model
-        sed_data = np.array(sp_model(waves, flux_unit=units.FLAM))
+        # Extract the SED data from the synphot model. Synphot models return flux in units
+        # of PHOTLAM (photons s^-1 cm^-2 A^-1), so we convert to nJy.
+        photlam_flux = sp_model(waves, flux_unit=units.PHOTLAM)
+        sed_data = np.array(units.convert_flux(waves, photlam_flux, "nJy"))
         return cls(np.vstack((waves, sed_data)))
 
     def minwave(self, graph_state=None):
