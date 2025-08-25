@@ -7,7 +7,6 @@ https://github.com/jfcrenshaw/pzflow
 import numpy as np
 import pandas as pd
 from citation_compass import CiteClass
-from pzflow import Flow
 
 from tdastro.base_models import FunctionNode
 
@@ -62,6 +61,13 @@ class PZFlowNode(FunctionNode, CiteClass):
         **kwargs : dict, optional
             Additional function arguments, including the input parameters for the flow.
         """
+        try:
+            from pzflow import Flow
+        except ImportError as err:
+            raise ImportError(
+                "pzflow package is not installed be default. You can install it with `pip install pzflow`."
+            ) from err
+
         flow_to_use = Flow(file=filename)
         return PZFlowNode(flow_to_use, node_label=node_label, **kwargs)
 
