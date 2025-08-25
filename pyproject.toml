@@ -49,6 +49,12 @@ dev = [
     "VBMicrolensing",  # used for microlensing tests
 ]
 
+# Install all the optional astro dependencies with `pip install '.[all]'`
+# (include the single quotes)
+all = [
+    "VBMicrolensing",  # used for microlensing tests
+]
+
 [build-system]
 requires = [
     "setuptools>=62", # Used to build and package the Python project
