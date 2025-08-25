@@ -12,7 +12,6 @@ import numpy as np
 import scipy.integrate
 from astropy.io.votable import parse
 from citation_compass import cite_function
-from sncosmo import Bandpass, get_bandpass
 
 from tdastro import _TDASTRO_BASE_DATA_DIR
 from tdastro.consts import lsst_filter_plot_colors
@@ -275,8 +274,7 @@ class PassbandGroup:
                 passbands.append(pb)
         elif preset == "ZTF":
             for filter_name in ["g", "r", "i"]:
-                sn_pb = get_bandpass(f"ztf{filter_name}")
-                pb = Passband.from_sncosmo("ZTF", filter_name, sn_pb, **kwargs)
+                pb = Passband.from_sncosmo("ZTF", filter_name, f"ztf{filter_name}", **kwargs)
                 passbands.append(pb)
         else:
             raise ValueError(f"Unknown passband preset: {preset}")
@@ -723,7 +721,7 @@ class Passband:
 
     @classmethod
     @cite_function("https://sncosmo.readthedocs.io/en/stable/api/sncosmo.Bandpass.html")
-    def from_sncosmo(cls, survey: str, filter_name: str, bandpass: Bandpass):
+    def from_sncosmo(cls, survey: str, filter_name: str, bandpass=None):
         """Create a Passband object from an sncosmo.Bandpass object.
 
         Parameters
@@ -732,7 +730,7 @@ class Passband:
             The survey to which the passband belongs: eg, "LSST".
         filter_name : str
             The filter_name of the passband: eg, "u".
-        bandpass : sncosmo.Bandpass
+        bandpass : sncosmo.Bandpass or str
             The bandpass object from which to create the Passband object.
 
         Reference
@@ -740,6 +738,19 @@ class Passband:
         snocosmo.Bandpass:
         https://sncosmo.readthedocs.io/en/stable/api/sncosmo.Bandpass.html
         """
+        if bandpass is None:
+            raise ValueError("bandpass must be provided as object or string")
+        elif isinstance(bandpass, str):
+            # Only import sncosmo if we need to.
+            try:
+                from sncosmo import get_bandpass
+            except ImportError as err:
+                raise ImportError(
+                    "sncosmo package is not installed be default. You can install it with "
+                    "`pip install sncosmo`."
+                ) from err
+            bandpass = get_bandpass(bandpass)
+
         table = np.column_stack([bandpass.wave, bandpass.trans])
         return Passband(
             table,

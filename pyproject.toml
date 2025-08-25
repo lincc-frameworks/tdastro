@@ -29,7 +29,6 @@ dependencies = [
     "pandas",
     "pooch",
     "scipy",
-    "sncosmo",
 ]
 
 [project.urls]
@@ -46,6 +45,7 @@ dev = [
     "pytest-cov", # Used to report total code coverage
     "pzflow",    
     "ruff", # Used for static linting of files
+    "sncosmo",
     "VBMicrolensing",  # used for microlensing tests
 ]
 
@@ -53,6 +53,7 @@ dev = [
 # (include the single quotes)
 all = [
     "pzflow",
+    "sncosmo",
     "VBMicrolensing",  # used for microlensing tests
 ]
 
