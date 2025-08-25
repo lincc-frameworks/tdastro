@@ -126,6 +126,12 @@ class StaticSEDSource(PhysicalModel):
                 "install it. For example, you can install it with `pip install synphot`."
             ) from err
 
+        if sp_model.z > 0.0:
+            raise ValueError(
+                "The synphot model must be defined at the rest frame (z=0.0). "
+                f"Current redshift is {sp_model.z}."
+            )
+
         if waves is None:
             waves = np.array(sp_model.waveset * u.angstrom)
 

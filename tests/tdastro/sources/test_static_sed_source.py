@@ -233,6 +233,7 @@ class DummySynphotModel:
     def __init__(self, waveset, fluxset):
         self.waveset = waveset
         self.fluxset = fluxset
+        self.z = 0.0  # Redshift
 
     def __call__(self, waves, **kwargs):
         """Return the flux for the given wavelengths as interpolated PHOTLAM.
@@ -271,3 +272,8 @@ def test_static_sed_from_synphot() -> None:
     assert fluxes.shape == (len(times), len(wavelengths))
     for i in range(len(times)):
         np.testing.assert_allclose(fluxes[i, :], expected, rtol=1e-5)
+
+    # We fail is the synphot model has a redshift defined.
+    sp_model.z = 0.5
+    with pytest.raises(ValueError):
+        _ = StaticSEDSource.from_synphot(sp_model)
