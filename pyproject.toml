@@ -31,7 +31,6 @@ dependencies = [
     "pzflow",
     "scipy",
     "sncosmo",
-    "VBMicrolensing",
 ]
 
 [project.urls]
