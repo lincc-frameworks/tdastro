@@ -96,8 +96,12 @@ class StaticSEDSource(PhysicalModel):
 
     @classmethod
     @cite_function
-    def from_synphot(cls, sp_model, waves=None):
+    def from_synphot(cls, sp_model, waves=None, **kwargs):
         """Generate the spectrum from a given synphot model.
+
+        References
+        ----------
+        synphot (ascl:1811.001)
 
         Parameters
         ----------
@@ -106,6 +110,8 @@ class StaticSEDSource(PhysicalModel):
         waves : numpy.ndarray, optional
             A length N array of wavelengths (in angstroms) at which to sample the SED.
             If None, the SED will be sampled at the wavelengths defined in the synphot model.
+        **kwargs : dict
+            Additional keyword arguments to pass to the StaticSEDSource constructor.
 
         Returns
         -------
@@ -127,7 +133,7 @@ class StaticSEDSource(PhysicalModel):
         # of PHOTLAM (photons s^-1 cm^-2 A^-1), so we convert to nJy.
         photlam_flux = sp_model(waves, flux_unit=units.PHOTLAM)
         sed_data = np.array(units.convert_flux(waves, photlam_flux, "nJy"))
-        return cls(np.vstack((waves, sed_data)))
+        return cls(np.vstack((waves, sed_data)), **kwargs)
 
     def minwave(self, graph_state=None):
         """Get the minimum wavelength of the model.

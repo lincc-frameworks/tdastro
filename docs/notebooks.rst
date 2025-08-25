@@ -55,9 +55,10 @@ The following notebooks provide example simulations using the TDAstro package.
 .. toctree::
     :maxdepth: 1
 
+    Microlensing Effect Example <notebooks/microlensing>
     PLAsTiCC SNIa <notebooks/pre_executed/plasticc_snia>
     Resampling LCLIB <notebooks/pre_executed/lclib_example>
-    Microlensing Effect Example <notebooks/microlensing>
+    Synphot-based Models <notebooks/synphot_example>
 
 
 Running TDAstro in a Jupyter Notebook
