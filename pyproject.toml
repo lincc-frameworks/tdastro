@@ -28,7 +28,6 @@ dependencies = [
     "numpy>2.0",
     "pandas",
     "pooch",
-    "pzflow",
     "scipy",
 ]
 
@@ -44,6 +43,7 @@ dev = [
     "pre-commit", # Used to run checks before finalizing a git commit
     "pytest",
     "pytest-cov", # Used to report total code coverage
+    "pzflow",    
     "ruff", # Used for static linting of files
     "sncosmo",
     "VBMicrolensing",  # used for microlensing tests
@@ -52,6 +52,7 @@ dev = [
 # Install all the optional astro dependencies with `pip install '.[all]'`
 # (include the single quotes)
 all = [
+    "pzflow",
     "sncosmo",
     "VBMicrolensing",  # used for microlensing tests
 ]
