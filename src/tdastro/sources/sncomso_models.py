@@ -7,7 +7,6 @@ https://sncosmo.readthedocs.io/en/stable/models.html
 import numpy as np
 from astropy import units as u
 from citation_compass import CiteClass
-from sncosmo.models import get_source
 
 from tdastro.astro_utils.unit_utils import flam_to_fnu
 from tdastro.sources.physical_model import PhysicalModel
@@ -64,6 +63,14 @@ class SncosmoWrapperModel(PhysicalModel, CiteClass):
         seed=None,
         **kwargs,
     ):
+        try:
+            from sncosmo.models import get_source
+        except ImportError as err:
+            raise ImportError(
+                "sncosmo package is not installed be default. To use the SncosmoWrapperModel, "
+                "please install sncosmo. For example, you can install it with `pip install sncosmo`."
+            ) from err
+
         # We explicitly ask for and pass along the PhysicalModel parameters such
         # as node_label and wave_extrapolation so they do not go into kwargs
         # and get added to the sncosmo model below.

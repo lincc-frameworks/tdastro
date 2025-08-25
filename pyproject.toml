@@ -30,7 +30,6 @@ dependencies = [
     "pooch",
     "pzflow",
     "scipy",
-    "sncosmo",
 ]
 
 [project.urls]
@@ -46,12 +45,14 @@ dev = [
     "pytest",
     "pytest-cov", # Used to report total code coverage
     "ruff", # Used for static linting of files
+    "sncosmo",
     "VBMicrolensing",  # used for microlensing tests
 ]
 
 # Install all the optional astro dependencies with `pip install '.[all]'`
 # (include the single quotes)
 all = [
+    "sncosmo",
     "VBMicrolensing",  # used for microlensing tests
 ]
 
