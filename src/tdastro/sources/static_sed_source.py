@@ -1,6 +1,8 @@
 """Models that generate a constant SED or bandflux at all times."""
 
 import numpy as np
+from astropy import units as u
+from citation_compass import cite_function
 
 from tdastro.math_nodes.given_sampler import GivenValueSampler
 from tdastro.sources.physical_model import BandfluxModel, PhysicalModel
@@ -91,6 +93,39 @@ class StaticSEDSource(PhysicalModel):
             raise ValueError(f"SED data from {sed_file} must be a two column array.")
 
         return cls(sed_values=sed_data.T, **kwargs)
+
+    @classmethod
+    @cite_function
+    def from_synphot(cls, sp_model, waves=None):
+        """Generate the spectrum from a given synphot model.
+
+        Parameters
+        ----------
+        sp_model : synphot.SourceSpectrum
+            The synphot model to generate the spectrum from.
+        waves : numpy.ndarray, optional
+            A length N array of wavelengths (in angstroms) at which to sample the SED.
+            If None, the SED will be sampled at the wavelengths defined in the synphot model.
+
+        Returns
+        -------
+        StaticSEDSource
+            An instance of StaticSEDSource with the generated SED data.
+        """
+        try:
+            from synphot import units
+        except ImportError as err:
+            raise ImportError(
+                "synphot package is not installed be default. To use the synphot models, please "
+                "install it. For example, you can install it with `pip install synphot`."
+            ) from err
+
+        if waves is None:
+            waves = np.array(sp_model.waveset * u.angstrom)
+
+        # Extract the SED data from the synphot model
+        sed_data = np.array(sp_model(waves, flux_unit=units.FLAM))
+        return cls(np.vstack((waves, sed_data)))
 
     def minwave(self, graph_state=None):
         """Get the minimum wavelength of the model.
