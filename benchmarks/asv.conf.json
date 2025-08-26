@@ -14,8 +14,9 @@
     "branches": [
         "HEAD"
     ],
+    // The install needs to include the optional sncosmo dependency.
     "install_command": [
-        "python -m pip install {wheel_file}"
+        "python -m pip install {wheel_file} sncosmo"
     ],
     "build_command": [
         "python -m build --wheel -o {build_cache_dir} {build_dir}"
