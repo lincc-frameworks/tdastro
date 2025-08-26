@@ -68,7 +68,8 @@ class SncosmoWrapperModel(PhysicalModel, CiteClass):
         except ImportError as err:
             raise ImportError(
                 "sncosmo package is not installed be default. To use the SncosmoWrapperModel, "
-                "please install sncosmo. For example, you can install it with `pip install sncosmo`."
+                "please install sncosmo. For example, you can install it with "
+                "`pip install sncosmo` or `conda install conda-forge::sncosmo`."
             ) from err
 
         # We explicitly ask for and pass along the PhysicalModel parameters such

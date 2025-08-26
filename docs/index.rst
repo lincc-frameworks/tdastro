@@ -51,39 +51,55 @@ Getting Started
 You can install TDAstro from PyPI with pip or from conda-forge with conda. We recommend using a dedicated environment.
 
 .. tab-set::
+   :sync-group: packagemanager
 
-    .. tab-item:: pip
+   .. tab-item:: pip
+      :sync: pip
 
-        .. code-block:: bash
+      .. code-block:: bash
 
-           >> # Create a virtual environment
-           >> python3 -m venv ~/envs/tdastro
-           >> # Activate it
-           >> source ~/envs/tdastro/bin/activate
-           >> # Install from PyPI
-           >> python -m pip install tdastro
+         # Create a virtual environment
+         python3 -m venv ~/envs/tdastro
+         # Activate it
+         source ~/envs/tdastro/bin/activate
+         # Install from PyPI
+         python -m pip install tdastro
 
-    .. tab-item:: conda
+   .. tab-item:: conda
+      :sync: conda
 
-        .. code-block:: bash
+      .. code-block:: bash
 
-          >> # Create a virtual environment
-          >> conda create -p tdastro python=3.12
-          >> # Activate it
-          >> conda activate tdastro
-          >> # Install from conda-forge channel
-          >> conda install conda-forge::tdastro
+         # Create a virtual environment
+         conda create -p tdastro python=3.12
+         # Activate it
+         conda activate tdastro
+         # Install from conda-forge channel
+         conda install conda-forge::tdastro
 
 Since TDAstro relies on a large number of existing packages, not all of the packages
 are installed in the default configuration. For example the microlensing (`VBMicrolensing`),
 pzflow (`pzflow`), and sncosmo (`sncosmo`) packages are not included by default. If you try to
-import a module that is not installed, TDAstro will raise an ImportError with information on which
+import a module that is not installed, TDAstro will raise an `ImportError` with information on which
 packages you need to install. You will need to install these manually. You can also install all
 optional dependencies with:
 
-.. code-block:: bash
+.. tab-set::
+   :sync-group: packagemanager
 
-   >> python -m pip install 'tdastro[all]'
+   .. tab-item:: pip
+      :sync: pip
+
+      .. code-block:: bash
+
+         python -m pip install 'tdastro[all]'
+
+   .. tab-item:: conda
+      :sync: conda
+
+      .. code-block:: bash
+
+         conda install conda-forge::tdastro conda-forge::pzflow conda-forge::sncosmo
 
 See our selection of :doc:`tutorial notebooks <notebooks>` for usage examples.
 We recommend starting with the :doc:`introduction notebook <notebooks/introduction>`

@@ -747,7 +747,7 @@ class Passband:
             except ImportError as err:
                 raise ImportError(
                     "sncosmo package is not installed be default. You can install it with "
-                    "`pip install sncosmo`."
+                    "`pip install sncosmo` or `conda install conda-forge::sncosmo`."
                 ) from err
             bandpass = get_bandpass(bandpass)
 
