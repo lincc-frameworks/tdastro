@@ -1,6 +1,8 @@
 """Models that generate a constant SED or bandflux at all times."""
 
 import numpy as np
+from astropy import units as u
+from citation_compass import cite_function
 
 from tdastro.math_nodes.given_sampler import GivenValueSampler
 from tdastro.sources.physical_model import BandfluxModel, PhysicalModel
@@ -91,6 +93,53 @@ class StaticSEDSource(PhysicalModel):
             raise ValueError(f"SED data from {sed_file} must be a two column array.")
 
         return cls(sed_values=sed_data.T, **kwargs)
+
+    @classmethod
+    @cite_function
+    def from_synphot(cls, sp_model, waves=None, **kwargs):
+        """Generate the spectrum from a given synphot model.
+
+        References
+        ----------
+        synphot (ascl:1811.001)
+
+        Parameters
+        ----------
+        sp_model : synphot.SourceSpectrum
+            The synphot model to generate the spectrum from.
+        waves : numpy.ndarray, optional
+            A length N array of wavelengths (in angstroms) at which to sample the SED.
+            If None, the SED will be sampled at the wavelengths defined in the synphot model.
+        **kwargs : dict
+            Additional keyword arguments to pass to the StaticSEDSource constructor.
+
+        Returns
+        -------
+        StaticSEDSource
+            An instance of StaticSEDSource with the generated SED data.
+        """
+        try:
+            from synphot import units
+        except ImportError as err:
+            raise ImportError(
+                "synphot package is not installed be default. To use the synphot models, please "
+                "install it. For example, you can install it with `pip install synphot`."
+            ) from err
+
+        if sp_model.z > 0.0:
+            raise ValueError(
+                "The synphot model must be defined at the rest frame (z=0.0). "
+                f"Current redshift is {sp_model.z}."
+            )
+
+        if waves is None:
+            waves = np.array(sp_model.waveset * u.angstrom)
+
+        # Extract the SED data from the synphot model. Synphot models return flux in units
+        # of PHOTLAM (photons s^-1 cm^-2 A^-1), so we convert to nJy.
+        photlam_flux = sp_model(waves, flux_unit=units.PHOTLAM)
+        sed_data = np.array(units.convert_flux(waves, photlam_flux, "nJy"))
+        return cls(np.vstack((waves, sed_data)), **kwargs)
 
     def minwave(self, graph_state=None):
         """Get the minimum wavelength of the model.

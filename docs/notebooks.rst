@@ -58,6 +58,7 @@ The following notebooks provide example simulations using the TDAstro package.
     PLAsTiCC SNIa <notebooks/pre_executed/plasticc_snia>
     PZFlow Source Demo <notebooks/pre_executed/using_pzflow>
     Resampling LCLIB <notebooks/pre_executed/lclib_example>
+    Synphot-based Models <notebooks/pre_executed/synphot_example>
 
 
 Running TDAstro in a Jupyter Notebook

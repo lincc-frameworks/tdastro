@@ -46,6 +46,7 @@ dev = [
     "pzflow",    
     "ruff", # Used for static linting of files
     "sncosmo",
+    "synphot", # Used for SED modeling tests
     "VBMicrolensing",  # used for microlensing tests
 ]
 
@@ -54,6 +55,7 @@ dev = [
 all = [
     "pzflow",
     "sncosmo",
+    "synphot",  # used for SED modeling tests
     "VBMicrolensing",  # used for microlensing tests
 ]
 
