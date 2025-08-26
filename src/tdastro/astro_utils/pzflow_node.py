@@ -65,7 +65,8 @@ class PZFlowNode(FunctionNode, CiteClass):
             from pzflow import Flow
         except ImportError as err:
             raise ImportError(
-                "pzflow package is not installed be default. You can install it with `pip install pzflow`."
+                "pzflow package is not installed be default. You can install it with "
+                "`pip install pzflow` or `conda install conda-forge::pzflow`."
             ) from err
 
         flow_to_use = Flow(file=filename)
