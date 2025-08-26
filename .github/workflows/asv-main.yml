@@ -34,7 +34,7 @@ jobs:
       with:
         fetch-depth: 0
     - name: Install dependencies
-      run: pip install "asv[virtualenv]==${{env.ASV_VERSION}}"
+      run: pip install "asv[virtualenv]==${{env.ASV_VERSION}}" sncosmo
     - name: Configure git
       run: |
         git config user.name "github-actions[bot]"
