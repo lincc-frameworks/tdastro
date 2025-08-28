@@ -56,6 +56,9 @@ def test_redback_models_toy() -> None:
         "redshift": 0.0,
     }
     model = RedbackWrapperModel(toy_redback_model, parameters=parameters, node_label="toy")
+    assert np.isinf(model.maxwave())
+    assert model.minwave() == 0.0
+    assert set(model.source_param_names) == {"t_start", "slope", "redshift"}
 
     state = model.sample_parameters()
     assert state["toy"]["t_start"] == 5.0
@@ -100,6 +103,11 @@ def test_redback_models_toy_fail() -> None:
     waves_ang = np.array([1000.0, 2000.0])
     with pytest.raises(TypeError):
         _ = model.evaluate(times, waves_ang, graph_state=state)
+
+    # Fail if we give it the same parameter in two different ways (repeat redshift).
+    parameters["t_start"] = 1.0  # Fix missing paramater
+    with pytest.raises(ValueError):
+        _ = RedbackWrapperModel(toy_redback_model, parameters=parameters, redshift=0.1, node_label="toy")
 
 
 def test_redback_models_toy_chained() -> None:
