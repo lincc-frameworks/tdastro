@@ -156,13 +156,11 @@ class RedbackWrapperModel(PhysicalModel, CiteClass):
             A length T x N matrix of SED values (in nJy).
         """
         params = self.get_local_params(graph_state)
-        print(params)
 
         # Build the function arguments from the parameter values.
         fn_args = {}
         for name in self.source_param_names:
             fn_args[name] = params[name]
-        print(fn_args)
 
         # Compute the shifted times.
         t0 = params.get("t0", 0.0)
