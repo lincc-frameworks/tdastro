@@ -8,6 +8,7 @@ import math
 
 import astropy.units as uu
 from citation_compass import CiteClass
+from scipy.interpolate import interp1d
 
 from tdastro.astro_utils.unit_utils import flam_to_fnu
 from tdastro.sources.physical_model import PhysicalModel
@@ -175,16 +176,18 @@ class RedbackWrapperModel(PhysicalModel, CiteClass):
             t0 = 0.0
         shifted_times = times - t0
 
-        # Redback takes the wavelengths in nanometers.
+        # Redback takes the wavelengths in nanometers and produces spectra in
+        # erg / cm^2 / s / Angstrom.  The spectra is oversampled in time, so we
+        # will need to interpolate it at the times of interest.
         wavelengths_nm = wavelengths / 10.0
-
-        # Compute the results in erg / cm^2 / s / Angstrom
-        model_flam = self.source(
+        rb_result = self.source(
             shifted_times,
             lambda_array=wavelengths_nm,
             output_format="spectra",
             **fn_args,
-        ).spectra.T
+        )
+        spline = interp1d(rb_result.time, rb_result.spectra, axis=0, kind="linear", fill_value="extrapolate")
+        model_flam = spline(shifted_times)
 
         # Convert to fnu in nJy.
         model_fnu = flam_to_fnu(
