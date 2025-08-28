@@ -6,9 +6,10 @@ https://redback.readthedocs.io/en/latest/
 
 import math
 
-import numpy as np
+import astropy.units as uu
 from citation_compass import CiteClass
 
+from tdastro.astro_utils.unit_utils import flam_to_fnu
 from tdastro.sources.physical_model import PhysicalModel
 
 
@@ -48,6 +49,9 @@ class RedbackWrapperModel(PhysicalModel, CiteClass):
         Any additional keyword arguments.
     """
 
+    # A class variable for the units so we are not computing them each time.
+    _FLAM_UNIT = uu.erg / uu.second / uu.cm**2 / uu.AA
+
     def __init__(
         self,
         source,
@@ -55,15 +59,6 @@ class RedbackWrapperModel(PhysicalModel, CiteClass):
         parameters=None,
         **kwargs,
     ):
-        try:
-            import redback
-        except ImportError as err:
-            raise ImportError(
-                "redback package is not installed be default. To use the RedbackWrapperModel, "
-                "please install redback. For example, you can install it with "
-                "`pip install redback` or `conda install conda-forge::redback`."
-            ) from err
-
         # Check that the parameters passed in the dictionary and keyword arguments
         # do not overlap, so we only have one source of truth. This is needed for
         # parameters like `redshift` that overlap core parameters.
@@ -91,11 +86,23 @@ class RedbackWrapperModel(PhysicalModel, CiteClass):
 
         # Create the source itself.
         if isinstance(source, str):
+            try:
+                import redback
+            except ImportError as err:
+                raise ImportError(
+                    "redback package is not installed be default. To use the RedbackWrapperModel, "
+                    "please install redback. For example, you can install it with "
+                    "`pip install redback` or `conda install conda-forge::redback`."
+                ) from err
+
             self.source_name = source
             self.source = redback.model_library.all_models_dict[source]
         else:
             self.source_name = source.__name__
             self.source = source
+
+        # Redback models already handle redshift, so we do not want to double apply it.
+        self.apply_redshift = False
 
     @property
     def param_names(self):
@@ -168,14 +175,23 @@ class RedbackWrapperModel(PhysicalModel, CiteClass):
             t0 = 0.0
         shifted_times = times - t0
 
-        # Compute the results. Redback returns a value per wavelength, so we iterate
-        # over the wavelengths.
-        results = np.zeros((len(times), len(wavelengths)))
-        for i, wave in enumerate(wavelengths):
-            results[:, i] = self.source(
-                shifted_times,
-                frequency=wave,
-                output_format="flux_density",
-                **fn_args,
-            )
-        return results
+        # Redback takes the wavelengths in nanometers.
+        wavelengths_nm = wavelengths / 10.0
+
+        # Compute the results in erg / cm^2 / s / Angstrom
+        model_flam = self.source(
+            shifted_times,
+            lambda_array=wavelengths_nm,
+            output_format="spectra",
+            **fn_args,
+        ).spectra.T
+
+        # Convert to fnu in nJy.
+        model_fnu = flam_to_fnu(
+            model_flam,
+            wavelengths,
+            wave_unit=uu.AA,
+            flam_unit=self._FLAM_UNIT,
+            fnu_unit=uu.nJy,
+        )
+        return model_fnu
