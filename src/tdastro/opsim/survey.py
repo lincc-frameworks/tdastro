@@ -29,12 +29,12 @@ class Survey:
 
     Attributes
     ----------
-    table : pandas.core.frame.DataFrame
-        The table with all the survey information mapped to standard column names.
     survey_values : dict, optional
         A mapping for constant values for the survey used in various computations, such
         as readout noise and dark current.
-    inv_colmap : dict
+    _table : pandas.core.frame.DataFrame
+        The table with all the survey information mapped to standard column names.
+    _inv_colmap : dict
         A dictionary mapping the custom column names back to the standard names.
     _kd_tree : scipy.spatial.KDTree or None
         A kd_tree of the survey pointings for fast spatial queries. We use the scipy
@@ -63,29 +63,29 @@ class Survey:
     ):
         # Create a copy of the table.
         if isinstance(table, dict):
-            self.table = pd.DataFrame(table)
+            self._table = pd.DataFrame(table)
         else:
-            self.table = table.copy()
+            self._table = table.copy()
 
         # Remap the columns to standard names. Start with the existing names (from the table)
         # and overwrite anything provided by the column map. Save the inverse mapping.
-        name_map = {col: col for col in self.table.columns}
-        self.inv_colmap = {}
+        name_map = {col: col for col in self._table.columns}
+        self._inv_colmap = {}
         if colmap is not None:
             for key, value in colmap.items():
                 if value in name_map:
                     # Check for collisions (mapping a column to an existing column)
-                    if key in self.table.columns and key != value:
+                    if key in self._table.columns and key != value:
                         raise ValueError(f"Trying to map {value} to {key}, but {key} is already a column.")
                     name_map[value] = key
 
                 # Save the inverse mapping as well
-                self.inv_colmap[value] = key
-        self.table.rename(columns=name_map, inplace=True)
+                self._inv_colmap[value] = key
+        self._table.rename(columns=name_map, inplace=True)
 
         # Check that we have the required columns.
         for col in self._required_columns:
-            if col not in self.table.columns:
+            if col not in self._table.columns:
                 raise KeyError(f"Missing required column: {col}")
 
         # Save the survey values, overwriting anything that is manually specified
@@ -103,21 +103,21 @@ class Survey:
         self._build_kd_tree()
 
     def __len__(self):
-        return len(self.table)
+        return len(self._table)
 
     def __getitem__(self, key):
         """Access the underlying survey table by column name."""
-        if key in self.table.columns:
-            return self.table[key]
-        if key in self.inv_colmap and self.inv_colmap[key] in self.table.columns:
-            return self.table[self.inv_colmap[key]]
+        if key in self._table.columns:
+            return self._table[key]
+        if key in self._inv_colmap and self._inv_colmap[key] in self._table.columns:
+            return self._table[self._inv_colmap[key]]
         raise KeyError(f"Column not found: {key}")
 
     def __contains__(self, key):
         """Check if a column exists in the survey table."""
-        if key in self.table.columns:
+        if key in self._table.columns:
             return True
-        if key in self.inv_colmap and self.inv_colmap[key] in self.table.columns:
+        if key in self._inv_colmap and self._inv_colmap[key] in self._table.columns:
             return True
         return False
 
@@ -139,7 +139,7 @@ class Survey:
     @property
     def columns(self):
         """Get the column names."""
-        return self.table.columns
+        return self._table.columns
 
     @classmethod
     def from_db(cls, filename, sql_query="SELECT * FROM observations", **kwargs):
@@ -183,14 +183,14 @@ class Survey:
 
     def get_filters(self):
         """Get the unique filters in the Survey table."""
-        if "filter" not in self.table.columns:
+        if "filter" not in self._table.columns:
             raise KeyError("No filters column found in Survey table.")
-        return np.unique(self.table["filter"])
+        return np.unique(self._table["filter"])
 
     def _build_kd_tree(self):
         """Construct the KD-tree from the Survey table."""
-        ra_rad = np.radians(self.table["ra"].to_numpy())
-        dec_rad = np.radians(self.table["dec"].to_numpy())
+        ra_rad = np.radians(self._table["ra"].to_numpy())
+        dec_rad = np.radians(self._table["dec"].to_numpy())
         # Convert the pointings to Cartesian coordinates on a unit sphere.
         x = np.cos(dec_rad) * np.cos(ra_rad)
         y = np.cos(dec_rad) * np.sin(ra_rad)
@@ -221,13 +221,13 @@ class Survey:
             Overwrite the column is it already exists.
             Default: False
         """
-        if colname in self.table.columns and not overwrite:
+        if colname in self._table.columns and not overwrite:
             raise KeyError(f"Column {colname} already exists.")
 
         # If the input is a scalar, turn it into an array of the correct length
         if np.isscalar(values):
-            values = np.full((len(self.table)), values)
-        self.table[colname] = values
+            values = np.full((len(self._table)), values)
+        self._table[colname] = values
 
     def write_db(self, filename, *, tablename="observations", overwrite=False):
         """Write out a survey data database to a given SQL table.
@@ -251,7 +251,7 @@ class Survey:
 
         con = sqlite3.connect(filename)
         try:
-            self.table.to_sql(tablename, con, if_exists=if_exists)
+            self._table.to_sql(tablename, con, if_exists=if_exists)
         except Exception:
             raise ValueError("Database write failed.") from None
 
@@ -265,8 +265,8 @@ class Survey:
         t_min, t_max : float, float
             The min and max times for all observations in the Survey.
         """
-        t_min = self.table["time"].min()
-        t_max = self.table["time"].max()
+        t_min = self._table["time"].min()
+        t_max = self._table["time"].max()
         return t_min, t_max
 
     def filter_rows(self, rows):
@@ -287,19 +287,19 @@ class Survey:
         # Check if we are dealing with a mask of a list of indices.
         rows = np.asarray(rows)
         if rows.dtype == bool:
-            if len(rows) != len(self.table):
+            if len(rows) != len(self._table):
                 raise ValueError(
-                    f"Mask length mismatch. Expected {len(self.table)} rows, but found {len(rows)}."
+                    f"Mask length mismatch. Expected {len(self._table)} rows, but found {len(rows)}."
                 )
             mask = rows
         else:
-            mask = np.full((len(self.table),), False)
+            mask = np.full((len(self._table),), False)
             mask[rows] = True
 
         # Do the actual filtering and generate a new Survey. This automatically creates
         # the cached data, such as the KD-tree. Note that we do not need to pass in all
         # the defaults and keyword arguments, because the table is already fully formed.
-        new_survey_data = Survey(self.table[mask])
+        new_survey_data = Survey(self._table[mask])
         return new_survey_data
 
     def is_observed(self, query_ra, query_dec, radius=None, t_min=None, t_max=None):
@@ -392,7 +392,7 @@ class Survey:
 
         if t_min is not None or t_max is not None:
             num_queries = len(query_ra)
-            times = self.table["time"].to_numpy()
+            times = self._table["time"].to_numpy()
 
             if t_min is None:
                 t_min = np.full(num_queries, -np.inf)
@@ -453,12 +453,12 @@ class Survey:
 
         results = {}
         if cols is None:
-            cols = self.table.columns.to_list()
+            cols = self._table.columns.to_list()
         for col in cols:
             # Allow the user to specify either the original or mapped column names.
-            if col not in self.table.columns:
+            if col not in self._table.columns:
                 raise KeyError(f"Unrecognized column name {col}")
-            results[col] = self.table[col][neighbors].to_numpy()
+            results[col] = self._table[col][neighbors].to_numpy()
         return results
 
     def bandflux_error_point_source(self, bandflux, index):

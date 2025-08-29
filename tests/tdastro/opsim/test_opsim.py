@@ -427,7 +427,7 @@ def test_opsim_flux_err_point_source(opsim_shorten):
     """Check if OpSim.flux_err_point_source is consistent with fiveSigmaDepth."""
     ops_data = OpSim.from_db(opsim_shorten)
     # fiveSigmaDepth is the 5-sigma limiting magnitude.
-    flux = mag2flux(ops_data.table["fiveSigmaDepth"])
+    flux = mag2flux(ops_data["fiveSigmaDepth"])
     expected_flux_err = flux / 5.0
 
     flux_err = ops_data.bandflux_error_point_source(flux, index=np.arange(len(ops_data)))
@@ -460,7 +460,7 @@ def test_oversample_opsim(opsim_shorten):
             bands=bands,
             strategy=strategy,
         )
-        assert set(opsim.table.columns) == set(oversampled.table.columns), "columns are not the same"
+        assert set(opsim.columns) == set(oversampled.columns), "columns are not the same"
         np.testing.assert_allclose(np.diff(oversampled["time"]), delta_t, err_msg="delta_t is not correct")
         np.testing.assert_allclose(oversampled["ra"], ra, err_msg="RA is not correct")
         np.testing.assert_allclose(oversampled["dec"], dec, err_msg="Dec is not correct")

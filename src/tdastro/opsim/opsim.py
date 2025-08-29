@@ -99,7 +99,7 @@ class OpSim(Survey):
 
     def _assign_zero_points(self):
         """Assign instrumental zero points in nJy to the OpSim tables."""
-        cols = self.table.columns.to_list()
+        cols = self._table.columns.to_list()
         if not ("filter" in cols and "airmass" in cols and "exptime" in cols):
             raise ValueError(
                 "OpSim does not include the columns needed to derive zero point "
@@ -117,9 +117,9 @@ class OpSim(Survey):
         zp_values = flux_electron_zeropoint(
             ext_coeff=ext_coeff,
             instr_zp_mag=zp_per_sec,
-            band=self.table["filter"],
-            airmass=self.table["airmass"],
-            exptime=self.table["exptime"],
+            band=self._table["filter"],
+            airmass=self._table["airmass"],
+            exptime=self._table["exptime"],
         )
         self.add_column("zp", zp_values, overwrite=True)
 
@@ -167,7 +167,7 @@ class OpSim(Survey):
         flux_err : array_like of float
             Simulated bandflux noise in nJy.
         """
-        observations = self.table.iloc[index]
+        observations = self._table.iloc[index]
 
         # By the effective FWHM definition, see
         # https://smtn-002.lsst.io/v/OPSIM-1171/index.html
@@ -301,7 +301,7 @@ def oversample_opsim(
 
     """
     ra, dec = pointing
-    observations = opsim.table.iloc[opsim.range_search(ra, dec, search_radius)]
+    observations = opsim._table.iloc[opsim.range_search(ra, dec, search_radius)]
     if len(observations) == 0:
         raise ValueError("No observations found for the given pointing.")
 
@@ -327,7 +327,7 @@ def oversample_opsim(
     new_table = pd.DataFrame(
         {
             # Just in case, to not have confusion with the original table
-            "observationId": opsim.table["observationId"].max() + 1 + np.arange(n),
+            "observationId": opsim._table["observationId"].max() + 1 + np.arange(n),
             "time": new_times,
             "ra": ra,
             "dec": dec,

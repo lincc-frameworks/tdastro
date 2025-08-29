@@ -57,7 +57,7 @@ def test_calculate_ztf_zero_points():
 
 def test_ztf_opsim_init():
     """Test initializing ZTFOpsim."""
-    opsim_table = create_random_ztf_opsim(100).table
+    opsim_table = create_random_ztf_opsim(100)._table
     opsim = ZTFOpsim(table=opsim_table)
 
     assert "zp" in opsim
@@ -73,7 +73,7 @@ def test_ztf_opsim_init():
 
 def test_create_ztf_opsim_override():
     """Test that we can override the default survey values."""
-    opsim_table = create_random_ztf_opsim(100).table
+    opsim_table = create_random_ztf_opsim(100)._table
 
     opsim = ZTFOpsim(
         table=opsim_table,

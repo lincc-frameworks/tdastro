@@ -163,7 +163,7 @@ class ZTFOpsim(Survey):
 
     def _assign_zero_points(self):
         """Assign instrumental zero points in ADU to the OpSim tables."""
-        cols = self.table.columns.tolist()
+        cols = self._table.columns.tolist()
         if not ("maglim" in cols and "sky" in cols and "fwhm" in cols and "exptime" in cols):
             raise ValueError(
                 "OpSim does not include the columns needed to derive zero point "
@@ -171,14 +171,14 @@ class ZTFOpsim(Survey):
             )
 
         # replace invalid values in table
-        self.table = self.table.replace("", np.nan)
-        self.table = self.table.dropna(subset=["fwhm"])
+        self._table = self._table.replace("", np.nan)
+        self._table = self._table.dropna(subset=["fwhm"])
 
         zp_values = calculate_ztf_zero_points(
-            maglim=self.table["maglim"],
-            sky=self.table["sky"],
-            fwhm=self.table["fwhm"],
-            exptime=self.table["exptime"],
+            maglim=self._table["maglim"],
+            sky=self._table["sky"],
+            fwhm=self._table["fwhm"],
+            exptime=self._table["exptime"],
         )
         zp_nJy = mag2flux(zp_values)
         self.add_column("zp", zp_nJy, overwrite=True)
@@ -241,7 +241,7 @@ class ZTFOpsim(Survey):
         flux_err : array_like of float
             Simulated bandflux noise in nJy.
         """
-        observations = self.table.iloc[index]
+        observations = self._table.iloc[index]
 
         # By the effective FWHM definition, see
         # https://smtn-002.lsst.io/v/OPSIM-1171/index.html
