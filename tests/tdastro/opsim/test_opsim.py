@@ -32,26 +32,31 @@ def test_create_opsim():
     assert len(ops_data.columns) == 4
 
     # We have all the attributes set at their default values.
-    assert ops_data.dark_current == 0.2
-    assert ops_data.ext_coeff == _lsstcam_extinction_coeff
-    assert ops_data.pixel_scale == 0.2
-    assert ops_data.radius == 1.75
-    assert ops_data.read_noise == 8.8
-    assert ops_data.zp_per_sec == _lsstcam_zeropoint_per_sec_zenith
+    assert ops_data.survey_values["dark_current"] == 0.2
+    assert ops_data.survey_values["ext_coeff"] == _lsstcam_extinction_coeff
+    assert ops_data.survey_values["pixel_scale"] == 0.2
+    assert ops_data.survey_values["radius"] == 1.75
+    assert ops_data.survey_values["read_noise"] == 8.8
+    assert ops_data.survey_values["zp_per_sec"] == _lsstcam_zeropoint_per_sec_zenith
 
     # Check that we can extract the time bounds.
     t_min, t_max = ops_data.time_bounds()
     assert t_min == 0.0
     assert t_max == 4.0
 
-    # We can query which columns the OpSim has.
-    assert ops_data.has_columns("fieldRA")
-    assert ops_data.has_columns("dec")
-    assert not ops_data.has_columns("is_good_obs")
-    assert ops_data.has_columns(["ra", "dec", "time"])
-    assert not ops_data.has_columns(["ra", "dec", "vacation_time"])
+    # We can query which columns the OpSim has by new or old name.
+    assert "ra" in ops_data
+    assert "dec" in ops_data
+    assert "time" in ops_data
+    assert "fieldRA" in ops_data
+    assert "fieldDec" in ops_data
+    assert "observationStartMJD" in ops_data
+    assert "something_random" not in ops_data
 
     # We can access columns directly as though it was a table.
+    assert np.allclose(ops_data["ra"], values["fieldRA"])
+    assert np.allclose(ops_data["dec"], values["fieldDec"])
+    assert np.allclose(ops_data["time"], values["observationStartMJD"])
     assert np.allclose(ops_data["fieldRA"], values["fieldRA"])
     assert np.allclose(ops_data["fieldDec"], values["fieldDec"])
     assert np.allclose(ops_data["observationStartMJD"], values["observationStartMJD"])
@@ -64,9 +69,9 @@ def test_create_opsim():
     ops_data2 = OpSim(pdf)
     assert len(ops_data2) == 5
     assert len(ops_data.columns) == 4
-    assert np.allclose(ops_data2["fieldRA"], values["fieldRA"])
-    assert np.allclose(ops_data2["fieldDec"], values["fieldDec"])
-    assert np.allclose(ops_data2["observationStartMJD"], values["observationStartMJD"])
+    assert np.allclose(ops_data2["ra"], values["fieldRA"])
+    assert np.allclose(ops_data2["dec"], values["fieldDec"])
+    assert np.allclose(ops_data2["time"], values["observationStartMJD"])
 
     # We raise an error if we are missing a required row.
     del values["fieldDec"]
@@ -94,12 +99,19 @@ def test_create_opsim_override():
     )
 
     # We have loaded the non-default values.
-    assert ops_data.dark_current == 0.1
-    assert ops_data.ext_coeff == {"u": 0.1, "g": 0.2, "r": 0.3, "i": 0.4, "z": 0.5, "y": 0.6}
-    assert ops_data.pixel_scale == 0.1
-    assert ops_data.radius == 1.0
-    assert ops_data.read_noise == 5.0
-    assert ops_data.zp_per_sec == {"u": 25.0, "g": 26.0, "r": 27.0, "i": 28.0, "z": 29.0, "y": 30.0}
+    assert ops_data.survey_values["dark_current"] == 0.1
+    assert ops_data.survey_values["ext_coeff"] == {"u": 0.1, "g": 0.2, "r": 0.3, "i": 0.4, "z": 0.5, "y": 0.6}
+    assert ops_data.survey_values["pixel_scale"] == 0.1
+    assert ops_data.survey_values["radius"] == 1.0
+    assert ops_data.survey_values["read_noise"] == 5.0
+    assert ops_data.survey_values["zp_per_sec"] == {
+        "u": 25.0,
+        "g": 26.0,
+        "r": 27.0,
+        "i": 28.0,
+        "z": 29.0,
+        "y": 30.0,
+    }
 
     # We can access the filters.
     filters = ops_data.get_filters()
@@ -123,7 +135,9 @@ def test_create_opsim_no_zp():
     values["visitExposureTime"] = 0.1 * np.ones(5)
     opsim = OpSim(values)
 
-    assert opsim.has_columns("zp_nJy")
+    assert "zp" in opsim
+    assert "zp_nJy" in opsim
+    assert np.all(opsim["zp"] >= 0.0)
     assert np.all(opsim["zp_nJy"] >= 0.0)
 
 
@@ -141,8 +155,8 @@ def test_create_opsim_custom_names():
         _ = OpSim(values)
 
     # Load succeeds if we pass in a customer dictionary.
-    colmap = {"ra": "custom_ra", "dec": "custom_dec", "time": "custom_time"}
-    ops_data = OpSim(values, colmap)
+    colmap = {"ra": "custom_ra", "dec": "custom_dec", "time": "custom_time", "zp": "zp_nJy"}
+    ops_data = OpSim(values, colmap=colmap)
     assert len(ops_data) == 5
 
 
@@ -269,20 +283,20 @@ def test_write_read_opsim():
             _ = OpSim.from_db(file_path)
 
         # We can write the opsim db.
-        ops_data.write_opsim_table(file_path)
+        ops_data.write_db(file_path)
         assert file_path.is_file()
 
         # We can reread the opsim db.
         ops_data2 = OpSim.from_db(file_path)
         assert len(ops_data2) == 5
-        assert np.allclose(values["observationStartMJD"], ops_data2["observationStartMJD"].to_numpy())
-        assert np.allclose(values["fieldRA"], ops_data2["fieldRA"].to_numpy())
-        assert np.allclose(values["fieldDec"], ops_data2["fieldDec"].to_numpy())
+        assert np.allclose(values["observationStartMJD"], ops_data2["time"].to_numpy())
+        assert np.allclose(values["fieldRA"], ops_data2["ra"].to_numpy())
+        assert np.allclose(values["fieldDec"], ops_data2["dec"].to_numpy())
 
         # We cannot overwrite unless we set overwrite=True
         with pytest.raises(ValueError):
-            ops_data.write_opsim_table(file_path, overwrite=False)
-        ops_data.write_opsim_table(file_path, overwrite=True)
+            ops_data.write_db(file_path, overwrite=False)
+        ops_data.write_db(file_path, overwrite=True)
 
 
 def test_opsim_range_search():
@@ -368,24 +382,24 @@ def test_opsim_get_observations():
     # Test basic queries (all columns).
     obs = ops_data.get_observations(15.0, 10.0, 0.5)
     assert len(obs) == 4
-    assert np.allclose(obs["observationStartMJD"], [1.0, 2.0, 3.0])
+    assert np.allclose(obs["time"], [1.0, 2.0, 3.0])
 
     obs = ops_data.get_observations(25.0, 10.0, 0.5)
-    assert np.allclose(obs["observationStartMJD"], [4.0, 5.0])
+    assert np.allclose(obs["time"], [4.0, 5.0])
 
     obs = ops_data.get_observations(15.0, 10.0, 100.0)
-    assert np.allclose(obs["observationStartMJD"], [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0])
+    assert np.allclose(obs["time"], [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0])
 
     obs = ops_data.get_observations(15.0, 10.0, 1e-6)
-    assert np.allclose(obs["observationStartMJD"], [1.0])
+    assert np.allclose(obs["time"], [1.0])
 
     obs = ops_data.get_observations(15.02, 10.0, 1e-6)
-    assert len(obs["observationStartMJD"]) == 0
+    assert len(obs["time"]) == 0
 
     # Test we can get a subset of columns.
-    obs = ops_data.get_observations(15.0, 10.0, 0.5, cols=["observationStartMJD", "zp_nJy"])
+    obs = ops_data.get_observations(15.0, 10.0, 0.5, cols=["time", "zp"])
     assert len(obs) == 2
-    assert np.allclose(obs["observationStartMJD"], [1.0, 2.0, 3.0])
+    assert np.allclose(obs["time"], [1.0, 2.0, 3.0])
 
     # Test we can use the colmap names.
     obs = ops_data.get_observations(15.0, 10.0, 0.5, cols=["time", "ra"])
@@ -447,19 +461,17 @@ def test_oversample_opsim(opsim_shorten):
             strategy=strategy,
         )
         assert set(opsim.table.columns) == set(oversampled.table.columns), "columns are not the same"
-        np.testing.assert_allclose(
-            np.diff(oversampled["observationStartMJD"]), delta_t, err_msg="delta_t is not correct"
-        )
-        np.testing.assert_allclose(oversampled["fieldRA"], ra, err_msg="RA is not correct")
-        np.testing.assert_allclose(oversampled["fieldDec"], dec, err_msg="Dec is not correct")
-        assert np.all(oversampled["observationStartMJD"] >= time_range[0]), "time range is not correct"
-        assert np.all(oversampled["observationStartMJD"] <= time_range[1]), "time range is not correct"
+        np.testing.assert_allclose(np.diff(oversampled["time"]), delta_t, err_msg="delta_t is not correct")
+        np.testing.assert_allclose(oversampled["ra"], ra, err_msg="RA is not correct")
+        np.testing.assert_allclose(oversampled["dec"], dec, err_msg="Dec is not correct")
+        assert np.all(oversampled["time"] >= time_range[0]), "time range is not correct"
+        assert np.all(oversampled["time"] <= time_range[1]), "time range is not correct"
         assert set(oversampled["filter"]) == set(bands), "oversampled table has the wrong bands"
 
-        n_skybright = oversampled["skyBrightness"].unique().size
+        n_skybright = oversampled["skybrightness"].unique().size
         n_filters = oversampled["filter"].unique().size
-        assert n_skybright >= n_filters, "there should be at least as many skyBrightness values as bands"
-        assert oversampled["skyBrightness"].isna().sum() == 0, "skyBrightness has NaN values"
+        assert n_skybright >= n_filters, "there should be at least as many skybrightness values as bands"
+        assert oversampled["skybrightness"].isna().sum() == 0, "skybrightness has NaN values"
 
     # Oversampling fails if there are no observations in the time range.
     with pytest.raises(ValueError):
@@ -488,10 +500,10 @@ def test_fixture_oversampled_observations(oversampled_observations):
     """Test the fixture oversampled_observations."""
     assert len(oversampled_observations) == 7_300
     assert set(oversampled_observations["filter"]) == {"g", "r"}
-    assert oversampled_observations["skyBrightness"].isna().sum() == 0
-    assert oversampled_observations["skyBrightness"].unique().size >= 2
-    assert np.all(oversampled_observations["observationStartMJD"] >= 61406.0)
-    assert np.all(oversampled_observations["observationStartMJD"] <= 61771.0)
-    np.testing.assert_allclose(oversampled_observations["fieldRA"], 0.0)
-    np.testing.assert_allclose(oversampled_observations["fieldDec"], 0.0)
-    np.testing.assert_allclose(np.diff(oversampled_observations["observationStartMJD"]), 0.05)
+    assert oversampled_observations["skybrightness"].isna().sum() == 0
+    assert oversampled_observations["skybrightness"].unique().size >= 2
+    assert np.all(oversampled_observations["time"] >= 61406.0)
+    assert np.all(oversampled_observations["time"] <= 61771.0)
+    np.testing.assert_allclose(oversampled_observations["ra"], 0.0)
+    np.testing.assert_allclose(oversampled_observations["dec"], 0.0)
+    np.testing.assert_allclose(np.diff(oversampled_observations["time"]), 0.05)

@@ -34,6 +34,8 @@ class Survey:
     survey_values : dict, optional
         A mapping for constant values for the survey used in various computations, such
         as readout noise and dark current.
+    inv_colmap : dict
+        A dictionary mapping the custom column names back to the standard names.
     _kd_tree : scipy.spatial.KDTree or None
         A kd_tree of the survey pointings for fast spatial queries. We use the scipy
         kd-tree instead of astropy's functions so we can directly control caching.
@@ -66,8 +68,9 @@ class Survey:
             self.table = table.copy()
 
         # Remap the columns to standard names. Start with the existing names (from the table)
-        # and overwrite anything provided by the column map.
+        # and overwrite anything provided by the column map. Save the inverse mapping.
         name_map = {col: col for col in self.table.columns}
+        self.inv_colmap = {}
         if colmap is not None:
             for key, value in colmap.items():
                 if value in name_map:
@@ -75,6 +78,9 @@ class Survey:
                     if key in self.table.columns and key != value:
                         raise ValueError(f"Trying to map {value} to {key}, but {key} is already a column.")
                     name_map[value] = key
+
+                # Save the inverse mapping as well
+                self.inv_colmap[value] = key
         self.table.rename(columns=name_map, inplace=True)
 
         # Check that we have the required columns.
@@ -82,15 +88,15 @@ class Survey:
             if col not in self.table.columns:
                 raise KeyError(f"Missing required column: {col}")
 
-        # If we are not given zero point data, try to derive it from the other columns.
-        if "zp" not in self.table.columns:
-            self._assign_zero_points()
-
         # Save the survey values, overwriting anything that is manually specified
         # as a keyword argument.
         self.survey_values = self._default_survey_values.copy()
         for key, value in kwargs.items():
             self.survey_values[key] = value
+
+        # If we are not given zero point data, try to derive it from the other columns.
+        if "zp" not in self:
+            self._assign_zero_points()
 
         # Build the kd-tree.
         self._kd_tree = None
@@ -101,7 +107,34 @@ class Survey:
 
     def __getitem__(self, key):
         """Access the underlying survey table by column name."""
-        return self.table[key]
+        if key in self.table.columns:
+            return self.table[key]
+        if key in self.inv_colmap and self.inv_colmap[key] in self.table.columns:
+            return self.table[self.inv_colmap[key]]
+        raise KeyError(f"Column not found: {key}")
+
+    def __contains__(self, key):
+        """Check if a column exists in the survey table."""
+        if key in self.table.columns:
+            return True
+        if key in self.inv_colmap and self.inv_colmap[key] in self.table.columns:
+            return True
+        return False
+
+    def safe_get_survey_value(self, key):
+        """Get a survey value by key, checking that it is not None.
+
+        Parameters
+        ----------
+        key : str
+            The key of the survey value to retrieve.
+        """
+        value = self.survey_values.get(key, None)
+        if value is None:
+            raise ValueError(
+                f"Survey value for {key} is not defined. This should be set when creating the object."
+            )
+        return value
 
     @property
     def columns(self):
@@ -146,7 +179,7 @@ class Survey:
         # Close the connection.
         con.close()
 
-        return Survey(survey_data, **kwargs)
+        return cls(survey_data, **kwargs)
 
     def get_filters(self):
         """Get the unique filters in the Survey table."""

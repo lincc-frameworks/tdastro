@@ -60,14 +60,15 @@ def test_ztf_opsim_init():
     opsim_table = create_random_ztf_opsim(100).table
     opsim = ZTFOpsim(table=opsim_table)
 
-    assert opsim.has_columns(["zp_nJy", "obsmjd"])
+    assert "zp" in opsim
+    assert "time" in opsim
 
     # We have all the attributes set at their default values.
-    assert opsim.dark_current == 0.0
-    assert opsim.gain == 6.2
-    assert opsim.pixel_scale == 1.01
-    assert opsim.radius == 2.735
-    assert opsim.read_noise == 8
+    assert opsim.survey_values["dark_current"] == 0.0
+    assert opsim.survey_values["gain"] == 6.2
+    assert opsim.survey_values["pixel_scale"] == 1.01
+    assert opsim.survey_values["radius"] == 2.735
+    assert opsim.survey_values["read_noise"] == 8
 
 
 def test_create_ztf_opsim_override():
@@ -84,11 +85,11 @@ def test_create_ztf_opsim_override():
     )
 
     # We have all the attributes set at their default values.
-    assert opsim.dark_current == 0.1
-    assert opsim.gain == 7.1
-    assert opsim.pixel_scale == 0.1
-    assert opsim.radius == 1.0
-    assert opsim.read_noise == 5.0
+    assert opsim.survey_values["dark_current"] == 0.1
+    assert opsim.survey_values["gain"] == 7.1
+    assert opsim.survey_values["pixel_scale"] == 0.1
+    assert opsim.survey_values["radius"] == 1.0
+    assert opsim.survey_values["read_noise"] == 5.0
 
 
 def test_create_ztf_opsim_no_zp():
@@ -117,8 +118,8 @@ def test_create_ztf_opsim_no_zp():
     values["fwhm"] = 2.3 * np.ones(5)
     opsim = ZTFOpsim(values)
 
-    assert opsim.has_columns("zp_nJy")
-    assert np.all(opsim["zp_nJy"] >= 0.0)
+    assert "zp" in opsim
+    assert np.all(opsim["zp"] >= 0.0)
 
 
 def test_noise_calculation():
