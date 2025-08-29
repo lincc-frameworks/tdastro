@@ -214,7 +214,7 @@ class PhysicalModel(ParameterizedNode):
         """
         return np.full(len(times), True)
 
-    def compute_flux(self, times, wavelengths, graph_state, **kwargs):
+    def compute_sed(self, times, wavelengths, graph_state, **kwargs):
         """Draw effect-free rest frame flux densities.
         The rest-frame flux is defined as F_nu = L_nu / 4*pi*D_L**2,
         where D_L is the luminosity distance.
@@ -237,7 +237,7 @@ class PhysicalModel(ParameterizedNode):
         """
         raise NotImplementedError()
 
-    def compute_flux_with_extrapolation(self, times, wavelengths, graph_state, **kwargs):
+    def compute_sed_with_extrapolation(self, times, wavelengths, graph_state, **kwargs):
         """Draw effect-free observations for this object, extrapolating
         to wavelengths where the model is not defined.
 
@@ -269,7 +269,7 @@ class PhysicalModel(ParameterizedNode):
 
         # If no extrapolation is needed, just call compute the flux.
         if min_query_wave >= min_valid_wave and max_query_wave <= max_valid_wave:
-            return self.compute_flux(times, wavelengths, graph_state, **kwargs)
+            return self.compute_sed(times, wavelengths, graph_state, **kwargs)
 
         # Truncate the wavelengths on which we evaluate the model.
         before_mask = wavelengths < min_valid_wave
@@ -278,7 +278,7 @@ class PhysicalModel(ParameterizedNode):
 
         # Pad the wavelengths with the min and max values and compute the flux at those points.
         query_waves = np.concatenate(([min_valid_wave], wavelengths[in_range], [max_valid_wave]))
-        computed_flux = self.compute_flux(times, query_waves, graph_state)
+        computed_flux = self.compute_sed(times, query_waves, graph_state)
 
         # Initially zero pad the full array until we fill in the values with extrapolation.
         # We drop the first and last flux values since they were added to get the flux at the
@@ -343,7 +343,7 @@ class PhysicalModel(ParameterizedNode):
             rest_wavelengths = wavelengths
 
         # Compute the flux density for the object and apply any rest frame effects.
-        flux_density = self.compute_flux_with_extrapolation(rest_times, rest_wavelengths, state, **kwargs)
+        flux_density = self.compute_sed_with_extrapolation(rest_times, rest_wavelengths, state, **kwargs)
         for effect in self.rest_frame_effects:
             flux_density = effect.apply(
                 flux_density,
@@ -369,7 +369,7 @@ class PhysicalModel(ParameterizedNode):
             )
         return flux_density
 
-    def evaluate(self, times, wavelengths, graph_state=None, given_args=None, rng_info=None, **kwargs):
+    def evaluate_sed(self, times, wavelengths, graph_state=None, given_args=None, rng_info=None, **kwargs):
         """Draw observations for this object and apply the noise.
 
         Parameters
@@ -469,7 +469,9 @@ class PhysicalModel(ParameterizedNode):
 
         return graph_state
 
-    def _get_band_fluxes_single(self, passband_group, times, filters, state, rng_info=None) -> np.ndarray:
+    def _evaluate_band_fluxes_single(
+        self, passband_group, times, filters, state, rng_info=None
+    ) -> np.ndarray:
         """Get the band fluxes for a given PassbandGroup and a single, given graph state.
 
         Parameters
@@ -500,11 +502,11 @@ class PhysicalModel(ParameterizedNode):
             # Compute the spectral fluxes at the same wavelengths used to define the passband.
             # The evaluate function applies all effects (rest and observation frame) for the source
             # as well as handling all the redshift conversions.
-            spectral_fluxes = self.evaluate(times[filter_mask], passband.waves, state, rng_info=rng_info)
+            spectral_fluxes = self.evaluate_sed(times[filter_mask], passband.waves, state, rng_info=rng_info)
             band_fluxes[filter_mask] = passband.fluxes_to_bandflux(spectral_fluxes)
         return band_fluxes
 
-    def get_band_fluxes(self, passband_or_group, times, filters, state, rng_info=None) -> np.ndarray:
+    def evaluate_band_fluxes(self, passband_or_group, times, filters, state, rng_info=None) -> np.ndarray:
         """Get the band fluxes for a given Passband or PassbandGroup.
 
         Parameters
@@ -551,12 +553,12 @@ class PhysicalModel(ParameterizedNode):
 
         # If we only have a single sample, we can return the band fluxes directly.
         if state.num_samples == 1:
-            return self._get_band_fluxes_single(passband_group, times, filters, state, rng_info=rng_info)
+            return self._evaluate_band_fluxes_single(passband_group, times, filters, state, rng_info=rng_info)
 
         # Fill in the band fluxes one at a time and return them all.
         band_fluxes = np.empty((state.num_samples, len(times)))
         for sample_num, current_state in enumerate(state):
-            current_fluxes = self._get_band_fluxes_single(
+            current_fluxes = self._evaluate_band_fluxes_single(
                 passband_group,
                 times,
                 filters,
@@ -571,7 +573,7 @@ class BandfluxModel(PhysicalModel, ABC):
     """A model of a source of flux that is only defined by band pass values
     in the observer frame (instead of a full SED).
 
-    Instead of calling `compute_flux()` the model calls `compute_bandflux()` during
+    Instead of calling `compute_sed()` the model calls `compute_bandflux()` during
     its computation.
 
     Note
@@ -646,7 +648,9 @@ class BandfluxModel(PhysicalModel, ABC):
         """
         raise NotImplementedError
 
-    def _get_band_fluxes_single(self, passband_group, times, filters, state, rng_info=None) -> np.ndarray:
+    def _evaluate_band_fluxes_single(
+        self, passband_group, times, filters, state, rng_info=None
+    ) -> np.ndarray:
         """Get the band fluxes for a given PassbandGroup and a single, given graph state.
 
         Parameters

@@ -513,7 +513,7 @@ def test_passband_fluxes_to_bandflux_mult_samples(passbands_dir, tmp_path):
 
 
 def test_passband_wrapped_from_physical_source(passbands_dir, tmp_path):
-    """Test get_band_fluxes, PhysicalModel's wrapped version of Passband's fluxes_to_bandflux.."""
+    """Test evaluate_band_fluxes, PhysicalModel's wrapped version of Passband's fluxes_to_bandflux.."""
     # Set up physical model
     times = np.array([1.0, 2.0, 3.0])
     wavelengths = np.array([10.0, 20.0, 30.0])
@@ -526,18 +526,18 @@ def test_passband_wrapped_from_physical_source(passbands_dir, tmp_path):
     # Test with a single toy passband (see PassbandGroup tests for group tests)
     transmission_table = "100 0.5\n200 0.75\n300 0.25\n"
     a_band = create_toy_passband(tmp_path, transmission_table, delta_wave=100, trim_quantile=None)
-    result_from_source_model = model.get_band_fluxes(a_band, test_times, filters=None, state=state)
+    result_from_source_model = model.evaluate_band_fluxes(a_band, test_times, filters=None, state=state)
 
-    evaluated_fluxes = model.evaluate(test_times, a_band.waves, state)
+    evaluated_fluxes = model.evaluate_sed(test_times, a_band.waves, state)
     result_from_passband = a_band.fluxes_to_bandflux(evaluated_fluxes)
     np.testing.assert_allclose(result_from_source_model, result_from_passband)
 
     # Test with a standard LSST passband
     LSST_g = create_lsst_passband(passbands_dir, "g")
-    result_from_source_model = model.get_band_fluxes(
+    result_from_source_model = model.evaluate_band_fluxes(
         LSST_g, test_times, filters=np.repeat("g", len(test_times)), state=state
     )
 
-    evaluated_fluxes = model.evaluate(test_times, LSST_g.waves, state)
+    evaluated_fluxes = model.evaluate_sed(test_times, LSST_g.waves, state)
     result_from_passband = LSST_g.fluxes_to_bandflux(evaluated_fluxes)
     np.testing.assert_allclose(result_from_source_model, result_from_passband)

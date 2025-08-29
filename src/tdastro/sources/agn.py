@@ -204,7 +204,7 @@ class AGN(PhysicalModel):
 
     @staticmethod
     @cite_function
-    def compute_flux_standard_disk(Mdot, nu, rin, i, d, M):
+    def compute_sed_standard_disk(Mdot, nu, rin, i, d, M):
         """Compute the flux based on a standard disk model.
 
         References
@@ -407,7 +407,7 @@ class AGN(PhysicalModel):
         G = constants.G.cgs.value
         return 2 ** (3 / 4) * (3 / 7) ** (7 / 4) * (G * M * Mdot / (np.pi * sigma_sb * r_in**3)) ** (1 / 4)
 
-    def compute_flux(self, times, wavelengths, graph_state, **kwargs):
+    def compute_sed(self, times, wavelengths, graph_state, **kwargs):
         """Draw effect-free observations for this object.
 
         Parameters
@@ -436,7 +436,7 @@ class AGN(PhysicalModel):
 
         # Compute the average flux of a standard disk model. Use a factor of 2 (two sides
         # of the disk) to get the total flux.
-        fnu_average = 2.0 * self.compute_flux_standard_disk(
+        fnu_average = 2.0 * self.compute_sed_standard_disk(
             params["blackhole_accretion_rate"],
             constants.c.cgs.value / wavelengths,  # nu
             1,  # rin

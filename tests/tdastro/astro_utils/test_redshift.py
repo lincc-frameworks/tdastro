@@ -14,7 +14,7 @@ def test_redshifted_flux_densities() -> None:
 
     for redshift in [0.0, 0.5, 2.0, 3.0, 30.0]:
         model_redshift = StepSource(brightness=brightness, t0=t0, t1=t1, redshift=redshift)
-        values_redshift = model_redshift.evaluate(times, wavelengths)
+        values_redshift = model_redshift.evaluate_sed(times, wavelengths)
 
         for i, time in enumerate(times):
             if t0 <= time and time <= (t1 - t0) * (1 + redshift) + t0:

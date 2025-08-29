@@ -271,7 +271,7 @@ class LightcurveData:
 
         return cls(lightcurves, lc_t0=lc_t0, periodic=periodic, baseline=baseline)
 
-    def evaluate(self, times, filter):
+    def evaluate_sed(self, times, filter):
         """Get the bandflux values for a given filter at the specified times. These can
         be multiplied by a basis SED function to produce estimated SED values
         for the given filter at the specified times or can be used directly as bandfluxes.
@@ -466,7 +466,7 @@ class BaseLightcurveSource(BandfluxModel, ABC):
 
         return sed_basis_values
 
-    def compute_flux_given_lc(self, lc, times, wavelengths, graph_state):
+    def compute_sed_given_lc(self, lc, times, wavelengths, graph_state):
         """Compute the flux density for a given lightcurve at specified times and wavelengths.
 
         Parameters
@@ -504,7 +504,7 @@ class BaseLightcurveSource(BandfluxModel, ABC):
 
             # Compute the multipliers for the SEDs at different time steps along this lightcurve.
             # We use the lightcurve's baseline value for all times outside the lightcurve's range.
-            sed_time_mult = lc.evaluate(shifted_times, filter)
+            sed_time_mult = lc.evaluate_sed(shifted_times, filter)
 
             # The contribution of this filter to the overall SED is the lightcurve's (interpolated)
             # value at each time multiplied by the SED values at each query wavelength.
@@ -620,7 +620,7 @@ class LightcurveSource(BaseLightcurveSource):
         self.lightcurves = LightcurveData(lightcurves, lc_t0=lc_t0, periodic=periodic, baseline=baseline)
         super().__init__(passbands, filters=self.lightcurves.filters, **kwargs)
 
-    def compute_flux(self, times, wavelengths, graph_state):
+    def compute_sed(self, times, wavelengths, graph_state):
         """Draw effect-free observer frame flux densities.
 
         Parameters
@@ -639,7 +639,7 @@ class LightcurveSource(BaseLightcurveSource):
             from non-overlapping box-shaped SED basis functions for each filter and
             scaled by the lightcurve values.
         """
-        return self.compute_flux_given_lc(
+        return self.compute_sed_given_lc(
             self.lightcurves,
             times,
             wavelengths,
@@ -679,7 +679,7 @@ class LightcurveSource(BaseLightcurveSource):
         band_fluxes = np.zeros(len(times))
         for filter in self.lightcurves.filters:
             filter_mask = filters == filter
-            band_fluxes[filter_mask] = self.lightcurves.evaluate(shifted_times[filter_mask], filter)
+            band_fluxes[filter_mask] = self.lightcurves.evaluate_sed(shifted_times[filter_mask], filter)
 
         return band_fluxes
 
@@ -829,7 +829,7 @@ class MultiLightcurveSource(BaseLightcurveSource):
 
         return cls(lightcurves, passbands, **kwargs)
 
-    def compute_flux(self, times, wavelengths, graph_state):
+    def compute_sed(self, times, wavelengths, graph_state):
         """Draw effect-free observer frame flux densities.
 
         Parameters
@@ -850,7 +850,7 @@ class MultiLightcurveSource(BaseLightcurveSource):
         """
         # Use the lightcurve selected by the sampler node to compute the flux density.
         model_ind = self.get_param(graph_state, "selected_lightcurve")
-        return self.compute_flux_given_lc(
+        return self.compute_sed_given_lc(
             self.lightcurves[model_ind],
             times,
             wavelengths,
@@ -892,6 +892,6 @@ class MultiLightcurveSource(BaseLightcurveSource):
         band_fluxes = np.zeros(len(times))
         for filter in lc.filters:
             filter_mask = filters == filter
-            band_fluxes[filter_mask] = lc.evaluate(shifted_times[filter_mask], filter)
+            band_fluxes[filter_mask] = lc.evaluate_sed(shifted_times[filter_mask], filter)
 
         return band_fluxes

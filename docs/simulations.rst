@@ -33,14 +33,14 @@ Defining a parameterized model
 
 The core idea behind TDAstro is that we want to generate light curves from parameterized models
 of physical objects. The ``PhysicalModel`` class defines the structure for modeling physical objects.
-New object types are derived from the ``PhysicalModel`` base class and implement a ``compute_flux()``
+New object types are derived from the ``PhysicalModel`` base class and implement a ``compute_sed()``
 function that generates the noise-free flux densities in the object's rest frame given information about
 the times, wavelengths, and model parameters (called graph_state). Both the times and wavelengths are
-converted to account for redshift before being passed to the ``compute_flux()`` function.
+converted to account for redshift before being passed to the ``compute_sed()`` function.
 
 .. code-block:: python
 
-    def compute_flux(self, times, wavelengths, graph_state, **kwargs):
+    def compute_sed(self, times, wavelengths, graph_state, **kwargs):
 
 A user of a particular physical model only needs to understand what parameters the model has
 and how they are set. A user creating a new physical model additionally needs to know how the noise-free,
@@ -75,17 +75,17 @@ to get concrete values for each parameter in the model. This combination of para
 state (and stored in a ``GraphState`` object), because it represents the sampled state of the DAG.
 
 Next, the ``OpSim`` is used to determine at what times and in which bands the object will be evaluated.
-These times and wavelengths are based into the object's ``evaluate()`` function along with the graph state.
-The ``evaluate()`` function handles the mechanics of the simulation, such as applying redshifts to both the
-times and wavelengths before calling the ``compute_flux()``.
+These times and wavelengths are based into the object's ``evaluate_sed()`` function along with the graph state.
+The ``evaluate_sed()`` function handles the mechanics of the simulation, such as applying redshifts to both the
+times and wavelengths before calling the ``compute_sed()``.
 
-.. figure:: _static/compute_flux.png
+.. figure:: _static/compute_sed.png
    :class: no-scaled-link
    :scale: 80 %
    :align: center
-   :alt: An example of the compute_flux function
+   :alt: An example of the compute_sed function
 
-   An example of the compute_flux function
+   An example of the compute_sed function
 
 Additional effects can be applied to the noise-free light curves to produce more realistic light curves.
 The effects are applied in two batches. Rest frame effects are applied to the flux densities in the frame.
@@ -98,7 +98,7 @@ Finally, the raw flux densities are are converted into the magnitudes observed i
 Generating band flux curves
 -------------------------------------------------------------------------------
 
-All sources provide a helper function, ``get_band_fluxes()``, that wraps the combination of
+All sources provide a helper function, ``evaluate_band_fluxes()``, that wraps the combination of
 evaluation and integration with the passbands. This function takes the passband information,
 a list of times, and a list of filter names. It returns the band flux at each of those times
 in each of the filters.
@@ -107,9 +107,9 @@ in each of the filters.
    :class: no-scaled-link
    :scale: 80 %
    :align: center
-   :alt: An example of the get_band_fluxes function
+   :alt: An example of the evaluate_band_fluxes function
 
-   An example of the get_band_fluxes function
+   An example of the evaluate_band_fluxes function
 
 In addition to being a convenient helper function, generating the data at the band flux level allows
 certain models to skip SED generation. In particular a ``BandfluxModel`` is a subclass of the ``PhysicalModel``
