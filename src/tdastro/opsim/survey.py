@@ -1,5 +1,5 @@
 """The top-level module for survey related data, such as pointing and noise
-information. The SurveyData class is an abstract base class with specific implementations
+information. The Survey class is an abstract base class with specific implementations
 for different survey data, such as Rubin and ZTF."""
 
 import sqlite3
@@ -10,7 +10,7 @@ import pandas as pd
 from scipy.spatial import KDTree
 
 
-class SurveyData:
+class Survey:
     """A wrapper class around the survey table with helper computation functions and
     cached data for efficiency.
 
@@ -110,7 +110,7 @@ class SurveyData:
 
     @classmethod
     def from_db(cls, filename, sql_query="SELECT * FROM observations", **kwargs):
-        """Create an SurveyData object from the data in an db file. Reads data matching
+        """Create an Survey object from the data in an db file. Reads data matching
         what is produced by write_db (and matching the RubinOpsim table).
 
         Parameters
@@ -121,11 +121,11 @@ class SurveyData:
             The SQL query to use when loading the table.
             Default: "SELECT * FROM observations"
         kwargs : dict, optional
-            Additional keyword arguments to pass to the SurveyData constructor.
+            Additional keyword arguments to pass to the Survey constructor.
 
         Returns
         -------
-        SurveyData
+        Survey
             A table with all of the pointing data.
 
         Raise
@@ -146,16 +146,16 @@ class SurveyData:
         # Close the connection.
         con.close()
 
-        return SurveyData(survey_data, **kwargs)
+        return Survey(survey_data, **kwargs)
 
     def get_filters(self):
-        """Get the unique filters in the SurveyData table."""
+        """Get the unique filters in the Survey table."""
         if "filter" not in self.table.columns:
-            raise KeyError("No filters column found in SurveyData table.")
+            raise KeyError("No filters column found in Survey table.")
         return np.unique(self.table["filter"])
 
     def _build_kd_tree(self):
-        """Construct the KD-tree from the SurveyData table."""
+        """Construct the KD-tree from the Survey table."""
         ra_rad = np.radians(self.table["ra"].to_numpy())
         dec_rad = np.radians(self.table["dec"].to_numpy())
         # Convert the pointings to Cartesian coordinates on a unit sphere.
@@ -225,19 +225,19 @@ class SurveyData:
         con.close()
 
     def time_bounds(self):
-        """Returns the min and max times for all observations in the SurveyData.
+        """Returns the min and max times for all observations in the Survey.
 
         Returns
         -------
         t_min, t_max : float, float
-            The min and max times for all observations in the SurveyData.
+            The min and max times for all observations in the Survey.
         """
         t_min = self.table["time"].min()
         t_max = self.table["time"].max()
         return t_min, t_max
 
     def filter_rows(self, rows):
-        """Filter the rows in the SurveyData to only include those indices that are provided
+        """Filter the rows in the Survey to only include those indices that are provided
         in a list of row indices (integers) or marked True in a mask.
 
         Parameters
@@ -248,8 +248,8 @@ class SurveyData:
 
         Returns
         -------
-        new_survey_data : SurveyData
-            A new SurveyData object with the reduced rows.
+        new_survey_data : Survey
+            A new Survey object with the reduced rows.
         """
         # Check if we are dealing with a mask of a list of indices.
         rows = np.asarray(rows)
@@ -263,10 +263,10 @@ class SurveyData:
             mask = np.full((len(self.table),), False)
             mask[rows] = True
 
-        # Do the actual filtering and generate a new SurveyData. This automatically creates
+        # Do the actual filtering and generate a new Survey. This automatically creates
         # the cached data, such as the KD-tree. Note that we do not need to pass in all
         # the defaults and keyword arguments, because the table is already fully formed.
-        new_survey_data = SurveyData(self.table[mask])
+        new_survey_data = Survey(self.table[mask])
         return new_survey_data
 
     def is_observed(self, query_ra, query_dec, radius=None, t_min=None, t_max=None):
@@ -436,7 +436,7 @@ class SurveyData:
         bandflux : array_like of float
             Band bandflux of the point source in nJy.
         index : array_like of int
-            The index of the observation in the SurveyData table.
+            The index of the observation in the Survey table.
 
         Returns
         -------

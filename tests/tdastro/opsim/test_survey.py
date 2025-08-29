@@ -4,11 +4,11 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
-from tdastro.opsim.survey_data import SurveyData
+from tdastro.opsim.survey import Survey
 
 
-def test_create_survey_data():
-    """Create a minimal SurveyData object and perform basic queries."""
+def test_create_survey():
+    """Create a minimal Survey object and perform basic queries."""
     values = {
         "time": np.array([0.0, 1.0, 2.0, 3.0, 4.0]),
         "ra": np.array([15.0, 30.0, 15.0, 0.0, 60.0]),
@@ -17,7 +17,7 @@ def test_create_survey_data():
     }
     pdf = pd.DataFrame(values)
 
-    ops_data = SurveyData(pdf)
+    ops_data = Survey(pdf)
     assert len(ops_data) == 5
     assert len(ops_data.columns) == 4
 
@@ -34,7 +34,7 @@ def test_create_survey_data():
     assert t_min == 0.0
     assert t_max == 4.0
 
-    # We can query which columns the SurveyData has.
+    # We can query which columns the Survey has.
     assert "time" in ops_data.columns
     assert "ra" in ops_data.columns
     assert "dec" in ops_data.columns
@@ -50,7 +50,7 @@ def test_create_survey_data():
         _ = ops_data.get_filters()
 
     # We can create an OpSim directly from the dictionary as well.
-    ops_data2 = SurveyData(pdf)
+    ops_data2 = Survey(pdf)
     assert len(ops_data2) == 5
     assert len(ops_data.columns) == 4
     assert np.allclose(ops_data2["ra"], values["ra"])
@@ -60,10 +60,10 @@ def test_create_survey_data():
     # We raise an error if we are missing a required row.
     del values["dec"]
     with pytest.raises(KeyError):
-        _ = SurveyData(values)
+        _ = Survey(values)
 
 
-def test_create_survey_data_override():
+def test_create_survey_override():
     """Test that we can override the default survey values."""
     values = {
         "time": np.array([0.0, 1.0, 2.0, 3.0, 4.0]),
@@ -72,7 +72,7 @@ def test_create_survey_data_override():
         "zp": np.ones(5),
         "filter": np.array(["r", "g", "r", "i", "g"]),
     }
-    ops_data = SurveyData(
+    ops_data = Survey(
         values,
         dark_current=0.1,
         ext_coeff={"u": 0.1, "g": 0.2, "r": 0.3, "i": 0.4, "z": 0.5, "y": 0.6},
@@ -102,7 +102,7 @@ def test_create_survey_data_override():
     assert set(filters) == {"r", "g", "i"}
 
 
-def test_create_survey_data_custom_names():
+def test_create_survey_custom_names():
     """Create a minimal OpSim object from alternate column names."""
     values = {
         "custom_time": np.array([0.0, 1.0, 2.0, 3.0, 4.0]),
@@ -114,21 +114,21 @@ def test_create_survey_data_custom_names():
 
     # Load fails if we use the default colmap.
     with pytest.raises(KeyError):
-        _ = SurveyData(values)
+        _ = Survey(values)
 
     # Load succeeds if we pass in a customer dictionary.
     colmap = {"ra": "custom_ra", "dec": "custom_dec", "time": "custom_time"}
-    ops_data = SurveyData(values, colmap=colmap)
+    ops_data = Survey(values, colmap=colmap)
     assert len(ops_data) == 5
 
     # Test that we fail if we try to map a column onto an existing column (mapping the given
     # "other" column onto the existing "zp" column).
     colmap = {"ra": "custom_ra", "dec": "custom_dec", "time": "custom_time", "zp": "other"}
     with pytest.raises(ValueError):
-        _ = SurveyData(values, colmap=colmap)
+        _ = Survey(values, colmap=colmap)
 
 
-def test_survey_data_add_columns():
+def test_survey_add_columns():
     """Create a minimal OpSim object and perform basic queries."""
     values = {
         "time": np.array([0.0, 1.0, 2.0, 3.0, 4.0]),
@@ -138,7 +138,7 @@ def test_survey_data_add_columns():
     }
     pdf = pd.DataFrame(values)
 
-    ops_data = SurveyData(pdf)
+    ops_data = Survey(pdf)
     assert len(ops_data) == 5
     assert len(ops_data.columns) == 4
 
@@ -168,7 +168,7 @@ def test_survey_data_add_columns():
     assert np.allclose(ops_data["new_column2"], [12, 12, 12, 12, 12])
 
 
-def test_survey_data_filter_rows():
+def test_survey_filter_rows():
     """Test that the user can filter out OpSim rows."""
     times = np.arange(0.0, 10.0, 1.0)
     values = {
@@ -178,7 +178,7 @@ def test_survey_data_filter_rows():
         "zp": np.ones(10),
         "filter": np.tile(["r", "g"], 5),
     }
-    ops_data = SurveyData(values)
+    ops_data = Survey(values)
     assert len(ops_data) == 10
     assert len(ops_data.columns) == 5
 
@@ -216,7 +216,7 @@ def test_survey_data_filter_rows():
         _ = ops_data.filter_rows(bad_mask)
 
 
-def test_read_small_survey_data(opsim_small):
+def test_read_small_survey(opsim_small):
     """Read in a small OpSim file from the testing data directory."""
     colmap = {
         "airmass": "airmass",
@@ -230,11 +230,11 @@ def test_read_small_survey_data(opsim_small):
         "skybrightness": "skyBrightness",
         "nexposure": "numExposures",
     }
-    ops_data = SurveyData.from_db(opsim_small, colmap=colmap)
+    ops_data = Survey.from_db(opsim_small, colmap=colmap)
     assert len(ops_data) == 300
 
 
-def test_write_read_survey_data():
+def test_write_read_survey():
     """Create a minimal opsim data frame, test that we can write it,
     and test that we can correctly read it back in."""
 
@@ -245,22 +245,22 @@ def test_write_read_survey_data():
         "dec": np.array([-10.0, -5.0, 0.0, 5.0, 10.0]),
         "zp": np.ones(5),
     }
-    ops_data = SurveyData(pd.DataFrame(values))
+    ops_data = Survey(pd.DataFrame(values))
 
     with tempfile.TemporaryDirectory() as dir_name:
-        file_path = Path(dir_name, "test_write_read_survey_data.db")
+        file_path = Path(dir_name, "test_write_read_survey.db")
 
         # The opsim does not exist until we write it.
         assert not file_path.is_file()
         with pytest.raises(FileNotFoundError):
-            _ = SurveyData.from_db(file_path)
+            _ = Survey.from_db(file_path)
 
         # We can write the opsim db.
         ops_data.write_db(file_path)
         assert file_path.is_file()
 
         # We can reread the opsim db.
-        ops_data2 = SurveyData.from_db(file_path)
+        ops_data2 = Survey.from_db(file_path)
         assert len(ops_data2) == 5
         assert np.allclose(values["time"], ops_data2["time"].to_numpy())
         assert np.allclose(values["ra"], ops_data2["ra"].to_numpy())
@@ -272,7 +272,7 @@ def test_write_read_survey_data():
         ops_data.write_db(file_path, overwrite=True)
 
 
-def test_survey_data_range_search():
+def test_survey_range_search():
     """Test that we can extract the time, ra, and dec from an opsim data frame."""
     # Create a fake opsim data frame with just time, RA, and dec.
     values = {
@@ -281,7 +281,7 @@ def test_survey_data_range_search():
         "dec": np.array([-10.0, 10.0, 10.01, 9.99, 10.0, 9.99, -5.0, -1.0]),
         "zp": np.ones(8),
     }
-    ops_data = SurveyData(values)
+    ops_data = Survey(values)
 
     # Test single queries.
     assert set(ops_data.range_search(15.0, 10.0, 0.5)) == set([1, 2, 3])
@@ -341,7 +341,7 @@ def test_survey_data_range_search():
         _ = ops_data.range_search([1.0, 2.3], [4.5, None], 0.5)
 
 
-def test_survey_data_get_observations():
+def test_survey_get_observations():
     """Test that we can extract the time, ra, and dec from an opsim data frame."""
     # Create a fake opsim data frame with just time, RA, and dec.
     values = {
@@ -350,7 +350,7 @@ def test_survey_data_get_observations():
         "dec": np.array([-10.0, 10.0, 10.01, 9.99, 10.0, 9.99, -5.0, -1.0]),
         "zp": np.ones(8),
     }
-    ops_data = SurveyData(values)
+    ops_data = Survey(values)
 
     # Test basic queries (all columns).
     obs = ops_data.get_observations(15.0, 10.0, 0.5)
@@ -384,14 +384,14 @@ def test_survey_data_get_observations():
         _ = ops_data.get_observations(15.0, 10.0, 0.5, cols=["time", "custom_col"])
 
 
-def test_survey_data_docstring():
-    """Test if SurveyData class has a docstring"""
-    assert SurveyData.__doc__ is not None
-    assert len(SurveyData.__doc__) > 100
+def test_survey_docstring():
+    """Test if Survey class has a docstring"""
+    assert Survey.__doc__ is not None
+    assert len(Survey.__doc__) > 100
 
 
-def test_read_survey_data_shorten(opsim_shorten):
-    """Read in a shorten SurveyData file from the testing data directory."""
+def test_read_survey_shorten(opsim_shorten):
+    """Read in a shorten Survey file from the testing data directory."""
     colmap = {
         "airmass": "airmass",
         "dec": "fieldDec",
@@ -404,5 +404,5 @@ def test_read_survey_data_shorten(opsim_shorten):
         "skybrightness": "skyBrightness",
         "nexposure": "numExposures",
     }
-    ops_data = SurveyData.from_db(opsim_shorten, colmap=colmap)
+    ops_data = Survey.from_db(opsim_shorten, colmap=colmap)
     assert len(ops_data) == 100
