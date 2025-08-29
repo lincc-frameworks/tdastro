@@ -17,7 +17,7 @@ from tdastro.astro_utils.zeropoint import (
     flux_electron_zeropoint,
 )
 from tdastro.consts import GAUSS_EFF_AREA2FWHM_SQ
-from tdastro.opsim.survey import Survey
+from tdastro.opsim.obs_table import ObsTable
 from tdastro.utils.data_download import download_data_file_if_needed
 
 LSSTCAM_PIXEL_SCALE = 0.2
@@ -39,7 +39,7 @@ _lsstcam_view_radius = 1.75
 """The angular radius of the observation field (in degrees)."""
 
 
-class OpSim(Survey):
+class OpSim(ObsTable):
     """A wrapper class around the opsim table with cached data for efficiency.
 
     Parameters

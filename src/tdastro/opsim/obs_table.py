@@ -1,5 +1,5 @@
 """The top-level module for survey related data, such as pointing and noise
-information. The Survey class is an abstract base class with specific implementations
+information. ObsTable class is a base class with specific implementations
 for different survey data, such as Rubin and ZTF."""
 
 import sqlite3
@@ -10,8 +10,8 @@ import pandas as pd
 from scipy.spatial import KDTree
 
 
-class Survey:
-    """A wrapper class around the survey table with helper computation functions and
+class ObsTable:
+    """A wrapper class around the observations table with helper computation functions and
     cached data for efficiency.
 
     Parameters
@@ -33,7 +33,7 @@ class Survey:
         A mapping for constant values for the survey used in various computations, such
         as readout noise and dark current.
     _table : pandas.core.frame.DataFrame
-        The table with all the survey information mapped to standard column names.
+        The table with all the observation information mapped to standard column names.
     _inv_colmap : dict
         A dictionary mapping the custom column names back to the standard names.
     _kd_tree : scipy.spatial.KDTree or None
@@ -106,7 +106,7 @@ class Survey:
         return len(self._table)
 
     def __getitem__(self, key):
-        """Access the underlying survey table by column name."""
+        """Access the underlying observation table by column name."""
         if key in self._table.columns:
             return self._table[key]
         if key in self._inv_colmap and self._inv_colmap[key] in self._table.columns:
@@ -143,7 +143,7 @@ class Survey:
 
     @classmethod
     def from_db(cls, filename, sql_query="SELECT * FROM observations", **kwargs):
-        """Create an Survey object from the data in an db file. Reads data matching
+        """Create an ObsTable object from the data in an db file. Reads data matching
         what is produced by write_db (and matching the RubinOpsim table).
 
         Parameters
@@ -158,7 +158,7 @@ class Survey:
 
         Returns
         -------
-        Survey
+        ObsTable
             A table with all of the pointing data.
 
         Raise
@@ -182,13 +182,13 @@ class Survey:
         return cls(survey_data, **kwargs)
 
     def get_filters(self):
-        """Get the unique filters in the Survey table."""
+        """Get the unique filters in the ObsTable."""
         if "filter" not in self._table.columns:
-            raise KeyError("No filters column found in Survey table.")
+            raise KeyError("No filters column found in ObsTable.")
         return np.unique(self._table["filter"])
 
     def _build_kd_tree(self):
-        """Construct the KD-tree from the Survey table."""
+        """Construct the KD-tree from the ObsTable."""
         ra_rad = np.radians(self._table["ra"].to_numpy())
         dec_rad = np.radians(self._table["dec"].to_numpy())
         # Convert the pointings to Cartesian coordinates on a unit sphere.
@@ -209,7 +209,7 @@ class Survey:
         pass
 
     def add_column(self, colname, values, *, overwrite=False):
-        """Add a column to the current survey data table.
+        """Add a column to the current data table.
 
         Parameters
         ----------
@@ -230,7 +230,7 @@ class Survey:
         self._table[colname] = values
 
     def write_db(self, filename, *, tablename="observations", overwrite=False):
-        """Write out a survey data database to a given SQL table.
+        """Write out the observation table as a database to a given SQL table.
 
         Parameters
         ----------
@@ -258,19 +258,19 @@ class Survey:
         con.close()
 
     def time_bounds(self):
-        """Returns the min and max times for all observations in the Survey.
+        """Returns the min and max times for all observations in the ObsTable.
 
         Returns
         -------
         t_min, t_max : float, float
-            The min and max times for all observations in the Survey.
+            The min and max times for all observations in the ObsTable.
         """
         t_min = self._table["time"].min()
         t_max = self._table["time"].max()
         return t_min, t_max
 
     def filter_rows(self, rows):
-        """Filter the rows in the Survey to only include those indices that are provided
+        """Filter the rows in the ObsTable to only include those indices that are provided
         in a list of row indices (integers) or marked True in a mask.
 
         Parameters
@@ -281,8 +281,8 @@ class Survey:
 
         Returns
         -------
-        new_survey_data : Survey
-            A new Survey object with the reduced rows.
+        new_obs_table : ObsTable
+            A new ObsTable object with the reduced rows.
         """
         # Check if we are dealing with a mask of a list of indices.
         rows = np.asarray(rows)
@@ -296,15 +296,15 @@ class Survey:
             mask = np.full((len(self._table),), False)
             mask[rows] = True
 
-        # Do the actual filtering and generate a new Survey. This automatically creates
+        # Do the actual filtering and generate a new ObsTable. This automatically creates
         # the cached data, such as the KD-tree. Note that we do not need to pass in all
         # the defaults and keyword arguments, because the table is already fully formed.
-        new_survey_data = Survey(self._table[mask])
-        return new_survey_data
+        new_obs_table = ObsTable(self._table[mask])
+        return new_obs_table
 
     def is_observed(self, query_ra, query_dec, radius=None, t_min=None, t_max=None):
         """Check if the query point(s) fall within the field of view of any
-        pointing in the survey.
+        pointing in the ObsTable.
 
         Parameters
         ----------
@@ -423,7 +423,7 @@ class Survey:
 
     def get_observations(self, query_ra, query_dec, radius=None, t_min=None, t_max=None, cols=None):
         """Return the observation information when the query point falls within
-        the field of view of a pointing in the survey.
+        the field of view of a pointing in the ObsTable.
 
         Parameters
         ----------
@@ -469,7 +469,7 @@ class Survey:
         bandflux : array_like of float
             Band bandflux of the point source in nJy.
         index : array_like of int
-            The index of the observation in the Survey table.
+            The index of the observation in the ObsTable table.
 
         Returns
         -------

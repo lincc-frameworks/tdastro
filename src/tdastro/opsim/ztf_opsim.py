@@ -8,7 +8,7 @@ from astropy.time import Time
 from tdastro.astro_utils.mag_flux import mag2flux
 from tdastro.astro_utils.noise_model import poisson_bandflux_std
 from tdastro.consts import GAUSS_EFF_AREA2FWHM_SQ
-from tdastro.opsim.survey import Survey
+from tdastro.opsim.obs_table import ObsTable
 
 ZTFCAM_PIXEL_SCALE = 1.01
 """The pixel scale for the ZTF camera in arcseconds per pixel."""
@@ -89,7 +89,7 @@ def calculate_ztf_zero_points(
     return zp
 
 
-class ZTFOpsim(Survey):
+class ZTFOpsim(ObsTable):
     """A subclass for ZTF exposure table.
 
     Parameters
