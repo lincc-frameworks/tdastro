@@ -57,6 +57,7 @@ The following notebooks provide example simulations using the TDAstro package.
     Microlensing Effect Example <notebooks/pre_executed/microlensing>
     PLAsTiCC SNIa <notebooks/pre_executed/plasticc_snia>
     PZFlow Source Demo <notebooks/pre_executed/using_pzflow>
+    Redback Models Demo <notebooks/pre_executed/redback_example>
     Resampling LCLIB <notebooks/pre_executed/lclib_example>
     Synphot-based Models <notebooks/pre_executed/synphot_example>
 
