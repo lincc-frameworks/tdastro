@@ -215,16 +215,6 @@ def test_additive_multi_source_node_effects_obs_frame() -> None:
     assert np.allclose(values, contrib1 + contrib2)
 
 
-def test_additive_multi_source_node_effects_fail() -> None:
-    """Test that we fail if any source includes an observer frame effect."""
-    source1 = StepSource(brightness=10.0, t0=1.0, t1=3.0, node_label="source1")
-    source2 = StepSource(brightness=10.0, t0=2.0, t1=4.0, node_label="source2")
-    source2.add_effect(ConstantDimming(flux_fraction=0.5, rest_frame=False))
-
-    with pytest.raises(ValueError):
-        _ = AdditiveMultiSourceModel([source1, source2], node_label="my_multi_source")
-
-
 def test_additive_multi_source_node_min_max() -> None:
     """Test that we can get the correct wavelength limits for a AdditiveMultiSourceModel."""
     sed0 = np.array(

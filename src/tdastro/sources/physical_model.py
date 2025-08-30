@@ -198,6 +198,68 @@ class BasePhysicalModel(ParameterizedNode, ABC):
 
         return graph_state
 
+    def evaluate_band_fluxes(self, passband_or_group, times, filters, state, rng_info=None) -> np.ndarray:
+        """Get the band fluxes for a given Passband or PassbandGroup.
+
+        Parameters
+        ----------
+        passband_or_group : Passband or PassbandGroup
+            The passband (or passband group) to use.
+        times : numpy.ndarray
+            A length T array of observer frame timestamps in MJD.
+        filters : numpy.ndarray or None
+            A length T array of filter names. It may be None if
+            passband_or_group is a Passband.
+        state : GraphState
+            An object mapping graph parameters to their values.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
+
+        Returns
+        -------
+        band_fluxes : numpy.ndarray
+            A matrix of the band fluxes. If only one sample is provided in the GraphState,
+            then returns a length T array. Otherwise returns a size S x T array where S is the
+            number of samples in the graph state.
+        """
+        # Check if we need to sample the graph.
+        if state is None:
+            state = self.sample_parameters(num_samples=1, rng_info=rng_info)
+
+        if isinstance(passband_or_group, Passband):
+            # If we are just given a passband, turn it into a passband group and save
+            # the list of the filter name (repeated).
+            passband_group = PassbandGroup([passband_or_group])
+            if filters is None:
+                filters = np.full(len(times), passband_or_group.filter_name)
+        else:
+            # This could be a PassbandGroup or (in limited cases) None.
+            passband_group = passband_or_group
+
+        if filters is None:
+            raise ValueError("If passband_or_group is a PassbandGroup, filters must be provided.")
+        filters = np.asarray(filters)
+        if len(filters) != len(times):
+            raise ValueError("Filters array must have the same length as times array.")
+
+        # If we only have a single sample, we can return the band fluxes directly.
+        if state.num_samples == 1:
+            return self._evaluate_band_fluxes_single(passband_group, times, filters, state, rng_info=rng_info)
+
+        # Fill in the band fluxes one at a time and return them all.
+        band_fluxes = np.empty((state.num_samples, len(times)))
+        for sample_num, current_state in enumerate(state):
+            current_fluxes = self._evaluate_band_fluxes_single(
+                passband_group,
+                times,
+                filters,
+                current_state,
+                rng_info=rng_info,
+            )
+            band_fluxes[sample_num, :] = current_fluxes[np.newaxis, :]
+        return band_fluxes
+
 
 class SEDModel(BasePhysicalModel):
     """A model of a source of flux that is defined at the SED level.
@@ -589,68 +651,6 @@ class SEDModel(BasePhysicalModel):
             # as well as handling all the redshift conversions.
             spectral_fluxes = self.evaluate_sed(times[filter_mask], passband.waves, state, rng_info=rng_info)
             band_fluxes[filter_mask] = passband.fluxes_to_bandflux(spectral_fluxes)
-        return band_fluxes
-
-    def evaluate_band_fluxes(self, passband_or_group, times, filters, state, rng_info=None) -> np.ndarray:
-        """Get the band fluxes for a given Passband or PassbandGroup.
-
-        Parameters
-        ----------
-        passband_or_group : Passband or PassbandGroup
-            The passband (or passband group) to use.
-        times : numpy.ndarray
-            A length T array of observer frame timestamps in MJD.
-        filters : numpy.ndarray or None
-            A length T array of filter names. It may be None if
-            passband_or_group is a Passband.
-        state : GraphState
-            An object mapping graph parameters to their values.
-        rng_info : numpy.random._generator.Generator, optional
-            A given numpy random number generator to use for this computation. If not
-            provided, the function uses the node's random number generator.
-
-        Returns
-        -------
-        band_fluxes : numpy.ndarray
-            A matrix of the band fluxes. If only one sample is provided in the GraphState,
-            then returns a length T array. Otherwise returns a size S x T array where S is the
-            number of samples in the graph state.
-        """
-        # Check if we need to sample the graph.
-        if state is None:
-            state = self.sample_parameters(num_samples=1, rng_info=rng_info)
-
-        if isinstance(passband_or_group, Passband):
-            # If we are just given a passband, turn it into a passband group and save
-            # the list of the filter name (repeated).
-            passband_group = PassbandGroup([passband_or_group])
-            if filters is None:
-                filters = np.full(len(times), passband_or_group.filter_name)
-        else:
-            # This could be a PassbandGroup or (in limited cases) None.
-            passband_group = passband_or_group
-
-        if filters is None:
-            raise ValueError("If passband_or_group is a PassbandGroup, filters must be provided.")
-        filters = np.asarray(filters)
-        if len(filters) != len(times):
-            raise ValueError("Filters array must have the same length as times array.")
-
-        # If we only have a single sample, we can return the band fluxes directly.
-        if state.num_samples == 1:
-            return self._evaluate_band_fluxes_single(passband_group, times, filters, state, rng_info=rng_info)
-
-        # Fill in the band fluxes one at a time and return them all.
-        band_fluxes = np.empty((state.num_samples, len(times)))
-        for sample_num, current_state in enumerate(state):
-            current_fluxes = self._evaluate_band_fluxes_single(
-                passband_group,
-                times,
-                filters,
-                current_state,
-                rng_info=rng_info,
-            )
-            band_fluxes[sample_num, :] = current_fluxes[np.newaxis, :]
         return band_fluxes
 
 

@@ -53,9 +53,6 @@ class MultiSourceModel(SEDModel):
             elif not isinstance(source, BasePhysicalModel):
                 raise ValueError("All sources must be PhysicalModel objects.")
 
-            if len(source.obs_frame_effects) > 0:
-                raise ValueError("A MultiSourceModel cannot contain sources with observer frame effects.")
-
         self.sources = sources
         self.num_sources = len(sources)
 
