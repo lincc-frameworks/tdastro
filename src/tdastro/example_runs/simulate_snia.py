@@ -34,8 +34,8 @@ def construct_snia_source(oversampled_observations, zpdf):
 
     Returns
     -------
-    source : PhysicalModel
-        The PhysicalModel to sample.
+    source : SEDModel
+        The SEDModel to sample.
     """
     logger.info("Creating the source model.")
 
@@ -139,8 +139,8 @@ def draw_single_random_sn(
 
     Parameters
     ----------
-    source : PhysicalModel
-        The PhysicalModel to use for the flux computation.
+    source : BasePhysicalModel
+        The BasePhysicalModel to use for the flux computation.
     opsim : OpSim
         The OpSim for the simulations
     passbands : PassbandGroup

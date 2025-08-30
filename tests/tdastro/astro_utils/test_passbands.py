@@ -513,7 +513,7 @@ def test_passband_fluxes_to_bandflux_mult_samples(passbands_dir, tmp_path):
 
 
 def test_passband_wrapped_from_physical_source(passbands_dir, tmp_path):
-    """Test evaluate_band_fluxes, PhysicalModel's wrapped version of Passband's fluxes_to_bandflux."""
+    """Test evaluate_band_fluxes, SEDModel's wrapped version of Passband's fluxes_to_bandflux."""
     # Set up physical model
     times = np.array([1.0, 2.0, 3.0])
     wavelengths = np.array([10.0, 20.0, 30.0])

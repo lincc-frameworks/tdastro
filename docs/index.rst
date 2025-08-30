@@ -34,13 +34,15 @@ The main simulation components in TDAstro include:
 * The ``PassbandGroup`` contains the filter information of the telescope and is used
   to calculate the fluxes in each band.
 
-TDAstro can generate numerous random realizations of the parameters for the ``PhysicalModel``
-to produce realistic light curves using the above components.  See the 
+TDAstro can generate numerous random realizations of the parameters for the physical source model 
+(``SEDModel`` or ``BandfluxModel``), and then apply the effects to these realizations. The ``Opsim``
+component is used to produce realistic light curves using the above components.  See the
 :doc:`simulations <simulations>` page for a more detailed description of the process.
 
 For an overview of the package, we recommend starting with the notebooks in the "Getting Started"
-section of the :doc:`notebooks page <notebooks>`. The :doc:`glossary <glossary>` provides definitions of key terms, such as
-*GraphState*, *Node*, *Parameter*, *ParameterizedNode*, *PhysicalModel*, and *Source*.
+section of the :doc:`notebooks page <notebooks>`. The :doc:`glossary <glossary>` provides definitions of
+key terms, such as *GraphState*, *Node*, *Parameter*, *ParameterizedNode*, *BasePhysicalModel*,
+*BandfluxModel*, *SEDModel*, and *Source*.
 
 The `full source code <https://github.com/lincc-frameworks/tdastro>`_ is available on GitHub.
 

@@ -7,11 +7,11 @@ https://github.com/sncosmo/sncosmo/blob/v2.10.1/sncosmo/models.py
 
 from scipy.interpolate import RectBivariateSpline
 
-from tdastro.sources.physical_model import PhysicalModel
+from tdastro.sources.physical_model import SEDModel
 from tdastro.utils.io_utils import read_grid_data
 
 
-class SplineModel(PhysicalModel):
+class SplineModel(SEDModel):
     """A time series model defined by sample points where the intermediate
     points are fit by a spline. Based on sncosmo's TimeSeriesSource:
     https://github.com/sncosmo/sncosmo/blob/v2.10.1/sncosmo/models.py
@@ -22,11 +22,11 @@ class SplineModel(PhysicalModel):
 
     Parameterized values include:
       * amplitude - A unitless scaling parameter for the flux density values.
-      * dec - The object's declination in degrees. [from PhysicalModel]
-      * distance - The object's luminosity distance in pc. [from PhysicalModel]
-      * ra - The object's right ascension in degrees. [from PhysicalModel]
-      * redshift - The object's redshift. [from PhysicalModel]
-      * t0 - The time corresponding to the t=0.0 in the model data [from PhysicalModel]
+      * dec - The object's declination in degrees. [from BasePhysicalModel]
+      * distance - The object's luminosity distance in pc. [from BasePhysicalModel]
+      * ra - The object's right ascension in degrees. [from BasePhysicalModel]
+      * redshift - The object's redshift. [from BasePhysicalModel]
+      * t0 - The time corresponding to the t=0.0 in the model data. [from BasePhysicalModel]
 
     Attributes
     ----------

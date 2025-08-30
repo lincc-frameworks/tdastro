@@ -25,22 +25,32 @@ The main simulation components in TDAstro include:
 * The ``PassbandGroup`` contains the filter information of the telescope and is used
   to calculate the fluxes in each band.
 
-See the :doc:`Glossary <glossary>` for definitions of key terms, such as
-*GraphState*, *Node*, *Parameter*, *ParameterizedNode*, *PhysicalModel*, and *Source*.
+For an overview of the package, we recommend starting with the notebooks in the "Getting Started"
+section of the :doc:`notebooks page <notebooks>`. The :doc:`glossary <glossary>` provides definitions of
+key terms, such as *GraphState*, *Node*, *Parameter*, *ParameterizedNode*, *BasePhysicalModel*,
+*BandfluxModel*, *SEDModel*, and *Source*.
 
 Defining a parameterized model
 -------------------------------------------------------------------------------
 
 The core idea behind TDAstro is that we want to generate light curves from parameterized models
-of physical objects. The ``PhysicalModel`` class defines the structure for modeling physical objects.
-New object types are derived from the ``PhysicalModel`` base class and implement a ``compute_sed()``
-function that generates the noise-free flux densities in the object's rest frame given information about
-the times, wavelengths, and model parameters (called graph_state). Both the times and wavelengths are
-converted to account for redshift before being passed to the ``compute_sed()`` function.
+of physical objects. The ``BasePhysicalModel`` class defines the structure for modeling physical objects and
+is subclassed into ``SEDModel`` (for models that simulate the full spectral energy distributions) and
+``BandfluxModel`` (for models that simulate band fluxes).  New object types can be derived from either
+of these two subclasses.
+
+For new SED-type models, the class needs to implement a ``compute_sed()`` function that generates the
+noise-free flux densities in the object's rest frame given information about the times, wavelengths, and
+model parameters (called graph_state). Both the times and wavelengths are converted to account for redshift
+before being passed to the ``compute_sed()`` function.
 
 .. code-block:: python
 
     def compute_sed(self, times, wavelengths, graph_state, **kwargs):
+
+For new Bandflux-type models, the class needs to implement a ``compute_bandflux()`` function that generates the
+band fluxes in the observer frame given the times, bands, and model parameters (called graph_state). These
+models do not account for redshift, since simulation is done in the observer frame.
 
 A user of a particular physical model only needs to understand what parameters the model has
 and how they are set. A user creating a new physical model additionally needs to know how the noise-free,
