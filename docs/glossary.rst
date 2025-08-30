@@ -11,6 +11,8 @@ Glossary
 
 **GraphState**: The ``GraphState`` object is an internal book keeping object that tracks the values of parameters during the simulation. It is implemented as nested dictionaries where the outer dictionary maps the name of the generating node to a dictionary of that node's parameters. The inner dictionary maps a parameter name to its values.
 
+**Model**: Model is used to refer to any physical phenomena that produces flux. All models are implemented as subclasses of the ``SEDModel`` or ``BandfluxModel`` classes. Also called a *physical model*.
+
 **Node**: Nodes are the objects within the simulation that generate or use parameters. A node might represent a physical object that we are simulating, such as a Type Ia supernova with input parameters x0, x1, and c, or it might represent the statistical distributions for parameters, such as a Gaussian distribution for sampling a source's  redshift (z). It is easiest to think of nodes as machines for generating portions of the simulation data. Nodes are implemented as subclasses of the ``ParameterizedNode`` class.
 
 **node_label**: The node label is a unique identifier for each ``ParameterizedNode`` that allows the simulation (and the user) to track which Python object (and thus which part of the simulation) is using a particular parameter value. All parameters are indexed by a combination of node label and parameter name so that multiple ``ParameterizedNode`` objects can use the same parameter name without inadvertently overwriting each other's values. If a node label is not specified, TDAstro automatically assigns one.
@@ -32,5 +34,3 @@ Glossary
 **Rest Frame**: The reference frame of the object being simulated. Observations in the rest frame do not account for effects like dust extinction or redshift, because they are local to the object.
 
 **SEDModel**: ``SEDModel`` is a subclass of the ``BasePhysicalModel`` class that specifically represents the spectral energy distribution of a source.
-
-**Source**: Source is used to refer to any physical phenomena that produces (is the *source* of) flux. All sources are implemented as subclasses of the ``SEDModel`` or ``BandfluxModel`` classes. Also called a *physical model*.

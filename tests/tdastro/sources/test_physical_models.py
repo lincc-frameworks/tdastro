@@ -79,7 +79,7 @@ def test_sed_model_mask_by_time():
     assert np.all(model.mask_by_time(times))
 
 
-def test_physical_model_evaluate_sed():
+def test_sed_model_evaluate_sed():
     """Test that we can evaluate a SEDModel."""
     times = np.array([0.0, 1.0, 2.0, 3.0, 4.0])
     waves = np.array([4000.0, 5000.0])
@@ -107,7 +107,7 @@ def test_physical_model_evaluate_sed():
     assert np.all(flux[2, :, :] == 30.0)
 
 
-def test_physical_model_evaluate_redshift():
+def test_sed_model_evaluate_redshift():
     """Test that if we apply redshift to a model we get different flux values."""
     times = np.array([0.0, 1.0, 2.0, 3.0, 4.0])
     waves = np.array([4000.0, 5000.0])
@@ -122,7 +122,7 @@ def test_physical_model_evaluate_redshift():
     assert len(np.unique(flux)) == 1
 
 
-def test_physical_model_evaluate_bandflux(passbands_dir):
+def test_sed_model_evaluate_bandflux(passbands_dir):
     """Test that band fluxes are computed correctly."""
     # It should work fine for any positive Fnu.
     f_nu = np.random.lognormal()
