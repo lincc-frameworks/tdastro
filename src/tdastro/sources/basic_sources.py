@@ -28,7 +28,7 @@ class StaticSource(PhysicalModel):
         super().__init__(**kwargs)
         self.add_parameter("brightness", brightness, **kwargs)
 
-    def compute_flux(self, times, wavelengths, graph_state, **kwargs):
+    def compute_sed(self, times, wavelengths, graph_state, **kwargs):
         """Draw effect-free observations for this object.
 
         Parameters
@@ -81,7 +81,7 @@ class StepSource(StaticSource):
         # t0 is added in the PhysicalModel constructor.
         self.add_parameter("t1", t1, **kwargs)
 
-    def compute_flux(self, times, wavelengths, graph_state, **kwargs):
+    def compute_sed(self, times, wavelengths, graph_state, **kwargs):
         """Draw effect-free observations for this object.
 
         Parameters
@@ -143,7 +143,7 @@ class SinWaveSource(PhysicalModel):
         self.add_parameter("amplitude", amplitude, **kwargs)
         self.add_parameter("frequency", frequency, **kwargs)
 
-    def compute_flux(self, times, wavelengths, graph_state, **kwargs):
+    def compute_sed(self, times, wavelengths, graph_state, **kwargs):
         """Draw effect-free observations for this object.
 
         Parameters
@@ -250,7 +250,7 @@ class LinearWavelengthSource(PhysicalModel):
         """
         return self.max_wave
 
-    def compute_flux(self, times, wavelengths, graph_state, **kwargs):
+    def compute_sed(self, times, wavelengths, graph_state, **kwargs):
         """Draw effect-free observations for this object.
 
         Parameters

@@ -94,11 +94,13 @@ class TimeSuite:
         self.filters = np.array([self.filter_options[i % 2] for i in range(len(self.times))])
 
         self.graph_state = self.salt3_model.sample_parameters()
-        self.fluxes = self.salt3_model.evaluate(self.times, self.wavelengths, graph_state=self.graph_state)
+        self.fluxes = self.salt3_model.evaluate_sed(
+            self.times, self.wavelengths, graph_state=self.graph_state
+        )
 
         self.white_noise = WhiteNoise(white_noise_sigma=0.1)
 
-    def time_chained_evaluate(self):
+    def time_chained_evaluate_sed(self):
         """Time the generation of random numbers with an numpy generation node."""
 
         def _add_func(a, b):
@@ -136,7 +138,7 @@ class TimeSuite:
         state = model.sample_parameters()
         times = np.arange(0.0, 10.0, 0.05)
         wavelengths = np.arange(1000.0, 2000.0, 5.0)
-        _ = model.evaluate(times, wavelengths, state)
+        _ = model.evaluate_sed(times, wavelengths, state)
 
     def time_make_simple_linear_wavelength_source(self):
         """Time creating a simple LinearWavelengthSource."""
@@ -144,7 +146,7 @@ class TimeSuite:
 
     def time_evaluate_simple_linear_wavelength_source(self):
         """Time evaluating a simple LinearWavelengthSource."""
-        _ = self.linear_source.evaluate(self.times, self.wavelengths)
+        _ = self.linear_source.evaluate_sed(self.times, self.wavelengths)
 
     def time_make_evaluate_static_source(self):
         """Time creating and querying a static source model."""
@@ -153,7 +155,7 @@ class TimeSuite:
 
         times = np.array([0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0])
         wavelengths = np.array([1000.0, 2000.0, 3000.0, 4000.0])
-        _ = source1.evaluate(times, wavelengths, state)
+        _ = source1.evaluate_sed(times, wavelengths, state)
 
     def time_make_and_evaluate_static_sed(self):
         """Time the creation and evaluation of a static SED source model."""
@@ -169,7 +171,7 @@ class TimeSuite:
         times = np.array([1, 2, 3, 10, 20])
         wavelengths = np.array([50.0, 100.0, 150.0, 200.0, 250.0, 300.0, 350.0, 400.0, 450.0])
 
-        _ = model.evaluate(times, wavelengths, states)
+        _ = model.evaluate_sed(times, wavelengths, states)
 
     def time_make_new_salt3_model(self):
         """Time creating a new SALT3 model."""
@@ -186,7 +188,7 @@ class TimeSuite:
 
     def time_evaluate_salt3_model(self):
         """Time querying a predefined salt3 model."""
-        _ = self.salt3_model.evaluate(
+        _ = self.salt3_model.evaluate_sed(
             self.times,
             self.wavelengths,
             graph_state=self.graph_state,
@@ -202,7 +204,7 @@ class TimeSuite:
 
     def time_evaluate_salt3_passbands(self):
         """Time evaluate the SALT3 model at the passband level."""
-        _ = self.salt3_model.get_band_fluxes(
+        _ = self.salt3_model.evaluate_band_fluxes(
             self.passbands,
             self.times,
             self.filters,
@@ -239,7 +241,7 @@ class TimeSuite:
         )
 
         # Sample the lightcurve source to ensure it works.
-        _ = lc_source.evaluate(self.times, self.wavelengths)
+        _ = lc_source.evaluate_sed(self.times, self.wavelengths)
 
     def time_additive_multi_model_source(self):
         """Time the creation and query of an AdditiveMultiSourceModel."""
@@ -252,4 +254,4 @@ class TimeSuite:
 
         times = np.array([0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0])
         wavelengths = np.array([1000.0, 2000.0, 3000.0, 4000.0])
-        _ = model.evaluate(times, wavelengths, state)
+        _ = model.evaluate_sed(times, wavelengths, state)

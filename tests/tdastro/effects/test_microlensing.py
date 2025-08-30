@@ -73,7 +73,7 @@ def test_static_source_microlensing() -> None:
 
     state = model.sample_parameters()
     wavelengths = np.array([100.0, 200.0, 300.0])
-    values = model.evaluate(times, wavelengths, state)
+    values = model.evaluate_sed(times, wavelengths, state)
     assert values.shape == (num_times, 3)
 
     # Check that the fluxes are all magnified (>100) and that they increase

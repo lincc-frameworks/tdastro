@@ -17,7 +17,7 @@ def test_spline_model_flat() -> None:
     test_waves = np.array([0.0, 100.0, 150.0, 200.0, 500.0, 1000.0])
 
     state = model.sample_parameters()
-    values = model.evaluate(test_times, test_waves, state)
+    values = model.evaluate_sed(test_times, test_waves, state)
     assert values.shape == (5, 6)
 
     # The first and last times are outside the range of the model, so they should be 0.0
@@ -31,7 +31,7 @@ def test_spline_model_flat() -> None:
     assert str(model2) == "test"
 
     state2 = model2.sample_parameters()
-    values2 = model2.evaluate(test_times, test_waves, state2)
+    values2 = model2.evaluate_sed(test_times, test_waves, state2)
     assert values2.shape == (5, 6)
 
     # The first and last times are outside the range of the model, so they should be 0.0
@@ -59,7 +59,7 @@ def test_spline_model_interesting() -> None:
 
     test_times = np.array([1.0, 1.5, 2.0, 3.0])
     test_waves = np.array([10.0, 15.0, 20.0, 30.0, 40.0, 50.0])
-    values = model.evaluate(test_times, test_waves, state)
+    values = model.evaluate_sed(test_times, test_waves, state)
     assert values.shape == (4, 6)
 
     # The last two wavelengths are outside the range of the model, so they should be 0.1
@@ -92,7 +92,7 @@ def test_spline_model_interesting_t0() -> None:
     # Test times correspond to t0 + [1.0, 1.5, 2.0, 3.0]
     test_times = np.array([60677.0, 60677.5, 60678.0, 60679.0])
     test_waves = np.array([10.0, 15.0, 20.0, 30.0])
-    values = model.evaluate(test_times, test_waves, state)
+    values = model.evaluate_sed(test_times, test_waves, state)
     assert values.shape == (4, 4)
 
     expected = np.array(

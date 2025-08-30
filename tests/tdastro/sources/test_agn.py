@@ -171,6 +171,6 @@ def test_create_agn():
     times = np.array([10.0, 20.0, 30.0, 40.0, 50.0])
     wavelengths = np.array([1000.0, 2000.0, 3000.0, 4000.0])
 
-    fluxes = agn_node.compute_flux(times, wavelengths, single_state)
+    fluxes = agn_node.compute_sed(times, wavelengths, single_state)
     assert fluxes.shape == (5, 4)
     assert np.all(fluxes >= 0.0)

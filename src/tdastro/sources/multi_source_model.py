@@ -177,7 +177,9 @@ class MultiSourceModel(PhysicalModel):
         """
         raise NotImplementedError
 
-    def _get_band_fluxes_single(self, passband_group, times, filters, state, rng_info=None) -> np.ndarray:
+    def _evaluate_band_fluxes_single(
+        self, passband_group, times, filters, state, rng_info=None
+    ) -> np.ndarray:
         """Get the band fluxes for a given PassbandGroup and a single, given graph state.
 
         Parameters
@@ -345,7 +347,9 @@ class AdditiveMultiSourceModel(MultiSourceModel):
 
         return flux_density
 
-    def _get_band_fluxes_single(self, passband_group, times, filters, state, rng_info=None) -> np.ndarray:
+    def _evaluate_band_fluxes_single(
+        self, passband_group, times, filters, state, rng_info=None
+    ) -> np.ndarray:
         """Get the band fluxes for a given PassbandGroup and a single, given graph state.
 
         Parameters
@@ -372,7 +376,7 @@ class AdditiveMultiSourceModel(MultiSourceModel):
         # to the entire SED before integrating with the filters to compute the band fluxes.
         band_fluxes = np.zeros(len(times))
         for idx, source in enumerate(self.sources):
-            source_fluxes = source._get_band_fluxes_single(
+            source_fluxes = source._evaluate_band_fluxes_single(
                 passband_group,
                 times,
                 filters,
@@ -517,7 +521,9 @@ class RandomMultiSourceModel(MultiSourceModel):
 
         return flux_density
 
-    def _get_band_fluxes_single(self, passband_group, times, filters, state, rng_info=None) -> np.ndarray:
+    def _evaluate_band_fluxes_single(
+        self, passband_group, times, filters, state, rng_info=None
+    ) -> np.ndarray:
         """Get the band fluxes for a given PassbandGroup and a single, given graph state.
 
         Parameters
@@ -541,7 +547,7 @@ class RandomMultiSourceModel(MultiSourceModel):
         """
         # Use the model selected by the sampler node to compute the flux density.
         model_name = self.get_param(state, "selected_source")
-        band_fluxes = self.source_map[model_name]._get_band_fluxes_single(
+        band_fluxes = self.source_map[model_name]._evaluate_band_fluxes_single(
             passband_group,
             times,
             filters,

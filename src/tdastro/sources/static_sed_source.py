@@ -177,7 +177,7 @@ class StaticSEDSource(PhysicalModel):
         idx = self.get_param(graph_state, "selected_idx")
         return self.sed_values[idx][0, -1]
 
-    def compute_flux(self, times, wavelengths, graph_state):
+    def compute_sed(self, times, wavelengths, graph_state):
         """Draw effect-free observer frame flux densities.
 
         Parameters
