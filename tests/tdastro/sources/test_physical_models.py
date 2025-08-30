@@ -136,12 +136,14 @@ def test_physical_model_evaluate_bandflux(passbands_dir):
 
     # It should fail if no filters are provided.
     with pytest.raises(ValueError):
-        _band_fluxes = static_source.evaluate_bandflux(passbands, times=times, filters=None, state=state)
+        _band_fluxes = static_source.evaluate_band_fluxes(passbands, times=times, filters=None, state=state)
     # It should fail if single passband is provided, but with multiple filter names.
-    with pytest.raises(ValueError):
-        _band_fluxes = static_source.evaluate_bandflux(passbands.passbands["LSST_r"], times, filters, state)
+    with pytest.raises(KeyError):
+        _band_fluxes = static_source.evaluate_band_fluxes(
+            passbands.passbands["LSST_r"], times, filters, state
+        )
 
-    band_fluxes = static_source.evaluate_bandflux(passbands, times, filters, state)
+    band_fluxes = static_source.evaluate_band_fluxes(passbands, times, filters, state)
     assert band_fluxes.shape == (n_passbands,)
     np.testing.assert_allclose(band_fluxes, f_nu, rtol=1e-10)
 
@@ -150,7 +152,7 @@ def test_physical_model_evaluate_bandflux(passbands_dir):
     brightness_list = [1.5 * i for i in range(n_samples)]
     static_source2 = StaticSource(brightness=GivenValueList(brightness_list))
     state2 = static_source2.sample_parameters(num_samples=n_samples)
-    band_fluxes2 = static_source2.evaluate_bandflux(passbands, times, filters, state2)
+    band_fluxes2 = static_source2.evaluate_band_fluxes(passbands, times, filters, state2)
     assert band_fluxes2.shape == (n_samples, n_passbands)
     for idx, brightness in enumerate(brightness_list):
         np.testing.assert_allclose(band_fluxes2[idx, :], brightness, rtol=1e-10)

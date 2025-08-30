@@ -324,12 +324,12 @@ def test_passband_load_subset_passbands(tmp_path):
 def test_passband_ztf_preset():
     """Test that we can load the ZTF passbands."""
 
-    def mock_get_bandpass(name):
+    def _mock_get_bandpass(name):
         """Return a predefined Bandpass object instead of downloading the transmission table."""
         return Bandpass(np.array([6000, 6005, 6010]), np.array([0.5, 0.6, 0.7]))
 
     # Mock the get_bandpass portion of the download method
-    with patch("sncosmo.get_bandpass", side_effect=mock_get_bandpass):
+    with patch("sncosmo.get_bandpass", side_effect=_mock_get_bandpass):
         group = PassbandGroup.from_preset(preset="ZTF")
         assert len(group) == 3
         assert "ZTF_g" in group
@@ -337,7 +337,7 @@ def test_passband_ztf_preset():
         assert "ZTF_i" in group
 
     # Try the load with a subset of filters.
-    with patch("sncosmo.get_bandpass", side_effect=mock_get_bandpass):
+    with patch("sncosmo.get_bandpass", side_effect=_mock_get_bandpass):
         group = PassbandGroup.from_preset(preset="ZTF", filters=["g", "i"])
         assert len(group) == 2
         assert "ZTF_g" in group
@@ -469,7 +469,7 @@ def test_passband_group_wrapped_from_physical_source(passbands_dir, tmp_path):
     n_lsst_bands = len(lsst_passband_group.passbands)
     n_times = len(test_times)
 
-    fluxes_source_model = model.evaluate_bandflux(
+    fluxes_source_model = model.evaluate_band_fluxes(
         lsst_passband_group,
         times=np.repeat(test_times, n_lsst_bands),
         filters=np.tile(list(lsst_passband_group.passbands.keys()), n_times),
@@ -490,7 +490,7 @@ def test_passband_group_wrapped_from_physical_source(passbands_dir, tmp_path):
     # Using toy passband group:
     toy_passband_group = create_toy_passband_group(tmp_path, delta_wave=20, trim_quantile=None)
     n_toy_bands = len(toy_passband_group.passbands)
-    fluxes_source_model = model.evaluate_bandflux(
+    fluxes_source_model = model.evaluate_band_fluxes(
         toy_passband_group,
         times=np.repeat(test_times, n_toy_bands),
         filters=np.tile(list(toy_passband_group.passbands.keys()), n_times),

@@ -7,7 +7,6 @@ https://sncosmo.readthedocs.io/en/stable/models.html
 import numpy as np
 from astropy import units as u
 from citation_compass import CiteClass
-from sncosmo.models import get_source
 
 from tdastro.astro_utils.unit_utils import flam_to_fnu
 from tdastro.sources.physical_model import SEDModel
@@ -64,6 +63,15 @@ class SncosmoWrapperModel(SEDModel, CiteClass):
         seed=None,
         **kwargs,
     ):
+        try:
+            from sncosmo.models import get_source
+        except ImportError as err:
+            raise ImportError(
+                "sncosmo package is not installed be default. To use the SncosmoWrapperModel, "
+                "please install sncosmo. For example, you can install it with "
+                "`pip install sncosmo` or `conda install conda-forge::sncosmo`."
+            ) from err
+
         # We explicitly ask for and pass along the PhysicalModel parameters such
         # as node_label and wave_extrapolation so they do not go into kwargs
         # and get added to the sncosmo model below.
@@ -232,7 +240,7 @@ class SncosmoWrapperModel(SEDModel, CiteClass):
         )
         return good_times
 
-    def compute_flux(self, times, wavelengths, graph_state=None, **kwargs):
+    def compute_sed(self, times, wavelengths, graph_state=None, **kwargs):
         """Draw effect-free observations for this object.
 
         Parameters
@@ -257,7 +265,7 @@ class SncosmoWrapperModel(SEDModel, CiteClass):
         # sncosmo gives an error if the wavelengths are out of bounds, so we need to use
         # extrapolation if the wavelengths are out of bounds.
         if np.any(wavelengths < self.source.minwave()) or np.any(wavelengths > self.source.maxwave()):
-            return self.compute_flux_with_extrapolation(times, wavelengths, graph_state, **kwargs)
+            return self.compute_sed_with_extrapolation(times, wavelengths, graph_state, **kwargs)
 
         # Query the model and convert the output to nJy.
         model_flam = self.source.flux(times - params["t0"], wavelengths)

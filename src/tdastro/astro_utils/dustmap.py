@@ -6,7 +6,8 @@ https://github.com/gregreen/dustmaps
 
 Note that the dustmaps package is not included by default, because it uses
 dependencies that may not be compatible with all systems. Users can manually
-install dustmaps in their environment with “pip install dustmaps”.
+install dustmaps in their environment with “pip install dustmaps” or
+“conda install conda-forge::dustmaps”.
 """
 
 import importlib

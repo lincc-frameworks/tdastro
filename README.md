@@ -5,6 +5,8 @@ Time-Domain Forward-Modeling for the Rubin Era
 [![Template](https://img.shields.io/badge/Template-LINCC%20Frameworks%20Python%20Project%20Template-brightgreen)](https://lincc-ppt.readthedocs.io/en/latest/)
 
 [![PyPI](https://img.shields.io/pypi/v/tdastro?color=blue&logo=pypi&logoColor=white)](https://pypi.org/project/tdastro/)
+[![Conda Version](https://img.shields.io/conda/vn/conda-forge/citation-compass.svg)](https://anaconda.org/conda-forge/citation-compass)
+
 [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/lincc-frameworks/tdastro/smoke-test.yml)](https://github.com/lincc-frameworks/tdastro/actions/workflows/smoke-test.yml)
 [![Codecov](https://codecov.io/gh/lincc-frameworks/tdastro/branch/main/graph/badge.svg)](https://codecov.io/gh/lincc-frameworks/tdastro)
 [![Benchmarks](https://img.shields.io/github/actions/workflow/status/lincc-frameworks/tdastro/asv-main.yml?label=benchmarks)](https://lincc-frameworks.github.io/tdastro/)
@@ -19,13 +21,26 @@ and test pipelines. TDAstro aims to provide a flexible, scalable, and user-frien
 time-domain simulation software with realistic effects and survey strategies.
 
 The software package consists of multiple stages:
-1. A flexible framework for consistently sampling model parameters (and hyper-parameters),
+1. A flexible framework for consistently sampling model parameters (and hyperparameters),
 2. Realistic models of time varying phenomena (such as supernovae and AGNs),
 3. Effect models (such as dust extinction), and
 4. Survey characteristics (such as cadence, filters, and noise).
 
 For an overview of the package, we recommend starting with introduction notebook 
 (at `notebooks/introduction.ipynb`).
+
+
+## Installation
+
+Install from PyPI or conda-forge:
+
+```
+pip install tdastro
+```
+
+```
+conda install conda-forge::tdastro
+```
 
 
 ## Dev Guide - Getting Started

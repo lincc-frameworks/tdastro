@@ -15,9 +15,11 @@ from tdastro.astro_utils.unit_utils import fnu_to_flam
 from tdastro.base_models import FunctionNode
 from tdastro.effects.white_noise import WhiteNoise
 from tdastro.math_nodes.np_random import NumpyRandomFunc
-from tdastro.sources.basic_sources import LinearWavelengthSource, StepSource
+from tdastro.sources.basic_sources import LinearWavelengthSource, StaticSource, StepSource
 from tdastro.sources.lightcurve_source import LightcurveSource
+from tdastro.sources.multi_source_model import AdditiveMultiSourceModel
 from tdastro.sources.sncomso_models import SncosmoWrapperModel
+from tdastro.sources.static_sed_source import StaticSEDSource
 
 # ASV runs from copy of the project (benchmarks/env/....). So we load the
 # data files based off the current file location instead.
@@ -146,6 +148,31 @@ class TimeSuite:
         """Time evaluating a simple LinearWavelengthSource."""
         _ = self.linear_source.evaluate_sed(self.times, self.wavelengths)
 
+    def time_make_evaluate_static_source(self):
+        """Time creating and querying a static source model."""
+        source1 = StaticSource(brightness=100.0, node_label="my_static_source")
+        state = source1.sample_parameters(num_samples=1000)
+
+        times = np.array([0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0])
+        wavelengths = np.array([1000.0, 2000.0, 3000.0, 4000.0])
+        _ = source1.evaluate_sed(times, wavelengths, state)
+
+    def time_make_and_evaluate_static_sed(self):
+        """Time the creation and evaluation of a static SED source model."""
+        sed = np.array(
+            [
+                [50.0, 100.0, 200.0, 300.0, 400.0, 500.0, 600.0],  # Wavelengths
+                [5.0, 10.0, 20.0, 20.0, 10.0, 5.0, 1.0],  # fluxes
+            ]
+        )
+        model = StaticSEDSource(sed, node_label="test")
+        states = model.sample_parameters(num_samples=1000)
+
+        times = np.array([1, 2, 3, 10, 20])
+        wavelengths = np.array([50.0, 100.0, 150.0, 200.0, 250.0, 300.0, 350.0, 400.0, 450.0])
+
+        _ = model.evaluate_sed(times, wavelengths, states)
+
     def time_make_new_salt3_model(self):
         """Time creating a new SALT3 model."""
         _ = SncosmoWrapperModel(
@@ -177,7 +204,7 @@ class TimeSuite:
 
     def time_evaluate_salt3_passbands(self):
         """Time evaluate the SALT3 model at the passband level."""
-        _ = self.salt3_model.evaluate_bandflux(
+        _ = self.salt3_model.evaluate_band_fluxes(
             self.passbands,
             self.times,
             self.filters,
@@ -215,3 +242,16 @@ class TimeSuite:
 
         # Sample the lightcurve source to ensure it works.
         _ = lc_source.evaluate_sed(self.times, self.wavelengths)
+
+    def time_additive_multi_model_source(self):
+        """Time the creation and query of an AdditiveMultiSourceModel."""
+        source1 = StaticSource(brightness=100.0, node_label="my_static_source")
+        source2 = StepSource(brightness=50.0, t0=1.0, t1=2.0, node_label="my_step_source")
+        model = AdditiveMultiSourceModel([source1, source2], node_label="my_multi_source")
+
+        num_samples = 1000
+        state = model.sample_parameters(num_samples=num_samples)
+
+        times = np.array([0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0])
+        wavelengths = np.array([1000.0, 2000.0, 3000.0, 4000.0])
+        _ = model.evaluate_sed(times, wavelengths, state)

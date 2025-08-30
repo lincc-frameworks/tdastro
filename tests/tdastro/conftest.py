@@ -48,7 +48,7 @@ def test_conditional_flow_filename(test_data_dir):
 
 @pytest.fixture
 def oversampled_observations(opsim_shorten):
-    """Return an OpSim object with 0.01 day cadence spanning year 2027."""
+    """Return an OpSim object with 0.05 day cadence spanning year 2027."""
     from tdastro.opsim.opsim import OpSim, oversample_opsim
 
     base_opsim = OpSim.from_db(opsim_shorten)
@@ -56,7 +56,7 @@ def oversampled_observations(opsim_shorten):
         base_opsim,
         pointing=(0.0, 0.0),
         search_radius=180.0,
-        delta_t=0.01,
+        delta_t=0.05,
         time_range=(61406.0, 61771.0),
         bands=None,
         strategy="darkest_sky",

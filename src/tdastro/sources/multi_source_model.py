@@ -8,11 +8,11 @@ import numpy as np
 
 from tdastro.graph_state import GraphState
 from tdastro.math_nodes.given_sampler import GivenValueSampler
-from tdastro.sources.physical_model import SEDModel
+from tdastro.sources.physical_model import BandfluxModel, BasePhysicalModel, SEDModel
 
 
 class MultiSourceModel(SEDModel):
-    """A MultiSourceModel wraps multiple SEDModels.
+    """A MultiSourceModel wraps multiple BasePhysicalModels (including BandfluxModels).
 
     All rest frame effects are applied to each source, allowing different redshifts
     for each source (for unresolved sources).  The observer frame effects are applied
@@ -27,6 +27,8 @@ class MultiSourceModel(SEDModel):
         A list of SEDModel objects to use in the flux calculation.
     num_sources : int
         The number of sources in the model.
+    _is_bandflux : list
+        A list of Booleans indicating whether each source is a BandfluxModel.
 
     Parameters
     ----------
@@ -43,13 +45,17 @@ class MultiSourceModel(SEDModel):
     ):
         super().__init__(**kwargs)
 
-        # Check that all sources are SEDModel objects and they do not contain
-        # observer frame effects.
-        for source in sources:
-            if not isinstance(source, SEDModel):
-                raise ValueError("All sources must be SEDModel objects.")
+        # Check that all sources are PhysicalModel objects and mark whether they are BandfluxModels.
+        self._is_bandflux = [False] * len(sources)
+        for idx, source in enumerate(sources):
+            if isinstance(source, BandfluxModel):
+                self._is_bandflux[idx] = True
+            elif not isinstance(source, BasePhysicalModel):
+                raise ValueError("All sources must be PhysicalModel objects.")
+
             if len(source.obs_frame_effects) > 0:
                 raise ValueError("A MultiSourceModel cannot contain sources with observer frame effects.")
+
         self.sources = sources
         self.num_sources = len(sources)
 
@@ -78,8 +84,9 @@ class MultiSourceModel(SEDModel):
         apply_redshift : bool
             The new value for apply_redshift.
         """
-        for source in self.sources:
-            source.set_apply_redshift(apply_redshift)
+        for idx, source in enumerate(self.sources):
+            if self._is_bandflux[idx]:
+                source.set_apply_redshift(apply_redshift)
 
     def add_effect(self, effect):
         """Add an effect to the model.  Rest frame effects are applied to each source
@@ -167,6 +174,32 @@ class MultiSourceModel(SEDModel):
         -------
         flux_density : numpy.ndarray
             A length T x N matrix of SED values (in nJy).
+        """
+        raise NotImplementedError
+
+    def _evaluate_band_fluxes_single(
+        self, passband_group, times, filters, state, rng_info=None
+    ) -> np.ndarray:
+        """Get the band fluxes for a given PassbandGroup and a single, given graph state.
+
+        Parameters
+        ----------
+        passband_group : PassbandGroup
+            The passband group to use.
+        times : numpy.ndarray
+            A length T array of observer frame timestamps in MJD.
+        filters : numpy.ndarray
+            A length T array of filter names.
+        state : GraphState
+            An object mapping graph parameters to their values.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
+
+        Returns
+        -------
+        band_fluxes : numpy.ndarray
+            A length T array of band fluxes for this sample.
         """
         raise NotImplementedError
 
@@ -314,6 +347,58 @@ class AdditiveMultiSourceModel(MultiSourceModel):
 
         return flux_density
 
+    def _evaluate_band_fluxes_single(
+        self, passband_group, times, filters, state, rng_info=None
+    ) -> np.ndarray:
+        """Get the band fluxes for a given PassbandGroup and a single, given graph state.
+
+        Parameters
+        ----------
+        passband_group : PassbandGroup
+            The passband group to use.
+        times : numpy.ndarray
+            A length T array of observer frame timestamps in MJD.
+        filters : numpy.ndarray
+            A length T array of filter names.
+        state : GraphState
+            An object mapping graph parameters to their values.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
+
+        Returns
+        -------
+        band_fluxes : numpy.ndarray
+            A length T array of band fluxes for this sample.
+        """
+        # Compute the band fluxes as the weighted sum of all bandfluxes. All models will have rest frame
+        # effects applied prior to summing. In the case of full SED models, the effects will be applied
+        # to the entire SED before integrating with the filters to compute the band fluxes.
+        band_fluxes = np.zeros(len(times))
+        for idx, source in enumerate(self.sources):
+            source_fluxes = source._evaluate_band_fluxes_single(
+                passband_group,
+                times,
+                filters,
+                state,
+                rng_info=rng_info,
+            )
+            band_fluxes += self.weights[idx] * source_fluxes
+
+        # Apply any common rest frame effects to the total bandflux.  We need to use the effects'
+        # apply_bandflux() function since we no longer have SEDs.
+        params = self.get_local_params(state)
+        for effect in self.obs_frame_effects:
+            band_fluxes = effect.apply_bandflux(
+                band_fluxes,
+                times=times,
+                filters=filters,
+                rng_info=rng_info,
+                **params,
+            )
+
+        return band_fluxes
+
 
 class RandomMultiSourceModel(MultiSourceModel):
     """A RandomMultiSourceModel selects one of its sources at random and
@@ -423,7 +508,7 @@ class RandomMultiSourceModel(MultiSourceModel):
             **kwargs,
         )
 
-        # Apply the observer frame effects on the weighted sum of sources.
+        # Apply the observer frame effects on the selected source.
         params = self.get_local_params(state)
         for effect in self.obs_frame_effects:
             flux_density = effect.apply(
@@ -435,3 +520,49 @@ class RandomMultiSourceModel(MultiSourceModel):
             )
 
         return flux_density
+
+    def _evaluate_band_fluxes_single(
+        self, passband_group, times, filters, state, rng_info=None
+    ) -> np.ndarray:
+        """Get the band fluxes for a given PassbandGroup and a single, given graph state.
+
+        Parameters
+        ----------
+        passband_group : PassbandGroup
+            The passband group to use.
+        times : numpy.ndarray
+            A length T array of observer frame timestamps in MJD.
+        filters : numpy.ndarray
+            A length T array of filter names.
+        state : GraphState
+            An object mapping graph parameters to their values.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
+
+        Returns
+        -------
+        band_fluxes : numpy.ndarray
+            A length T array of band fluxes for this sample.
+        """
+        # Use the model selected by the sampler node to compute the flux density.
+        model_name = self.get_param(state, "selected_source")
+        band_fluxes = self.source_map[model_name]._evaluate_band_fluxes_single(
+            passband_group,
+            times,
+            filters,
+            state,
+            rng_info=rng_info,
+        )
+
+        # Apply the observer frame effects on the selected source.
+        params = self.get_local_params(state)
+        for effect in self.obs_frame_effects:
+            band_fluxes = effect.apply_bandflux(
+                band_fluxes,
+                times=times,
+                filters=filters,
+                rng_info=rng_info,
+                **params,
+            )
+        return band_fluxes

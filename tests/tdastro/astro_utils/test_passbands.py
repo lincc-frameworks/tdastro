@@ -210,6 +210,20 @@ def test_passband_from_sncosmo(passbands_dir):
     assert np.allclose(ztf_band._loaded_table[:, 0], sn_pb.wave)
     assert np.allclose(ztf_band._loaded_table[:, 1], sn_pb.trans)
 
+    def _mock_get_bandpass(name):
+        """Return a predefined Bandpass object instead of downloading the transmission table."""
+        return Bandpass(np.array([6000, 6005, 6010]), np.array([0.5, 0.6, 0.7]))
+
+    # Check that we can load the sncosmo passband from just the filter and survey.
+    with patch("sncosmo.get_bandpass", side_effect=_mock_get_bandpass):
+        ztf_band2 = Passband.from_sncosmo("ZTF", "g", "ztfg")
+        assert np.allclose(ztf_band2._loaded_table[:, 0], sn_pb.wave)
+        assert np.allclose(ztf_band2._loaded_table[:, 1], sn_pb.trans)
+
+    # Check that an error occurs if we pass None
+    with pytest.raises(ValueError):
+        _ = Passband.from_sncosmo("ZTF", "g", None)
+
 
 def test_passband_from_svo(passbands_dir):
     """Test that we can load data from SVO passbands."""
@@ -499,7 +513,7 @@ def test_passband_fluxes_to_bandflux_mult_samples(passbands_dir, tmp_path):
 
 
 def test_passband_wrapped_from_physical_source(passbands_dir, tmp_path):
-    """Test evaluate_bandflux, SEDModel's wrapped version of Passband's fluxes_to_bandflux.."""
+    """Test evaluate_band_fluxes, SEDModel's wrapped version of Passband's fluxes_to_bandflux."""
     # Set up physical model
     times = np.array([1.0, 2.0, 3.0])
     wavelengths = np.array([10.0, 20.0, 30.0])
@@ -512,7 +526,7 @@ def test_passband_wrapped_from_physical_source(passbands_dir, tmp_path):
     # Test with a single toy passband (see PassbandGroup tests for group tests)
     transmission_table = "100 0.5\n200 0.75\n300 0.25\n"
     a_band = create_toy_passband(tmp_path, transmission_table, delta_wave=100, trim_quantile=None)
-    result_from_source_model = model.evaluate_bandflux(a_band, test_times, filters=None, state=state)
+    result_from_source_model = model.evaluate_band_fluxes(a_band, test_times, filters=None, state=state)
 
     evaluated_fluxes = model.evaluate_sed(test_times, a_band.waves, state)
     result_from_passband = a_band.fluxes_to_bandflux(evaluated_fluxes)
@@ -520,7 +534,7 @@ def test_passband_wrapped_from_physical_source(passbands_dir, tmp_path):
 
     # Test with a standard LSST passband
     LSST_g = create_lsst_passband(passbands_dir, "g")
-    result_from_source_model = model.evaluate_bandflux(
+    result_from_source_model = model.evaluate_band_fluxes(
         LSST_g, test_times, filters=np.repeat("g", len(test_times)), state=state
     )
 

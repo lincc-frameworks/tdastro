@@ -1,10 +1,11 @@
 import numpy as np
 import pytest
+from tdastro.astro_utils.passbands import Passband, PassbandGroup
 from tdastro.effects.basic_effects import ConstantDimming
 from tdastro.math_nodes.np_random import NumpyRandomFunc
 from tdastro.sources.basic_sources import StaticSource, StepSource
 from tdastro.sources.multi_source_model import AdditiveMultiSourceModel, RandomMultiSourceModel
-from tdastro.sources.static_sed_source import StaticSEDSource
+from tdastro.sources.static_sed_source import StaticBandfluxSource, StaticSEDSource
 
 
 def test_additive_multi_source_node() -> None:
@@ -23,6 +24,39 @@ def test_additive_multi_source_node() -> None:
     values = model.evaluate_sed(times, wavelengths, state)
     assert values.shape == (3, 2)
     assert np.allclose(values, [[10.0, 10.0], [25.0, 25.0], [10.0, 10.0]])
+
+
+def test_additive_multi_source_node_passband() -> None:
+    """Test that we can evaluate a AdditiveMultiSourceModel at the passband level."""
+    a_band = Passband(np.array([[900, 0.0], [1000, 0.5], [2000, 0.5], [2100, 0.0]]), "LSST", "a")
+    b_band = Passband(np.array([[2900, 0.0], [3000, 0.5], [4000, 0.5], [4100, 0.0]]), "LSST", "b")
+    c_band = Passband(np.array([[5900, 0.0], [6000, 0.5], [7000, 0.5], [7100, 0.0]]), "LSST", "c")
+    pb_group = PassbandGroup([a_band, b_band, c_band])
+
+    source1 = StaticSource(brightness=10.0, node_label="my_static_source")
+    source2 = StepSource(brightness=15.0, t0=1.0, t1=2.0, node_label="my_step_source")
+    model = AdditiveMultiSourceModel([source1, source2], node_label="my_multi_source")
+    state = model.sample_parameters(num_samples=1)
+
+    times = np.array([0.0, 0.5, 1.25, 1.5, 3.0, 4.0])
+    filters = np.array(["a", "a", "a", "b", "c", "a"])
+
+    bandflux1 = source1.evaluate_band_fluxes(pb_group, times, filters, state)
+    assert np.allclose(bandflux1, [10.0, 10.0, 10.0, 10.0, 10.0, 10.0])
+
+    bandflux2 = source2.evaluate_band_fluxes(pb_group, times, filters, state)
+    assert np.allclose(bandflux2, [0.0, 0.0, 15.0, 15.0, 0.0, 0.0])
+
+    bandflux_combined = model.evaluate_band_fluxes(pb_group, times, filters, state)
+    assert np.allclose(bandflux_combined, [10.0, 10.0, 25.0, 25.0, 10.0, 10.0])
+
+    # We can include a Bandflux only model in the computation.
+    source3 = StaticBandfluxSource({"a": 1.0, "b": 2.0, "c": 0.0})
+    model2 = AdditiveMultiSourceModel([source1, source2, source3], node_label="my_multi_source")
+    state2 = model2.sample_parameters(num_samples=1)
+
+    bandflux_combined = model2.evaluate_band_fluxes(pb_group, times, filters, state2)
+    assert np.allclose(bandflux_combined, [11.0, 11.0, 26.0, 27.0, 10.0, 11.0])
 
 
 def test_additive_multi_source_node_resample() -> None:
@@ -249,6 +283,47 @@ def test_random_multi_source_node() -> None:
     assert np.all((values == 10.0) | (values == 15.0))
     assert np.sum(values == 10.0) > 7000 * 5
     assert np.sum(values == 15.0) > 1000 * 5
+
+
+def test_random_multi_source_node_bandflux() -> None:
+    """Test that we can create and evaluate a RandomMultiSourceModel."""
+    a_band = Passband(np.array([[900, 0.0], [1000, 0.5], [2000, 0.5], [2100, 0.0]]), "LSST", "a")
+    b_band = Passband(np.array([[2900, 0.0], [3000, 0.5], [4000, 0.5], [4100, 0.0]]), "LSST", "b")
+    c_band = Passband(np.array([[5900, 0.0], [6000, 0.5], [7000, 0.5], [7100, 0.0]]), "LSST", "c")
+    pb_group = PassbandGroup([a_band, b_band, c_band])
+
+    # Create a random model with 2 SED-based models and 1-bandflux based model.
+    source1 = StaticSource(brightness=10.0, node_label="source1")
+    source2 = StaticSource(brightness=15.0, node_label="source2")
+    source3 = StaticBandfluxSource({"a": 1.0, "b": 2.0, "c": 0.0}, node_label="source3")
+    model = RandomMultiSourceModel(
+        [source1, source2, source3],
+        weights=[0.25, 0.5, 0.25],
+        node_label="my_multi_source",
+    )
+
+    rng_info = np.random.default_rng(100)
+    state = model.sample_parameters(num_samples=1_000, rng_info=rng_info)
+
+    source = np.array(state["my_multi_source"]["selected_source"], dtype=str)
+    assert np.all((source == "source1") | (source == "source2") | (source == "source3"))
+    assert np.sum(source == "source1") > 200
+    assert np.sum(source == "source2") > 400
+    assert np.sum(source == "source3") > 200
+
+    # When we evaluate the model, we should get the expected values.
+    times = np.array([0.0, 1.5, 3.0, 4.0])
+    filters = np.array(["a", "a", "b", "a"])
+    values = model.evaluate_band_fluxes(pb_group, times, filters, state)
+
+    assert values.shape == (1_000, 4)
+    for i in range(1_000):
+        if source[i] == "source1":
+            assert np.allclose([10.0, 10.0, 10.0, 10.0], values[i])
+        elif source[i] == "source2":
+            assert np.allclose([15.0, 15.0, 15.0, 15.0], values[i])
+        elif source[i] == "source3":
+            assert np.allclose([1.0, 1.0, 2.0, 1.0], values[i])
 
 
 def test_random_multi_source_node_min_max() -> None:

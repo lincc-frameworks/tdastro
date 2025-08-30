@@ -11,8 +11,7 @@ def test_snia_end2end(oversampled_observations, passbands_dir):
         oversampled_observations,
         passbands_dir,
         solid_angle=solid_angle,
-        nsample=None,
-        check_sncosmo=True,
+        nsample=4,
         rng_info=rng,
     )
     assert len(passbands) == 2
@@ -24,7 +23,6 @@ def test_snia_end2end(oversampled_observations, passbands_dir):
         passbands_dir,
         solid_angle=solid_angle,
         nsample=num_samples,
-        check_sncosmo=True,
         rng_info=rng,
     )
     assert len(res_list) == num_samples

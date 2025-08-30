@@ -158,7 +158,7 @@ def test_step_source_resample() -> None:
 
 def test_sin_wave_source() -> None:
     """Test that we can sample and create a SinWaveSource object."""
-    model = SinWaveSource(brightness=15.0, frequency=1.0, t0=0.0)
+    model = SinWaveSource(amplitude=15.0, frequency=1.0, t0=0.0)
     state = model.sample_parameters()
 
     times = np.array([0.0, 1.0 / 12.0, 1.0 / 4.0, 5.0 / 12.0, 0.5])
@@ -168,6 +168,14 @@ def test_sin_wave_source() -> None:
     values = model.evaluate_sed(times, wavelengths, state)
     assert values.shape == (5, 2)
     assert np.allclose(values, expected)
+
+    model2 = SinWaveSource(brightness=10.0, amplitude=15.0, frequency=1.0, t0=0.0)
+    state2 = model2.sample_parameters()
+    expected2 = np.array([[10.0, 10.0], [17.5, 17.5], [25.0, 25.0], [17.5, 17.5], [10.0, 10.0]])
+
+    values2 = model2.evaluate_sed(times, wavelengths, state2)
+    assert values2.shape == (5, 2)
+    assert np.allclose(values2, expected2)
 
 
 def test_linear_wavelength_source() -> None:

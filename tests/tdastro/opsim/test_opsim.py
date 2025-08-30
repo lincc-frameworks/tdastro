@@ -455,9 +455,10 @@ def test_oversample_opsim(opsim_shorten):
         assert np.all(oversampled["observationStartMJD"] >= time_range[0]), "time range is not correct"
         assert np.all(oversampled["observationStartMJD"] <= time_range[1]), "time range is not correct"
         assert set(oversampled["filter"]) == set(bands), "oversampled table has the wrong bands"
-        assert (
-            oversampled["skyBrightness"].unique().size >= oversampled["filter"].unique().size
-        ), "there should be at least as many skyBrightness values as bands"
+
+        n_skybright = oversampled["skyBrightness"].unique().size
+        n_filters = oversampled["filter"].unique().size
+        assert n_skybright >= n_filters, "there should be at least as many skyBrightness values as bands"
         assert oversampled["skyBrightness"].isna().sum() == 0, "skyBrightness has NaN values"
 
     # Oversampling fails if there are no observations in the time range.
@@ -485,7 +486,7 @@ def test_oversample_opsim(opsim_shorten):
 
 def test_fixture_oversampled_observations(oversampled_observations):
     """Test the fixture oversampled_observations."""
-    assert len(oversampled_observations) == 36_500
+    assert len(oversampled_observations) == 7_300
     assert set(oversampled_observations["filter"]) == {"g", "r"}
     assert oversampled_observations["skyBrightness"].isna().sum() == 0
     assert oversampled_observations["skyBrightness"].unique().size >= 2
@@ -493,4 +494,4 @@ def test_fixture_oversampled_observations(oversampled_observations):
     assert np.all(oversampled_observations["observationStartMJD"] <= 61771.0)
     np.testing.assert_allclose(oversampled_observations["fieldRA"], 0.0)
     np.testing.assert_allclose(oversampled_observations["fieldDec"], 0.0)
-    np.testing.assert_allclose(np.diff(oversampled_observations["observationStartMJD"]), 0.01)
+    np.testing.assert_allclose(np.diff(oversampled_observations["observationStartMJD"]), 0.05)

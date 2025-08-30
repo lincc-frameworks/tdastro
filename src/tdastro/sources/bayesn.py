@@ -442,7 +442,7 @@ class BayesnModel(SEDModel, CiteClass):
         return good_times
 
     # MAIN FUNCTION:
-    def compute_flux(self, times, wavelengths, graph_state, **kwargs):
+    def compute_sed(self, times, wavelengths, graph_state, **kwargs):
         """Draw effect-free observations for this object.
 
         Parameters

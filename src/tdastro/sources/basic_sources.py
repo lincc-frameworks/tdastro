@@ -28,7 +28,7 @@ class StaticSource(SEDModel):
         super().__init__(**kwargs)
         self.add_parameter("brightness", brightness, **kwargs)
 
-    def compute_flux(self, times, wavelengths, graph_state, **kwargs):
+    def compute_sed(self, times, wavelengths, graph_state, **kwargs):
         """Draw effect-free observations for this object.
 
         Parameters
@@ -81,7 +81,7 @@ class StepSource(StaticSource):
         # t0 is added in the PhysicalModel constructor.
         self.add_parameter("t1", t1, **kwargs)
 
-    def compute_flux(self, times, wavelengths, graph_state, **kwargs):
+    def compute_sed(self, times, wavelengths, graph_state, **kwargs):
         """Draw effect-free observations for this object.
 
         Parameters
@@ -111,7 +111,7 @@ class StepSource(StaticSource):
 class SinWaveSource(SEDModel):
     """A source that emits a sine wave.
 
-    flux = brightness * sin(2 * pi * frequency * (time - t0))
+    flux = brightness + amplitude * sin(2 * pi * frequency * (time - t0))
 
     Parameterized values include:
       * brightness - The inherent brightness
@@ -125,19 +125,25 @@ class SinWaveSource(SEDModel):
     Parameters
     ----------
     brightness : float
-        The inherent brightness
+        The inherent brightness.
+        Default: 0.0
+    amplitude : float
+        The amplitude of the sine wave.
+        Default: 0.0
     frequency : float
-        The frequence of the sine wave.
+        The frequency of the sine wave.
+        Default: 1.0
     **kwargs : dict, optional
         Any additional keyword arguments.
     """
 
-    def __init__(self, brightness, frequency, **kwargs):
+    def __init__(self, *, brightness=0.0, amplitude=0.0, frequency=1.0, **kwargs):
         super().__init__(**kwargs)
         self.add_parameter("brightness", brightness, **kwargs)
+        self.add_parameter("amplitude", amplitude, **kwargs)
         self.add_parameter("frequency", frequency, **kwargs)
 
-    def compute_flux(self, times, wavelengths, graph_state, **kwargs):
+    def compute_sed(self, times, wavelengths, graph_state, **kwargs):
         """Draw effect-free observations for this object.
 
         Parameters
@@ -158,7 +164,7 @@ class SinWaveSource(SEDModel):
         """
         params = self.get_local_params(graph_state)
         phases = 2.0 * np.pi * params["frequency"] * (times - params["t0"])
-        single_wave = params["brightness"] * np.sin(phases)
+        single_wave = params["brightness"] + params["amplitude"] * np.sin(phases)
         return np.tile(single_wave[:, np.newaxis], (1, len(wavelengths)))
 
 
@@ -244,7 +250,7 @@ class LinearWavelengthSource(SEDModel):
         """
         return self.max_wave
 
-    def compute_flux(self, times, wavelengths, graph_state, **kwargs):
+    def compute_sed(self, times, wavelengths, graph_state, **kwargs):
         """Draw effect-free observations for this object.
 
         Parameters

@@ -25,8 +25,8 @@ The main simulation components in TDAstro include:
 
 * A statistical simulation step where the hyperparameters of the model are drawn
   from one or more prior distributions.
-* A physical model (either ``SEDModel`` or ``BandfluxModel``) defines the properties of
-  the time-domain source, which is used to generate the noise-free light curves.
+* A model that defines the properties of the time-domain source, which can 
+  also include a host-galaxy model, and is used to generate the noise-free light curves.
 * ``Opsim`` contains the survey information such as survey strategy and observing
   conditions. It is used to specify the observing times and bands.
 * A set of predefined effects, such as dust extinction and detector noise, are applied to
@@ -50,19 +50,58 @@ The `full source code <https://github.com/lincc-frameworks/tdastro>`_ is availab
 Getting Started
 -------------------------------------------------------------------------------
 
-You can install TDAstro via pip. We recommend that you do so in a virtual environment. 
-To create and start a new virtual environment named "tdastro" from the terminal:
+You can install TDAstro from PyPI with pip or from conda-forge with conda. We recommend using a dedicated environment.
 
-.. code-block:: bash
+.. tab-set::
+   :sync-group: packagemanager
 
-   >> python3 -m venv ~/envs/tdastro
-   >> source ~/envs/tdastro/bin/activate
+   .. tab-item:: pip
+      :sync: pip
 
-You can then directly install the software from pip:
+      .. code-block:: bash
 
-.. code-block:: bash
+         # Create a virtual environment
+         python3 -m venv ~/envs/tdastro
+         # Activate it
+         source ~/envs/tdastro/bin/activate
+         # Install from PyPI
+         python -m pip install tdastro
 
-   >> pip install tdastro
+   .. tab-item:: conda
+      :sync: conda
+
+      .. code-block:: bash
+
+         # Create a virtual environment
+         conda create -p tdastro python=3.12
+         # Activate it
+         conda activate tdastro
+         # Install from conda-forge channel
+         conda install conda-forge::tdastro
+
+Since TDAstro relies on a large number of existing packages, not all of the packages
+are installed in the default configuration. For example the microlensing (`VBMicrolensing`),
+pzflow (`pzflow`), and sncosmo (`sncosmo`) packages are not included by default. If you try to
+import a module that is not installed, TDAstro will raise an `ImportError` with information on which
+packages you need to install. You will need to install these manually. You can also install all
+optional dependencies with:
+
+.. tab-set::
+   :sync-group: packagemanager
+
+   .. tab-item:: pip
+      :sync: pip
+
+      .. code-block:: bash
+
+         python -m pip install 'tdastro[all]'
+
+   .. tab-item:: conda
+      :sync: conda
+
+      .. code-block:: bash
+
+         conda install conda-forge::tdastro conda-forge::pzflow conda-forge::sncosmo
 
 See our selection of :doc:`tutorial notebooks <notebooks>` for usage examples.
 We recommend starting with the :doc:`introduction notebook <notebooks/introduction>`
