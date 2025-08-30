@@ -267,7 +267,7 @@ class PhysicalModel(ParameterizedNode):
         if max_valid_wave is None:
             max_valid_wave = max_query_wave
 
-        # If no extrapolation is needed, just call compute the flux.
+        # If no extrapolation is needed, just call compute SED.
         if min_query_wave >= min_valid_wave and max_query_wave <= max_valid_wave:
             return self.compute_sed(times, wavelengths, graph_state, **kwargs)
 
