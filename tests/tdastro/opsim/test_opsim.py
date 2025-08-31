@@ -118,6 +118,19 @@ def test_create_opsim_override():
     assert set(filters) == {"r", "g", "i"}
 
 
+def test_create_opsim_override_fail():
+    """Test that we fail if we do not have the information needed to create the zeropoints."""
+    values = {
+        "observationStartMJD": np.array([0.0, 1.0, 2.0, 3.0, 4.0]),
+        "fieldRA": np.array([15.0, 30.0, 15.0, 0.0, 60.0]),
+        "fieldDec": np.array([-10.0, -5.0, 0.0, 5.0, 10.0]),
+        "filter": np.array(["r", "g", "r", "i", "g"]),
+    }
+
+    with pytest.raises(ValueError):
+        _ = OpSim(values, ext_coeff=None)
+
+
 def test_create_opsim_no_zp():
     """Create an opsim without a zeropoint column."""
     values = {

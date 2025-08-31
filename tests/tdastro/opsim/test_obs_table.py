@@ -177,16 +177,23 @@ def test_obs_table_filter_rows():
         "dec": -1.0 * times,
         "zp": np.ones(10),
         "filter": np.tile(["r", "g"], 5),
+        "custom_column": np.zeros(10),
     }
-    ops_data = ObsTable(values)
+    ops_data = ObsTable(values, dark_current=0.1, colmap={"custom_column": "my_col"})
     assert len(ops_data) == 10
-    assert len(ops_data.columns) == 5
+    assert len(ops_data.columns) == 6
+    assert ops_data.survey_values["dark_current"] == 0.1
 
     # We can filter the ObsTable to specific rows by index.
     inds = [0, 1, 2, 3, 4, 5, 7, 8]
     ops_data = ops_data.filter_rows(inds)
     assert len(ops_data) == 8
-    assert len(ops_data.columns) == 5
+    assert len(ops_data.columns) == 6
+
+    # Check that we propagate the survey values and the column mapping.
+    assert ops_data.survey_values["dark_current"] == 0.1
+    assert "custom_column" in ops_data
+    assert "my_col" in ops_data
 
     expected_times = np.array(inds)
     assert np.allclose(ops_data["time"], expected_times)
@@ -349,12 +356,13 @@ def test_obs_table_get_observations():
         "ra": np.array([15.0, 15.0, 15.01, 15.0, 25.0, 24.99, 60.0, 5.0]),
         "dec": np.array([-10.0, 10.0, 10.01, 9.99, 10.0, 9.99, -5.0, -1.0]),
         "zp": np.ones(8),
+        "airmass_data": np.array([1, 2, 3, 4, 5, 6, 7, 8]),
     }
-    ops_data = ObsTable(values)
+    ops_data = ObsTable(values, colmap={"airmass_data": "airmass"})
 
     # Test basic queries (all columns).
     obs = ops_data.get_observations(15.0, 10.0, 0.5)
-    assert len(obs) == 4
+    assert len(obs) == 5
     assert np.allclose(obs["time"], [1.0, 2.0, 3.0])
 
     obs = ops_data.get_observations(25.0, 10.0, 0.5)
@@ -374,10 +382,11 @@ def test_obs_table_get_observations():
     assert len(obs) == 2
     assert np.allclose(obs["time"], [1.0, 2.0, 3.0])
 
-    # Test we can use the colmap names.
-    obs = ops_data.get_observations(15.0, 10.0, 0.5, cols=["time", "ra"])
-    assert len(obs) == 2
-    assert np.allclose(obs["time"], [1.0, 2.0, 3.0])
+    # Test we can use the mapped or original column names.
+    obs = ops_data.get_observations(15.0, 10.0, 0.5, cols="airmass")
+    assert np.allclose(obs["airmass"], [2, 3, 4])
+    obs = ops_data.get_observations(15.0, 10.0, 0.5, cols="airmass_data")
+    assert np.allclose(obs["airmass_data"], [2, 3, 4])
 
     # Test we fail with an unrecognized column name.
     with pytest.raises(KeyError):

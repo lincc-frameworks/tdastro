@@ -106,17 +106,11 @@ class OpSim(ObsTable):
                 "information. Required columns: filter, airmass, and exptime."
             )
 
-        ext_coeff = self.survey_values.get("ext_coeff", None)
-        if ext_coeff is None:
-            raise ValueError("Extinction coefficients (ext_coeff) are not provided.")
-
-        zp_per_sec = self.survey_values.get("zp_per_sec", None)
-        if zp_per_sec is None:
-            raise ValueError("Zeropoints per second (zp_per_sec) are not provided.")
+        print(self.safe_get_survey_value("ext_coeff"))
 
         zp_values = flux_electron_zeropoint(
-            ext_coeff=ext_coeff,
-            instr_zp_mag=zp_per_sec,
+            ext_coeff=self.safe_get_survey_value("ext_coeff"),
+            instr_zp_mag=self.safe_get_survey_value("zp_per_sec"),
             band=self._table["filter"],
             airmass=self._table["airmass"],
             exptime=self._table["exptime"],
@@ -355,7 +349,6 @@ def oversample_opsim(
 
     return OpSim(
         new_table,
-        pixel_scale=opsim.safe_get_survey_value("pixel_scale"),
-        read_noise=opsim.safe_get_survey_value("read_noise"),
-        dark_current=opsim.safe_get_survey_value("dark_current"),
+        colmap=opsim._colmap,
+        **opsim.survey_values,
     )

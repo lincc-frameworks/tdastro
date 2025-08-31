@@ -34,6 +34,8 @@ class ObsTable:
         as readout noise and dark current.
     _table : pandas.core.frame.DataFrame
         The table with all the observation information mapped to standard column names.
+    _colmap : dict
+        A mapping of standard column names to their names in the input table.
     _inv_colmap : dict
         A dictionary mapping the custom column names back to the standard names.
     _kd_tree : scipy.spatial.KDTree or None
@@ -53,7 +55,6 @@ class ObsTable:
         "zp_per_sec": None,
     }
 
-    # Class constants for the column names.
     def __init__(
         self,
         table,
@@ -71,12 +72,15 @@ class ObsTable:
         # and overwrite anything provided by the column map. Save the inverse mapping.
         name_map = {col: col for col in self._table.columns}
         self._inv_colmap = {}
+        self._colmap = colmap if colmap is not None else {}
         if colmap is not None:
             for key, value in colmap.items():
                 if value in name_map:
                     # Check for collisions (mapping a column to an existing column)
                     if key in self._table.columns and key != value:
                         raise ValueError(f"Trying to map {value} to {key}, but {key} is already a column.")
+
+                    # Add this entry to the list of column names that need to be remapped.
                     name_map[value] = key
 
                 # Save the inverse mapping as well
@@ -297,9 +301,12 @@ class ObsTable:
             mask[rows] = True
 
         # Do the actual filtering and generate a new ObsTable. This automatically creates
-        # the cached data, such as the KD-tree. Note that we do not need to pass in all
-        # the defaults and keyword arguments, because the table is already fully formed.
-        new_obs_table = ObsTable(self._table[mask])
+        # the cached data, such as the KD-tree.
+        new_obs_table = ObsTable(
+            self._table[mask],
+            colmap=self._colmap,
+            **self.survey_values,
+        )
         return new_obs_table
 
     def is_observed(self, query_ra, query_dec, radius=None, t_min=None, t_max=None):
@@ -334,7 +341,7 @@ class ObsTable:
         return [len(entry) > 0 for entry in inds]
 
     def range_search(self, query_ra, query_dec, radius=None, t_min=None, t_max=None):
-        """Return the indices of the opsim pointings that fall within the field
+        """Return the indices of the pointings that fall within the field
         of view of the query point(s).
 
         Parameters
@@ -345,7 +352,7 @@ class ObsTable:
             The query declination (in degrees).
         radius : float or None, optional
             The angular radius of the observation (in degrees). If None
-            uses the default radius for the OpSim.
+            uses the default radius for the ObsTable.
         t_min : float, numpy.ndarray or None, optional
             The minimum time (in MJD) for the observations to consider.
             If None, no time filtering is applied.
@@ -433,16 +440,16 @@ class ObsTable:
             The query declination (in degrees).
         radius : float or None, optional
             The angular radius of the observation (in degrees). If None
-            uses the default radius for the OpSim.
+            uses the default radius for the ObsTable.
         t_min : float or None, optional
             The minimum time (in MJD) for the observations to consider.
             If None, no time filtering is applied.
         t_max : float or None, optional
             The maximum time (in MJD) for the observations to consider.
             If None, no time filtering is applied.
-        cols : list
-            A list of the names of columns to extract. If None returns all the
-            columns.
+        cols : list or str
+            A list of the names of columns to extract or a single column name.
+            If None returns all the columns.
 
         Returns
         -------
@@ -454,11 +461,15 @@ class ObsTable:
         results = {}
         if cols is None:
             cols = self._table.columns.to_list()
+        elif isinstance(cols, str):
+            cols = [cols]
+
         for col in cols:
-            # Allow the user to specify either the original or mapped column names.
-            if col not in self._table.columns:
+            # Allow the user to specify either the original or mapped column names,
+            # by using the class accessor (__getitem__), instead of the table one.
+            if col not in self:
                 raise KeyError(f"Unrecognized column name {col}")
-            results[col] = self._table[col][neighbors].to_numpy()
+            results[col] = self[col][neighbors].to_numpy()
         return results
 
     def bandflux_error_point_source(self, bandflux, index):
