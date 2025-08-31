@@ -145,7 +145,7 @@ class SALT2JaxModel(PhysicalModel, CiteClass):
         good_times = (times > t0 + -20.0 * (1.0 + z)) & (times < t0 + 50.0 * (1.0 + z))
         return good_times
 
-    def compute_flux(self, times, wavelengths, graph_state, **kwargs):
+    def compute_sed(self, times, wavelengths, graph_state, **kwargs):
         """Draw effect-free observations for this object.
 
         Parameters

@@ -240,7 +240,7 @@ class SncosmoWrapperModel(PhysicalModel, CiteClass):
         )
         return good_times
 
-    def compute_flux(self, times, wavelengths, graph_state=None, **kwargs):
+    def compute_sed(self, times, wavelengths, graph_state=None, **kwargs):
         """Draw effect-free observations for this object.
 
         Parameters
@@ -265,7 +265,7 @@ class SncosmoWrapperModel(PhysicalModel, CiteClass):
         # sncosmo gives an error if the wavelengths are out of bounds, so we need to use
         # extrapolation if the wavelengths are out of bounds.
         if np.any(wavelengths < self.source.minwave()) or np.any(wavelengths > self.source.maxwave()):
-            return self.compute_flux_with_extrapolation(times, wavelengths, graph_state, **kwargs)
+            return self.compute_sed_with_extrapolation(times, wavelengths, graph_state, **kwargs)
 
         # Query the model and convert the output to nJy.
         model_flam = self.source.flux(times - params["t0"], wavelengths)

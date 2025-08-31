@@ -18,7 +18,7 @@ def test_single_static_sed() -> None:
     times = np.array([1, 2, 3, 10, 20])
     wavelengths = np.array([50.0, 100.0, 150.0, 200.0, 250.0, 300.0, 350.0, 400.0, 450.0])
 
-    values = model.evaluate(times, wavelengths)
+    values = model.evaluate_sed(times, wavelengths)
     assert values.shape == (5, 9)
 
     expected = np.array([0.0, 10.0, 15.0, 20.0, 20.0, 20.0, 15.0, 10.0, 0.0])
@@ -75,7 +75,7 @@ def test_static_sed_from_file(tmp_path) -> None:
         model = StaticSEDSource.from_file(file_path, node_label="test")
         assert len(model) == 1
 
-        values = model.evaluate(times, wavelengths)
+        values = model.evaluate_sed(times, wavelengths)
         assert values.shape == (5, 9)
 
         for t_idx in range(5):
@@ -123,7 +123,7 @@ def test_multiple_static_seds() -> None:
 
     times = np.array([1, 2, 3])
     wavelengths = np.array([50.0, 100.0, 150.0, 200.0, 250.0, 300.0, 350.0, 400.0, 450.0])
-    values = model.evaluate(times, wavelengths, params)
+    values = model.evaluate_sed(times, wavelengths, params)
 
     expected_0 = np.tile([0.0, 10.0, 15.0, 20.0, 20.0, 20.0, 15.0, 10.0, 0.0], 3).reshape(3, 9)
     expected_1 = 2.0 * expected_0
@@ -185,7 +185,7 @@ def test_single_static_bandflux() -> None:
     expected = np.array([10.0, 10.0, 20.0, 30.0, 10.0, 20.0, 30.0, 20.0, 30.0, 10.0])
 
     state = model.sample_parameters(num_samples=1)
-    fluxes = model.get_band_fluxes(None, times, filters, state)
+    fluxes = model.evaluate_band_fluxes(None, times, filters, state)
     assert len(fluxes) == 10
     assert np.array_equal(fluxes, expected)
 
@@ -210,7 +210,7 @@ def test_multiple_static_bandflux() -> None:
     expected0 = np.array([10.0, 10.0, 20.0, 30.0, 10.0])
     expected1 = np.array([15.0, 15.0, 25.0, 35.0, 15.0])
 
-    fluxes = model.get_band_fluxes(None, times, filters, params)
+    fluxes = model.evaluate_band_fluxes(None, times, filters, params)
     assert fluxes.shape == (10_000, 5)
     for idx in range(10_000):
         if inds_0[idx]:
@@ -268,7 +268,7 @@ def test_static_sed_from_synphot() -> None:
     times = np.array([1, 2, 3, 10, 20])
     wavelengths = np.array([500.0, 1000.0, 1500.0, 2000.0, 3000.0, 5000.0])
     expected = np.array([0.0, 10.0, 15.0, 20.0, 30.0, 0.0])
-    fluxes = model.evaluate(times, wavelengths)
+    fluxes = model.evaluate_sed(times, wavelengths)
     assert fluxes.shape == (len(times), len(wavelengths))
     for i in range(len(times)):
         np.testing.assert_allclose(fluxes[i, :], expected, rtol=1e-5)

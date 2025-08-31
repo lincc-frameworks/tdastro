@@ -79,7 +79,7 @@ def test_physical_model_mask_by_time():
     assert np.all(model.mask_by_time(times))
 
 
-def test_physical_model_evaluate():
+def test_physical_model_evaluate_sed():
     """Test that we can evaluate a PhysicalModel."""
     times = np.array([0.0, 1.0, 2.0, 3.0, 4.0])
     waves = np.array([4000.0, 5000.0])
@@ -87,20 +87,20 @@ def test_physical_model_evaluate():
     static_source = StaticSource(brightness=brightness)
 
     # Providing no state should give a single sample.
-    flux = static_source.evaluate(times, waves)
+    flux = static_source.evaluate_sed(times, waves)
     assert flux.shape == (5, 2)
     assert np.all(flux == 10.0)
 
     # Doing a single sample should give a single sample.
     state = static_source.sample_parameters(num_samples=1)
-    flux = static_source.evaluate(times, waves, graph_state=state)
+    flux = static_source.evaluate_sed(times, waves, graph_state=state)
     assert flux.shape == (5, 2)
     assert np.all(flux == 20.0)
 
     # We can do multiple samples.
     brightness.reset()
     state = static_source.sample_parameters(num_samples=3)
-    flux = static_source.evaluate(times, waves, graph_state=state)
+    flux = static_source.evaluate_sed(times, waves, graph_state=state)
     assert flux.shape == (3, 5, 2)
     assert np.all(flux[0, :, :] == 10.0)
     assert np.all(flux[1, :, :] == 20.0)
@@ -114,7 +114,7 @@ def test_physical_model_evaluate_redshift():
     static_source = StaticSource(brightness=10.0, redshift=0.5, t0=0.0)
 
     state = static_source.sample_parameters(num_samples=3)
-    flux = static_source.evaluate(times, waves, graph_state=state)
+    flux = static_source.evaluate_sed(times, waves, graph_state=state)
     assert flux.shape == (3, 5, 2)
     assert not np.any(flux[:, :, :] == 10.0)
 
@@ -122,7 +122,7 @@ def test_physical_model_evaluate_redshift():
     assert len(np.unique(flux)) == 1
 
 
-def test_physical_model_get_band_fluxes(passbands_dir):
+def test_physical_model_evaluate_band_fluxes(passbands_dir):
     """Test that band fluxes are computed correctly."""
     # It should work fine for any positive Fnu.
     f_nu = np.random.lognormal()
@@ -136,12 +136,14 @@ def test_physical_model_get_band_fluxes(passbands_dir):
 
     # It should fail if no filters are provided.
     with pytest.raises(ValueError):
-        _band_fluxes = static_source.get_band_fluxes(passbands, times=times, filters=None, state=state)
+        _band_fluxes = static_source.evaluate_band_fluxes(passbands, times=times, filters=None, state=state)
     # It should fail if single passband is provided, but with multiple filter names.
     with pytest.raises(KeyError):
-        _band_fluxes = static_source.get_band_fluxes(passbands.passbands["LSST_r"], times, filters, state)
+        _band_fluxes = static_source.evaluate_band_fluxes(
+            passbands.passbands["LSST_r"], times, filters, state
+        )
 
-    band_fluxes = static_source.get_band_fluxes(passbands, times, filters, state)
+    band_fluxes = static_source.evaluate_band_fluxes(passbands, times, filters, state)
     assert band_fluxes.shape == (n_passbands,)
     np.testing.assert_allclose(band_fluxes, f_nu, rtol=1e-10)
 
@@ -150,7 +152,7 @@ def test_physical_model_get_band_fluxes(passbands_dir):
     brightness_list = [1.5 * i for i in range(n_samples)]
     static_source2 = StaticSource(brightness=GivenValueList(brightness_list))
     state2 = static_source2.sample_parameters(num_samples=n_samples)
-    band_fluxes2 = static_source2.get_band_fluxes(passbands, times, filters, state2)
+    band_fluxes2 = static_source2.evaluate_band_fluxes(passbands, times, filters, state2)
     assert band_fluxes2.shape == (n_samples, n_passbands)
     for idx, brightness in enumerate(brightness_list):
         np.testing.assert_allclose(band_fluxes2[idx, :], brightness, rtol=1e-10)

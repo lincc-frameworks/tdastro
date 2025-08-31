@@ -25,8 +25,8 @@ def test_salt2_model_parity(test_data_dir):
     waves = np.arange(3800.0, 4200.0, 0.5)
 
     # Allow TDAstro to return both sets of results in f_nu.
-    flux_td = td_model.evaluate(times, waves)
-    flux_sn = sn_model.evaluate(times, waves)
+    flux_td = td_model.evaluate_sed(times, waves)
+    flux_sn = sn_model.evaluate_sed(times, waves)
     assert np.allclose(flux_td, flux_sn)
 
 
@@ -36,11 +36,11 @@ def test_salt2_model_no_t0(test_data_dir):
     td_model = SALT2JaxModel(x0=0.4, x1=0.3, c=1.1, redshift=0.1, model_dir=dir_name)
 
     with pytest.raises(ValueError):
-        _ = td_model.evaluate(np.arange(-1.0, 15.0, 0.01), np.arange(3800.0, 4200.0, 0.5))
+        _ = td_model.evaluate_sed(np.arange(-1.0, 15.0, 0.01), np.arange(3800.0, 4200.0, 0.5))
 
     # The same models works if t0 is provided.
     td_model = SALT2JaxModel(x0=0.4, x1=0.3, c=1.1, redshift=0.1, t0=0.0, model_dir=dir_name)
-    _ = td_model.evaluate(np.arange(-1.0, 15.0, 0.01), np.arange(3800.0, 4200.0, 0.5))
+    _ = td_model.evaluate_sed(np.arange(-1.0, 15.0, 0.01), np.arange(3800.0, 4200.0, 0.5))
 
 
 def test_salt2_no_model(test_data_dir):
