@@ -1,7 +1,7 @@
 import numpy as np
 from tdastro.math_nodes.ra_dec_sampler import (
-    OpSimRADECSampler,
-    OpSimUniformRADECSampler,
+    ObsTableRADECSampler,
+    ObsTableUniformRADECSampler,
     UniformRADEC,
 )
 from tdastro.opsim.opsim import OpSim
@@ -73,7 +73,7 @@ def test_opsim_ra_dec_sampler():
     ops_data = OpSim(values)
     assert len(ops_data) == 5
 
-    sampler_node = OpSimRADECSampler(ops_data, in_order=True)
+    sampler_node = ObsTableRADECSampler(ops_data, in_order=True)
 
     # Test we can generate a single value.
     (ra, dec, time) = sampler_node.generate(num_samples=1)
@@ -88,7 +88,7 @@ def test_opsim_ra_dec_sampler():
     assert np.allclose(time, [1.0, 2.0])
 
     # Do randomized sampling.
-    sampler_node2 = OpSimRADECSampler(ops_data, in_order=False, seed=100, node_label="sampler")
+    sampler_node2 = ObsTableRADECSampler(ops_data, in_order=False, seed=100, node_label="sampler")
     state = sampler_node2.sample_parameters(num_samples=5000)
 
     # Check that the samples are uniform and consistent.
@@ -102,7 +102,7 @@ def test_opsim_ra_dec_sampler():
     assert len(int_times[int_times == 4]) > 750
 
     # Do randomized sampling with offsets.
-    sampler_node3 = OpSimRADECSampler(ops_data, in_order=False, seed=100, radius=0.1, node_label="sampler")
+    sampler_node3 = ObsTableRADECSampler(ops_data, in_order=False, seed=100, radius=0.1, node_label="sampler")
     state = sampler_node3.sample_parameters(num_samples=5000)
 
     # Check that the samples are not all the centers (unique values > 5) but are close.
@@ -126,7 +126,7 @@ def test_opsim_uniform_ra_dec_sampler():
     assert len(ops_data) == 2
 
     # Use a very large radius so we do not reject too many samples.
-    sampler_node = OpSimUniformRADECSampler(ops_data, radius=70.0, seed=100, node_label="sampler")
+    sampler_node = ObsTableUniformRADECSampler(ops_data, radius=70.0, seed=100, node_label="sampler")
 
     # Test we can generate a single value.
     ra, dec = sampler_node.generate(num_samples=1)
