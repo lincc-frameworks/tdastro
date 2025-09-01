@@ -63,8 +63,8 @@ def simulate_lightcurves(
 
     Parameters
     ----------
-    source : SEDModel
-        The source to draw from. This may have its own parameters which
+    source : BasePhysicalModel
+        The model to draw from. This may have its own parameters which
         will be randomly sampled with each draw.
     num_samples : int
         The number of samples.

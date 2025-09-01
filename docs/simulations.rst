@@ -16,7 +16,7 @@ The main simulation components in TDAstro include:
 
 * A statistical simulation step where the hyperparameters of the model are drawn
   from one or more prior distributions.
-* A model that defines the properties of the time-domain source, which can 
+* A model that defines the properties of the time-domain source of flux, which can
   also include a host-galaxy model, and is used to generate the noise-free light curves.
 * ``Opsim`` contains the survey information such as survey strategy and observing
   conditions. It is used to specify the observing times and bands.
@@ -28,7 +28,7 @@ The main simulation components in TDAstro include:
 For an overview of the package, we recommend starting with the notebooks in the "Getting Started"
 section of the :doc:`notebooks page <notebooks>`. The :doc:`glossary <glossary>` provides definitions of
 key terms, such as *GraphState*, *Node*, *Parameter*, *ParameterizedNode*, *BasePhysicalModel*,
-*BandfluxModel*, *SEDModel*, and *Source*.
+*BandfluxModel*, and *SEDModel*.
 
 Defining a parameterized model
 -------------------------------------------------------------------------------
@@ -108,7 +108,7 @@ Finally, the raw flux densities are are converted into the magnitudes observed i
 Generating band flux curves
 -------------------------------------------------------------------------------
 
-All sources provide a helper function, ``evaluate_band_fluxes()``, that wraps the combination of
+All models provide a helper function, ``evaluate_band_fluxes()``, that wraps the combination of
 evaluation and integration with the passbands. This function takes the passband information,
 a list of times, and a list of filter names. It returns the band flux at each of those times
 in each of the filters.
@@ -138,8 +138,8 @@ Examples
 -------------------------------------------------------------------------------
 
 After loading the necessary information (such as ``PassbandGroup`` and ``Opsim``),
-and defining the physical model for our source, we can generate light curves with realistic
-cadence and noise.
+and defining the physical model for what we are simulating, we can generate light curves
+with realistic cadence and noise.
 
 .. figure:: _static/lightcurves.png
    :class: no-scaled-link

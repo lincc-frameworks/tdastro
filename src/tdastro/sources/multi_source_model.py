@@ -18,22 +18,27 @@ class MultiSourceModel(SEDModel):
     for each source (for unresolved sources).  The observer frame effects are applied
     to the weighted sum of the sources.
 
+    While this model supports both BandfluxModels and SED, it inherits from SEDModel
+    to pick up some of the helper functions.
+
     Note: Each source may have its own sampled (RA, dec) position, which are not
     required to align.
 
     Attributes
     ----------
     sources : list
-        A list of SEDModel objects to use in the flux calculation.
+        A list of BasePhysicalModel objects to use in the flux calculation.
     num_sources : int
         The number of sources in the model.
     _is_bandflux : list
-        A list of Booleans indicating whether each source is a BandfluxModel.
+        A list of Booleans indicating whether each model is a BandfluxModel.
+    _any_bandflux : bool
+        True if any of the models are bandflux models.
 
     Parameters
     ----------
     sources : list
-        A list of SEDModel objects to use in the flux calculation.
+        A list of BasePhysicalModel objects to use in the flux calculation.
     **kwargs : dict, optional
         Any additional keyword arguments.
     """
@@ -45,13 +50,15 @@ class MultiSourceModel(SEDModel):
     ):
         super().__init__(**kwargs)
 
-        # Check that all sources are PhysicalModel objects and mark whether they are BandfluxModels.
+        # Check that all sources are BasePhysicalModel objects and mark whether they are BandfluxModels.
         self._is_bandflux = [False] * len(sources)
+        self._any_bandflux = False
         for idx, source in enumerate(sources):
             if isinstance(source, BandfluxModel):
                 self._is_bandflux[idx] = True
+                self._any_bandflux = True
             elif not isinstance(source, BasePhysicalModel):
-                raise ValueError("All sources must be PhysicalModel objects.")
+                raise ValueError("All sources must be BasePhysicalModel objects.")
 
         self.sources = sources
         self.num_sources = len(sources)
@@ -86,8 +93,7 @@ class MultiSourceModel(SEDModel):
                 source.set_apply_redshift(apply_redshift)
 
     def add_effect(self, effect):
-        """Add an effect to the model.  Rest frame effects are applied to each source
-        and observer frame effects are stored in this model.
+        """Add an effect to each of the submodels.
 
         Parameters
         ----------
@@ -203,19 +209,19 @@ class MultiSourceModel(SEDModel):
 
 class AdditiveMultiSourceModel(MultiSourceModel):
     """An AdditiveMultiSourceModel computes the flux from multiple overlapping objects,
-    including (host, source pairs) or unresolved sources.
+    including (host, galaxy pairs) or unresolved sources.
 
-    All rest frame effects are applied to each source, allowing different redshifts
-    for each source (for unresolved sources).  The observer frame effects are applied
-    to the weighted sum of the sources.
+    All rest frame effects are applied to each model, allowing different redshifts
+    for each model (for unresolved sources).  The observer frame effects are applied
+    to the weighted sum of the models.
 
-    Note: Each source may have its own sampled (RA, dec) position, which are not
+    Note: Each model may have its own sampled (RA, dec) position, which are not
     required to align.
 
     Attributes
     ----------
     sources : list
-        A list of SEDModel objects to use in the flux calculation.
+        A list of BasePhysicalModel objects to use in the flux calculation.
     weights : numpy.ndarray, optional
         A length N array of weights to apply to each source. If None, all sources
         will be weighted equally.
@@ -225,7 +231,7 @@ class AdditiveMultiSourceModel(MultiSourceModel):
     Parameters
     ----------
     sources : list
-        A list of SEDModel objects to use in the flux calculation.
+        A list of BasePhysicalModel objects to use in the flux calculation.
     weights : numpy.ndarray, optional
         A length N array of weights to apply to each source. If None, all sources
         will be weighted equally.
@@ -317,6 +323,13 @@ class AdditiveMultiSourceModel(MultiSourceModel):
         flux_density : numpy.ndarray
             A length T x N matrix of SED values (in nJy).
         """
+        # Check that all models can compute SEDs.
+        if self._any_bandflux:
+            raise TypeError(
+                "AdditiveMultiSourceModel contains at least one BandfluxModel, "
+                "which does not support the evaluation of SEDs."
+            )
+
         # Compute the weighted sum of contributions from each source. Since we use each
         # source's _evaluate_single function, the rest frame effects are applied
         # correctly for each source and wavelength extrapolation is handled by each source
@@ -404,14 +417,14 @@ class RandomMultiSourceModel(MultiSourceModel):
     Attributes
     ----------
     source_map : dict
-        A dictionary mapping each source name (or index) to a SEDModel object.
+        A dictionary mapping each source name (or index) to a BasePhysicalModel object.
     num_sources : int
         The number of sources in the model.
 
     Parameters
     ----------
     sources : list
-        A list of SEDModel objects to use in the flux calculation.
+        A list of BasePhysicalModel objects to use in the flux calculation.
     weights : numpy.ndarray, optional
         A length N array indicating the relative weight from which to select
         a source at random. If None, all sources will be weighted equally.
@@ -495,6 +508,13 @@ class RandomMultiSourceModel(MultiSourceModel):
         flux_density : numpy.ndarray
             A length T x N matrix of SED values (in nJy).
         """
+        # Check that all models can compute SEDs.
+        if self._any_bandflux:
+            raise TypeError(
+                "RandomMultiSourceModel contains at least one BandfluxModel, "
+                "which does not support the evaluation of SEDs."
+            )
+
         # Use the model selected by the sampler node to compute the flux density.
         model_name = self.get_param(state, "selected_source")
         flux_density = self.source_map[model_name]._evaluate_single(

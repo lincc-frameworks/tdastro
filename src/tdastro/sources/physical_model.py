@@ -17,7 +17,6 @@ import numpy as np
 from tdastro.astro_utils.passbands import Passband, PassbandGroup
 from tdastro.astro_utils.redshift import RedshiftDistFunc, obs_to_rest_times_waves, rest_to_obs_flux
 from tdastro.base_models import ParameterizedNode
-from tdastro.graph_state import GraphState
 
 
 class BasePhysicalModel(ParameterizedNode, ABC):
@@ -158,46 +157,6 @@ class BasePhysicalModel(ParameterizedNode, ABC):
         """
         return np.full(len(times), True)
 
-    def sample_parameters(self, given_args=None, num_samples=1, rng_info=None):
-        """Sample the model's underlying parameters if they are provided by a function
-        or ParameterizedModel.
-
-        Parameters
-        ----------
-        given_args : dict, optional
-            A dictionary representing the given arguments for this sample run.
-            This can be used as the JAX PyTree for differentiation.
-        num_samples : int
-            A count of the number of samples to compute.
-            Default: 1
-        rng_info : numpy.random._generator.Generator, optional
-            A given numpy random number generator to use for this computation. If not
-            provided, the function uses the node's random number generator.
-        **kwargs : dict, optional
-            All the keyword arguments, including the values needed to sample
-            parameters.
-
-        Returns
-        -------
-        graph_state : GraphState
-            An object mapping graph parameters to their values.
-        """
-        # If the graph has not been sampled ever, update the node positions for
-        # every node (model, background, effects).
-        if self.node_pos is None:
-            self.set_graph_positions()
-
-        graph_state = GraphState(num_samples)
-        if given_args is not None:
-            graph_state.update(given_args, all_fixed=True)
-
-        # We use the same seen_nodes for all sampling calls so each node
-        # is sampled at most one time regardless of link structure.
-        seen_nodes = {}
-        self._sample_helper(graph_state, seen_nodes, rng_info=rng_info)
-
-        return graph_state
-
     def evaluate_band_fluxes(self, passband_or_group, times, filters, state, rng_info=None) -> np.ndarray:
         """Get the band fluxes for a given Passband or PassbandGroup.
 
@@ -273,6 +232,8 @@ class SEDModel(BasePhysicalModel):
     wave_extrapolation : WaveExtrapolationModel, optional
         The extrapolation model to use for wavelengths that fall outside
         the model's defined bounds.  If None then the model will use all zeros.
+    apply_redshift : bool
+        Whether to apply redshift to the model.
 
     Parameters
     ----------
@@ -341,25 +302,6 @@ class SEDModel(BasePhysicalModel):
     def list_effects(self):
         """Return a list of all effects in the order in which they are applied."""
         return self.rest_frame_effects + self.obs_frame_effects
-
-    def mask_by_time(self, times, graph_state=None):
-        """Compute a mask for whether a given time is of interest for a given object.
-        For example, a user can use this function to generate a mask to include
-        only the observations of interest for a window around the supernova.
-
-        Parameters
-        ----------
-        times : numpy.ndarray
-            A length T array of observer frame timestamps in MJD.
-        graph_state : GraphState, optional
-            An object mapping graph parameters to their values.
-
-        Returns
-        -------
-        time_mask : numpy.ndarray
-            A length T array of Booleans indicating whether the time is of interest.
-        """
-        return np.full(len(times), True)
 
     def compute_sed(self, times, wavelengths, graph_state, **kwargs):
         """Draw effect-free rest frame flux densities.
@@ -576,45 +518,6 @@ class SEDModel(BasePhysicalModel):
                 **kwargs,
             )
         return results
-
-    def sample_parameters(self, given_args=None, num_samples=1, rng_info=None):
-        """Sample the model's underlying parameters if they are provided by a function
-        or ParameterizedModel.
-
-        Parameters
-        ----------
-        given_args : dict, optional
-            A dictionary representing the given arguments for this sample run.
-            This can be used as the JAX PyTree for differentiation.
-        num_samples : int
-            A count of the number of samples to compute.
-            Default: 1
-        rng_info : numpy.random._generator.Generator, optional
-            A given numpy random number generator to use for this computation. If not
-            provided, the function uses the node's random number generator.
-        **kwargs : dict, optional
-            All the keyword arguments, including the values needed to sample
-            parameters.
-
-        Returns
-        -------
-        graph_state : GraphState
-            An object mapping graph parameters to their values.
-        """
-        # If the graph has not been sampled ever, update the node positions for every node.
-        if self.node_pos is None:
-            self.set_graph_positions()
-
-        graph_state = GraphState(num_samples)
-        if given_args is not None:
-            graph_state.update(given_args, all_fixed=True)
-
-        # We use the same seen_nodes for all sampling calls so each node
-        # is sampled at most one time regardless of link structure.
-        seen_nodes = {}
-        self._sample_helper(graph_state, seen_nodes, rng_info=rng_info)
-
-        return graph_state
 
     def _evaluate_band_fluxes_single(
         self, passband_group, times, filters, state, rng_info=None
