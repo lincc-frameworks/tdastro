@@ -201,7 +201,7 @@ def draw_single_random_sn(
     res["flux_fnu"] = flux_nJy
 
     # Compute the band_flixes over just the given filters.
-    bandfluxes_perfect = source.evaluate_band_fluxes(passbands, times, filters, state)
+    bandfluxes_perfect = source.evaluate_bandfluxes(passbands, times, filters, state)
     res["bandfluxes_perfect"] = bandfluxes_perfect
 
     bandfluxes_error = opsim.bandflux_error_point_source(bandfluxes_perfect, obs_index)

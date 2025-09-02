@@ -41,13 +41,13 @@ def test_additive_multi_source_node_passband() -> None:
     times = np.array([0.0, 0.5, 1.25, 1.5, 3.0, 4.0])
     filters = np.array(["a", "a", "a", "b", "c", "a"])
 
-    bandflux1 = source1.evaluate_band_fluxes(pb_group, times, filters, state)
+    bandflux1 = source1.evaluate_bandfluxes(pb_group, times, filters, state)
     assert np.allclose(bandflux1, [10.0, 10.0, 10.0, 10.0, 10.0, 10.0])
 
-    bandflux2 = source2.evaluate_band_fluxes(pb_group, times, filters, state)
+    bandflux2 = source2.evaluate_bandfluxes(pb_group, times, filters, state)
     assert np.allclose(bandflux2, [0.0, 0.0, 15.0, 15.0, 0.0, 0.0])
 
-    bandflux_combined = model.evaluate_band_fluxes(pb_group, times, filters, state)
+    bandflux_combined = model.evaluate_bandfluxes(pb_group, times, filters, state)
     assert np.allclose(bandflux_combined, [10.0, 10.0, 25.0, 25.0, 10.0, 10.0])
 
     # We can include a Bandflux only model in the computation.
@@ -55,7 +55,7 @@ def test_additive_multi_source_node_passband() -> None:
     model2 = AdditiveMultiSourceModel([source1, source2, source3], node_label="my_multi_source")
     state2 = model2.sample_parameters(num_samples=1)
 
-    bandflux_combined = model2.evaluate_band_fluxes(pb_group, times, filters, state2)
+    bandflux_combined = model2.evaluate_bandfluxes(pb_group, times, filters, state2)
     assert np.allclose(bandflux_combined, [11.0, 11.0, 26.0, 27.0, 10.0, 11.0])
 
 
@@ -253,7 +253,7 @@ def test_additive_multi_source_node_bandflux() -> None:
     state = model.sample_parameters()
     times = np.array([0.0, 1.5, 3.0, 4.0, 5.0])
     filters = np.array(["a", "a", "b", "a", "c"])
-    values = model.evaluate_band_fluxes(None, times, filters, state)
+    values = model.evaluate_bandfluxes(None, times, filters, state)
     assert np.array_equal(values, [2.0, 2.0, 3.0, 2.0, 0.5])
 
     # Check that we cannot turn on "apply_redshift" when using bandflux models.
@@ -264,13 +264,13 @@ def test_additive_multi_source_node_bandflux() -> None:
     # level for Bandpass models.
     model.add_effect(ConstantDimming(flux_fraction=0.5, rest_frame=True))
     state = model.sample_parameters()
-    values = model.evaluate_band_fluxes(None, times, filters, state)
+    values = model.evaluate_bandfluxes(None, times, filters, state)
     assert np.allclose(values, [1.0, 1.0, 1.5, 1.0, 0.25])
 
     # Check that we can apply a observer frame effect. The two effects stack.
     model.add_effect(ConstantDimming(flux_fraction=0.1, rest_frame=False))
     state = model.sample_parameters()
-    values = model.evaluate_band_fluxes(None, times, filters, state)
+    values = model.evaluate_bandfluxes(None, times, filters, state)
     assert np.allclose(values, [0.1, 0.1, 0.15, 0.1, 0.025])
 
     # Check that we fail to evaluate the SEDs when we have a bandflux model.
@@ -339,7 +339,7 @@ def test_random_multi_source_node_bandflux() -> None:
     # When we evaluate the model, we should get the expected values.
     times = np.array([0.0, 1.5, 3.0, 4.0])
     filters = np.array(["a", "a", "b", "a"])
-    values = model.evaluate_band_fluxes(pb_group, times, filters, state)
+    values = model.evaluate_bandfluxes(pb_group, times, filters, state)
 
     assert values.shape == (1_000, 4)
     for i in range(1_000):

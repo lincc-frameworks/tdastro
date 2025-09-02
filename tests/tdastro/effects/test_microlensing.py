@@ -43,9 +43,9 @@ def test_microlensing_bandflux() -> None:
 
     # Apply at the wavelength level. Note that when calling apply() manually, we
     # need to pass along the parameter values.
-    band_fluxes = np.full(num_times, 100.0)
+    bandfluxes = np.full(num_times, 100.0)
     values = microlensing.apply_bandflux(
-        band_fluxes,
+        bandfluxes,
         times=times,
         apply_microlensing=True,
         microlensing_t0=microlensing_t0,

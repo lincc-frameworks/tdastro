@@ -469,7 +469,7 @@ def test_passband_group_wrapped_from_physical_source(passbands_dir, tmp_path):
     n_lsst_bands = len(lsst_passband_group.passbands)
     n_times = len(test_times)
 
-    fluxes_source_model = model.evaluate_band_fluxes(
+    fluxes_source_model = model.evaluate_bandfluxes(
         lsst_passband_group,
         times=np.repeat(test_times, n_lsst_bands),
         filters=np.tile(list(lsst_passband_group.passbands.keys()), n_times),
@@ -490,7 +490,7 @@ def test_passband_group_wrapped_from_physical_source(passbands_dir, tmp_path):
     # Using toy passband group:
     toy_passband_group = create_toy_passband_group(tmp_path, delta_wave=20, trim_quantile=None)
     n_toy_bands = len(toy_passband_group.passbands)
-    fluxes_source_model = model.evaluate_band_fluxes(
+    fluxes_source_model = model.evaluate_bandfluxes(
         toy_passband_group,
         times=np.repeat(test_times, n_toy_bands),
         filters=np.tile(list(toy_passband_group.passbands.keys()), n_times),

@@ -441,9 +441,9 @@ def test_passband_fluxes_to_bandflux(passbands_dir, tmp_path):
             [1.0, 1.0, 1.0],
         ]
     )
-    expected_in_band_flux = np.trapezoid(flux * a_band.processed_transmission_table[:, 1], x=a_band.waves)
-    in_band_flux = a_band.fluxes_to_bandflux(flux)
-    np.testing.assert_allclose(in_band_flux, expected_in_band_flux)
+    expected_bandflux = np.trapezoid(flux * a_band.processed_transmission_table[:, 1], x=a_band.waves)
+    bandflux = a_band.fluxes_to_bandflux(flux)
+    np.testing.assert_allclose(bandflux, expected_bandflux)
 
     # Test with a different set of fluxes, regridding the transmission table
     a_band.process_transmission_table(delta_wave=50, trim_quantile=None)
@@ -458,11 +458,11 @@ def test_passband_fluxes_to_bandflux(passbands_dir, tmp_path):
             [100.0, 50.0, 25.0, 12.5, 6.25],
         ]
     )
-    in_band_flux = a_band.fluxes_to_bandflux(flux)
-    expected_in_band_flux = np.trapezoid(
+    bandflux = a_band.fluxes_to_bandflux(flux)
+    expected_bandflux = np.trapezoid(
         flux * a_band.processed_transmission_table[:, 1], x=a_band.processed_transmission_table[:, 0]
     )
-    np.testing.assert_allclose(in_band_flux, expected_in_band_flux)
+    np.testing.assert_allclose(bandflux, expected_bandflux)
 
     # Test we raise an error if the fluxes are not the right shape
     with pytest.raises(ValueError):
@@ -477,9 +477,9 @@ def test_passband_fluxes_to_bandflux(passbands_dir, tmp_path):
     # Test we can call method on a standard LSST transmission table
     LSST_u = create_lsst_passband(passbands_dir, "u")
     flux = np.random.rand(5, len(LSST_u.waves))
-    in_band_flux = LSST_u.fluxes_to_bandflux(flux)
-    assert in_band_flux is not None
-    assert len(in_band_flux) == 5
+    bandflux = LSST_u.fluxes_to_bandflux(flux)
+    assert bandflux is not None
+    assert len(bandflux) == 5
 
 
 def test_passband_fluxes_to_bandflux_mult_samples(passbands_dir, tmp_path):
@@ -513,7 +513,7 @@ def test_passband_fluxes_to_bandflux_mult_samples(passbands_dir, tmp_path):
 
 
 def test_passband_wrapped_from_physical_source(passbands_dir, tmp_path):
-    """Test evaluate_band_fluxes, SEDModel's wrapped version of Passband's fluxes_to_bandflux."""
+    """Test evaluate_bandfluxes, SEDModel's wrapped version of Passband's fluxes_to_bandflux."""
     # Set up physical model
     times = np.array([1.0, 2.0, 3.0])
     wavelengths = np.array([10.0, 20.0, 30.0])
@@ -526,7 +526,7 @@ def test_passband_wrapped_from_physical_source(passbands_dir, tmp_path):
     # Test with a single toy passband (see PassbandGroup tests for group tests)
     transmission_table = "100 0.5\n200 0.75\n300 0.25\n"
     a_band = create_toy_passband(tmp_path, transmission_table, delta_wave=100, trim_quantile=None)
-    result_from_source_model = model.evaluate_band_fluxes(a_band, test_times, filters=None, state=state)
+    result_from_source_model = model.evaluate_bandfluxes(a_band, test_times, filters=None, state=state)
 
     evaluated_fluxes = model.evaluate_sed(test_times, a_band.waves, state)
     result_from_passband = a_band.fluxes_to_bandflux(evaluated_fluxes)
@@ -534,7 +534,7 @@ def test_passband_wrapped_from_physical_source(passbands_dir, tmp_path):
 
     # Test with a standard LSST passband
     LSST_g = create_lsst_passband(passbands_dir, "g")
-    result_from_source_model = model.evaluate_band_fluxes(
+    result_from_source_model = model.evaluate_bandfluxes(
         LSST_g, test_times, filters=np.repeat("g", len(test_times)), state=state
     )
 
