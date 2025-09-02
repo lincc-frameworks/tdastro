@@ -209,7 +209,7 @@ class MultiSourceModel(SEDModel):
 
 class AdditiveMultiSourceModel(MultiSourceModel):
     """An AdditiveMultiSourceModel computes the flux from multiple overlapping objects,
-    including (host, galaxy pairs) or unresolved sources.
+    including (host galaxy and source pairs) or unresolved sources.
 
     All rest frame effects are applied to each model, allowing different redshifts
     for each model (for unresolved sources).  The observer frame effects are applied

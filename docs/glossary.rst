@@ -1,7 +1,7 @@
 Glossary
 ========================================================================================
 
-**BandfluxModel**: A ``BandfluxModel`` is a subclass of the ``BasePhysicalModel`` class that represents the flux density of a source in specific bands (band-fluxes), such as the g-band or r-band (instead of a full spectral energy distribution).
+**BandfluxModel**: A ``BandfluxModel`` is a subclass of the ``BasePhysicalModel`` class that represents broadband photometry in specific bands (band-fluxes), such as the g-band or r-band (instead of a full spectral energy distribution).
 
 **BasePhysicalModel**: ``BasePhysicalModel`` is a superclass for all nodes that represent physical phenomena that produce flux. ``BasePhysicalModel`` itself is a subclass of the ``ParameterizedNode``.
 
