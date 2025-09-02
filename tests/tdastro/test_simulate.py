@@ -5,7 +5,7 @@ from tdastro.graph_state import GraphState
 from tdastro.math_nodes.given_sampler import GivenValueList
 from tdastro.opsim.opsim import OpSim
 from tdastro.simulate import get_time_windows, simulate_lightcurves
-from tdastro.sources.basic_sources import StaticSource
+from tdastro.sources.basic_models import ConstantSEDModel
 
 
 def test_get_time_windows():
@@ -46,10 +46,10 @@ def test_simulate_lightcurves(test_data_dir):
         filters=["g", "r", "i", "z"],
     )
 
-    # Create a static source with known brightnesses and RA, dec
+    # Create a constant SED model with known brightnesses and RA, dec
     # values that match the opsim.
     given_brightness = [1000.0, 2000.0, 5000.0, 1000.0, 100.0]
-    source = StaticSource(
+    source = ConstantSEDModel(
         brightness=GivenValueList(given_brightness),
         t0=0.0,
         ra=GivenValueList(opsim_db["ra"].values[0:5]),
@@ -89,7 +89,7 @@ def test_simulate_lightcurves(test_data_dir):
     assert np.allclose(state["source.dec"], opsim_db["dec"].values[0:5])
 
     # Check that we fail if we try to save a parameter column that doesn't exist.
-    source2 = StaticSource(brightness=10.0, t0=0.0, ra=1.0, dec=-1.0, redshift=0.0, node_label="source2")
+    source2 = ConstantSEDModel(brightness=10.0, t0=0.0, ra=1.0, dec=-1.0, redshift=0.0, node_label="source2")
     with pytest.raises(KeyError):
         _ = simulate_lightcurves(
             source2,
@@ -122,10 +122,10 @@ def test_simulate_single_lightcurve(test_data_dir):
         filters=["g", "r", "i", "z"],
     )
 
-    # Create a static source with known brightnesses and RA, dec
+    # Create a constant SED model with known brightnesses and RA, dec
     # values that match the opsim.
     given_brightness = [1000.0, 2000.0, 5000.0, 1000.0, 100.0]
-    source = StaticSource(
+    source = ConstantSEDModel(
         brightness=GivenValueList(given_brightness),
         t0=0.0,
         ra=GivenValueList(opsim_db["ra"].values[0:5]),
@@ -178,9 +178,9 @@ def test_simulate_with_time_window(test_data_dir):
         filters=["g", "r", "i", "z"],
     )
 
-    # Create a static source with known brightnesses and RA, dec
+    # Create a constant SED model with known brightnesses and RA, dec
     # values that match the opsim.
-    source = StaticSource(
+    source = ConstantSEDModel(
         brightness=1000.0,
         t0=GivenValueList([20.0, 15.0]),
         ra=15.0,

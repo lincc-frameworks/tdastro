@@ -1,12 +1,12 @@
-"""A collection of toy source models that are primarily used for testing."""
+"""A collection of toy models that are primarily used for testing."""
 
 import numpy as np
 
 from tdastro.sources.physical_model import SEDModel
 
 
-class StaticSource(SEDModel):
-    """A static source (constant over time and wavelength)
+class ConstantSEDModel(SEDModel):
+    """A model with a constant SED over both wavelength and time.
 
     Parameterized values include:
       * brightness - The inherent brightness
@@ -51,8 +51,8 @@ class StaticSource(SEDModel):
         return np.full((len(times), len(wavelengths)), params["brightness"])
 
 
-class StepSource(StaticSource):
-    """A static source that is on for a fixed amount of time
+class StepModel(ConstantSEDModel):
+    """A static model that is on for a fixed amount of time.
 
     Parameterized values include:
       * brightness - The inherent brightness
@@ -108,8 +108,8 @@ class StepSource(StaticSource):
         return flux_density
 
 
-class SinWaveSource(SEDModel):
-    """A source that emits a sine wave.
+class SinWaveModel(SEDModel):
+    """A model that emits a sine wave.
 
     flux = brightness + amplitude * sin(2 * pi * frequency * (time - t0))
 
@@ -168,8 +168,8 @@ class SinWaveSource(SEDModel):
         return np.tile(single_wave[:, np.newaxis], (1, len(wavelengths)))
 
 
-class LinearWavelengthSource(SEDModel):
-    """A source that emits flux as a linear function of wavelength
+class LinearWavelengthModel(SEDModel):
+    """A model that emits flux as a linear function of wavelength
     (that is constant over time): f(t, w) = scale * w + base.
 
     Includes optional minimum and maximum wavelength bounds to test

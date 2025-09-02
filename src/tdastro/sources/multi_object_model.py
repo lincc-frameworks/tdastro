@@ -1,7 +1,7 @@
-"""Multiple source models wrap multiple BasePhysicalModels, allowing the
-user to define such operations as additive models, where each source
-contributes to the total flux density, or random source models, where
-only one source is selected at random for each flux calculation.
+"""Multiple object models wrap multiple BasePhysicalModels, allowing the
+user to define such operations as additive models, where each object
+contributes to the total flux density, or random object models, where
+only one object is selected at random for each flux calculation.
 """
 
 import numpy as np
@@ -11,25 +11,25 @@ from tdastro.math_nodes.given_sampler import GivenValueSampler
 from tdastro.sources.physical_model import BandfluxModel, BasePhysicalModel, SEDModel
 
 
-class MultiSourceModel(SEDModel):
-    """A MultiSourceModel wraps multiple BasePhysicalModels (including BandfluxModels).
+class MultiObjectModel(SEDModel):
+    """A MultiObjectModel wraps multiple BasePhysicalModels (including BandfluxModels).
 
-    All rest frame effects are applied to each source, allowing different redshifts
-    for each source (for unresolved sources).  The observer frame effects are applied
-    to the weighted sum of the sources.
+    All rest frame effects are applied to each object, allowing different redshifts
+    for each object (for unresolved objects).  The observer frame effects are applied
+    to the weighted sum of the objects.
 
     While this model supports both BandfluxModels and SED, it inherits from SEDModel
     to pick up some of the helper functions.
 
-    Note: Each source may have its own sampled (RA, dec) position, which are not
+    Note: Each object may have its own sampled (RA, dec) position, which are not
     required to align.
 
     Attributes
     ----------
-    sources : list
+    objects : list
         A list of BasePhysicalModel objects to use in the flux calculation.
-    num_sources : int
-        The number of sources in the model.
+    num_objects : int
+        The number of objects in the model.
     _is_bandflux : list
         A list of Booleans indicating whether each model is a BandfluxModel.
     _any_bandflux : bool
@@ -37,7 +37,7 @@ class MultiSourceModel(SEDModel):
 
     Parameters
     ----------
-    sources : list
+    objects : list
         A list of BasePhysicalModel objects to use in the flux calculation.
     **kwargs : dict, optional
         Any additional keyword arguments.
@@ -45,23 +45,23 @@ class MultiSourceModel(SEDModel):
 
     def __init__(
         self,
-        sources,
+        objects,
         **kwargs,
     ):
         super().__init__(**kwargs)
 
-        # Check that all sources are BasePhysicalModel objects and mark whether they are BandfluxModels.
-        self._is_bandflux = [False] * len(sources)
+        # Check that all objects are BasePhysicalModel objects and mark whether they are BandfluxModels.
+        self._is_bandflux = [False] * len(objects)
         self._any_bandflux = False
-        for idx, source in enumerate(sources):
-            if isinstance(source, BandfluxModel):
+        for idx, object in enumerate(objects):
+            if isinstance(object, BandfluxModel):
                 self._is_bandflux[idx] = True
                 self._any_bandflux = True
-            elif not isinstance(source, BasePhysicalModel):
-                raise ValueError("All sources must be BasePhysicalModel objects.")
+            elif not isinstance(object, BasePhysicalModel):
+                raise ValueError("All objects must be BasePhysicalModel objects.")
 
-        self.sources = sources
-        self.num_sources = len(sources)
+        self.objects = objects
+        self.num_objects = len(objects)
 
     def set_graph_positions(self, seen_nodes=None):
         """Force an update of the graph structure (numbering of each node).
@@ -75,10 +75,10 @@ class MultiSourceModel(SEDModel):
         if seen_nodes is None:
             seen_nodes = set()
 
-        # Set the graph positions for this node and each source.
+        # Set the graph positions for this node and each object.
         super().set_graph_positions(seen_nodes=seen_nodes)
-        for source in self.sources:
-            source.set_graph_positions(seen_nodes=seen_nodes)
+        for object in self.objects:
+            object.set_graph_positions(seen_nodes=seen_nodes)
 
     def set_apply_redshift(self, apply_redshift):
         """Toggles the apply_redshift setting.
@@ -88,9 +88,9 @@ class MultiSourceModel(SEDModel):
         apply_redshift : bool
             The new value for apply_redshift.
         """
-        for idx, source in enumerate(self.sources):
+        for idx, object in enumerate(self.objects):
             if self._is_bandflux[idx]:
-                source.set_apply_redshift(apply_redshift)
+                object.set_apply_redshift(apply_redshift)
 
     def add_effect(self, effect):
         """Add an effect to each of the submodels.
@@ -101,9 +101,9 @@ class MultiSourceModel(SEDModel):
             The effect to add to the model.
         """
         if effect.rest_frame:
-            # The rest frame effects are applied to each source.
-            for source in self.sources:
-                source.add_effect(effect)
+            # The rest frame effects are applied to each object.
+            for object in self.objects:
+                object.add_effect(effect)
         else:
             # Add observer frame effects to this model.
             # Add any effect parameters that are not already in the model.
@@ -147,8 +147,8 @@ class MultiSourceModel(SEDModel):
             graph_state.update(given_args, all_fixed=True)
 
         seen_nodes = {}
-        for source in self.sources:
-            source._sample_helper(graph_state, seen_nodes, rng_info=rng_info)
+        for object in self.objects:
+            object._sample_helper(graph_state, seen_nodes, rng_info=rng_info)
         self._sample_helper(graph_state, seen_nodes, rng_info=rng_info)
 
         return graph_state
@@ -205,12 +205,12 @@ class MultiSourceModel(SEDModel):
         raise NotImplementedError
 
 
-class AdditiveMultiSourceModel(MultiSourceModel):
-    """An AdditiveMultiSourceModel computes the flux from multiple overlapping objects,
+class AdditiveMultiObjectModel(MultiObjectModel):
+    """An AdditiveMultiObjectModel computes the flux from multiple overlapping objects,
     including (host galaxy and source pairs) or unresolved sources.
 
     All rest frame effects are applied to each model, allowing different redshifts
-    for each model (for unresolved sources).  The observer frame effects are applied
+    for each model (for unresolved objects).  The observer frame effects are applied
     to the weighted sum of the models.
 
     Note: Each model may have its own sampled (RA, dec) position, which are not
@@ -218,20 +218,20 @@ class AdditiveMultiSourceModel(MultiSourceModel):
 
     Attributes
     ----------
-    sources : list
+    objects : list
         A list of BasePhysicalModel objects to use in the flux calculation.
     weights : numpy.ndarray, optional
-        A length N array of weights to apply to each source. If None, all sources
+        A length N array of weights to apply to each object. If None, all objects
         will be weighted equally.
-    num_sources : int
-        The number of sources in the model.
+    num_objects : int
+        The number of objects in the model.
 
     Parameters
     ----------
-    sources : list
+    objects : list
         A list of BasePhysicalModel objects to use in the flux calculation.
     weights : numpy.ndarray, optional
-        A length N array of weights to apply to each source. If None, all sources
+        A length N array of weights to apply to each object. If None, all objects
         will be weighted equally.
     **kwargs : dict, optional
         Any additional keyword arguments.
@@ -239,27 +239,27 @@ class AdditiveMultiSourceModel(MultiSourceModel):
 
     def __init__(
         self,
-        sources,
+        objects,
         weights=None,
         **kwargs,
     ):
-        super().__init__(sources, **kwargs)
+        super().__init__(objects, **kwargs)
 
         if weights is None:
-            self.weights = np.full(len(sources), 1.0)
-        elif len(weights) != len(sources):
-            raise ValueError("Length of weights must match length of sources.")
+            self.weights = np.full(len(objects), 1.0)
+        elif len(weights) != len(objects):
+            raise ValueError("Length of weights must match length of objects.")
         else:
             self.weights = weights
 
     def minwave(self, graph_state=None):
         """Get the minimum wavelength of the model. For additive models, this is
-        a list of minimums for each source.
+        a list of minimums for each object.
 
         Note
         ----
-        Wavelength extrapolation is handled by each source. So the actual wavelength's
-        can be evaluated outside the range of each source.
+        Wavelength extrapolation is handled by each object. So the actual wavelength's
+        can be evaluated outside the range of each object.
 
         Parameters
         ----------
@@ -270,18 +270,18 @@ class AdditiveMultiSourceModel(MultiSourceModel):
         Returns
         -------
         minwave : list of float or None
-            The minimum wavelength of the each source (in angstroms) or None
+            The minimum wavelength of the each object (in angstroms) or None
         """
-        return [source.minwave(graph_state=graph_state) for source in self.sources]
+        return [object.minwave(graph_state=graph_state) for object in self.objects]
 
     def maxwave(self, graph_state=None):
         """Get the maximum wavelength of the model. For additive models, this is
-        a list of maximums for each source.
+        a list of maximums for each object.
 
         Note
         ----
-        Wavelength extrapolation is handled by each source. So the actual wavelength's
-        can be evaluated outside the range of each source.
+        Wavelength extrapolation is handled by each object. So the actual wavelength's
+        can be evaluated outside the range of each object.
 
         Parameters
         ----------
@@ -292,9 +292,9 @@ class AdditiveMultiSourceModel(MultiSourceModel):
         Returns
         -------
         maxwave : list of float or None
-            The maximum wavelength of the each source (in angstroms) or None
+            The maximum wavelength of the each object (in angstroms) or None
         """
-        return [source.maxwave(graph_state=graph_state) for source in self.sources]
+        return [object.maxwave(graph_state=graph_state) for object in self.objects]
 
     def _evaluate_single(self, times, wavelengths, state, rng_info=None, **kwargs):
         """Evaluate the model and apply the effects for a single, given graph state.
@@ -324,17 +324,17 @@ class AdditiveMultiSourceModel(MultiSourceModel):
         # Check that all models can compute SEDs.
         if self._any_bandflux:
             raise TypeError(
-                "AdditiveMultiSourceModel contains at least one BandfluxModel, "
+                "AdditiveMultiObjectModel contains at least one BandfluxModel, "
                 "which does not support the evaluation of SEDs."
             )
 
-        # Compute the weighted sum of contributions from each source. Since we use each
-        # source's _evaluate_single function, the rest frame effects are applied
-        # correctly for each source and wavelength extrapolation is handled by each source
+        # Compute the weighted sum of contributions from each object. Since we use each
+        # object's _evaluate_single function, the rest frame effects are applied
+        # correctly for each object and wavelength extrapolation is handled by each object
         # (allowing them to have different wavelength ranges).
         flux_density = np.zeros((len(times), len(wavelengths)))
-        for source, weight in zip(self.sources, self.weights, strict=False):
-            flux_density += weight * source._evaluate_single(
+        for object, weight in zip(self.objects, self.weights, strict=False):
+            flux_density += weight * object._evaluate_single(
                 times,
                 wavelengths,
                 state,
@@ -342,7 +342,7 @@ class AdditiveMultiSourceModel(MultiSourceModel):
                 **kwargs,
             )
 
-        # Apply the observer frame effects on the weighted sum of sources.
+        # Apply the observer frame effects on the weighted sum of objects.
         params = self.get_local_params(state)
         for effect in self.obs_frame_effects:
             flux_density = effect.apply(
@@ -381,15 +381,15 @@ class AdditiveMultiSourceModel(MultiSourceModel):
         # effects applied prior to summing. In the case of full SED models, the effects will be applied
         # to the entire SED before integrating with the filters to compute the band fluxes.
         bandfluxes = np.zeros(len(times))
-        for idx, source in enumerate(self.sources):
-            source_fluxes = source._evaluate_bandfluxes_single(
+        for idx, object in enumerate(self.objects):
+            object_fluxes = object._evaluate_bandfluxes_single(
                 passband_group,
                 times,
                 filters,
                 state,
                 rng_info=rng_info,
             )
-            bandfluxes += self.weights[idx] * source_fluxes
+            bandfluxes += self.weights[idx] * object_fluxes
 
         # Apply any common rest frame effects to the total bandflux.  We need to use the effects'
         # apply_bandflux() function since we no longer have SEDs.
@@ -406,42 +406,42 @@ class AdditiveMultiSourceModel(MultiSourceModel):
         return bandfluxes
 
 
-class RandomMultiSourceModel(MultiSourceModel):
-    """A RandomMultiSourceModel selects one of its sources at random and
-    computes the flux from that source.
+class RandomMultiObjectModel(MultiObjectModel):
+    """A RandomMultiObjectModel selects one of its objects at random and
+    computes the flux from that object.
 
     Attributes
     ----------
-    source_map : dict
-        A dictionary mapping each source name (or index) to a BasePhysicalModel object.
-    num_sources : int
-        The number of sources in the model.
+    object_map : dict
+        A dictionary mapping each object name (or index) to a BasePhysicalModel object.
+    num_objects : int
+        The number of objects in the model.
 
     Parameters
     ----------
-    sources : list
+    objects : list
         A list of BasePhysicalModel objects to use in the flux calculation.
     weights : numpy.ndarray, optional
         A length N array indicating the relative weight from which to select
-        a source at random. If None, all sources will be weighted equally.
+        a object at random. If None, all objects will be weighted equally.
     **kwargs : dict, optional
         Any additional keyword arguments.
     """
 
     def __init__(
         self,
-        sources,
+        objects,
         weights=None,
-        source_names=None,
+        object_names=None,
         **kwargs,
     ):
-        super().__init__(sources, **kwargs)
+        super().__init__(objects, **kwargs)
 
-        # Create a parameter to indicate which source was selected.
-        source_names = source_names or [src.node_string for src in sources]
-        self.source_map = {name: src for name, src in zip(source_names, sources, strict=False)}
-        self._sampler_node = GivenValueSampler(source_names, weights=weights)
-        self.add_parameter("selected_source", value=self._sampler_node, allow_gradient=False)
+        # Create a parameter to indicate which object was selected.
+        object_names = object_names or [src.node_string for src in objects]
+        self.object_map = {name: src for name, src in zip(object_names, objects, strict=False)}
+        self._sampler_node = GivenValueSampler(object_names, weights=weights)
+        self.add_parameter("selected_object", value=self._sampler_node, allow_gradient=False)
 
     def minwave(self, graph_state=None):
         """Get the minimum wavelength of the model.
@@ -458,8 +458,8 @@ class RandomMultiSourceModel(MultiSourceModel):
             The minimum wavelength of the model (in angstroms) or None
             if the model does not have a defined minimum wavelength.
         """
-        idx = self.get_param(graph_state, "selected_source")
-        return self.sources[idx].minwave(graph_state=graph_state)
+        idx = self.get_param(graph_state, "selected_object")
+        return self.objects[idx].minwave(graph_state=graph_state)
 
     def maxwave(self, graph_state=None):
         """Get the maximum wavelength of the model.
@@ -476,8 +476,8 @@ class RandomMultiSourceModel(MultiSourceModel):
             The maximum wavelength of the model (in angstroms) or None
             if the model does not have a defined maximum wavelength.
         """
-        idx = self.get_param(graph_state, "selected_source")
-        return self.sources[idx].maxwave(graph_state=graph_state)
+        idx = self.get_param(graph_state, "selected_object")
+        return self.objects[idx].maxwave(graph_state=graph_state)
 
     def _evaluate_single(self, times, wavelengths, state, rng_info=None, **kwargs):
         """Evaluate the model and apply the effects for a single, given graph state.
@@ -507,13 +507,13 @@ class RandomMultiSourceModel(MultiSourceModel):
         # Check that all models can compute SEDs.
         if self._any_bandflux:
             raise TypeError(
-                "RandomMultiSourceModel contains at least one BandfluxModel, "
+                "RandomMultiObjectModel contains at least one BandfluxModel, "
                 "which does not support the evaluation of SEDs."
             )
 
         # Use the model selected by the sampler node to compute the flux density.
-        model_name = self.get_param(state, "selected_source")
-        flux_density = self.source_map[model_name]._evaluate_single(
+        model_name = self.get_param(state, "selected_object")
+        flux_density = self.object_map[model_name]._evaluate_single(
             times,
             wavelengths,
             state,
@@ -521,7 +521,7 @@ class RandomMultiSourceModel(MultiSourceModel):
             **kwargs,
         )
 
-        # Apply the observer frame effects on the selected source.
+        # Apply the observer frame effects on the selected object.
         params = self.get_local_params(state)
         for effect in self.obs_frame_effects:
             flux_density = effect.apply(
@@ -557,8 +557,8 @@ class RandomMultiSourceModel(MultiSourceModel):
             A length T array of band fluxes for this sample.
         """
         # Use the model selected by the sampler node to compute the flux density.
-        model_name = self.get_param(state, "selected_source")
-        bandfluxes = self.source_map[model_name]._evaluate_bandfluxes_single(
+        model_name = self.get_param(state, "selected_object")
+        bandfluxes = self.object_map[model_name]._evaluate_bandfluxes_single(
             passband_group,
             times,
             filters,
@@ -566,7 +566,7 @@ class RandomMultiSourceModel(MultiSourceModel):
             rng_info=rng_info,
         )
 
-        # Apply the observer frame effects on the selected source.
+        # Apply the observer frame effects on the selected object.
         params = self.get_local_params(state)
         for effect in self.obs_frame_effects:
             bandfluxes = effect.apply_bandflux(

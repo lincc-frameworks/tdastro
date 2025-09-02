@@ -1,7 +1,7 @@
 import numpy as np
 from astropy.cosmology import WMAP9, Planck18
 from tdastro.astro_utils.redshift import RedshiftDistFunc, redshift_to_distance
-from tdastro.sources.basic_sources import StepSource
+from tdastro.sources.basic_models import StepModel
 
 
 def test_redshifted_flux_densities() -> None:
@@ -13,7 +13,7 @@ def test_redshifted_flux_densities() -> None:
     brightness = 50.0
 
     for redshift in [0.0, 0.5, 2.0, 3.0, 30.0]:
-        model_redshift = StepSource(brightness=brightness, t0=t0, t1=t1, redshift=redshift)
+        model_redshift = StepModel(brightness=brightness, t0=t0, t1=t1, redshift=redshift)
         values_redshift = model_redshift.evaluate_sed(times, wavelengths)
 
         for i, time in enumerate(times):

@@ -3,7 +3,7 @@ import pytest
 from tdastro.astro_utils.dustmap import ConstantHemisphereDustMap, DustmapWrapper
 from tdastro.effects.extinction import ExtinctionEffect
 from tdastro.math_nodes.given_sampler import GivenValueList
-from tdastro.sources.basic_sources import StaticSource
+from tdastro.sources.basic_models import ConstantSEDModel
 
 
 def test_list_extinction_models():
@@ -53,7 +53,7 @@ def test_constant_dust_extinction():
     assert dust_effect.extinction_model is not None
     assert hasattr(dust_effect.extinction_model, "extinguish")
 
-    model = StaticSource(
+    model = ConstantSEDModel(
         brightness=100.0,
         ra=0.0,
         dec=40.0,
@@ -74,7 +74,7 @@ def test_constant_dust_extinction():
 
 def test_dustmap_chain():
     """Test that we can chain the dustmap computation and extinction effect."""
-    model = StaticSource(
+    model = ConstantSEDModel(
         brightness=100.0,
         ra=GivenValueList([45.0, 45.0, 45.0]),
         dec=GivenValueList([20.0, -20.0, 10.0]),

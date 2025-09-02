@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 from tdastro.effects.basic_effects import ConstantDimming
-from tdastro.sources.basic_sources import StaticSource
+from tdastro.sources.basic_models import ConstantSEDModel
 
 
 def test_constant_dimming() -> None:
@@ -35,8 +35,8 @@ def test_constant_dimming_bandflux() -> None:
 
 
 def test_static_source_constant_dimming() -> None:
-    """Test that we can sample and create a StaticSource object with constant dimming."""
-    model = StaticSource(brightness=10.0, node_label="my_static_source")
+    """Test that we can sample and create a ConstantSEDModel object with constant dimming."""
+    model = ConstantSEDModel(brightness=10.0, node_label="my_constant_sed_model")
     assert len(model.rest_frame_effects) == 0
     assert len(model.obs_frame_effects) == 0
 
@@ -48,7 +48,7 @@ def test_static_source_constant_dimming() -> None:
 
     # Check that the flux_fraction parameter is stored in the source node.
     state = model.sample_parameters()
-    assert state["my_static_source"]["flux_fraction"] == 0.1
+    assert state["my_constant_sed_model"]["flux_fraction"] == 0.1
 
     times = np.array([1, 2, 3, 4, 5, 10])
     wavelengths = np.array([100.0, 200.0, 300.0])
@@ -57,7 +57,7 @@ def test_static_source_constant_dimming() -> None:
     assert np.all(values == 1.0)
 
     # We can add the white noise effect as a observer frame effect instead.
-    model2 = StaticSource(brightness=10.0, node_label="my_static_source")
+    model2 = ConstantSEDModel(brightness=10.0, node_label="my_constant_sed_model")
     effect2 = ConstantDimming(flux_fraction=0.5, rest_frame=False)
     model2.add_effect(effect2)
     assert len(model2.rest_frame_effects) == 0
@@ -71,13 +71,13 @@ def test_static_source_constant_dimming() -> None:
 
 def test_static_source_constant_dimming_alt_params() -> None:
     """Test that we can turn off adding parameters, but this will fail."""
-    model = StaticSource(brightness=10.0, node_label="my_static_source")
+    model = ConstantSEDModel(brightness=10.0, node_label="my_constant_sed_model")
     effect = ConstantDimming(flux_fraction=0.2)
     model.add_effect(effect, skip_params=True)
 
     # Check that we sample the value from source node.
     state = model.sample_parameters()
-    assert "flux_fraction" not in state["my_static_source"]
+    assert "flux_fraction" not in state["my_constant_sed_model"]
 
     times = np.array([1, 2, 3, 4, 5, 10])
     wavelengths = np.array([100.0, 200.0, 300.0])

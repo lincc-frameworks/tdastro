@@ -2,11 +2,11 @@ import random
 
 import numpy as np
 from tdastro.base_models import FunctionNode
-from tdastro.sources.basic_sources import (
-    LinearWavelengthSource,
-    SinWaveSource,
-    StaticSource,
-    StepSource,
+from tdastro.sources.basic_models import (
+    ConstantSEDModel,
+    LinearWavelengthModel,
+    SinWaveModel,
+    StepModel,
 )
 from tdastro.utils.wave_extrapolate import ConstantExtrapolation, LinearDecay
 
@@ -26,15 +26,15 @@ def _sampler_fun(magnitude, offset=0.0, **kwargs):
     return magnitude * random.random() + offset
 
 
-def test_static_source() -> None:
-    """Test that we can sample and create a StaticSource object."""
-    model = StaticSource(brightness=10.0, node_label="my_static_source")
+def test_constant_sed_model() -> None:
+    """Test that we can sample and create a ConstantSEDModel object."""
+    model = ConstantSEDModel(brightness=10.0, node_label="my_constant_sed_model")
     state = model.sample_parameters()
     assert model.get_param(state, "brightness") == 10.0
     assert model.get_param(state, "ra") is None
     assert model.get_param(state, "dec") is None
     assert model.get_param(state, "distance") is None
-    assert str(model) == "my_static_source"
+    assert str(model) == "my_constant_sed_model"
 
     times = np.array([1, 2, 3, 4, 5, 10])
     wavelengths = np.array([100.0, 200.0, 300.0])
@@ -50,38 +50,38 @@ def test_static_source() -> None:
     assert np.all(values == 5.0)
 
 
-def test_static_source_pytree():
+def test_constant_sed_model_pytree():
     """Test that the PyTree only contains brightness."""
-    model = StaticSource(brightness=10.0, node_label="my_static_source")
+    model = ConstantSEDModel(brightness=10.0, node_label="my_constant_sed_model")
     state = model.sample_parameters()
 
     pytree = model.build_pytree(state)
-    assert pytree["my_static_source"]["brightness"] == 10.0
-    assert pytree["my_static_source"]["t0"] is None
-    assert len(pytree["my_static_source"]) == 2
+    assert pytree["my_constant_sed_model"]["brightness"] == 10.0
+    assert pytree["my_constant_sed_model"]["t0"] is None
+    assert len(pytree["my_constant_sed_model"]) == 2
     assert len(pytree) == 1
 
 
-def test_static_source_host() -> None:
-    """Test that we can sample and create a StaticSource object with properties
+def test_constant_sed_model_host() -> None:
+    """Test that we can sample and create a ConstantSEDModel object with properties
     derived from the host object."""
-    host = StaticSource(brightness=15.0, ra=1.0, dec=2.0, distance=3.0)
-    model = StaticSource(brightness=10.0, ra=host.ra, dec=host.dec, distance=host.distance)
+    host = ConstantSEDModel(brightness=15.0, ra=1.0, dec=2.0, distance=3.0)
+    model = ConstantSEDModel(brightness=10.0, ra=host.ra, dec=host.dec, distance=host.distance)
     state = model.sample_parameters()
 
     assert model.get_param(state, "brightness") == 10.0
     assert model.get_param(state, "ra") == 1.0
     assert model.get_param(state, "dec") == 2.0
     assert model.get_param(state, "distance") == 3.0
-    assert str(model) == "StaticSource_0"
+    assert str(model) == "ConstantSEDModel_0"
 
     # Test that we have given a different name to the host.
-    assert str(host) == "StaticSource_1"
+    assert str(host) == "ConstantSEDModel_1"
 
 
-def test_static_source_resample() -> None:
+def test_constant_sed_model_resample() -> None:
     """Check that we can call resample on the model parameters."""
-    model = StaticSource(brightness=_sampler_fun, magnitude=100.0)
+    model = ConstantSEDModel(brightness=_sampler_fun, magnitude=100.0)
 
     num_samples = 100
     values = np.zeros((num_samples, 1))
@@ -97,10 +97,10 @@ def test_static_source_resample() -> None:
     assert not np.all(values == values[0])
 
 
-def test_step_source() -> None:
-    """Test that we can sample and create a StepSource object."""
-    host = StaticSource(brightness=150.0, ra=1.0, dec=2.0, distance=3.0)
-    model = StepSource(brightness=15.0, t0=1.0, t1=2.0, ra=host.ra, dec=host.dec, distance=host.distance)
+def test_step_model() -> None:
+    """Test that we can sample and create a StepModel object."""
+    host = ConstantSEDModel(brightness=150.0, ra=1.0, dec=2.0, distance=3.0)
+    model = StepModel(brightness=15.0, t0=1.0, t1=2.0, ra=host.ra, dec=host.dec, distance=host.distance)
     state = model.sample_parameters()
 
     param_values = model.get_local_params(state)
@@ -120,11 +120,11 @@ def test_step_source() -> None:
     assert np.array_equal(values, expected)
 
 
-def test_step_source_resample() -> None:
+def test_step_model_resample() -> None:
     """Check that we can call resample on the model parameters."""
     random.seed(1111)
 
-    model = StepSource(
+    model = StepModel(
         brightness=FunctionNode(_sampler_fun, magnitude=100.0),
         t0=0.0,
         t1=FunctionNode(_sampler_fun, magnitude=5.0, offset=1.0),
@@ -156,9 +156,9 @@ def test_step_source_resample() -> None:
     assert not np.all(t_end_vals == t_end_vals[0])
 
 
-def test_sin_wave_source() -> None:
-    """Test that we can sample and create a SinWaveSource object."""
-    model = SinWaveSource(amplitude=15.0, frequency=1.0, t0=0.0)
+def test_sin_wave_model() -> None:
+    """Test that we can sample and create a SinWaveModel object."""
+    model = SinWaveModel(amplitude=15.0, frequency=1.0, t0=0.0)
     state = model.sample_parameters()
 
     times = np.array([0.0, 1.0 / 12.0, 1.0 / 4.0, 5.0 / 12.0, 0.5])
@@ -169,7 +169,7 @@ def test_sin_wave_source() -> None:
     assert values.shape == (5, 2)
     assert np.allclose(values, expected)
 
-    model2 = SinWaveSource(brightness=10.0, amplitude=15.0, frequency=1.0, t0=0.0)
+    model2 = SinWaveModel(brightness=10.0, amplitude=15.0, frequency=1.0, t0=0.0)
     state2 = model2.sample_parameters()
     expected2 = np.array([[10.0, 10.0], [17.5, 17.5], [25.0, 25.0], [17.5, 17.5], [10.0, 10.0]])
 
@@ -178,9 +178,9 @@ def test_sin_wave_source() -> None:
     assert np.allclose(values2, expected2)
 
 
-def test_linear_wavelength_source() -> None:
-    """Test that we can sample and create a LinearWavelengthSource object."""
-    model = LinearWavelengthSource(linear_base=1.0, linear_scale=0.1)
+def test_linear_wavelength_model() -> None:
+    """Test that we can sample and create a LinearWavelengthModel object."""
+    model = LinearWavelengthModel(linear_base=1.0, linear_scale=0.1)
     state = model.sample_parameters()
 
     times = np.arange(0.0, 10.0, 0.5)
@@ -192,9 +192,9 @@ def test_linear_wavelength_source() -> None:
     assert np.allclose(values, expected)
 
 
-def test_linear_wavelength_source_redeshift() -> None:
+def test_linear_wavelength_model_redshift() -> None:
     """Test that we correctly apply a redshift to the wavelengths."""
-    model = LinearWavelengthSource(linear_base=1.0, linear_scale=0.1, redshift=0.2, t0=0.0)
+    model = LinearWavelengthModel(linear_base=1.0, linear_scale=0.1, redshift=0.2, t0=0.0)
     state = model.sample_parameters()
 
     times = np.arange(0.0, 10.0, 0.5)
@@ -212,9 +212,9 @@ def test_linear_wavelength_source_redeshift() -> None:
     assert np.allclose(values, expected)
 
 
-def test_linear_wavelength_source_bounds() -> None:
+def test_linear_wavelength_model_bounds() -> None:
     """Test that we correctly apply a redshift to the wavelengths."""
-    model = LinearWavelengthSource(linear_base=1.0, linear_scale=0.1, min_wave=1000.0, max_wave=2000.0)
+    model = LinearWavelengthModel(linear_base=1.0, linear_scale=0.1, min_wave=1000.0, max_wave=2000.0)
     state = model.sample_parameters()
 
     times = np.arange(0.0, 10.0, 0.5)
@@ -226,7 +226,7 @@ def test_linear_wavelength_source_bounds() -> None:
     assert np.allclose(values, expected)
 
     # We fill in with a constant value.
-    model2 = LinearWavelengthSource(
+    model2 = LinearWavelengthModel(
         linear_base=1.0,
         linear_scale=0.1,
         min_wave=1000.0,
@@ -239,7 +239,7 @@ def test_linear_wavelength_source_bounds() -> None:
     assert np.allclose(values2, expected2)
 
     # We linearly decay the values.
-    model3 = LinearWavelengthSource(
+    model3 = LinearWavelengthModel(
         linear_base=1.0,
         linear_scale=0.1,
         min_wave=1000.0,
