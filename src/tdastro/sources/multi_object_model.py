@@ -209,7 +209,7 @@ class MultiObjectModel(SEDModel):
 
 class AdditiveMultiObjectModel(MultiObjectModel):
     """An AdditiveMultiObjectModel computes the flux from multiple overlapping objects,
-    including (host, galaxy pairs) or unresolved objects.
+    including (host galaxy and source pairs) or unresolved sources.
 
     All rest frame effects are applied to each model, allowing different redshifts
     for each model (for unresolved objects).  The observer frame effects are applied
