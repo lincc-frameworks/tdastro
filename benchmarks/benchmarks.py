@@ -242,7 +242,7 @@ class TimeSuite:
 
         # Sample the lightcurve source to ensure it works.
         graph_state = lc_source.sample_parameters(num_samples=100)
-        _ = lc_source.evaluate_band_fluxes(
+        _ = lc_source.evaluate_bandfluxes(
             self.passbands,
             self.times,
             ["r" for _ in range(len(self.times))],
