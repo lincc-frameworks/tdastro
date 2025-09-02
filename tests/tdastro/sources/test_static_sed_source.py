@@ -185,7 +185,7 @@ def test_single_static_bandflux() -> None:
     expected = np.array([10.0, 10.0, 20.0, 30.0, 10.0, 20.0, 30.0, 20.0, 30.0, 10.0])
 
     state = model.sample_parameters(num_samples=1)
-    fluxes = model.evaluate_band_fluxes(None, times, filters, state)
+    fluxes = model.evaluate_bandfluxes(None, times, filters, state)
     assert len(fluxes) == 10
     assert np.array_equal(fluxes, expected)
 
@@ -210,7 +210,7 @@ def test_multiple_static_bandflux() -> None:
     expected0 = np.array([10.0, 10.0, 20.0, 30.0, 10.0])
     expected1 = np.array([15.0, 15.0, 25.0, 35.0, 15.0])
 
-    fluxes = model.evaluate_band_fluxes(None, times, filters, params)
+    fluxes = model.evaluate_bandfluxes(None, times, filters, params)
     assert fluxes.shape == (10_000, 5)
     for idx in range(10_000):
         if inds_0[idx]:

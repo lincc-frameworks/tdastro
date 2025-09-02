@@ -157,7 +157,7 @@ class BasePhysicalModel(ParameterizedNode, ABC):
         """
         return np.full(len(times), True)
 
-    def evaluate_band_fluxes(self, passband_or_group, times, filters, state, rng_info=None) -> np.ndarray:
+    def evaluate_bandfluxes(self, passband_or_group, times, filters, state, rng_info=None) -> np.ndarray:
         """Get the band fluxes for a given Passband or PassbandGroup.
 
         Parameters
@@ -177,7 +177,7 @@ class BasePhysicalModel(ParameterizedNode, ABC):
 
         Returns
         -------
-        band_fluxes : numpy.ndarray
+        bandfluxes : numpy.ndarray
             A matrix of the band fluxes. If only one sample is provided in the GraphState,
             then returns a length T array. Otherwise returns a size S x T array where S is the
             number of samples in the graph state.
@@ -204,20 +204,20 @@ class BasePhysicalModel(ParameterizedNode, ABC):
 
         # If we only have a single sample, we can return the band fluxes directly.
         if state.num_samples == 1:
-            return self._evaluate_band_fluxes_single(passband_group, times, filters, state, rng_info=rng_info)
+            return self._evaluate_bandfluxes_single(passband_group, times, filters, state, rng_info=rng_info)
 
         # Fill in the band fluxes one at a time and return them all.
-        band_fluxes = np.empty((state.num_samples, len(times)))
+        bandfluxes = np.empty((state.num_samples, len(times)))
         for sample_num, current_state in enumerate(state):
-            current_fluxes = self._evaluate_band_fluxes_single(
+            current_fluxes = self._evaluate_bandfluxes_single(
                 passband_group,
                 times,
                 filters,
                 current_state,
                 rng_info=rng_info,
             )
-            band_fluxes[sample_num, :] = current_fluxes[np.newaxis, :]
-        return band_fluxes
+            bandfluxes[sample_num, :] = current_fluxes[np.newaxis, :]
+        return bandfluxes
 
 
 class SEDModel(BasePhysicalModel):
@@ -519,9 +519,7 @@ class SEDModel(BasePhysicalModel):
             )
         return results
 
-    def _evaluate_band_fluxes_single(
-        self, passband_group, times, filters, state, rng_info=None
-    ) -> np.ndarray:
+    def _evaluate_bandfluxes_single(self, passband_group, times, filters, state, rng_info=None) -> np.ndarray:
         """Get the band fluxes for a given PassbandGroup and a single, given graph state.
 
         Parameters
@@ -540,10 +538,10 @@ class SEDModel(BasePhysicalModel):
 
         Returns
         -------
-        band_fluxes : numpy.ndarray
+        bandfluxes : numpy.ndarray
             A length T array of band fluxes for this sample.
         """
-        band_fluxes = np.empty(len(times))
+        bandfluxes = np.empty(len(times))
         for filter_name in np.unique(filters):
             # Compute the band fluxes for the times at which this filter is used.
             passband = passband_group[filter_name]
@@ -553,8 +551,8 @@ class SEDModel(BasePhysicalModel):
             # The evaluate function applies all effects (rest and observation frame) for the source
             # as well as handling all the redshift conversions.
             spectral_fluxes = self.evaluate_sed(times[filter_mask], passband.waves, state, rng_info=rng_info)
-            band_fluxes[filter_mask] = passband.fluxes_to_bandflux(spectral_fluxes)
-        return band_fluxes
+            bandfluxes[filter_mask] = passband.fluxes_to_bandflux(spectral_fluxes)
+        return bandfluxes
 
 
 class BandfluxModel(BasePhysicalModel, ABC):
@@ -633,9 +631,7 @@ class BandfluxModel(BasePhysicalModel, ABC):
         """
         raise NotImplementedError
 
-    def _evaluate_band_fluxes_single(
-        self, passband_group, times, filters, state, rng_info=None
-    ) -> np.ndarray:
+    def _evaluate_bandfluxes_single(self, passband_group, times, filters, state, rng_info=None) -> np.ndarray:
         """Get the band fluxes for a given PassbandGroup and a single, given graph state.
 
         Note
@@ -659,20 +655,20 @@ class BandfluxModel(BasePhysicalModel, ABC):
 
         Returns
         -------
-        band_flux : numpy.ndarray
+        bandflux : numpy.ndarray
             A length T array of band fluxes for this sample.
         """
         params = self.get_local_params(state)
 
         # Compute the flux (applying all effects) and save the result. Note that
         # BandfluxModel does not apply redshift, so all effects are applied in observer frame.
-        band_fluxes = self.compute_bandflux(times, filters, state, rng_info=rng_info)
+        bandfluxes = self.compute_bandflux(times, filters, state, rng_info=rng_info)
         for effect in self.band_pass_effects:
-            band_fluxes = effect.apply_bandflux(
-                band_fluxes,
+            bandfluxes = effect.apply_bandflux(
+                bandfluxes,
                 times=times,
                 filters=filters,
                 rng_info=rng_info,
                 **params,  # Provide all the node's parameters to the effect.
             )
-        return band_fluxes
+        return bandfluxes

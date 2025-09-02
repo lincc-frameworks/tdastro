@@ -108,7 +108,7 @@ Finally, the raw flux densities are are converted into the magnitudes observed i
 Generating band flux curves
 -------------------------------------------------------------------------------
 
-All models provide a helper function, ``evaluate_band_fluxes()``, that wraps the combination of
+All models provide a helper function, ``evaluate_bandfluxes()``, that wraps the combination of
 evaluation and integration with the passbands. This function takes the passband information,
 a list of times, and a list of filter names. It returns the band flux at each of those times
 in each of the filters.
@@ -117,9 +117,9 @@ in each of the filters.
    :class: no-scaled-link
    :scale: 80 %
    :align: center
-   :alt: An example of the evaluate_band_fluxes function
+   :alt: An example of the evaluate_bandfluxes function
 
-   An example of the evaluate_band_fluxes function
+   An example of the evaluate_bandfluxes function
 
 In addition to being a convenient helper function, generating the data at the band flux level allows
 certain models to skip SED generation. In particular a ``BandfluxModel`` is a subclass of the ``PhysicalModel``

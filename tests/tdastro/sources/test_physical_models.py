@@ -136,23 +136,21 @@ def test_sed_model_evaluate_bandflux(passbands_dir):
 
     # It should fail if no filters are provided.
     with pytest.raises(ValueError):
-        _band_fluxes = static_source.evaluate_band_fluxes(passbands, times=times, filters=None, state=state)
+        _bandfluxes = static_source.evaluate_bandfluxes(passbands, times=times, filters=None, state=state)
     # It should fail if single passband is provided, but with multiple filter names.
     with pytest.raises(KeyError):
-        _band_fluxes = static_source.evaluate_band_fluxes(
-            passbands.passbands["LSST_r"], times, filters, state
-        )
+        _bandfluxes = static_source.evaluate_bandfluxes(passbands.passbands["LSST_r"], times, filters, state)
 
-    band_fluxes = static_source.evaluate_band_fluxes(passbands, times, filters, state)
-    assert band_fluxes.shape == (n_passbands,)
-    np.testing.assert_allclose(band_fluxes, f_nu, rtol=1e-10)
+    bandfluxes = static_source.evaluate_bandfluxes(passbands, times, filters, state)
+    assert bandfluxes.shape == (n_passbands,)
+    np.testing.assert_allclose(bandfluxes, f_nu, rtol=1e-10)
 
     # If we use multiple samples, we should get a correctly sized array.
     n_samples = 21
     brightness_list = [1.5 * i for i in range(n_samples)]
     static_source2 = ConstantSEDModel(brightness=GivenValueList(brightness_list))
     state2 = static_source2.sample_parameters(num_samples=n_samples)
-    band_fluxes2 = static_source2.evaluate_band_fluxes(passbands, times, filters, state2)
-    assert band_fluxes2.shape == (n_samples, n_passbands)
+    bandfluxes2 = static_source2.evaluate_bandfluxes(passbands, times, filters, state2)
+    assert bandfluxes2.shape == (n_samples, n_passbands)
     for idx, brightness in enumerate(brightness_list):
-        np.testing.assert_allclose(band_fluxes2[idx, :], brightness, rtol=1e-10)
+        np.testing.assert_allclose(bandfluxes2[idx, :], brightness, rtol=1e-10)

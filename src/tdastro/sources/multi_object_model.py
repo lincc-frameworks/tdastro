@@ -180,9 +180,7 @@ class MultiObjectModel(SEDModel):
         """
         raise NotImplementedError
 
-    def _evaluate_band_fluxes_single(
-        self, passband_group, times, filters, state, rng_info=None
-    ) -> np.ndarray:
+    def _evaluate_bandfluxes_single(self, passband_group, times, filters, state, rng_info=None) -> np.ndarray:
         """Get the band fluxes for a given PassbandGroup and a single, given graph state.
 
         Parameters
@@ -201,7 +199,7 @@ class MultiObjectModel(SEDModel):
 
         Returns
         -------
-        band_fluxes : numpy.ndarray
+        bandfluxes : numpy.ndarray
             A length T array of band fluxes for this sample.
         """
         raise NotImplementedError
@@ -357,9 +355,7 @@ class AdditiveMultiObjectModel(MultiObjectModel):
 
         return flux_density
 
-    def _evaluate_band_fluxes_single(
-        self, passband_group, times, filters, state, rng_info=None
-    ) -> np.ndarray:
+    def _evaluate_bandfluxes_single(self, passband_group, times, filters, state, rng_info=None) -> np.ndarray:
         """Get the band fluxes for a given PassbandGroup and a single, given graph state.
 
         Parameters
@@ -378,36 +374,36 @@ class AdditiveMultiObjectModel(MultiObjectModel):
 
         Returns
         -------
-        band_fluxes : numpy.ndarray
+        bandfluxes : numpy.ndarray
             A length T array of band fluxes for this sample.
         """
         # Compute the band fluxes as the weighted sum of all bandfluxes. All models will have rest frame
         # effects applied prior to summing. In the case of full SED models, the effects will be applied
         # to the entire SED before integrating with the filters to compute the band fluxes.
-        band_fluxes = np.zeros(len(times))
-        for idx, object in enumerate(self.objects):
-            object_fluxes = object._evaluate_band_fluxes_single(
+        bandfluxes = np.zeros(len(times))
+        for idx, source in enumerate(self.sources):
+            source_fluxes = source._evaluate_bandfluxes_single(
                 passband_group,
                 times,
                 filters,
                 state,
                 rng_info=rng_info,
             )
-            band_fluxes += self.weights[idx] * object_fluxes
+            bandfluxes += self.weights[idx] * source_fluxes
 
         # Apply any common rest frame effects to the total bandflux.  We need to use the effects'
         # apply_bandflux() function since we no longer have SEDs.
         params = self.get_local_params(state)
         for effect in self.obs_frame_effects:
-            band_fluxes = effect.apply_bandflux(
-                band_fluxes,
+            bandfluxes = effect.apply_bandflux(
+                bandfluxes,
                 times=times,
                 filters=filters,
                 rng_info=rng_info,
                 **params,
             )
 
-        return band_fluxes
+        return bandfluxes
 
 
 class RandomMultiObjectModel(MultiObjectModel):
@@ -538,9 +534,7 @@ class RandomMultiObjectModel(MultiObjectModel):
 
         return flux_density
 
-    def _evaluate_band_fluxes_single(
-        self, passband_group, times, filters, state, rng_info=None
-    ) -> np.ndarray:
+    def _evaluate_bandfluxes_single(self, passband_group, times, filters, state, rng_info=None) -> np.ndarray:
         """Get the band fluxes for a given PassbandGroup and a single, given graph state.
 
         Parameters
@@ -559,12 +553,12 @@ class RandomMultiObjectModel(MultiObjectModel):
 
         Returns
         -------
-        band_fluxes : numpy.ndarray
+        bandfluxes : numpy.ndarray
             A length T array of band fluxes for this sample.
         """
         # Use the model selected by the sampler node to compute the flux density.
         model_name = self.get_param(state, "selected_object")
-        band_fluxes = self.object_map[model_name]._evaluate_band_fluxes_single(
+        bandfluxes = self.source_map[model_name]._evaluate_bandfluxes_single(
             passband_group,
             times,
             filters,
@@ -575,11 +569,11 @@ class RandomMultiObjectModel(MultiObjectModel):
         # Apply the observer frame effects on the selected object.
         params = self.get_local_params(state)
         for effect in self.obs_frame_effects:
-            band_fluxes = effect.apply_bandflux(
-                band_fluxes,
+            bandfluxes = effect.apply_bandflux(
+                bandfluxes,
                 times=times,
                 filters=filters,
                 rng_info=rng_info,
                 **params,
             )
-        return band_fluxes
+        return bandfluxes

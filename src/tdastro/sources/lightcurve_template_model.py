@@ -659,7 +659,7 @@ class LightcurveTemplateModel(BaseLightcurveTemplateModel):
 
         Returns
         -------
-        band_fluxes : numpy.ndarray
+        bandfluxes : numpy.ndarray
             A length T matrix of observer frame passband fluxes (in nJy).
         """
         params = self.get_local_params(state)
@@ -673,12 +673,12 @@ class LightcurveTemplateModel(BaseLightcurveTemplateModel):
         # The lightcurve times were already shifted in the constructor to be relative to lc_t0.
         shifted_times = times - params["t0"]
 
-        band_fluxes = np.zeros(len(times))
+        bandfluxes = np.zeros(len(times))
         for filter in self.lightcurves.filters:
             filter_mask = filters == filter
-            band_fluxes[filter_mask] = self.lightcurves.evaluate_sed(shifted_times[filter_mask], filter)
+            bandfluxes[filter_mask] = self.lightcurves.evaluate_sed(shifted_times[filter_mask], filter)
 
-        return band_fluxes
+        return bandfluxes
 
     def plot_lightcurves(self, times=None, ax=None, figure=None):
         """Plot the underlying lightcurves. This is a debugging
@@ -870,7 +870,7 @@ class MultiLightcurveTemplateModel(BaseLightcurveTemplateModel):
 
         Returns
         -------
-        band_fluxes : numpy.ndarray
+        bandfluxes : numpy.ndarray
             A length T matrix of observer frame passband fluxes (in nJy).
         """
         params = self.get_local_params(state)
@@ -886,9 +886,9 @@ class MultiLightcurveTemplateModel(BaseLightcurveTemplateModel):
         # The lightcurve times were already shifted in the constructor to be relative to lc_t0.
         shifted_times = times - params["t0"]
 
-        band_fluxes = np.zeros(len(times))
+        bandfluxes = np.zeros(len(times))
         for filter in lc.filters:
             filter_mask = filters == filter
-            band_fluxes[filter_mask] = lc.evaluate_sed(shifted_times[filter_mask], filter)
+            bandfluxes[filter_mask] = lc.evaluate_sed(shifted_times[filter_mask], filter)
 
-        return band_fluxes
+        return bandfluxes

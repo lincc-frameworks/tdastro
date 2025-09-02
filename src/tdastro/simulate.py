@@ -165,8 +165,8 @@ def simulate_lightcurves(
             # Extract the filters for this observation.
             obs_filters = all_filters[obs_index]
 
-        # Compute the band_fluxes and errors over just the given filters.
-        bandfluxes_perfect = source.evaluate_band_fluxes(passbands, obs_times, obs_filters, state)
+        # Compute the bandfluxes and errors over just the given filters.
+        bandfluxes_perfect = source.evaluate_bandfluxes(passbands, obs_times, obs_filters, state)
         bandfluxes_error = obstable.bandflux_error_point_source(bandfluxes_perfect, obs_index)
         bandfluxes = apply_noise(bandfluxes_perfect, bandfluxes_error, rng=rng)
 
