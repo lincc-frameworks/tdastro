@@ -381,15 +381,15 @@ class AdditiveMultiObjectModel(MultiObjectModel):
         # effects applied prior to summing. In the case of full SED models, the effects will be applied
         # to the entire SED before integrating with the filters to compute the band fluxes.
         bandfluxes = np.zeros(len(times))
-        for idx, source in enumerate(self.sources):
-            source_fluxes = source._evaluate_bandfluxes_single(
+        for idx, object in enumerate(self.objects):
+            object_fluxes = object._evaluate_bandfluxes_single(
                 passband_group,
                 times,
                 filters,
                 state,
                 rng_info=rng_info,
             )
-            bandfluxes += self.weights[idx] * source_fluxes
+            bandfluxes += self.weights[idx] * object_fluxes
 
         # Apply any common rest frame effects to the total bandflux.  We need to use the effects'
         # apply_bandflux() function since we no longer have SEDs.
@@ -558,7 +558,7 @@ class RandomMultiObjectModel(MultiObjectModel):
         """
         # Use the model selected by the sampler node to compute the flux density.
         model_name = self.get_param(state, "selected_object")
-        bandfluxes = self.source_map[model_name]._evaluate_bandfluxes_single(
+        bandfluxes = self.object_map[model_name]._evaluate_bandfluxes_single(
             passband_group,
             times,
             filters,

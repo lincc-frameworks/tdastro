@@ -34,7 +34,7 @@ def test_constant_sed_model() -> None:
     assert model.get_param(state, "ra") is None
     assert model.get_param(state, "dec") is None
     assert model.get_param(state, "distance") is None
-    assert str(model) == "my_static_source"
+    assert str(model) == "my_constant_sed_model"
 
     times = np.array([1, 2, 3, 4, 5, 10])
     wavelengths = np.array([100.0, 200.0, 300.0])
@@ -56,9 +56,9 @@ def test_constant_sed_model_pytree():
     state = model.sample_parameters()
 
     pytree = model.build_pytree(state)
-    assert pytree["my_static_source"]["brightness"] == 10.0
-    assert pytree["my_static_source"]["t0"] is None
-    assert len(pytree["my_static_source"]) == 2
+    assert pytree["my_constant_sed_model"]["brightness"] == 10.0
+    assert pytree["my_constant_sed_model"]["t0"] is None
+    assert len(pytree["my_constant_sed_model"]) == 2
     assert len(pytree) == 1
 
 
@@ -79,7 +79,7 @@ def test_constant_sed_model_host() -> None:
     assert str(host) == "ConstantSEDModel_1"
 
 
-def test_static_source_resample() -> None:
+def test_constant_sed_model_resample() -> None:
     """Check that we can call resample on the model parameters."""
     model = ConstantSEDModel(brightness=_sampler_fun, magnitude=100.0)
 
@@ -120,7 +120,7 @@ def test_step_model() -> None:
     assert np.array_equal(values, expected)
 
 
-def test_step_source_resample() -> None:
+def test_step_model_resample() -> None:
     """Check that we can call resample on the model parameters."""
     random.seed(1111)
 

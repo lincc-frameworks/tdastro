@@ -48,7 +48,7 @@ def test_static_source_constant_dimming() -> None:
 
     # Check that the flux_fraction parameter is stored in the source node.
     state = model.sample_parameters()
-    assert state["my_static_source"]["flux_fraction"] == 0.1
+    assert state["my_constant_sed_model"]["flux_fraction"] == 0.1
 
     times = np.array([1, 2, 3, 4, 5, 10])
     wavelengths = np.array([100.0, 200.0, 300.0])
@@ -77,7 +77,7 @@ def test_static_source_constant_dimming_alt_params() -> None:
 
     # Check that we sample the value from source node.
     state = model.sample_parameters()
-    assert "flux_fraction" not in state["my_static_source"]
+    assert "flux_fraction" not in state["my_constant_sed_model"]
 
     times = np.array([1, 2, 3, 4, 5, 10])
     wavelengths = np.array([100.0, 200.0, 300.0])
