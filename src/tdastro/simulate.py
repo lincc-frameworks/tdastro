@@ -104,12 +104,39 @@ def simulate_lightcurves(
         raise ValueError("Invalid number of samples.")
     sample_states = source.sample_parameters(num_samples=num_samples, rng_info=rng)
 
+    # Create a dictionary for the object level information, including any saved parameters.
+    # Some of these are placeholders (e.g. nobs) until they can be filled in during the simulation.
+    ra = np.atleast_1d(source.get_param(sample_states, "ra"))
+    dec = np.atleast_1d(source.get_param(sample_states, "dec"))
+    results_dict = {
+        "id": [i for i in range(num_samples)],
+        "ra": ra.tolist(),
+        "dec": dec.tolist(),
+        "nobs": [0] * num_samples,
+        "z": np.atleast_1d(source.get_param(sample_states, "redshift")).tolist(),
+        "params": [state.to_dict() for state in sample_states],
+    }
+    if param_cols is not None:
+        for col in param_cols:
+            if col not in sample_states:
+                raise KeyError(f"Parameter column {col} not found in source parameters.")
+            results_dict[col.replace(".", "_")] = np.atleast_1d(sample_states[col]).tolist()
+
+    # Set up the nested array for the per-observation data, including ObsTable information.
+    nested_index = []
+    nested_dict = {
+        "mjd": [],
+        "filter": [],
+        "flux": [],
+        "fluxerr": [],
+        "flux_perfect": [],
+    }
+    if opsim_save_cols is None:
+        opsim_save_cols = []
+    for col in opsim_save_cols:
+        nested_dict[col] = []
+
     # Determine which of the of the simulated positions match opsim locations.
-    ra = source.get_param(sample_states, "ra")
-    dec = source.get_param(sample_states, "dec")
-    if num_samples == 1:
-        ra = np.array([ra])
-        dec = np.array([dec])
     start_times, end_times = get_time_windows(
         source.get_param(sample_states, "t0"),
         time_window_offset,
@@ -119,36 +146,6 @@ def simulate_lightcurves(
     # Get all times and all filters as numpy arrays so we can do easy subsets.
     all_times = np.asarray(opsim["time"].values, dtype=float)
     all_filters = np.asarray(opsim["filter"].values, dtype=str)
-
-    # Create dictionaries for keeping all the result information. The first
-    # stores per-object information and the second per-object, per-observation.
-    # nested_index maps the entry in the nested array to the object's index.
-    results_dict = {
-        "id": [],
-        "ra": [],
-        "dec": [],
-        "nobs": [],
-        "z": [],
-        "params": [],
-    }
-    nested_dict = {
-        "mjd": [],
-        "filter": [],
-        "flux": [],
-        "fluxerr": [],
-        "flux_perfect": [],
-    }
-    nested_index = []
-
-    # Add the extra columns to both the results and nested dictionaries.
-    if opsim_save_cols is None:
-        opsim_save_cols = []
-    for col in opsim_save_cols:
-        nested_dict[col] = []
-    if param_cols is None:
-        param_cols = []
-    for col in param_cols:
-        results_dict[col.replace(".", "_")] = []
 
     for idx, state in enumerate(sample_states):
         # Find the indices and times where the current source is seen.
@@ -172,18 +169,8 @@ def simulate_lightcurves(
         bandfluxes_error = opsim.bandflux_error_point_source(bandfluxes_perfect, obs_index)
         bandfluxes = apply_noise(bandfluxes_perfect, bandfluxes_error, rng=rng)
 
-        # Save the object level information.
-        results_dict["id"].append(idx)
-        results_dict["ra"].append(ra[idx])
-        results_dict["dec"].append(dec[idx])
-        results_dict["nobs"].append(len(obs_times))
-        results_dict["z"].append(source.get_param(state, "redshift"))
-        results_dict["params"].append(state.to_dict())
-
-        # Save the per-object parameters as separate columns. We use {node_name}_{param_name}
-        # as the column name for each parameter since the . notation is used for nested columns.
-        for col in param_cols:
-            results_dict[col.replace(".", "_")].append(state[col])
+        # Save the object level information that we could not prepopulate.
+        results_dict["nobs"][idx] = len(obs_times)
 
         # Append the per-observation data to the nested dictionary, including
         # and needed opsim columns.
@@ -193,6 +180,8 @@ def simulate_lightcurves(
         nested_dict["flux"].extend(list(bandfluxes))
         nested_dict["fluxerr"].extend(list(bandfluxes_error))
         for col in opsim_save_cols:
+            if col not in opsim.columns:
+                raise KeyError(f"ObsTable column {col} not found.")
             nested_dict[col].extend(list(opsim[col].values[obs_index]))
 
         nested_index.extend([idx] * len(obs_times))
