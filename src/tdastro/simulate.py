@@ -50,9 +50,10 @@ def get_time_windows(t0, time_window_offset):
 def simulate_lightcurves(
     source,
     num_samples,
-    opsim,
+    obstable,
     passbands,
-    opsim_save_cols=None,
+    *,
+    obstable_save_cols=None,
     param_cols=None,
     apply_obs_mask=False,
     time_window_offset=None,
@@ -68,8 +69,8 @@ def simulate_lightcurves(
         will be randomly sampled with each draw.
     num_samples : int
         The number of samples.
-    opsim : OpSim
-        The OpSim information for the samples.
+    obstable : ObsTable
+        The ObsTable information for the samples.
     passbands : PassbandGroup
         The passbands to use for generating the bandfluxes.
     apply_obs_mask: boolean
@@ -79,8 +80,8 @@ def simulate_lightcurves(
         This is used to filter the observations to only those within the specified
         time window (t0 - before, t0 + after). If None or the model does not have a
         t0 specified, no time window is applied.
-    opsim_save_cols : list of str, optional
-        A list of opsim columns to be saved as part of the results. This is used
+    obstable_save_cols : list of str, optional
+        A list of ObsTable columns to be saved as part of the results. This is used
         to save context information about how the lightcurves were generated.
         If None, no additional columns are saved.
     param_cols : list of str, optional
@@ -104,7 +105,7 @@ def simulate_lightcurves(
         raise ValueError("Invalid number of samples.")
     sample_states = source.sample_parameters(num_samples=num_samples, rng_info=rng)
 
-    # Determine which of the of the simulated positions match opsim locations.
+    # Determine which of the of the simulated positions match ObsTable locations.
     ra = source.get_param(sample_states, "ra")
     dec = source.get_param(sample_states, "dec")
     if num_samples == 1:
@@ -114,11 +115,11 @@ def simulate_lightcurves(
         source.get_param(sample_states, "t0"),
         time_window_offset,
     )
-    all_obs_matches = opsim.range_search(ra, dec, t_min=start_times, t_max=end_times)
+    all_obs_matches = obstable.range_search(ra, dec, t_min=start_times, t_max=end_times)
 
     # Get all times and all filters as numpy arrays so we can do easy subsets.
-    all_times = np.asarray(opsim["time"].values, dtype=float)
-    all_filters = np.asarray(opsim["filter"].values, dtype=str)
+    all_times = np.asarray(obstable["time"].values, dtype=float)
+    all_filters = np.asarray(obstable["filter"].values, dtype=str)
 
     # Create dictionaries for keeping all the result information. The first
     # stores per-object information and the second per-object, per-observation.
@@ -141,9 +142,9 @@ def simulate_lightcurves(
     nested_index = []
 
     # Add the extra columns to both the results and nested dictionaries.
-    if opsim_save_cols is None:
-        opsim_save_cols = []
-    for col in opsim_save_cols:
+    if obstable_save_cols is None:
+        obstable_save_cols = []
+    for col in obstable_save_cols:
         nested_dict[col] = []
     if param_cols is None:
         param_cols = []
@@ -169,7 +170,7 @@ def simulate_lightcurves(
 
         # Compute the band_fluxes and errors over just the given filters.
         bandfluxes_perfect = source.evaluate_band_fluxes(passbands, obs_times, obs_filters, state)
-        bandfluxes_error = opsim.bandflux_error_point_source(bandfluxes_perfect, obs_index)
+        bandfluxes_error = obstable.bandflux_error_point_source(bandfluxes_perfect, obs_index)
         bandfluxes = apply_noise(bandfluxes_perfect, bandfluxes_error, rng=rng)
 
         # Save the object level information.
@@ -186,14 +187,14 @@ def simulate_lightcurves(
             results_dict[col.replace(".", "_")].append(state[col])
 
         # Append the per-observation data to the nested dictionary, including
-        # and needed opsim columns.
+        # and needed ObsTable columns.
         nested_dict["mjd"].extend(list(obs_times))
         nested_dict["filter"].extend(list(obs_filters))
         nested_dict["flux_perfect"].extend(list(bandfluxes_perfect))
         nested_dict["flux"].extend(list(bandfluxes))
         nested_dict["fluxerr"].extend(list(bandfluxes_error))
-        for col in opsim_save_cols:
-            nested_dict[col].extend(list(opsim[col].values[obs_index]))
+        for col in obstable_save_cols:
+            nested_dict[col].extend(list(obstable[col].values[obs_index]))
 
         nested_index.extend([idx] * len(obs_times))
 

@@ -66,8 +66,8 @@ class UniformRADEC(NumpyRandomFunc):
         return [ra, dec]
 
 
-class OpSimRADECSampler(TableSampler):
-    """A FunctionNode that samples RA and dec (and time) from an OpSim.
+class ObsTableRADECSampler(TableSampler):
+    """A FunctionNode that samples RA and dec (and time) from an ObsTable.
     RA and dec are returned in degrees.
 
     Note
@@ -77,8 +77,8 @@ class OpSimRADECSampler(TableSampler):
 
     Parameters
     ----------
-    data : OpSim
-        The OpSim object to use for sampling.
+    data : ObsTable
+        The ObsTable object to use for sampling.
     radius : float
         The radius of the observations in degrees. Use 0.0 to just sample
         the centers of the images. Default: 0.0
@@ -142,9 +142,9 @@ class OpSimRADECSampler(TableSampler):
         return results
 
 
-class OpSimUniformRADECSampler(NumpyRandomFunc):
+class ObsTableUniformRADECSampler(NumpyRandomFunc):
     """A FunctionNode that samples RA and dec uniformly from the area covered
-    by an OpSim.  RA and dec are returned in degrees.
+    by an ObsTable.  RA and dec are returned in degrees.
 
     Note
     ----
@@ -152,8 +152,8 @@ class OpSimUniformRADECSampler(NumpyRandomFunc):
 
     Attributes
     ----------
-    data : OpSim
-        The OpSim object to use for sampling.
+    data : ObsTable
+        The ObsTable object to use for sampling.
     radius : float
         The radius of the observations in degrees. Must be > 0.0.
         Default: 1.0
@@ -167,7 +167,7 @@ class OpSimUniformRADECSampler(NumpyRandomFunc):
         self.radius = radius
 
         if len(data) == 0:
-            raise ValueError("OpSim data cannot be empty.")
+            raise ValueError("ObsTable data cannot be empty.")
         self.data = data
 
         if max_iteraions <= 0:
@@ -207,7 +207,7 @@ class OpSimUniformRADECSampler(NumpyRandomFunc):
         mask = np.full(graph_state.num_samples, False)
         num_missing = graph_state.num_samples
 
-        # Rejection sampling to ensure the samples are within the OpSim coverage.
+        # Rejection sampling to ensure the samples are within the ObsTable coverage.
         # This can take many iterations if the coverage is small.
         iter_num = 1
         while num_missing > 0 and iter_num < 1000:
@@ -215,7 +215,7 @@ class OpSimUniformRADECSampler(NumpyRandomFunc):
             ra[~mask] = np.degrees(rng.uniform(0.0, 2.0 * np.pi, size=num_missing))
             dec[~mask] = np.degrees(np.arcsin(rng.uniform(-1.0, 1.0, size=num_missing)))
 
-            # Check if the samples are within the OpSim coverage.
+            # Check if the samples are within the ObsTable coverage.
             mask = np.asarray(self.data.is_observed(ra, dec, self.radius))
             num_missing = np.sum(~mask)
             iter_num += 1
