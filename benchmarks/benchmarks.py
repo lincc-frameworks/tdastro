@@ -241,7 +241,13 @@ class TimeSuite:
         )
 
         # Sample the lightcurve source to ensure it works.
-        _ = lc_source.evaluate_sed(self.times, self.wavelengths)
+        graph_state = lc_source.sample_parameters(num_samples=100)
+        _ = lc_source.evaluate_bandfluxes(
+            self.passbands,
+            self.times,
+            ["r" for _ in range(len(self.times))],
+            graph_state,
+        )
 
     def time_additive_multi_model_source(self):
         """Time the creation and query of an AdditiveMultiSourceModel."""
