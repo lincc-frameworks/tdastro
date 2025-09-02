@@ -1,12 +1,12 @@
 import numpy as np
 from tdastro.math_nodes.np_random import NumpyRandomFunc
-from tdastro.sources.basic_models import ConstantSED
+from tdastro.sources.basic_models import ConstantSEDModel
 from tdastro.sources.galaxy_models import GaussianGalaxy
 from tdastro.sources.multi_object_model import AdditiveMultiObjectModel
 
 
 def test_gaussian_galaxy() -> None:
-    """Test that we can sample and create a ConstantSED object."""
+    """Test that we can sample and create a ConstantSEDModel object."""
     # Create a host galaxy anywhere on the sky.
     host = GaussianGalaxy(
         ra=NumpyRandomFunc("uniform", low=0.0, high=360.0),
@@ -17,7 +17,7 @@ def test_gaussian_galaxy() -> None:
     )
 
     # We define the position of the source using Gaussian noise from the center of the host galaxy.
-    source = ConstantSED(
+    source = ConstantSEDModel(
         ra=NumpyRandomFunc("normal", loc=host.ra, scale=host.galaxy_radius_std),
         dec=NumpyRandomFunc("normal", loc=host.dec, scale=host.galaxy_radius_std),
         brightness=100.0,

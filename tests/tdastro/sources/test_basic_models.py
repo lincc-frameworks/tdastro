@@ -3,7 +3,7 @@ import random
 import numpy as np
 from tdastro.base_models import FunctionNode
 from tdastro.sources.basic_models import (
-    ConstantSED,
+    ConstantSEDModel,
     LinearWavelengthModel,
     SinWaveModel,
     StepModel,
@@ -27,8 +27,8 @@ def _sampler_fun(magnitude, offset=0.0, **kwargs):
 
 
 def test_static_source() -> None:
-    """Test that we can sample and create a ConstantSED object."""
-    model = ConstantSED(brightness=10.0, node_label="my_static_source")
+    """Test that we can sample and create a ConstantSEDModel object."""
+    model = ConstantSEDModel(brightness=10.0, node_label="my_static_source")
     state = model.sample_parameters()
     assert model.get_param(state, "brightness") == 10.0
     assert model.get_param(state, "ra") is None
@@ -52,7 +52,7 @@ def test_static_source() -> None:
 
 def test_static_source_pytree():
     """Test that the PyTree only contains brightness."""
-    model = ConstantSED(brightness=10.0, node_label="my_static_source")
+    model = ConstantSEDModel(brightness=10.0, node_label="my_static_source")
     state = model.sample_parameters()
 
     pytree = model.build_pytree(state)
@@ -63,25 +63,25 @@ def test_static_source_pytree():
 
 
 def test_static_source_host() -> None:
-    """Test that we can sample and create a ConstantSED object with properties
+    """Test that we can sample and create a ConstantSEDModel object with properties
     derived from the host object."""
-    host = ConstantSED(brightness=15.0, ra=1.0, dec=2.0, distance=3.0)
-    model = ConstantSED(brightness=10.0, ra=host.ra, dec=host.dec, distance=host.distance)
+    host = ConstantSEDModel(brightness=15.0, ra=1.0, dec=2.0, distance=3.0)
+    model = ConstantSEDModel(brightness=10.0, ra=host.ra, dec=host.dec, distance=host.distance)
     state = model.sample_parameters()
 
     assert model.get_param(state, "brightness") == 10.0
     assert model.get_param(state, "ra") == 1.0
     assert model.get_param(state, "dec") == 2.0
     assert model.get_param(state, "distance") == 3.0
-    assert str(model) == "ConstantSED_0"
+    assert str(model) == "ConstantSEDModel_0"
 
     # Test that we have given a different name to the host.
-    assert str(host) == "ConstantSED_1"
+    assert str(host) == "ConstantSEDModel_1"
 
 
 def test_static_source_resample() -> None:
     """Check that we can call resample on the model parameters."""
-    model = ConstantSED(brightness=_sampler_fun, magnitude=100.0)
+    model = ConstantSEDModel(brightness=_sampler_fun, magnitude=100.0)
 
     num_samples = 100
     values = np.zeros((num_samples, 1))
@@ -99,7 +99,7 @@ def test_static_source_resample() -> None:
 
 def test_step_source() -> None:
     """Test that we can sample and create a StepModel object."""
-    host = ConstantSED(brightness=150.0, ra=1.0, dec=2.0, distance=3.0)
+    host = ConstantSEDModel(brightness=150.0, ra=1.0, dec=2.0, distance=3.0)
     model = StepModel(brightness=15.0, t0=1.0, t1=2.0, ra=host.ra, dec=host.dec, distance=host.distance)
     state = model.sample_parameters()
 

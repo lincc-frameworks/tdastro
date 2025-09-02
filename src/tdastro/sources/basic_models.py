@@ -5,7 +5,7 @@ import numpy as np
 from tdastro.sources.physical_model import SEDModel
 
 
-class ConstantSED(SEDModel):
+class ConstantSEDModel(SEDModel):
     """A model with a constant SED over both wavelength and time.
 
     Parameterized values include:
@@ -51,7 +51,7 @@ class ConstantSED(SEDModel):
         return np.full((len(times), len(wavelengths)), params["brightness"])
 
 
-class StepModel(ConstantSED):
+class StepModel(ConstantSEDModel):
     """A static model that is on for a fixed amount of time.
 
     Parameterized values include:

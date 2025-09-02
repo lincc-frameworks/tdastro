@@ -15,7 +15,7 @@ from tdastro.astro_utils.unit_utils import fnu_to_flam
 from tdastro.base_models import FunctionNode
 from tdastro.effects.white_noise import WhiteNoise
 from tdastro.math_nodes.np_random import NumpyRandomFunc
-from tdastro.sources.basic_models import ConstantSED, LinearWavelengthModel, StepModel
+from tdastro.sources.basic_models import ConstantSEDModel, LinearWavelengthModel, StepModel
 from tdastro.sources.lightcurve_source import LightcurveSource
 from tdastro.sources.multi_object_model import AdditiveMultiObjectModel
 from tdastro.sources.sncomso_models import SncosmoWrapperModel
@@ -150,7 +150,7 @@ class TimeSuite:
 
     def time_make_evaluate_static_source(self):
         """Time creating and querying a static source model."""
-        source1 = ConstantSED(brightness=100.0, node_label="my_static_source")
+        source1 = ConstantSEDModel(brightness=100.0, node_label="my_static_source")
         state = source1.sample_parameters(num_samples=1000)
 
         times = np.array([0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0])
@@ -245,7 +245,7 @@ class TimeSuite:
 
     def time_additive_multi_model_source(self):
         """Time the creation and query of an AdditiveMultiObjectModel."""
-        source1 = ConstantSED(brightness=100.0, node_label="my_static_source")
+        source1 = ConstantSEDModel(brightness=100.0, node_label="my_static_source")
         source2 = StepModel(brightness=50.0, t0=1.0, t1=2.0, node_label="my_step_source")
         model = AdditiveMultiObjectModel([source1, source2], node_label="my_multi_source")
 

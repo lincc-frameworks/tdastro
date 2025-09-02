@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 from tdastro.effects.basic_effects import ConstantDimming
-from tdastro.sources.basic_models import ConstantSED
+from tdastro.sources.basic_models import ConstantSEDModel
 
 
 def test_constant_dimming() -> None:
@@ -35,8 +35,8 @@ def test_constant_dimming_bandflux() -> None:
 
 
 def test_static_source_constant_dimming() -> None:
-    """Test that we can sample and create a ConstantSED object with constant dimming."""
-    model = ConstantSED(brightness=10.0, node_label="my_static_source")
+    """Test that we can sample and create a ConstantSEDModel object with constant dimming."""
+    model = ConstantSEDModel(brightness=10.0, node_label="my_static_source")
     assert len(model.rest_frame_effects) == 0
     assert len(model.obs_frame_effects) == 0
 
@@ -57,7 +57,7 @@ def test_static_source_constant_dimming() -> None:
     assert np.all(values == 1.0)
 
     # We can add the white noise effect as a observer frame effect instead.
-    model2 = ConstantSED(brightness=10.0, node_label="my_static_source")
+    model2 = ConstantSEDModel(brightness=10.0, node_label="my_static_source")
     effect2 = ConstantDimming(flux_fraction=0.5, rest_frame=False)
     model2.add_effect(effect2)
     assert len(model2.rest_frame_effects) == 0
@@ -71,7 +71,7 @@ def test_static_source_constant_dimming() -> None:
 
 def test_static_source_constant_dimming_alt_params() -> None:
     """Test that we can turn off adding parameters, but this will fail."""
-    model = ConstantSED(brightness=10.0, node_label="my_static_source")
+    model = ConstantSEDModel(brightness=10.0, node_label="my_static_source")
     effect = ConstantDimming(flux_fraction=0.2)
     model.add_effect(effect, skip_params=True)
 

@@ -3,14 +3,14 @@ import pytest
 from tdastro.astro_utils.passbands import Passband, PassbandGroup
 from tdastro.effects.basic_effects import ConstantDimming
 from tdastro.math_nodes.np_random import NumpyRandomFunc
-from tdastro.sources.basic_models import ConstantSED, StepModel
+from tdastro.sources.basic_models import ConstantSEDModel, StepModel
 from tdastro.sources.multi_object_model import AdditiveMultiObjectModel, RandomMultiObjectModel
 from tdastro.sources.static_sed_source import StaticBandfluxModel, StaticSEDModel
 
 
 def test_additive_multi_object_node() -> None:
     """Test that we can create and evaluate a AdditiveMultiObjectModel."""
-    object1 = ConstantSED(brightness=10.0, node_label="my_static_object")
+    object1 = ConstantSEDModel(brightness=10.0, node_label="my_static_object")
     object2 = StepModel(brightness=15.0, t0=1.0, t1=2.0, node_label="my_step_object")
     model = AdditiveMultiObjectModel([object1, object2], node_label="my_multi_object")
 
@@ -33,7 +33,7 @@ def test_additive_multi_object_node_passband() -> None:
     c_band = Passband(np.array([[5900, 0.0], [6000, 0.5], [7000, 0.5], [7100, 0.0]]), "LSST", "c")
     pb_group = PassbandGroup([a_band, b_band, c_band])
 
-    object1 = ConstantSED(brightness=10.0, node_label="my_static_object")
+    object1 = ConstantSEDModel(brightness=10.0, node_label="my_static_object")
     object2 = StepModel(brightness=15.0, t0=1.0, t1=2.0, node_label="my_step_object")
     model = AdditiveMultiObjectModel([object1, object2], node_label="my_multi_object")
     state = model.sample_parameters(num_samples=1)
@@ -66,7 +66,7 @@ def test_additive_multi_object_node_resample() -> None:
 
     # object1 and object2 share the same ra and dec for each sample, but have
     # different brightness values.
-    object1 = ConstantSED(
+    object1 = ConstantSEDModel(
         brightness=NumpyRandomFunc("uniform", low=10.0, high=20.0),
         ra=ra,
         dec=dec,
@@ -280,8 +280,8 @@ def test_additive_multi_object_node_bandflux() -> None:
 
 def test_random_multi_object_node() -> None:
     """Test that we can create and evaluate a RandomMultiObjectModel."""
-    object1 = ConstantSED(brightness=10.0, node_label="object1")
-    object2 = ConstantSED(brightness=15.0, node_label="object2")
+    object1 = ConstantSEDModel(brightness=10.0, node_label="object1")
+    object2 = ConstantSEDModel(brightness=15.0, node_label="object2")
     model = RandomMultiObjectModel(
         [object1, object2],
         weights=[0.8, 0.2],
@@ -318,8 +318,8 @@ def test_random_multi_object_node_bandflux() -> None:
     pb_group = PassbandGroup([a_band, b_band, c_band])
 
     # Create a random model with 2 SED-based models and 1-bandflux based model.
-    object1 = ConstantSED(brightness=10.0, node_label="object1")
-    object2 = ConstantSED(brightness=15.0, node_label="object2")
+    object1 = ConstantSEDModel(brightness=10.0, node_label="object1")
+    object2 = ConstantSEDModel(brightness=15.0, node_label="object2")
     object3 = StaticBandfluxModel({"a": 1.0, "b": 2.0, "c": 0.0}, node_label="object3")
     model = RandomMultiObjectModel(
         [object1, object2, object3],
