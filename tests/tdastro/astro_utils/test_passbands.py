@@ -426,7 +426,7 @@ def test_passband_normalize_transmission_table(passbands_dir, tmp_path):
     assert not np.allclose(normalized_table, LSST_y._loaded_table)
 
 
-def test_passbandfluxes_to_bandflux(passbands_dir, tmp_path):
+def test_passband_fluxes_to_bandflux(passbands_dir, tmp_path):
     """Test the fluxes_to_bandflux method of the Passband class."""
     transmission_table = "100 0.5\n200 0.75\n300 0.25\n"
     a_band = create_toy_passband(tmp_path, transmission_table, delta_wave=100, trim_quantile=None)
@@ -441,9 +441,9 @@ def test_passbandfluxes_to_bandflux(passbands_dir, tmp_path):
             [1.0, 1.0, 1.0],
         ]
     )
-    expected_in_bandflux = np.trapezoid(flux * a_band.processed_transmission_table[:, 1], x=a_band.waves)
-    in_bandflux = a_band.fluxes_to_bandflux(flux)
-    np.testing.assert_allclose(in_bandflux, expected_in_bandflux)
+    expected_bandflux = np.trapezoid(flux * a_band.processed_transmission_table[:, 1], x=a_band.waves)
+    bandflux = a_band.fluxes_to_bandflux(flux)
+    np.testing.assert_allclose(bandflux, expected_bandflux)
 
     # Test with a different set of fluxes, regridding the transmission table
     a_band.process_transmission_table(delta_wave=50, trim_quantile=None)
@@ -458,11 +458,11 @@ def test_passbandfluxes_to_bandflux(passbands_dir, tmp_path):
             [100.0, 50.0, 25.0, 12.5, 6.25],
         ]
     )
-    in_bandflux = a_band.fluxes_to_bandflux(flux)
-    expected_in_bandflux = np.trapezoid(
+    bandflux = a_band.fluxes_to_bandflux(flux)
+    expected_bandflux = np.trapezoid(
         flux * a_band.processed_transmission_table[:, 1], x=a_band.processed_transmission_table[:, 0]
     )
-    np.testing.assert_allclose(in_bandflux, expected_in_bandflux)
+    np.testing.assert_allclose(bandflux, expected_bandflux)
 
     # Test we raise an error if the fluxes are not the right shape
     with pytest.raises(ValueError):
@@ -477,12 +477,12 @@ def test_passbandfluxes_to_bandflux(passbands_dir, tmp_path):
     # Test we can call method on a standard LSST transmission table
     LSST_u = create_lsst_passband(passbands_dir, "u")
     flux = np.random.rand(5, len(LSST_u.waves))
-    in_bandflux = LSST_u.fluxes_to_bandflux(flux)
-    assert in_bandflux is not None
-    assert len(in_bandflux) == 5
+    bandflux = LSST_u.fluxes_to_bandflux(flux)
+    assert bandflux is not None
+    assert len(bandflux) == 5
 
 
-def test_passbandfluxes_to_bandflux_mult_samples(passbands_dir, tmp_path):
+def test_passband_fluxes_to_bandflux_mult_samples(passbands_dir, tmp_path):
     """Test the fluxes_to_bandflux method of the Passband class with multiple samples."""
     transmission_table = "100 0.5\n200 0.75\n300 0.25\n"
     a_band = create_toy_passband(tmp_path, transmission_table, delta_wave=100, trim_quantile=None)
