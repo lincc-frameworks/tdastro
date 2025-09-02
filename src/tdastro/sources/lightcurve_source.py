@@ -404,9 +404,6 @@ class BaseLightcurveSource(BandfluxModel, ABC):
         self.all_waves = passbands.waves
         self.sed_values = self._create_sed_basis(self.filters, passbands)
 
-        # Never apply redshift.
-        self.apply_redshift = False
-
         # Check that t0 is set.
         if "t0" not in kwargs or kwargs["t0"] is None:
             raise ValueError("Lightcurve models require a t0 parameter.")

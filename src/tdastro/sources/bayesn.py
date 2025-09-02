@@ -6,10 +6,10 @@ from citation_compass import CiteClass
 from tdastro import _TDASTRO_BASE_DATA_DIR
 from tdastro.astro_utils.unit_utils import flam_to_fnu
 from tdastro.effects.extinction import ExtinctionEffect
-from tdastro.sources.physical_model import PhysicalModel
+from tdastro.sources.physical_model import SEDModel
 
 
-class BayesnModel(PhysicalModel, CiteClass):
+class BayesnModel(SEDModel, CiteClass):
     """A bayesian model for supernova type Ia
 
     The model is defined in (Mandel et al 2022) as:
@@ -20,10 +20,10 @@ class BayesnModel(PhysicalModel, CiteClass):
     https://github.com/bayesn/bayesn/blob/main/bayesn/bayesn_model.py
 
     Parameterized values include:
-        * ra - The object's right ascension in degrees. [from PhysicalModel]
-        * dec - The object's declination in degrees. [from PhysicalModel]
-        * redshift - The object's redshift. [from PhysicalModel]
-        * t0 - The t0 of the zero phase, date. [from Physical Model]
+        * ra - The object's right ascension in degrees. [from BasePhysicalModel]
+        * dec - The object's declination in degrees. [from BasePhysicalModel]
+        * redshift - The object's redshift. [from BasePhysicalModel]
+        * t0 - The t0 of the zero phase, date. [from BasePhysicalModel]
         * Amplitude - The fixed normalisation factor for distance modulus. [from Amplitude class]
         * theta - The bayeSN theta parameter.
         * Av - The bayeSN Av parameter.

@@ -14,7 +14,7 @@ from scipy import integrate
 from tdastro.base_models import FunctionNode
 from tdastro.consts import M_SUN_G
 from tdastro.math_nodes.np_random import NumpyRandomFunc
-from tdastro.sources.physical_model import PhysicalModel
+from tdastro.sources.physical_model import SEDModel
 
 
 def sample_damped_random_walk(times, tau_v, sf_inf, t0, rng=None):
@@ -66,7 +66,7 @@ def sample_damped_random_walk(times, tau_v, sf_inf, t0, rng=None):
     return samples
 
 
-class AGN(PhysicalModel):
+class AGN(SEDModel):
     """A model for an AGN.
 
     Parameterized values include:
@@ -74,15 +74,15 @@ class AGN(PhysicalModel):
       * blackhole_accretion_rate - The accretion rate of the black hole in g/s.
       * blackhole_mass - The black hole mass in g.
       * edd_ratio - The Eddington ratio.
-      * dec - The object's declination in degrees. [from PhysicalModel]
-      * distance - The object's luminosity distance in pc. [from PhysicalModel]
+      * dec - The object's declination in degrees. [from BasePhysicalModel]
+      * distance - The object's luminosity distance in pc. [from BasePhysicalModel]
       * inclination - The inclination of the accretion disk in radians (sampled uniformly
         between 0 and pi/2).
       * L_bol - The bolometric luminosity in erg/s.
       * mag_i - The i band absolute magnitude.
-      * ra - The object's right ascension in degrees. [from PhysicalModel]
-      * redshift - The object's redshift. [from PhysicalModel]
-      * t0 - The t0 of the zero phase, date. [from PhysicalModel]
+      * ra - The object's right ascension in degrees. [from BasePhysicalModel]
+      * redshift - The object's redshift. [from BasePhysicalModel]
+      * t0 - The t0 of the zero phase, date. [from BasePhysicalModel]
 
     Parameters
     ----------
@@ -102,7 +102,7 @@ class AGN(PhysicalModel):
     def __init__(self, t0, blackhole_mass, edd_ratio, seed=None, **kwargs):
         super().__init__(t0=t0, **kwargs)
 
-        # Add the parameters for the AGN. t0 already set in PhysicalModel.
+        # Add the parameters for the AGN. t0 already set in BasePhysicalModel.
         self.add_parameter("blackhole_mass", blackhole_mass, **kwargs)
         self.add_parameter("edd_ratio", edd_ratio, **kwargs)
         self.add_parameter("inclination", NumpyRandomFunc("uniform", low=0, high=np.pi / 2.0), **kwargs)

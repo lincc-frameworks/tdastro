@@ -5,11 +5,11 @@ from citation_compass import CiteClass
 
 from tdastro.astro_utils.salt2_color_law import SALT2ColorLaw
 from tdastro.astro_utils.unit_utils import flam_to_fnu
-from tdastro.sources.physical_model import PhysicalModel
+from tdastro.sources.physical_model import SEDModel
 from tdastro.utils.bicubic_interp import BicubicInterpolator
 
 
-class SALT2JaxModel(PhysicalModel, CiteClass):
+class SALT2JaxModel(SEDModel, CiteClass):
     """A SALT2 model implemented with JAX for it can use auto-differentiation.
 
     The model is defined in (Guy J., 2007) as:
@@ -31,12 +31,12 @@ class SALT2JaxModel(PhysicalModel, CiteClass):
 
     Parameterized values include:
       * c - The SALT2 c parameter.
-      * dec - The object's declination in degrees. [from PhysicalModel]
-      * distance - The object's luminosity distance in pc. [from PhysicalModel]
+      * dec - The object's declination in degrees. [from BasePhysicalModel]
+      * distance - The object's luminosity distance in pc. [from BasePhysicalModel]
       * period - The period of the source, in days.
-      * ra - The object's right ascension in degrees. [from PhysicalModel]
-      * redshift - The object's redshift. [from PhysicalModel]
-      * t0 - The t0 of the zero phase, date. [from PhysicalModel]
+      * ra - The object's right ascension in degrees. [from BasePhysicalModel]
+      * redshift - The object's redshift. [from BasePhysicalModel]
+      * t0 - The t0 of the zero phase, date. [from BasePhysicalModel]
       * x0 - The SALT2 x0 parameter.
       * x1 - The SALT2 x1 parameter.
 

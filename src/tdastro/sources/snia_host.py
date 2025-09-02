@@ -1,16 +1,16 @@
-from tdastro.sources.physical_model import PhysicalModel
+from tdastro.sources.physical_model import SEDModel
 
 
-class SNIaHost(PhysicalModel):
+class SNIaHost(SEDModel):
     """A SN Ia host galaxy model with a hostmass parameter, more to be added.
 
     Parameterized values include:
-      * dec - The object's declination in degrees. [from PhysicalModel]
-      * distance - The object's luminosity distance in pc. [from PhysicalModel]
+      * dec - The object's declination in degrees. [from BasePhysicalModel]
+      * distance - The object's luminosity distance in pc. [from BasePhysicalModel]
       * hostmass - The hostmass value.
-      * ra - The object's right ascension in degrees. [from PhysicalModel]
-      * redshift - The object's redshift. [from PhysicalModel]
-      * t0 - The t0 of the zero phase, date. [from PhysicalModel]
+      * ra - The object's right ascension in degrees. [from BasePhysicalModel]
+      * redshift - The object's redshift. [from BasePhysicalModel]
+      * t0 - The t0 of the zero phase, date. [from BasePhysicalModel]
     """
 
     def __init__(self, **kwargs):

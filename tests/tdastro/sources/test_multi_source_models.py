@@ -215,16 +215,6 @@ def test_additive_multi_source_node_effects_obs_frame() -> None:
     assert np.allclose(values, contrib1 + contrib2)
 
 
-def test_additive_multi_source_node_effects_fail() -> None:
-    """Test that we fail if any source includes an observer frame effect."""
-    source1 = StepSource(brightness=10.0, t0=1.0, t1=3.0, node_label="source1")
-    source2 = StepSource(brightness=10.0, t0=2.0, t1=4.0, node_label="source2")
-    source2.add_effect(ConstantDimming(flux_fraction=0.5, rest_frame=False))
-
-    with pytest.raises(ValueError):
-        _ = AdditiveMultiSourceModel([source1, source2], node_label="my_multi_source")
-
-
 def test_additive_multi_source_node_min_max() -> None:
     """Test that we can get the correct wavelength limits for a AdditiveMultiSourceModel."""
     sed0 = np.array(
@@ -251,6 +241,41 @@ def test_additive_multi_source_node_min_max() -> None:
     states = model.sample_parameters(num_samples=1)
     assert np.array_equal(model.minwave(states), [100.0, 200.0])
     assert np.array_equal(model.maxwave(states), [400.0, 500.0])
+
+
+def test_additive_multi_source_node_bandflux() -> None:
+    """Test that we can create and evaluate an AdditiveMultiSourceModel with Bandflux models."""
+    source1 = StaticBandfluxSource({"a": 1.0, "b": 2.0, "c": 0.0}, node_label="source1")
+    source2 = StaticBandfluxSource({"a": 1.0, "b": 1.0, "c": 0.5}, node_label="source2")
+    model = AdditiveMultiSourceModel([source1, source2], node_label="test")
+
+    # When we evaluate the model, we should get the expected values.
+    state = model.sample_parameters()
+    times = np.array([0.0, 1.5, 3.0, 4.0, 5.0])
+    filters = np.array(["a", "a", "b", "a", "c"])
+    values = model.evaluate_band_fluxes(None, times, filters, state)
+    assert np.array_equal(values, [2.0, 2.0, 3.0, 2.0, 0.5])
+
+    # Check that we cannot turn on "apply_redshift" when using bandflux models.
+    with pytest.raises(NotImplementedError):
+        model.set_apply_redshift(True)
+
+    # Check that we can add a rest frame effect. This are applied at the bandpass
+    # level for Bandpass models.
+    model.add_effect(ConstantDimming(flux_fraction=0.5, rest_frame=True))
+    state = model.sample_parameters()
+    values = model.evaluate_band_fluxes(None, times, filters, state)
+    assert np.allclose(values, [1.0, 1.0, 1.5, 1.0, 0.25])
+
+    # Check that we can apply a observer frame effect. The two effects stack.
+    model.add_effect(ConstantDimming(flux_fraction=0.1, rest_frame=False))
+    state = model.sample_parameters()
+    values = model.evaluate_band_fluxes(None, times, filters, state)
+    assert np.allclose(values, [0.1, 0.1, 0.15, 0.1, 0.025])
+
+    # Check that we fail to evaluate the SEDs when we have a bandflux model.
+    with pytest.raises(TypeError):
+        _ = model.evaluate_sed(times, np.array([4000.0, 5000.0]), state)
 
 
 def test_random_multi_source_node() -> None:
@@ -324,6 +349,10 @@ def test_random_multi_source_node_bandflux() -> None:
             assert np.allclose([15.0, 15.0, 15.0, 15.0], values[i])
         elif source[i] == "source3":
             assert np.allclose([1.0, 1.0, 2.0, 1.0], values[i])
+
+    # Check that we fail if we try to evaluate the SEDs.
+    with pytest.raises(TypeError):
+        _ = model.evaluate_sed(times, np.array([1000.0, 2000.0]), state)
 
 
 def test_random_multi_source_node_min_max() -> None:

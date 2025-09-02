@@ -454,7 +454,7 @@ def test_passband_group_fluxes_to_bandfluxes(passbands_dir):
 
 
 def test_passband_group_wrapped_from_physical_source(passbands_dir, tmp_path):
-    """Test evaluate_band_fluxes, PhysicalModel's wrapped version of PassbandGroup's fluxes_to_bandfluxes."""
+    """Test evaluate_bandflux, SEDModel's wrapped version of PassbandGroup's fluxes_to_bandfluxes."""
     times = np.array([1.0, 2.0, 3.0])
     wavelengths = np.array([10.0, 20.0, 30.0])
     fluxes = np.array([[1.0, 5.0, 1.0], [5.0, 10.0, 5.0], [1.0, 5.0, 3.0]])

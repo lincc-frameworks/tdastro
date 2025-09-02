@@ -4,13 +4,13 @@ from astropy.cosmology import Planck18
 from tdastro.astro_utils.passbands import PassbandGroup
 from tdastro.math_nodes.given_sampler import GivenValueList
 from tdastro.sources.basic_sources import StaticSource
-from tdastro.sources.physical_model import PhysicalModel
+from tdastro.sources.physical_model import SEDModel
 
 
-def test_physical_model():
-    """Test that we can create a PhysicalModel."""
+def test_sed_model():
+    """Test that we can create a SEDModel."""
     # Everything is specified.
-    model1 = PhysicalModel(ra=1.0, dec=2.0, redshift=0.0, t0=1.0)
+    model1 = SEDModel(ra=1.0, dec=2.0, redshift=0.0, t0=1.0)
     state = model1.sample_parameters()
 
     assert model1.get_param(state, "ra") == 1.0
@@ -23,14 +23,14 @@ def test_physical_model():
 
     # Only the t0 parameter is in the PyTree.
     pytree = model1.build_pytree(state)
-    assert len(pytree["PhysicalModel_0"]) == 1
+    assert len(pytree["SEDModel_0"]) == 1
 
     # We can turn off the redshift computation.
     model1.set_apply_redshift(False)
     assert not model1.apply_redshift
 
     # Derive the distance from the redshift. t0 is not given.
-    model2 = PhysicalModel(ra=1.0, dec=2.0, redshift=1100.0, cosmology=Planck18)
+    model2 = SEDModel(ra=1.0, dec=2.0, redshift=1100.0, cosmology=Planck18)
     state = model2.sample_parameters()
     assert model2.get_param(state, "ra") == 1.0
     assert model2.get_param(state, "dec") == 2.0
@@ -45,23 +45,23 @@ def test_physical_model():
     assert model2_val == func_val
 
     # Neither distance nor redshift are specified.
-    model3 = PhysicalModel(ra=1.0, dec=2.0)
+    model3 = SEDModel(ra=1.0, dec=2.0)
     state = model3.sample_parameters()
     assert model3.get_param(state, "redshift") is None
     assert model3.get_param(state, "distance") is None
     assert not model3.apply_redshift
 
     # Redshift is specified but cosmology is not.
-    model4 = PhysicalModel(ra=1.0, dec=2.0, redshift=1100.0)
+    model4 = SEDModel(ra=1.0, dec=2.0, redshift=1100.0)
     state = model4.sample_parameters()
     assert model4.get_param(state, "redshift") == 1100.0
     assert model4.get_param(state, "distance") is None
 
 
-def test_physical_mode_multi_samples():
-    """Test that we generate multiple samples from a PhysicalModel."""
+def test_sed_model_multi_samples():
+    """Test that we generate multiple samples from a SEDModel."""
     # Everything is specified.
-    model1 = PhysicalModel(ra=1.0, dec=2.0, redshift=0.5, t0=1.0)
+    model1 = SEDModel(ra=1.0, dec=2.0, redshift=0.5, t0=1.0)
     state = model1.sample_parameters(num_samples=10)
 
     assert np.all(model1.get_param(state, "ra") == 1.0)
@@ -70,17 +70,17 @@ def test_physical_mode_multi_samples():
     assert np.all(model1.get_param(state, "t0") == 1.0)
 
 
-def test_physical_model_mask_by_time():
+def test_sed_model_mask_by_time():
     """Test that we can use the default mask_by_time() function."""
-    model = PhysicalModel(ra=1.0, dec=2.0, redshift=0.0)
+    model = SEDModel(ra=1.0, dec=2.0, redshift=0.0)
     times = np.arange(-10.0, 10.0, 0.5)
 
     # By default use all times.
     assert np.all(model.mask_by_time(times))
 
 
-def test_physical_model_evaluate_sed():
-    """Test that we can evaluate a PhysicalModel."""
+def test_sed_model_evaluate_sed():
+    """Test that we can evaluate a SEDModel."""
     times = np.array([0.0, 1.0, 2.0, 3.0, 4.0])
     waves = np.array([4000.0, 5000.0])
     brightness = GivenValueList([10.0, 20.0, 30.0])
@@ -107,7 +107,7 @@ def test_physical_model_evaluate_sed():
     assert np.all(flux[2, :, :] == 30.0)
 
 
-def test_physical_model_evaluate_redshift():
+def test_sed_model_evaluate_redshift():
     """Test that if we apply redshift to a model we get different flux values."""
     times = np.array([0.0, 1.0, 2.0, 3.0, 4.0])
     waves = np.array([4000.0, 5000.0])
@@ -122,7 +122,7 @@ def test_physical_model_evaluate_redshift():
     assert len(np.unique(flux)) == 1
 
 
-def test_physical_model_evaluate_band_fluxes(passbands_dir):
+def test_sed_model_evaluate_bandflux(passbands_dir):
     """Test that band fluxes are computed correctly."""
     # It should work fine for any positive Fnu.
     f_nu = np.random.lognormal()
