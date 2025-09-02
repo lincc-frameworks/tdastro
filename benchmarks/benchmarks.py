@@ -150,7 +150,7 @@ class TimeSuite:
 
     def time_make_evaluate_constant_sed_model(self):
         """Time creating and querying a constant SEC model model."""
-        source1 = ConstantSEDModel(brightness=100.0, node_label="my_static_source")
+        source1 = ConstantSEDModel(brightness=100.0, node_label="my_constant_sed_model")
         state = source1.sample_parameters(num_samples=1000)
 
         times = np.array([0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0])
