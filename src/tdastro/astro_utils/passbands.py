@@ -433,7 +433,7 @@ class PassbandGroup:
     def mask_by_filter(self, filters):
         """Compute a mask for whether a given observations is of interest for
         for a given analysis. For example this could be used to remove unneeded
-        observations from an OpSim or other data set.
+        observations from an ObsTable.
 
         Parameters
         ----------

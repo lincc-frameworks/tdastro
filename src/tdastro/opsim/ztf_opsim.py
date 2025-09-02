@@ -8,7 +8,7 @@ from astropy.time import Time
 from tdastro.astro_utils.mag_flux import mag2flux
 from tdastro.astro_utils.noise_model import poisson_bandflux_std
 from tdastro.consts import GAUSS_EFF_AREA2FWHM_SQ
-from tdastro.opsim.opsim import OpSim
+from tdastro.opsim.obs_table import ObsTable
 
 ZTFCAM_PIXEL_SCALE = 1.01
 """The pixel scale for the ZTF camera in arcseconds per pixel."""
@@ -89,7 +89,7 @@ def calculate_ztf_zero_points(
     return zp
 
 
-class ZTFOpsim(OpSim):
+class ZTFOpsim(ObsTable):
     """A subclass for ZTF exposure table.
 
     Parameters
@@ -150,34 +150,38 @@ class ZTFOpsim(OpSim):
     }
 
     def __init__(self, table, colmap=None, **kwargs):
-        super().__init__(table, colmap=colmap, **kwargs)
+        colmap = self._default_colnames if colmap is None else colmap
 
-        # Convert obsdate to mjd and add column
-        obsdate = self.table[self.colmap.get("obsdate", "obsdate")].tolist()
-        t = Time(obsdate, format="iso", scale="utc")
-        mjd = t.mjd
-        self.add_column(self.colmap.get("obsmjd", "obsmjd"), mjd, overwrite=True)
+        # Make a copy of the table data with the obsdate converted to the MJD and
+        # save in time.
+        if "obsdate" in table and "time" not in table:
+            table = table.copy()
+            t = Time(list(table["obsdate"]), format="iso", scale="utc")
+            table["time"] = t.mjd
+
+        super().__init__(table, colmap=colmap, **kwargs)
 
     def _assign_zero_points(self):
         """Assign instrumental zero points in ADU to the OpSim tables."""
-        if not self.has_columns(["maglim", "sky", "fwhm", "exptime"]):
+        cols = self._table.columns.tolist()
+        if not ("maglim" in cols and "sky" in cols and "fwhm" in cols and "exptime" in cols):
             raise ValueError(
                 "OpSim does not include the columns needed to derive zero point "
                 "information. Required columns: maglim, sky, fwhm and exptime."
             )
 
         # replace invalid values in table
-        self.table = self.table.replace("", np.nan)
-        self.table = self.table.dropna(subset=["fwhm"])
+        self._table = self._table.replace("", np.nan)
+        self._table = self._table.dropna(subset=["fwhm"])
 
         zp_values = calculate_ztf_zero_points(
-            maglim=self.table[self.colmap.get("maglim", "maglim")],
-            sky=self.table[self.colmap.get("sky", "sky")],
-            fwhm=self.table[self.colmap.get("fwhm", "fwhm")],
-            exptime=self.table[self.colmap.get("exptime", "exptime")],
+            maglim=self._table["maglim"],
+            sky=self._table["sky"],
+            fwhm=self._table["fwhm"],
+            exptime=self._table["exptime"],
         )
         zp_nJy = mag2flux(zp_values)
-        self.add_column(self.colmap.get("zp", "zp_nJy"), zp_nJy, overwrite=True)
+        self.add_column("zp", zp_nJy, overwrite=True)
 
     @classmethod
     def from_db(cls, filename, sql_query="SELECT * from exposures", colmap=None):
@@ -237,7 +241,7 @@ class ZTFOpsim(OpSim):
         flux_err : array_like of float
             Simulated bandflux noise in nJy.
         """
-        observations = self.table.iloc[index]
+        observations = self._table.iloc[index]
 
         # By the effective FWHM definition, see
         # https://smtn-002.lsst.io/v/OPSIM-1171/index.html
@@ -248,10 +252,10 @@ class ZTFOpsim(OpSim):
             total_exposure_time=observations["exptime"],
             exposure_count=1,
             footprint=footprint,
-            sky=observations["scibckgnd"] * self.gain,  # e-/pixel^2
-            zp=observations["zp_nJy"],  # nJy
-            readout_noise=self.read_noise,  # e-/pixel
-            dark_current=self.dark_current,  # e-/second/pixel
+            sky=observations["sky"] * self.safe_get_survey_value("gain"),  # e-/pixel^2
+            zp=observations["zp"],  # nJy
+            readout_noise=self.safe_get_survey_value("read_noise"),  # e-/pixel
+            dark_current=self.safe_get_survey_value("dark_current"),  # e-/second/pixel
         )
 
 

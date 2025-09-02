@@ -63,7 +63,7 @@ def test_simulate_lightcurves(test_data_dir):
         5,
         opsim_db,
         passband_group,
-        opsim_save_cols=["observationId", "zp_nJy"],
+        obstable_save_cols=["observationId", "zp_nJy"],
         param_cols=["source.brightness"],
     )
     assert len(results) == 5
@@ -139,7 +139,7 @@ def test_simulate_single_lightcurve(test_data_dir):
         1,
         opsim_db,
         passband_group,
-        opsim_save_cols=["observationId", "zp_nJy"],
+        obstable_save_cols=["observationId", "zp_nJy"],
         param_cols=["source.brightness"],
     )
     assert len(results) == 1
