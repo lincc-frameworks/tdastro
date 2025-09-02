@@ -67,7 +67,7 @@ def test_static_source_microlensing() -> None:
     microlensing_t0 = 5.0
     times = np.arange(num_times, dtype=float)
 
-    model = ConstantSEDModel(brightness=10.0, node_label="my_src")
+    model = ConstantSEDModel(brightness=10.0, node_label="my_constant_sed_model")
     microlensing = Microlensing(microlensing_t0=microlensing_t0, u_0=0.1, t_E=10.0)
     model.add_effect(microlensing)
 

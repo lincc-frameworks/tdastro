@@ -50,7 +50,7 @@ def test_static_source_white_noise() -> None:
     """Test that we can sample and create a ConstantSEDModel object with white noise."""
     model = ConstantSEDModel(
         brightness=10.0,
-        node_label="my_static_source",
+        node_label="my_constant_sed_model",
         seed=100,
     )
     assert len(model.rest_frame_effects) == 0
@@ -85,7 +85,7 @@ def test_static_source_white_noise_obs_frame() -> None:
     """
     model = ConstantSEDModel(
         brightness=10.0,
-        node_label="my_static_source",
+        node_label="my_constant_sed_model",
         seed=100,
     )
     assert len(model.rest_frame_effects) == 0

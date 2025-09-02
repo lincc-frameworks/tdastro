@@ -46,7 +46,7 @@ def test_simulate_lightcurves(test_data_dir):
         filters=["g", "r", "i", "z"],
     )
 
-    # Create a static source with known brightnesses and RA, dec
+    # Create a constant SED model with known brightnesses and RA, dec
     # values that match the opsim.
     given_brightness = [1000.0, 2000.0, 5000.0, 1000.0, 100.0]
     source = ConstantSEDModel(
@@ -122,7 +122,7 @@ def test_simulate_single_lightcurve(test_data_dir):
         filters=["g", "r", "i", "z"],
     )
 
-    # Create a static source with known brightnesses and RA, dec
+    # Create a constant SED model with known brightnesses and RA, dec
     # values that match the opsim.
     given_brightness = [1000.0, 2000.0, 5000.0, 1000.0, 100.0]
     source = ConstantSEDModel(
@@ -178,7 +178,7 @@ def test_simulate_with_time_window(test_data_dir):
         filters=["g", "r", "i", "z"],
     )
 
-    # Create a static source with known brightnesses and RA, dec
+    # Create a constant SED model with known brightnesses and RA, dec
     # values that match the opsim.
     source = ConstantSEDModel(
         brightness=1000.0,

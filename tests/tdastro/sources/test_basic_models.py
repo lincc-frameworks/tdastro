@@ -26,9 +26,9 @@ def _sampler_fun(magnitude, offset=0.0, **kwargs):
     return magnitude * random.random() + offset
 
 
-def test_static_source() -> None:
+def test_constant_sed_model() -> None:
     """Test that we can sample and create a ConstantSEDModel object."""
-    model = ConstantSEDModel(brightness=10.0, node_label="my_static_source")
+    model = ConstantSEDModel(brightness=10.0, node_label="my_constant_sed_model")
     state = model.sample_parameters()
     assert model.get_param(state, "brightness") == 10.0
     assert model.get_param(state, "ra") is None
@@ -50,9 +50,9 @@ def test_static_source() -> None:
     assert np.all(values == 5.0)
 
 
-def test_static_source_pytree():
+def test_constant_sed_model_pytree():
     """Test that the PyTree only contains brightness."""
-    model = ConstantSEDModel(brightness=10.0, node_label="my_static_source")
+    model = ConstantSEDModel(brightness=10.0, node_label="my_constant_sed_model")
     state = model.sample_parameters()
 
     pytree = model.build_pytree(state)
@@ -62,7 +62,7 @@ def test_static_source_pytree():
     assert len(pytree) == 1
 
 
-def test_static_source_host() -> None:
+def test_constant_sed_model_host() -> None:
     """Test that we can sample and create a ConstantSEDModel object with properties
     derived from the host object."""
     host = ConstantSEDModel(brightness=15.0, ra=1.0, dec=2.0, distance=3.0)
@@ -97,7 +97,7 @@ def test_static_source_resample() -> None:
     assert not np.all(values == values[0])
 
 
-def test_step_source() -> None:
+def test_step_model() -> None:
     """Test that we can sample and create a StepModel object."""
     host = ConstantSEDModel(brightness=150.0, ra=1.0, dec=2.0, distance=3.0)
     model = StepModel(brightness=15.0, t0=1.0, t1=2.0, ra=host.ra, dec=host.dec, distance=host.distance)
@@ -156,7 +156,7 @@ def test_step_source_resample() -> None:
     assert not np.all(t_end_vals == t_end_vals[0])
 
 
-def test_sin_wave_source() -> None:
+def test_sin_wave_model() -> None:
     """Test that we can sample and create a SinWaveModel object."""
     model = SinWaveModel(amplitude=15.0, frequency=1.0, t0=0.0)
     state = model.sample_parameters()
@@ -178,7 +178,7 @@ def test_sin_wave_source() -> None:
     assert np.allclose(values2, expected2)
 
 
-def test_linear_wavelength_source() -> None:
+def test_linear_wavelength_model() -> None:
     """Test that we can sample and create a LinearWavelengthModel object."""
     model = LinearWavelengthModel(linear_base=1.0, linear_scale=0.1)
     state = model.sample_parameters()
@@ -192,7 +192,7 @@ def test_linear_wavelength_source() -> None:
     assert np.allclose(values, expected)
 
 
-def test_linear_wavelength_source_redeshift() -> None:
+def test_linear_wavelength_model_redshift() -> None:
     """Test that we correctly apply a redshift to the wavelengths."""
     model = LinearWavelengthModel(linear_base=1.0, linear_scale=0.1, redshift=0.2, t0=0.0)
     state = model.sample_parameters()
@@ -212,7 +212,7 @@ def test_linear_wavelength_source_redeshift() -> None:
     assert np.allclose(values, expected)
 
 
-def test_linear_wavelength_source_bounds() -> None:
+def test_linear_wavelength_model_bounds() -> None:
     """Test that we correctly apply a redshift to the wavelengths."""
     model = LinearWavelengthModel(linear_base=1.0, linear_scale=0.1, min_wave=1000.0, max_wave=2000.0)
     state = model.sample_parameters()

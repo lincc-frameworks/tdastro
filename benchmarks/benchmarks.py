@@ -245,9 +245,9 @@ class TimeSuite:
 
     def time_additive_multi_model_source(self):
         """Time the creation and query of an AdditiveMultiObjectModel."""
-        source1 = ConstantSEDModel(brightness=100.0, node_label="my_static_source")
-        source2 = StepModel(brightness=50.0, t0=1.0, t1=2.0, node_label="my_step_source")
-        model = AdditiveMultiObjectModel([source1, source2], node_label="my_multi_source")
+        source1 = ConstantSEDModel(brightness=100.0, node_label="my_constant_sed_model")
+        source2 = StepModel(brightness=50.0, t0=1.0, t1=2.0, node_label="my_step_model")
+        model = AdditiveMultiObjectModel([source1, source2], node_label="my_multi_obj_model")
 
         num_samples = 1000
         state = model.sample_parameters(num_samples=num_samples)
