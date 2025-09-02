@@ -496,8 +496,8 @@ class PassbandGroup:
                 f"Passband {filter} does not have _in_band_wave_indices set. "
                 "This should have been calculated in PassbandGroup._update_internal_data."
             )
-        in_band_fluxes = flux_density_matrix[:, wave_indices]
-        bandflux = passband.fluxes_to_bandflux(in_band_fluxes)
+        in_bandfluxes = flux_density_matrix[:, wave_indices]
+        bandflux = passband.fluxes_to_bandflux(in_bandfluxes)
 
         return bandflux
 
