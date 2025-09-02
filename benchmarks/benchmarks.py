@@ -132,7 +132,7 @@ class TimeSuite:
         """Time the computation of the X0 function."""
         _ = self.x0_func.sample_parameters()
 
-    def time_make_and_evaluate_step_source(self):
+    def time_make_and_evaluate_step_model(self):
         """Time creating and evaluating a StepModel."""
         model = StepModel(brightness=100.0, t0=2.0, t1=5.0)
         state = model.sample_parameters()
@@ -140,16 +140,16 @@ class TimeSuite:
         wavelengths = np.arange(1000.0, 2000.0, 5.0)
         _ = model.evaluate_sed(times, wavelengths, state)
 
-    def time_make_simple_linear_wavelength_source(self):
+    def time_make_simple_linear_wavelength_model(self):
         """Time creating a simple LinearWavelengthModel."""
         _ = LinearWavelengthModel(linear_base=1.0, linear_scale=0.1)
 
-    def time_evaluate_simple_linear_wavelength_source(self):
+    def time_evaluate_simple_linear_wavelength_model(self):
         """Time evaluating a simple LinearWavelengthModel."""
         _ = self.linear_source.evaluate_sed(self.times, self.wavelengths)
 
-    def time_make_evaluate_static_source(self):
-        """Time creating and querying a static source model."""
+    def time_make_evaluate_constant_sed_model(self):
+        """Time creating and querying a constant SEC model model."""
         source1 = ConstantSEDModel(brightness=100.0, node_label="my_static_source")
         state = source1.sample_parameters(num_samples=1000)
 
@@ -158,7 +158,7 @@ class TimeSuite:
         _ = source1.evaluate_sed(times, wavelengths, state)
 
     def time_make_and_evaluate_static_sed(self):
-        """Time the creation and evaluation of a static SED source model."""
+        """Time the creation and evaluation of a static SED model."""
         sed = np.array(
             [
                 [50.0, 100.0, 200.0, 300.0, 400.0, 500.0, 600.0],  # Wavelengths
