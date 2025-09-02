@@ -285,8 +285,8 @@ class ObsTable:
 
         Returns
         -------
-        new_obs_table : ObsTable
-            A new ObsTable object with the reduced rows.
+        self : ObsTable
+            The filtered ObsTable object.
         """
         # Check if we are dealing with a mask of a list of indices.
         rows = np.asarray(rows)
@@ -300,14 +300,12 @@ class ObsTable:
             mask = np.full((len(self._table),), False)
             mask[rows] = True
 
-        # Do the actual filtering and generate a new ObsTable. This automatically creates
-        # the cached data, such as the KD-tree.
-        new_obs_table = ObsTable(
-            self._table[mask],
-            colmap=self._colmap,
-            **self.survey_values,
-        )
-        return new_obs_table
+        # Filter the rows in-place and build a new kd-tree.
+        self._table = self._table[mask]
+        self._kd_tree = None
+        self._build_kd_tree()
+
+        return self
 
     def is_observed(self, query_ra, query_dec, radius=None, t_min=None, t_max=None):
         """Check if the query point(s) fall within the field of view of any

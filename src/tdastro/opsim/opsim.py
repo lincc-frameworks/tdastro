@@ -106,8 +106,6 @@ class OpSim(ObsTable):
                 "information. Required columns: filter, airmass, and exptime."
             )
 
-        print(self.safe_get_survey_value("ext_coeff"))
-
         zp_values = flux_electron_zeropoint(
             ext_coeff=self.safe_get_survey_value("ext_coeff"),
             instr_zp_mag=self.safe_get_survey_value("zp_per_sec"),
