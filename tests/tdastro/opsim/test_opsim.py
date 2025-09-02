@@ -237,6 +237,7 @@ def test_opsim_filter_rows():
     # We can filter the OpSim to specific rows by index.
     inds = [0, 1, 2, 3, 4, 5, 7, 8]
     ops_data = ops_data.filter_rows(inds)
+    assert isinstance(ops_data, OpSim)
     assert len(ops_data) == 8
     assert len(ops_data.columns) == 5
 
