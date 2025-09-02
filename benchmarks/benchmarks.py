@@ -16,7 +16,7 @@ from tdastro.base_models import FunctionNode
 from tdastro.effects.white_noise import WhiteNoise
 from tdastro.math_nodes.np_random import NumpyRandomFunc
 from tdastro.sources.basic_models import ConstantSEDModel, LinearWavelengthModel, StepModel
-from tdastro.sources.lightcurve_source import LightcurveSource
+from tdastro.sources.lightcurve_template_model import LightcurveTemplateModel
 from tdastro.sources.multi_object_model import AdditiveMultiObjectModel
 from tdastro.sources.sncomso_models import SncosmoWrapperModel
 from tdastro.sources.static_sed_source import StaticSEDModel
@@ -222,7 +222,7 @@ class TimeSuite:
         )
 
     def time_lightcurve_source(self):
-        """Time the creation and query of a LightcurveSource."""
+        """Time the creation and query of a LightcurveTemplateModel."""
         lc_times = np.linspace(0.0, 6 * np.pi, 100)
         g_gluxes = np.sin(lc_times) + 3.0
         r_gluxes = np.cos(lc_times) + 5.0
@@ -231,7 +231,7 @@ class TimeSuite:
             "g": np.column_stack((lc_times, g_gluxes)),
             "r": np.column_stack((lc_times, r_gluxes)),
         }
-        lc_source = LightcurveSource(
+        lc_source = LightcurveTemplateModel(
             lightcurves,
             self.passbands,
             lc_t0=0.0,
