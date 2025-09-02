@@ -106,7 +106,7 @@ def test_simulate_lightcurves(test_data_dir):
             1,
             opsim_db,
             passband_group,
-            opsim_save_cols=["unknown_column"],
+            obstable_save_cols=["unknown_column"],
         )
 
 
