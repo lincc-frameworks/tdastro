@@ -330,11 +330,11 @@ def test_random_multi_object_node_bandflux() -> None:
     rng_info = np.random.default_rng(100)
     state = model.sample_parameters(num_samples=1_000, rng_info=rng_info)
 
-    model = np.array(state["my_multi_object"]["selected_object"], dtype=str)
-    assert np.all((model == "object1") | (model == "object2") | (model == "object3"))
-    assert np.sum(model == "object1") > 200
-    assert np.sum(model == "object2") > 400
-    assert np.sum(model == "object3") > 200
+    model_names = np.array(state["my_multi_object"]["selected_object"], dtype=str)
+    assert np.all((model_names == "object1") | (model_names == "object2") | (model_names == "object3"))
+    assert np.sum(model_names == "object1") > 200
+    assert np.sum(model_names == "object2") > 400
+    assert np.sum(model_names == "object3") > 200
 
     # When we evaluate the model, we should get the expected values.
     times = np.array([0.0, 1.5, 3.0, 4.0])
@@ -343,11 +343,11 @@ def test_random_multi_object_node_bandflux() -> None:
 
     assert values.shape == (1_000, 4)
     for i in range(1_000):
-        if model[i] == "object1":
+        if model_names[i] == "object1":
             assert np.allclose([10.0, 10.0, 10.0, 10.0], values[i])
-        elif model[i] == "object2":
+        elif model_names[i] == "object2":
             assert np.allclose([15.0, 15.0, 15.0, 15.0], values[i])
-        elif model[i] == "object3":
+        elif model_names[i] == "object3":
             assert np.allclose([1.0, 1.0, 2.0, 1.0], values[i])
 
     # Check that we fail if we try to evaluate the SEDs.
