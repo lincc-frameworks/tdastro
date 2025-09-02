@@ -88,6 +88,27 @@ def test_simulate_lightcurves(test_data_dir):
     assert np.allclose(state["source.ra"], opsim_db["ra"].values[0:5])
     assert np.allclose(state["source.dec"], opsim_db["dec"].values[0:5])
 
+    # Check that we fail if we try to save a parameter column that doesn't exist.
+    source2 = StaticSource(brightness=10.0, t0=0.0, ra=1.0, dec=-1.0, redshift=0.0, node_label="source2")
+    with pytest.raises(KeyError):
+        _ = simulate_lightcurves(
+            source2,
+            1,
+            opsim_db,
+            passband_group,
+            param_cols=["source.unknown_parameter"],
+        )
+
+    # Check that we fail if we try to save an ObsTable column that doesn't exist.
+    with pytest.raises(KeyError):
+        _ = simulate_lightcurves(
+            source2,
+            1,
+            opsim_db,
+            passband_group,
+            obstable_save_cols=["unknown_column"],
+        )
+
 
 def test_simulate_single_lightcurve(test_data_dir):
     """Test an end to end run of simulating a single lightcurves."""
