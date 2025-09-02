@@ -219,7 +219,7 @@ class LightcurveData:
                 if len(tmp_table) > 1:
                     logger.warning(
                         "Multiple template (background) observations found in lightcurves table. "
-                        "The source will only use the first one for baseline values."
+                        "The lightcurve will only use the first one for baseline values."
                     )
                 baseline = {filter: tmp_table[filter][0] for filter in filters}
             lightcurves_table = lightcurves_table[obs_mask]
@@ -348,13 +348,13 @@ class LightcurveData:
         # Set the x and y axis labels.
         ax.set_xlabel("Time (days)")
         ax.set_ylabel("Filter value (nJy)")
-        ax.set_title("Lightcurve Source Underlying Lightcurves")
+        ax.set_title("Underlying Lightcurves")
         ax.legend()
 
 
-class BaseLightcurveSource(BandfluxModel, ABC):
-    """A base class for lightcurve source models. This class is not meant to be used directly,
-    but rather as a base for other lightcurve source models that may have additional functionality.
+class BaseLightcurveTemplateModel(BandfluxModel, ABC):
+    """A base class for lightcurve template models. This class is not meant to be used directly,
+    but rather as a base for other lightcurve template models that may have additional functionality.
     It provides the basic structure (primarily SED basis functions) and validation for
     lightcurve-based SED models.
 
@@ -540,14 +540,14 @@ class BaseLightcurveSource(BandfluxModel, ABC):
         ax.legend()
 
 
-class LightcurveSource(BaseLightcurveSource):
+class LightcurveTemplateModel(BaseLightcurveTemplateModel):
     """A model that generates either the SED or bandflux of a source based on
     given lightcurves in each band. When generating the bandflux, it interpolates
     the lightcurves directly. When generating the SED, the model uses a box-shaped SED
     for each filter such that the resulting flux density is equal to the lightcurve's
     value after passing through the passband filter.
 
-    LightcurveSource supports both periodic and non-periodic lightcurves. If the
+    LightcurveTemplateModel supports both periodic and non-periodic lightcurves. If the
     light curve is not periodic then each lightcurve's given values will be interpolated
     during the time range of the lightcurve. Values outside the time range (before and
     after) will be set to the baseline value for that filter (0.0 by default).
@@ -667,7 +667,7 @@ class LightcurveSource(BaseLightcurveSource):
         # Check that the filters are all supported by the model.
         for flt in np.unique(filters):
             if flt not in self.lightcurves.lightcurves:
-                raise ValueError(f"Filter '{flt}' is not supported by LightcurveSource.")
+                raise ValueError(f"Filter '{flt}' is not supported by LightcurveTemplateModel.")
 
         # Shift the times for the model's t0 aligned with the lightcurve's lc_t0.
         # The lightcurve times were already shifted in the constructor to be relative to lc_t0.
@@ -698,15 +698,15 @@ class LightcurveSource(BaseLightcurveSource):
         self.lightcurves.plot_lightcurves(times=times, ax=ax, figure=figure)
 
 
-class MultiLightcurveSource(BaseLightcurveSource):
-    """A MultiLightcurveSource randomly selects a lightcurve at each evaluation
+class MultiLightcurveTemplateModel(BaseLightcurveTemplateModel):
+    """A MultiLightcurveTemplateModel randomly selects a lightcurve at each evaluation
     computes the flux from that source. The models can generate either the SED or
     bandflux of a source based of given lightcurves in each band. When generating
     the bandflux, the model interpolates the lightcurves directly. When generating the SED,
     the model uses a box-shaped SED for each filter such that the resulting flux density
     is equal to the lightcurve's value after passing through the passband filter.
 
-    MultiLightcurveSource supports both periodic and non-periodic lightcurves. If the
+    MultiLightcurveTemplateModel supports both periodic and non-periodic lightcurves. If the
     light curve is not periodic then each lightcurve's given values will be interpolated
     during the time range of the lightcurve. Values outside the time range (before and
     after) will be set to the baseline value for that filter (0.0 by default).
@@ -787,7 +787,7 @@ class MultiLightcurveSource(BaseLightcurveSource):
 
     @classmethod
     def from_lclib_file(cls, lightcurves_file, passbands, lc_t0=0.0, filters=None, **kwargs):
-        """Create a MultiLightcurveSource from a lightcurves file in LCLIB format.
+        """Create a MultiLightcurveTemplateModel from a lightcurves file in LCLIB format.
 
         Parameters
         ----------
@@ -812,8 +812,8 @@ class MultiLightcurveSource(BaseLightcurveSource):
 
         Returns
         -------
-        MultiLightcurveSource
-            An instance of MultiLightcurveSource with the loaded lightcurves.
+        MultiLightcurveTemplateModel
+            An instance of MultiLightcurveTemplateModel with the loaded lightcurves.
         """
         lightcurve_tables = read_lclib_data(lightcurves_file)
         if lightcurve_tables is None or len(lightcurve_tables) == 0:
@@ -880,7 +880,7 @@ class MultiLightcurveSource(BaseLightcurveSource):
         # Check that the filters are all supported by the model.
         for flt in np.unique(filters):
             if flt not in lc.lightcurves:
-                raise ValueError(f"Filter '{flt}' is not supported by LightcurveSource {model_ind}.")
+                raise ValueError(f"Filter '{flt}' is not supported by LightcurveTemplateModel {model_ind}.")
 
         # Shift the times for the model's t0 aligned with the lightcurve's lc_t0.
         # The lightcurve times were already shifted in the constructor to be relative to lc_t0.
