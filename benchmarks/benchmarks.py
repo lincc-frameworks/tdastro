@@ -204,7 +204,7 @@ class TimeSuite:
 
     def time_evaluate_salt3_passbands(self):
         """Time evaluate the SALT3 model at the passband level."""
-        _ = self.salt3_model.evaluate_band_fluxes(
+        _ = self.salt3_model.evaluate_bandfluxes(
             self.passbands,
             self.times,
             self.filters,
