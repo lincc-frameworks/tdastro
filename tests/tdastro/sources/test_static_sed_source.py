@@ -1,18 +1,18 @@
 import numpy as np
 import pytest
-from tdastro.sources.static_sed_source import StaticBandfluxSource, StaticSEDSource
+from tdastro.sources.static_sed_source import StaticBandfluxModel, StaticSEDModel
 from tdastro.utils.io_utils import write_numpy_data
 
 
 def test_single_static_sed() -> None:
-    """Test that we can create and sample a StaticSEDSource object with a single SED."""
+    """Test that we can create and sample a StaticSEDModel object with a single SED."""
     sed = np.array(
         [
             [100.0, 200.0, 300.0, 400.0],  # Wavelengths
             [10.0, 20.0, 20.0, 10.0],  # fluxes
         ]
     )
-    model = StaticSEDSource(sed, node_label="test")
+    model = StaticSEDModel(sed, node_label="test")
     assert len(model) == 1
 
     times = np.array([1, 2, 3, 10, 20])
@@ -30,9 +30,9 @@ def test_static_sed_fail() -> None:
     """Test that we correctly fail on bad SEDs."""
     # Non-numpy arrays
     with pytest.raises(ValueError):
-        _ = StaticSEDSource([None], node_label="test")
+        _ = StaticSEDModel([None], node_label="test")
     with pytest.raises(ValueError):
-        _ = StaticSEDSource([1.0], node_label="test")
+        _ = StaticSEDModel([1.0], node_label="test")
 
     # Incorrectly shaped data.
     sed = np.array(
@@ -43,7 +43,7 @@ def test_static_sed_fail() -> None:
         ]
     )
     with pytest.raises(ValueError):
-        _ = StaticSEDSource([sed], node_label="test")
+        _ = StaticSEDModel([sed], node_label="test")
 
     # Wavelengths unsorted.
     sed = np.array(
@@ -53,11 +53,11 @@ def test_static_sed_fail() -> None:
         ]
     )
     with pytest.raises(ValueError):
-        _ = StaticSEDSource([sed], node_label="test")
+        _ = StaticSEDModel([sed], node_label="test")
 
 
 def test_static_sed_from_file(tmp_path) -> None:
-    """Test that we can create a StaticSEDSource object from a file."""
+    """Test that we can create a StaticSEDModel object from a file."""
     test_sed = np.array(
         [
             [100.0, 200.0, 300.0, 400.0],  # Wavelengths
@@ -72,7 +72,7 @@ def test_static_sed_from_file(tmp_path) -> None:
         file_path = tmp_path / f"test_sed.{fmt}"
         write_numpy_data(file_path, test_sed.T)
 
-        model = StaticSEDSource.from_file(file_path, node_label="test")
+        model = StaticSEDModel.from_file(file_path, node_label="test")
         assert len(model) == 1
 
         values = model.evaluate_sed(times, wavelengths)
@@ -93,11 +93,11 @@ def test_static_sed_from_file(tmp_path) -> None:
     write_numpy_data(file_path_invalid, test_sed_invalid.T)
 
     with pytest.raises(ValueError):
-        _ = StaticSEDSource.from_file(file_path_invalid, node_label="test")
+        _ = StaticSEDModel.from_file(file_path_invalid, node_label="test")
 
 
 def test_multiple_static_seds() -> None:
-    """Test that we can create and sample a StaticSEDSource object with a multiple SEDs."""
+    """Test that we can create and sample a StaticSEDModel object with a multiple SEDs."""
     sed0 = np.array(
         [
             [100.0, 200.0, 300.0, 400.0],  # Wavelengths
@@ -110,7 +110,7 @@ def test_multiple_static_seds() -> None:
             [20.0, 40.0, 40.0, 20.0],  # fluxes
         ]
     )
-    model = StaticSEDSource([sed0, sed1], weights=[0.25, 0.75], node_label="test")
+    model = StaticSEDModel([sed0, sed1], weights=[0.25, 0.75], node_label="test")
     assert len(model) == 2
 
     # Check that all of the indices are 0 or 1 and the split is approximately 25/75
@@ -136,7 +136,7 @@ def test_multiple_static_seds() -> None:
 
 
 def test_multiple_static_seds_min_max():
-    """Test that we can get the min and max wavelengths from a StaticSEDSource object with multiple SEDs."""
+    """Test that we can get the min and max wavelengths from a StaticSEDModel object with multiple SEDs."""
     sed0 = np.array(
         [
             [100.0, 200.0, 300.0, 400.0],  # Wavelengths
@@ -149,7 +149,7 @@ def test_multiple_static_seds_min_max():
             [20.0, 40.0, 40.0, 20.0],  # fluxes
         ]
     )
-    model = StaticSEDSource([sed0, sed1], weights=[0.5, 0.5], node_label="test")
+    model = StaticSEDModel([sed0, sed1], weights=[0.5, 0.5], node_label="test")
 
     states = model.sample_parameters(num_samples=1)
 
@@ -171,13 +171,13 @@ def test_multiple_static_seds_min_max():
 
 
 def test_single_static_bandflux() -> None:
-    """Test that we can create and sample a StaticBandfluxSource object with a single bandflux."""
+    """Test that we can create and sample a StaticBandfluxModel object with a single bandflux."""
     bandflux = {
         "r": 10.0,
         "g": 20.0,
         "b": 30.0,
     }
-    model = StaticBandfluxSource(bandflux, node_label="test")
+    model = StaticBandfluxModel(bandflux, node_label="test")
     assert len(model) == 1
 
     times = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
@@ -191,10 +191,10 @@ def test_single_static_bandflux() -> None:
 
 
 def test_multiple_static_bandflux() -> None:
-    """Test that we can create and sample a StaticBandfluxSource object with multiple bandfluxes."""
+    """Test that we can create and sample a StaticBandfluxModel object with multiple bandfluxes."""
     bandflux0 = {"r": 10.0, "g": 20.0, "b": 30.0}
     bandflux1 = {"r": 15.0, "g": 25.0, "b": 35.0}
-    model = StaticBandfluxSource([bandflux0, bandflux1], weights=[0.25, 0.75], node_label="test")
+    model = StaticBandfluxModel([bandflux0, bandflux1], weights=[0.25, 0.75], node_label="test")
     assert len(model) == 2
 
     # Check that all of the indices are 0 or 1 and the split is approximately 25/75
@@ -255,14 +255,14 @@ class DummySynphotModel:
 
 
 def test_static_sed_from_synphot() -> None:
-    """Test that we can create a StaticSEDSource from a synphot model."""
+    """Test that we can create a StaticSEDModel from a synphot model."""
     # Create a dummy model with 4 samples of SEDs [10.0, 20.0, 30.0, 40.0] in nJy.
     # Since synphot uses PHOTLAM, we preconvert and provide in that unit.
     sp_model = DummySynphotModel(
         waveset=np.array([1000.0, 2000.0, 3000.0, 4000.0]),
         fluxset=np.array([1.50919018e-08, 1.50919018e-08, 1.50919018e-08, 1.50919018e-08]),
     )
-    model = StaticSEDSource.from_synphot(sp_model)
+    model = StaticSEDModel.from_synphot(sp_model)
     assert len(model) == 1
 
     times = np.array([1, 2, 3, 10, 20])
@@ -276,4 +276,4 @@ def test_static_sed_from_synphot() -> None:
     # We fail is the synphot model has a redshift defined.
     sp_model.z = 0.5
     with pytest.raises(ValueError):
-        _ = StaticSEDSource.from_synphot(sp_model)
+        _ = StaticSEDModel.from_synphot(sp_model)

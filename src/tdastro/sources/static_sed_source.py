@@ -9,8 +9,8 @@ from tdastro.sources.physical_model import BandfluxModel, SEDModel
 from tdastro.utils.io_utils import read_numpy_data
 
 
-class StaticSEDSource(SEDModel):
-    """A StaticSEDSource randomly selects an SED at each evaluation and computes
+class StaticSEDModel(SEDModel):
+    """A StaticSEDModel randomly selects an SED at each evaluation and computes
     the flux from that SED at all time steps.
 
     Parameterized values include:
@@ -35,7 +35,7 @@ class StaticSEDSource(SEDModel):
        and the second is flux value.
     weights : numpy.ndarray, optional
         A length N array indicating the relative weight from which to select
-        a source at random. If None, all sources will be weighted equally.
+        an SED at random. If None, all SEDs will be weighted equally.
     """
 
     def __init__(
@@ -62,8 +62,8 @@ class StaticSEDSource(SEDModel):
         super().__init__(**kwargs)
 
         # Create a parameter that indicates which SED was sampled in each simulation.
-        source_inds = [i for i in range(len(self.sed_values))]
-        self._sampler_node = GivenValueSampler(source_inds, weights=weights)
+        all_inds = [i for i in range(len(self.sed_values))]
+        self._sampler_node = GivenValueSampler(all_inds, weights=weights)
         self.add_parameter("selected_idx", value=self._sampler_node, allow_gradient=False)
 
     def __len__(self):
@@ -80,12 +80,12 @@ class StaticSEDSource(SEDModel):
         sed_file : str or Path
             The path to the SED file to load.
         **kwargs : dict
-            Additional keyword arguments to pass to the StaticSEDSource constructor.
+            Additional keyword arguments to pass to the StaticSEDModel constructor.
 
         Returns
         -------
-        StaticSEDSource
-            An instance of StaticSEDSource with the loaded SED data.
+        StaticSEDModel
+            An instance of StaticSEDModel with the loaded SED data.
         """
         # Load the SED data from the file (automatically detected format)
         sed_data = read_numpy_data(sed_file)
@@ -111,12 +111,12 @@ class StaticSEDSource(SEDModel):
             A length N array of wavelengths (in angstroms) at which to sample the SED.
             If None, the SED will be sampled at the wavelengths defined in the synphot model.
         **kwargs : dict
-            Additional keyword arguments to pass to the StaticSEDSource constructor.
+            Additional keyword arguments to pass to the StaticSEDModel constructor.
 
         Returns
         -------
-        StaticSEDSource
-            An instance of StaticSEDSource with the generated SED data.
+        StaticSEDModel
+            An instance of StaticSEDModel with the generated SED data.
         """
         try:
             from synphot import units
@@ -213,8 +213,8 @@ class StaticSEDSource(SEDModel):
         return flux_density
 
 
-class StaticBandfluxSource(BandfluxModel):
-    """A StaticBandfluxSource randomly selects a mapping of bandfluxes at each evaluation
+class StaticBandfluxModel(BandfluxModel):
+    """A StaticBandfluxModel randomly selects a mapping of bandfluxes at each evaluation
     and uses that at all time steps.
 
     Parameterized values include:
@@ -237,7 +237,7 @@ class StaticBandfluxSource(BandfluxModel):
        represented as a dictionary where the key is the filter name and the value is the bandflux (in nJy).
     weights : numpy.ndarray, optional
         A length N array indicating the relative weight from which to select
-        a source at random. If None, all sources will be weighted equally.
+        a model at random. If None, all models will be weighted equally.
     """
 
     def __init__(
@@ -255,8 +255,8 @@ class StaticBandfluxSource(BandfluxModel):
         super().__init__(**kwargs)
 
         # Create a parameter that indicates which bandflux mapping was sampled in each simulation.
-        source_inds = [i for i in range(len(self.bandflux_values))]
-        self._sampler_node = GivenValueSampler(source_inds, weights=weights)
+        all_inds = [i for i in range(len(self.bandflux_values))]
+        self._sampler_node = GivenValueSampler(all_inds, weights=weights)
         self.add_parameter("selected_idx", value=self._sampler_node, allow_gradient=False)
 
     def __len__(self):

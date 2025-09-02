@@ -15,11 +15,11 @@ from tdastro.astro_utils.unit_utils import fnu_to_flam
 from tdastro.base_models import FunctionNode
 from tdastro.effects.white_noise import WhiteNoise
 from tdastro.math_nodes.np_random import NumpyRandomFunc
-from tdastro.sources.basic_sources import LinearWavelengthSource, StaticSource, StepSource
+from tdastro.sources.basic_models import ConstantSED, LinearWavelengthModel, StepModel
 from tdastro.sources.lightcurve_source import LightcurveSource
-from tdastro.sources.multi_source_model import AdditiveMultiSourceModel
+from tdastro.sources.multi_object_model import AdditiveMultiObjectModel
 from tdastro.sources.sncomso_models import SncosmoWrapperModel
-from tdastro.sources.static_sed_source import StaticSEDSource
+from tdastro.sources.static_sed_source import StaticSEDModel
 
 # ASV runs from copy of the project (benchmarks/env/....). So we load the
 # data files based off the current file location instead.
@@ -84,8 +84,8 @@ class TimeSuite:
             redshift=self.redshift,
         )
 
-        # A simple LinearWavelengthSource that we can use in tests.
-        self.linear_source = LinearWavelengthSource(linear_base=1.0, linear_scale=0.1)
+        # A simple LinearWavelengthModel that we can use in tests.
+        self.linear_source = LinearWavelengthModel(linear_base=1.0, linear_scale=0.1)
 
         # Create samples that we can use in tests.
         self.times = np.arange(-20.0, 50.0, 0.5)
@@ -133,24 +133,24 @@ class TimeSuite:
         _ = self.x0_func.sample_parameters()
 
     def time_make_and_evaluate_step_source(self):
-        """Time creating and evaluating a StepSource."""
-        model = StepSource(brightness=100.0, t0=2.0, t1=5.0)
+        """Time creating and evaluating a StepModel."""
+        model = StepModel(brightness=100.0, t0=2.0, t1=5.0)
         state = model.sample_parameters()
         times = np.arange(0.0, 10.0, 0.05)
         wavelengths = np.arange(1000.0, 2000.0, 5.0)
         _ = model.evaluate_sed(times, wavelengths, state)
 
     def time_make_simple_linear_wavelength_source(self):
-        """Time creating a simple LinearWavelengthSource."""
-        _ = LinearWavelengthSource(linear_base=1.0, linear_scale=0.1)
+        """Time creating a simple LinearWavelengthModel."""
+        _ = LinearWavelengthModel(linear_base=1.0, linear_scale=0.1)
 
     def time_evaluate_simple_linear_wavelength_source(self):
-        """Time evaluating a simple LinearWavelengthSource."""
+        """Time evaluating a simple LinearWavelengthModel."""
         _ = self.linear_source.evaluate_sed(self.times, self.wavelengths)
 
     def time_make_evaluate_static_source(self):
         """Time creating and querying a static source model."""
-        source1 = StaticSource(brightness=100.0, node_label="my_static_source")
+        source1 = ConstantSED(brightness=100.0, node_label="my_static_source")
         state = source1.sample_parameters(num_samples=1000)
 
         times = np.array([0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0])
@@ -165,7 +165,7 @@ class TimeSuite:
                 [5.0, 10.0, 20.0, 20.0, 10.0, 5.0, 1.0],  # fluxes
             ]
         )
-        model = StaticSEDSource(sed, node_label="test")
+        model = StaticSEDModel(sed, node_label="test")
         states = model.sample_parameters(num_samples=1000)
 
         times = np.array([1, 2, 3, 10, 20])
@@ -244,10 +244,10 @@ class TimeSuite:
         _ = lc_source.evaluate_sed(self.times, self.wavelengths)
 
     def time_additive_multi_model_source(self):
-        """Time the creation and query of an AdditiveMultiSourceModel."""
-        source1 = StaticSource(brightness=100.0, node_label="my_static_source")
-        source2 = StepSource(brightness=50.0, t0=1.0, t1=2.0, node_label="my_step_source")
-        model = AdditiveMultiSourceModel([source1, source2], node_label="my_multi_source")
+        """Time the creation and query of an AdditiveMultiObjectModel."""
+        source1 = ConstantSED(brightness=100.0, node_label="my_static_source")
+        source2 = StepModel(brightness=50.0, t0=1.0, t1=2.0, node_label="my_step_source")
+        model = AdditiveMultiObjectModel([source1, source2], node_label="my_multi_source")
 
         num_samples = 1000
         state = model.sample_parameters(num_samples=num_samples)

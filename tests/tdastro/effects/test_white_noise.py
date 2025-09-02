@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 from tdastro.effects.white_noise import WhiteNoise
-from tdastro.sources.basic_sources import StaticSource
+from tdastro.sources.basic_models import ConstantSED
 
 
 def test_white_noise() -> None:
@@ -47,8 +47,8 @@ def test_white_noise_bandflux() -> None:
 
 
 def test_static_source_white_noise() -> None:
-    """Test that we can sample and create a StaticSource object with white noise."""
-    model = StaticSource(
+    """Test that we can sample and create a ConstantSED object with white noise."""
+    model = ConstantSED(
         brightness=10.0,
         node_label="my_static_source",
         seed=100,
@@ -83,7 +83,7 @@ def test_static_source_white_noise_obs_frame() -> None:
     """Test that we can make the WhiteNoise an observer frame effect.
     While this does not make physical sense, it allows us to test that code path.
     """
-    model = StaticSource(
+    model = ConstantSED(
         brightness=10.0,
         node_label="my_static_source",
         seed=100,

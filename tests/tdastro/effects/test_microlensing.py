@@ -1,6 +1,6 @@
 import numpy as np
 from tdastro.effects.microlensing import Microlensing
-from tdastro.sources.basic_sources import StaticSource
+from tdastro.sources.basic_models import ConstantSED
 
 
 def test_microlensing() -> None:
@@ -62,12 +62,12 @@ def test_microlensing_bandflux() -> None:
 
 
 def test_static_source_microlensing() -> None:
-    """Test that we can apply microlensing to a StaticSource."""
+    """Test that we can apply microlensing to a ConstantSED."""
     num_times = 50
     microlensing_t0 = 5.0
     times = np.arange(num_times, dtype=float)
 
-    model = StaticSource(brightness=10.0, node_label="my_src")
+    model = ConstantSED(brightness=10.0, node_label="my_src")
     microlensing = Microlensing(microlensing_t0=microlensing_t0, u_0=0.1, t_E=10.0)
     model.add_effect(microlensing)
 
