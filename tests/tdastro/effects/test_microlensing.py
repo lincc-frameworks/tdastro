@@ -1,6 +1,6 @@
 import numpy as np
 from tdastro.effects.microlensing import Microlensing
-from tdastro.sources.basic_models import ConstantSEDModel
+from tdastro.models.basic_models import ConstantSEDModel
 
 
 def test_microlensing() -> None:

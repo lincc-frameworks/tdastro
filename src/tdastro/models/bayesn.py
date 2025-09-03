@@ -6,7 +6,7 @@ from citation_compass import CiteClass
 from tdastro import _TDASTRO_BASE_DATA_DIR
 from tdastro.astro_utils.unit_utils import flam_to_fnu
 from tdastro.effects.extinction import ExtinctionEffect
-from tdastro.sources.physical_model import SEDModel
+from tdastro.models.physical_model import SEDModel
 
 
 class BayesnModel(SEDModel, CiteClass):

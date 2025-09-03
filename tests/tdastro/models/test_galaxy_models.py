@@ -1,8 +1,8 @@
 import numpy as np
 from tdastro.math_nodes.np_random import NumpyRandomFunc
-from tdastro.sources.basic_models import ConstantSEDModel
-from tdastro.sources.galaxy_models import GaussianGalaxy
-from tdastro.sources.multi_object_model import AdditiveMultiObjectModel
+from tdastro.models.basic_models import ConstantSEDModel
+from tdastro.models.galaxy_models import GaussianGalaxy
+from tdastro.models.multi_object_model import AdditiveMultiObjectModel
 
 
 def test_gaussian_galaxy() -> None:

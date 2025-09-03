@@ -5,7 +5,7 @@ from citation_compass import CiteClass
 
 from tdastro.astro_utils.salt2_color_law import SALT2ColorLaw
 from tdastro.astro_utils.unit_utils import flam_to_fnu
-from tdastro.sources.physical_model import SEDModel
+from tdastro.models.physical_model import SEDModel
 from tdastro.utils.bicubic_interp import BicubicInterpolator
 
 

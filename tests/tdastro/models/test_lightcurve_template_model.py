@@ -4,7 +4,7 @@ from astropy.table import Table
 from tdastro.astro_utils.mag_flux import mag2flux
 from tdastro.astro_utils.passbands import Passband, PassbandGroup
 from tdastro.effects.basic_effects import ConstantDimming
-from tdastro.sources.lightcurve_template_model import (
+from tdastro.models.lightcurve_template_model import (
     LightcurveData,
     LightcurveTemplateModel,
     MultiLightcurveTemplateModel,

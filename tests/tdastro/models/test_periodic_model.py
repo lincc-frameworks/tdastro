@@ -1,9 +1,9 @@
 import numpy as np
 import pytest
-from tdastro.sources.periodic_source import PeriodicSource
+from tdastro.models.periodic_model import PeriodicModel
 
 
-class SineSource(PeriodicSource):
+class SineSource(PeriodicModel):
     """A simple sine source with power (Rayleigh–Jeans) spectrum."""
 
     def _evaluate_phases(self, phases, wavelengths, graph_state, **kwargs):

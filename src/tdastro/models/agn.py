@@ -14,7 +14,7 @@ from scipy import integrate
 from tdastro.base_models import FunctionNode
 from tdastro.consts import M_SUN_G
 from tdastro.math_nodes.np_random import NumpyRandomFunc
-from tdastro.sources.physical_model import SEDModel
+from tdastro.models.physical_model import SEDModel
 
 
 def sample_damped_random_walk(times, tau_v, sf_inf, t0, rng=None):

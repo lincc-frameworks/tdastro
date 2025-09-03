@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from tdastro.sources.static_sed_source import StaticBandfluxModel, StaticSEDModel
+from tdastro.models.static_sed_source import StaticBandfluxModel, StaticSEDModel
 from tdastro.utils.io_utils import write_numpy_data
 
 

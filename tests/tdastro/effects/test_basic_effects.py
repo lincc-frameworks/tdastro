@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 from tdastro.effects.basic_effects import ConstantDimming
-from tdastro.sources.basic_models import ConstantSEDModel
+from tdastro.models.basic_models import ConstantSEDModel
 
 
 def test_constant_dimming() -> None:

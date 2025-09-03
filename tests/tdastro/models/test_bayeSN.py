@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from astropy.cosmology import FlatLambdaCDM
 from citation_compass import find_in_citations
-from tdastro.sources.bayesn import BayesnModel
+from tdastro.models.bayesn import BayesnModel
 
 
 def test_bayesn_matchness(test_data_dir):

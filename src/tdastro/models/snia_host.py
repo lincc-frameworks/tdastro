@@ -1,4 +1,4 @@
-from tdastro.sources.physical_model import SEDModel
+from tdastro.models.physical_model import SEDModel
 
 
 class SNIaHost(SEDModel):

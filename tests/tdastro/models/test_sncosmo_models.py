@@ -6,7 +6,7 @@ from astropy import units as u
 from tdastro import _TDASTRO_TEST_DATA_DIR
 from tdastro.astro_utils.unit_utils import fnu_to_flam
 from tdastro.math_nodes.np_random import NumpyRandomFunc
-from tdastro.sources.sncomso_models import SncosmoWrapperModel
+from tdastro.models.sncomso_models import SncosmoWrapperModel
 from tdastro.utils.wave_extrapolate import ExponentialDecay
 
 

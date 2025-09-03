@@ -17,7 +17,7 @@ from tdastro.astro_utils.mag_flux import mag2flux
 from tdastro.astro_utils.passbands import Passband, PassbandGroup
 from tdastro.consts import lsst_filter_plot_colors
 from tdastro.math_nodes.given_sampler import GivenValueSampler, GivenValueSelector
-from tdastro.sources.physical_model import BandfluxModel
+from tdastro.models.physical_model import BandfluxModel
 from tdastro.utils.io_utils import read_lclib_data
 
 logger = logging.getLogger(__name__)

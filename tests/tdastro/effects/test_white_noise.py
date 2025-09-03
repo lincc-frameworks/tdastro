@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 from tdastro.effects.white_noise import WhiteNoise
-from tdastro.sources.basic_models import ConstantSEDModel
+from tdastro.models.basic_models import ConstantSEDModel
 
 
 def test_white_noise() -> None:

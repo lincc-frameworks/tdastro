@@ -3,8 +3,8 @@ import pytest
 from astropy.cosmology import Planck18
 from tdastro.astro_utils.passbands import PassbandGroup
 from tdastro.math_nodes.given_sampler import GivenValueList
-from tdastro.sources.basic_models import ConstantSEDModel
-from tdastro.sources.physical_model import SEDModel
+from tdastro.models.basic_models import ConstantSEDModel
+from tdastro.models.physical_model import SEDModel
 
 
 def test_sed_model():

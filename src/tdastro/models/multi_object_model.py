@@ -8,7 +8,7 @@ import numpy as np
 
 from tdastro.graph_state import GraphState
 from tdastro.math_nodes.given_sampler import GivenValueSampler
-from tdastro.sources.physical_model import BandfluxModel, BasePhysicalModel, SEDModel
+from tdastro.models.physical_model import BandfluxModel, BasePhysicalModel, SEDModel
 
 
 class MultiObjectModel(SEDModel):

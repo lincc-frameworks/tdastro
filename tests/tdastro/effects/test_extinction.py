@@ -3,7 +3,7 @@ import pytest
 from tdastro.astro_utils.dustmap import ConstantHemisphereDustMap, DustmapWrapper
 from tdastro.effects.extinction import ExtinctionEffect
 from tdastro.math_nodes.given_sampler import GivenValueList
-from tdastro.sources.basic_models import ConstantSEDModel
+from tdastro.models.basic_models import ConstantSEDModel
 
 
 def test_list_extinction_models():

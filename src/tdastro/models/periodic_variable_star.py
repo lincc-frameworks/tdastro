@@ -4,16 +4,16 @@ import numpy as np
 
 from tdastro.astro_utils.black_body import black_body_luminosity_density_per_solid
 from tdastro.consts import ANGSTROM_TO_CM, CGS_FNU_UNIT_TO_NJY, PARSEC_TO_CM
-from tdastro.sources.periodic_source import PeriodicSource
+from tdastro.models.periodic_model import PeriodicModel
 
 
-class PeriodicVariableStar(PeriodicSource, ABC):
+class PeriodicVariableStar(PeriodicModel, ABC):
     """A model for a periodic variable star.
 
     Parameterized values include:
       * dec - The object's declination in degrees. [from BasePhysicalModel]
       * distance - The object's luminosity distance in pc. [from BasePhysicalModel]
-      * period - The period of the source, in days. [from PeriodicSource]
+      * period - The period of the source, in days. [from PeriodicModel]
       * ra - The object's right ascension in degrees. [from BasePhysicalModel]
       * redshift - The object's redshift. [from BasePhysicalModel]
       * t0 - The t0 of the zero phase, date. [from BasePhysicalModel]
@@ -101,14 +101,14 @@ class EclipsingBinaryStar(PeriodicVariableStar):
       * distance - The object's luminosity distance in pc. [from BasePhysicalModel]
       * inclination - The inclination of the orbit, in degrees.
       * major_semiaxis - The major semiaxis of the orbit, in AU.
-      * period - The period of the source, in days. [from PeriodicSource]
+      * period - The period of the source, in days. [from PeriodicModel]
       * primary_radius - The radius of the primary star, in solar radii.
       * primary_temperature - The effective temperature of the primary star, in kelvins.
       * ra - The object's right ascension in degrees. [from BasePhysicalModel]
       * redshift - The object's redshift. [from BasePhysicalModel]
       * secondary_radius - The radius of the secondary star, in solar radii.
       * secondary_temperature - The effective temperature of the secondary star, in kelvins.
-      * t0 - The t0 of the zero phase, date. [from PeriodicSource]
+      * t0 - The t0 of the zero phase, date. [from PeriodicModel]
 
     Attributes
     ----------

@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 from scipy.spatial.transform import Rotation
-from tdastro.sources.periodic_variable_star import EclipsingBinaryStar
+from tdastro.models.periodic_variable_star import EclipsingBinaryStar
 
 
 def test_circle_overlap_area_total_eclipse():
