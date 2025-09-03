@@ -5,7 +5,7 @@ from scipy.optimize import fsolve
 from tdastro.obstable.ztf_obstable import (
     ZTFObsTable,
     calculate_ztf_zero_points,
-    create_random_ztf_opsim,
+    create_random_stf_obstable,
 )
 
 
@@ -55,28 +55,29 @@ def test_calculate_ztf_zero_points():
     assert np.isclose(zp_cal, zp_expected)
 
 
-def test_ztf_opsim_init():
+def test_ztf_obstable_init():
     """Test initializing ZTFObsTable."""
-    opsim_table = create_random_ztf_opsim(100)._table
-    opsim = ZTFObsTable(table=opsim_table)
+    survey_data_table = create_random_stf_obstable(100)._table
+    survey_data = ZTFObsTable(table=survey_data_table)
 
-    assert "zp" in opsim
-    assert "time" in opsim
+    assert "zp" in survey_data
+    assert "time" in survey_data
 
     # We have all the attributes set at their default values.
-    assert opsim.survey_values["dark_current"] == 0.0
-    assert opsim.survey_values["gain"] == 6.2
-    assert opsim.survey_values["pixel_scale"] == 1.01
-    assert opsim.survey_values["radius"] == 2.735
-    assert opsim.survey_values["read_noise"] == 8
+    assert survey_data.survey_values["dark_current"] == 0.0
+    assert survey_data.survey_values["gain"] == 6.2
+    assert survey_data.survey_values["pixel_scale"] == 1.01
+    assert survey_data.survey_values["radius"] == 2.735
+    assert survey_data.survey_values["read_noise"] == 8
+    assert survey_data.survey_values["survey_name"] == "ZTF"
 
 
-def test_create_ztf_opsim_override():
+def test_create_stf_obstable_override():
     """Test that we can override the default survey values."""
-    opsim_table = create_random_ztf_opsim(100)._table
+    survey_data_table = create_random_stf_obstable(100)._table
 
-    opsim = ZTFObsTable(
-        table=opsim_table,
+    survey_data = ZTFObsTable(
+        table=survey_data_table,
         dark_current=0.1,
         gain=7.1,
         pixel_scale=0.1,
@@ -85,15 +86,15 @@ def test_create_ztf_opsim_override():
     )
 
     # We have all the attributes set at their default values.
-    assert opsim.survey_values["dark_current"] == 0.1
-    assert opsim.survey_values["gain"] == 7.1
-    assert opsim.survey_values["pixel_scale"] == 0.1
-    assert opsim.survey_values["radius"] == 1.0
-    assert opsim.survey_values["read_noise"] == 5.0
+    assert survey_data.survey_values["dark_current"] == 0.1
+    assert survey_data.survey_values["gain"] == 7.1
+    assert survey_data.survey_values["pixel_scale"] == 0.1
+    assert survey_data.survey_values["radius"] == 1.0
+    assert survey_data.survey_values["read_noise"] == 5.0
 
 
-def test_create_ztf_opsim_no_zp():
-    """Create an opsim without a zeropoint column."""
+def test_create_stf_obstable_no_zp():
+    """Create an survey_data without a zeropoint column."""
     dates = [
         "2020-01-01 12:00:00.000",
         "2020-01-02 12:00:00.000",
@@ -116,10 +117,10 @@ def test_create_ztf_opsim_no_zp():
     values["maglim"] = 20.0 * np.ones(5)
     values["scibckgnd"] = np.ones(5)
     values["fwhm"] = 2.3 * np.ones(5)
-    opsim = ZTFObsTable(values)
+    survey_data = ZTFObsTable(values)
 
-    assert "zp" in opsim
-    assert np.all(opsim["zp"] >= 0.0)
+    assert "zp" in survey_data
+    assert np.all(survey_data["zp"] >= 0.0)
 
 
 def test_noise_calculation():
@@ -128,7 +129,7 @@ def test_noise_calculation():
     expected_magerr = np.array([0.1])
 
     flux_nJy = np.power(10.0, -0.4 * (mag - 31.4))
-    opsim = ZTFObsTable(
+    survey_data = ZTFObsTable(
         table=pd.DataFrame(
             {
                 "ra": 0.0,
@@ -142,7 +143,7 @@ def test_noise_calculation():
             index=[0],
         )
     )
-    fluxerr_nJy = opsim.bandflux_error_point_source(flux_nJy, 0)
+    fluxerr_nJy = survey_data.bandflux_error_point_source(flux_nJy, 0)
     magerr = 1.086 * fluxerr_nJy / flux_nJy
 
     np.testing.assert_allclose(magerr, expected_magerr, rtol=0.2)
