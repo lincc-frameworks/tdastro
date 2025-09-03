@@ -15,11 +15,11 @@ from tdastro.astro_utils.unit_utils import fnu_to_flam
 from tdastro.base_models import FunctionNode
 from tdastro.effects.white_noise import WhiteNoise
 from tdastro.math_nodes.np_random import NumpyRandomFunc
-from tdastro.sources.basic_models import ConstantSEDModel, LinearWavelengthModel, StepModel
-from tdastro.sources.lightcurve_template_model import LightcurveTemplateModel
-from tdastro.sources.multi_object_model import AdditiveMultiObjectModel
-from tdastro.sources.sncomso_models import SncosmoWrapperModel
-from tdastro.sources.static_sed_source import StaticSEDModel
+from tdastro.models.basic_models import ConstantSEDModel, LinearWavelengthModel, StepModel
+from tdastro.models.lightcurve_template_model import LightcurveTemplateModel
+from tdastro.models.multi_object_model import AdditiveMultiObjectModel
+from tdastro.models.sncomso_models import SncosmoWrapperModel
+from tdastro.models.static_sed_model import StaticSEDModel
 
 # ASV runs from copy of the project (benchmarks/env/....). So we load the
 # data files based off the current file location instead.

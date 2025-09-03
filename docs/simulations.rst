@@ -126,7 +126,7 @@ certain models to skip SED generation. In particular a ``BandfluxModel`` is a su
 whose computation is only defined at the band flux level. An example of this are models of empirically
 fit light curves, such as those from LCLIB. Since we do not have the underlying SEDs for these types of models,
 so we can only work with them at the band flux level. See the
-:doc:`lightcurve source <notebooks/lightcurve_source_demo>` for an example of this type of model.
+:doc:`lightcurve template model <notebooks/lightcurve_source_demo>` for an example of this type of model.
 
 **Note** that most models in TDAstro operate at the SED level and we *strongly* encourage new models to
 produce SEDs where possible. Working at the finer grained level allows more comprehensive and accurate

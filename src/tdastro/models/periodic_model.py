@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
 
-from tdastro.sources.physical_model import SEDModel
+from tdastro.models.physical_model import SEDModel
 
 
-class PeriodicSource(SEDModel, ABC):
+class PeriodicModel(SEDModel, ABC):
     """The base model for periodic sources.
 
     Parameterized values include:

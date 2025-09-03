@@ -1,4 +1,4 @@
-from tdastro.sources.snia_host import SNIaHost
+from tdastro.models.snia_host import SNIaHost
 
 
 def test_snia_host():

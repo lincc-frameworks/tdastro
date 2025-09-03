@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from astropy.cosmology import FlatLambdaCDM
 from citation_compass import find_in_citations
-from tdastro.sources.bayesn import BayesnModel
+from tdastro.models.bayesn import BayesnModel
 
 
 def test_bayesn_matchness(test_data_dir):
@@ -100,7 +100,6 @@ def test_bayesn_matchness(test_data_dir):
         ra=0,
         dec=0,
         redshift=redshift,
-        node_label="source",
         _M20_model_path=test_data_dir / "BAYESN.M20",
         hsiao_model_path=test_data_dir / "hsiao.h5",
         Amplitude=np.power(10.0, -0.4 * (distmod + m_abs)),
@@ -125,7 +124,6 @@ def test_bayesn_no_model(test_data_dir):
             ra=0,
             dec=0,
             redshift=redshift,
-            node_label="source",
             hsiao_model_path=test_data_dir / "hsiao.h5",
             Amplitude=np.power(10.0, -0.4 * (distmod + m_abs)),
             _M20_model_path=dir_name,

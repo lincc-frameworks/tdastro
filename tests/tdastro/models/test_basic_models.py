@@ -2,7 +2,7 @@ import random
 
 import numpy as np
 from tdastro.base_models import FunctionNode
-from tdastro.sources.basic_models import (
+from tdastro.models.basic_models import (
     ConstantSEDModel,
     LinearWavelengthModel,
     SinWaveModel,

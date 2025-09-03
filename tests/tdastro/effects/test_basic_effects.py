@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 from tdastro.effects.basic_effects import ConstantDimming
-from tdastro.sources.basic_models import ConstantSEDModel
+from tdastro.models.basic_models import ConstantSEDModel
 
 
 def test_constant_dimming() -> None:
@@ -34,7 +34,7 @@ def test_constant_dimming_bandflux() -> None:
         _ = effect.apply_bandflux(values)
 
 
-def test_static_source_constant_dimming() -> None:
+def test_constant_sed_model_constant_dimming() -> None:
     """Test that we can sample and create a ConstantSEDModel object with constant dimming."""
     model = ConstantSEDModel(brightness=10.0, node_label="my_constant_sed_model")
     assert len(model.rest_frame_effects) == 0
@@ -46,7 +46,7 @@ def test_static_source_constant_dimming() -> None:
     assert len(model.rest_frame_effects) == 1
     assert len(model.obs_frame_effects) == 0
 
-    # Check that the flux_fraction parameter is stored in the source node.
+    # Check that the flux_fraction parameter is stored in the model node.
     state = model.sample_parameters()
     assert state["my_constant_sed_model"]["flux_fraction"] == 0.1
 
@@ -69,13 +69,13 @@ def test_static_source_constant_dimming() -> None:
     assert np.all(values2 == 5.0)
 
 
-def test_static_source_constant_dimming_alt_params() -> None:
+def test_constant_sed_constant_dimming_alt_params() -> None:
     """Test that we can turn off adding parameters, but this will fail."""
     model = ConstantSEDModel(brightness=10.0, node_label="my_constant_sed_model")
     effect = ConstantDimming(flux_fraction=0.2)
     model.add_effect(effect, skip_params=True)
 
-    # Check that we sample the value from source node.
+    # Check that we sample the value from model node.
     state = model.sample_parameters()
     assert "flux_fraction" not in state["my_constant_sed_model"]
 

@@ -9,7 +9,7 @@ from astropy import units as u
 from citation_compass import CiteClass
 
 from tdastro.astro_utils.unit_utils import flam_to_fnu
-from tdastro.sources.physical_model import SEDModel
+from tdastro.models.physical_model import SEDModel
 
 
 class SncosmoWrapperModel(SEDModel, CiteClass):

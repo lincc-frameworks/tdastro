@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 from tdastro.consts import M_SUN_G
 from tdastro.math_nodes.np_random import NumpyRandomFunc
-from tdastro.sources.agn import AGN, sample_damped_random_walk
+from tdastro.models.agn import AGN, sample_damped_random_walk
 
 
 def test_agn_compute_critical_accretion_rate():

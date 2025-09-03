@@ -1,7 +1,7 @@
 import numpy as np
 from astropy.cosmology import WMAP9, Planck18
 from tdastro.astro_utils.redshift import RedshiftDistFunc, redshift_to_distance
-from tdastro.sources.basic_models import StepModel
+from tdastro.models.basic_models import StepModel
 
 
 def test_redshifted_flux_densities() -> None:

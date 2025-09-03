@@ -1,7 +1,7 @@
 import numpy as np
 from astropy.coordinates import angular_separation
 
-from tdastro.sources.physical_model import SEDModel
+from tdastro.models.physical_model import SEDModel
 
 
 class GaussianGalaxy(SEDModel):
