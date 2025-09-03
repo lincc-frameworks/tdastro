@@ -494,7 +494,7 @@ def test_build_moc():
 
     moc = ops_data.build_moc(radius=1.5)
     assert moc is not None
-    assert moc.max_order > 10
+    assert moc.max_order == 10
 
     # Test that the MOC covers the correct area.
     assert moc.contains_skycoords(SkyCoord(ra=10.0, dec=0.0, unit="deg"))

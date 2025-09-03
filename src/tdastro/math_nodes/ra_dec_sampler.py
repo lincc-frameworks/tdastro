@@ -282,13 +282,15 @@ class ApproximateMOCSampler(NumpyRandomFunc):
         # Choose a starting pixel ID for each sample. Then randomly traverse
         # down the healpix tree by moving to one of the children pixels until
         # we reach level=29 (approximately 4.5 * 10^18 possible locations).
-        pixel_ids = rng.choice(self.moc, size=graph_state.num_samples).astype(np.uint64)
-        for _ in range(self.depth + 1, 30):
-            offset = np.floor(4 * rng.random(size=graph_state.num_samples)).astype(np.uint64)
-            pixel_ids = np.left_shift(pixel_ids, 2) + offset
+        pixel_ids12 = rng.choice(self.moc, size=graph_state.num_samples).astype(np.uint64)
+        start_pixel_ids29 = np.left_shift(pixel_ids12, 2 * (29 - self.depth))
+        offset_range = np.uint64(1) << np.uint64(2 * (29 - self.depth))
+        pixel_ids29 = start_pixel_ids29 + rng.integers(
+            offset_range, size=graph_state.num_samples, dtype=np.uint64
+        )
 
         # Convert back the healpix centers to RA and dec.
-        coords = healpix_to_skycoord(pixel_ids, depth=29)
+        coords = healpix_to_skycoord(pixel_ids29, depth=29)
         ra = coords.ra.deg
         dec = coords.dec.deg
 
