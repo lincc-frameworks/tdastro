@@ -4,6 +4,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
+from astropy.coordinates import SkyCoord
 from tdastro.obstable.obs_table import ObsTable
 
 
@@ -474,3 +475,34 @@ def test_read_obs_table_shorten(opsim_shorten):
     }
     ops_data = ObsTable.from_db(opsim_shorten, colmap=colmap)
     assert len(ops_data) == 100
+
+
+def test_build_moc():
+    """Test building a Multi-Order Coverage Map (MOC) from the ObsTable."""
+    # Create an ObsTable with three pointings.
+    values = {
+        "time": np.array([0.0, 1.0, 2.0]),
+        "ra": np.array([10.0, 11.0, 45.0]),
+        "dec": np.array([0.0, 0.0, -10.0]),
+        "zp": np.ones(3),
+    }
+    ops_data = ObsTable(values)
+
+    # We fail if no radius is given (including no default.)
+    with pytest.raises(ValueError):
+        _ = ops_data.build_moc()
+
+    moc = ops_data.build_moc(radius=1.5)
+    assert moc is not None
+    assert moc.max_order == 10
+
+    # Test that the MOC covers the correct area.
+    assert moc.contains_skycoords(SkyCoord(ra=10.0, dec=0.0, unit="deg"))
+    assert moc.contains_skycoords(SkyCoord(ra=11.0, dec=1.0, unit="deg"))
+    assert moc.contains_skycoords(SkyCoord(ra=10.5, dec=0.5, unit="deg"))
+    assert moc.contains_skycoords(SkyCoord(ra=45.0, dec=-10.0, unit="deg"))
+    assert moc.contains_skycoords(SkyCoord(ra=45.01, dec=-9.99, unit="deg"))
+    assert moc.contains_skycoords(SkyCoord(ra=44.98, dec=-10.01, unit="deg"))
+    assert not moc.contains_skycoords(SkyCoord(ra=46.00, dec=0.0, unit="deg"))
+    assert not moc.contains_skycoords(SkyCoord(ra=14.00, dec=0.0, unit="deg"))
+    assert not moc.contains_skycoords(SkyCoord(ra=52.00, dec=-10.0, unit="deg"))
