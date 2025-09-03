@@ -17,7 +17,8 @@ class ObsTable:
     Parameters
     ----------
     table : dict or pandas.core.frame.DataFrame
-        The table with all the survey information.
+        The table with all the survey information. Metadata can be included in the
+        "tdastro_survey_data" entry of the attributes dictionary.
     colmap : dict, optional
         A mapping of standard column names to their names in the input table.
         For example, in Rubin's OpSim we might have the column "observationStartMJD"
@@ -96,8 +97,11 @@ class ObsTable:
         # Save the survey values, overwriting anything that is manually specified
         # as a keyword argument or provided in the table's metadata.
         self.survey_values = self._default_survey_values.copy()
-        for key, value in self._table.attrs.items():
-            if key in self.survey_values:
+        if "tdastro_survey_data" in self._table.attrs:
+            metadata = self._table.attrs["tdastro_survey_data"]
+            if not isinstance(metadata, dict):
+                raise TypeError("Got unexpected type for tdastro_survey_data")
+            for key, value in metadata.items():
                 self.survey_values[key] = value
         for key, value in kwargs.items():
             self.survey_values[key] = value
@@ -303,8 +307,7 @@ class ObsTable:
             raise FileExistsError(f"File {filename} already exists.")
 
         # Save all the survey data as metadata.
-        for key, value in self.survey_values.items():
-            self._table.attrs[key] = value
+        self._table.attrs["tdastro_survey_data"] = self.survey_values
         self._table.to_parquet(filename)
 
     def time_bounds(self):

@@ -104,10 +104,12 @@ def test_create_obs_table_override():
 
     # Check that we can read in the defaults from the pandas metadata.
     pdf = pd.DataFrame(values)
-    pdf.attrs["survey_name"] = "test"
-    pdf.attrs["pixel_scale"] = 0.1
-    pdf.attrs["dark_current"] = 0.2
-    pdf.attrs["radius"] = 2.0
+    pdf.attrs["tdastro_survey_data"] = {
+        "survey_name": "test",
+        "pixel_scale": 0.1,
+        "dark_current": 0.2,
+        "radius": 2.0,
+    }
     ops_data2 = ObsTable(pdf, dark_current=0.5, radius=1.0)
 
     # Check that we use use the updated defaults, preferring the keyword arguments

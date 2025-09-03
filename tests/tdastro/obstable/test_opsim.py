@@ -326,7 +326,7 @@ def test_write_read_opsim_parquet():
         "zp_nJy": np.ones(5),
     }
     pdf = pd.DataFrame(values)
-    pdf.attrs["pixel_scale"] = 0.001
+    pdf.attrs["tdastro_survey_data"] = {"pixel_scale": 0.001}
     ops_data = OpSim(pdf, radius=10.0)
 
     with tempfile.TemporaryDirectory() as dir_name:
