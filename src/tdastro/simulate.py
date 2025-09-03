@@ -6,6 +6,7 @@ import pandas as pd
 from nested_pandas import NestedFrame
 
 from tdastro.astro_utils.noise_model import apply_noise
+from tdastro.models.physical_model import BandfluxModel
 
 
 def get_time_windows(t0, time_window_offset):
@@ -83,7 +84,8 @@ def simulate_lightcurves(
         t0 specified, no time window is applied.
     obstable_save_cols : list of str, optional
         A list of ObsTable columns to be saved as part of the results. This is used
-        to save context information about how the lightcurves were generated.
+        to save context information about how the lightcurves were generated. If the column
+        is missing from one of the ObsTables, a null value such as None or NaN is used.
         If None, no additional columns are saved.
     param_cols : list of str, optional
         A list of the model's parameter columns to be saved as separate columns in
@@ -115,6 +117,14 @@ def simulate_lightcurves(
     num_surveys = len(obstable)
     if num_surveys != len(passbands):
         raise ValueError("Number of surveys must match number of passbands.")
+
+    # We do not currently support bandflux models with multiple surveys because
+    # a bandflux model is defined relative to a single survey.
+    if num_surveys > 1 and isinstance(model, BandfluxModel):
+        raise ValueError(
+            "Simulating a BandfluxModel with multiple surveys is currently not supported, "
+            "because the bandflux model is defined relative to the filters of a single survey."
+        )
 
     # Create a dictionary for the object level information, including any saved parameters.
     # Some of these are placeholders (e.g. nobs) until they can be filled in during the simulation.
@@ -158,7 +168,7 @@ def simulate_lightcurves(
     # We loop over objects first, then surveys. This allows us to generate a single block
     # of data for the object over all surveys.
     for idx, state in enumerate(sample_states):
-        num_obs = 0
+        total_num_obs = 0
 
         for survey_idx in range(num_surveys):
             # Find the indices and times where the current model is seen.
@@ -186,22 +196,26 @@ def simulate_lightcurves(
 
             # Append the per-observation data to the nested dictionary, including
             # and needed ObsTable columns.
+            nobs = len(obs_times)
             nested_dict["mjd"].extend(list(obs_times))
             nested_dict["filter"].extend(list(obs_filters))
             nested_dict["flux_perfect"].extend(list(bandfluxes_perfect))
             nested_dict["flux"].extend(list(bandfluxes))
             nested_dict["fluxerr"].extend(list(bandfluxes_error))
-            nested_dict["survey_idx"].extend([survey_idx] * len(obs_times))
+            nested_dict["survey_idx"].extend([survey_idx] * nobs)
             for col in obstable_save_cols:
-                if col not in obstable[survey_idx]:
-                    raise KeyError(f"ObsTable column {col} not found.")
-                nested_dict[col].extend(list(obstable[survey_idx][col].values[obs_index]))
+                col_data = (
+                    list(obstable[survey_idx][col].values[obs_index])
+                    if col in obstable[survey_idx]
+                    else [None] * nobs
+                )
+                nested_dict[col].extend(col_data)
 
-            num_obs += len(obs_times)
-            nested_index.extend([idx] * len(obs_times))
+            total_num_obs += nobs
+            nested_index.extend([idx] * nobs)
 
         # The number of observations is the total across all surveys.
-        results_dict["nobs"][idx] = num_obs
+        results_dict["nobs"][idx] = total_num_obs
 
     # Create the nested frame.
     results = NestedFrame(data=results_dict, index=[i for i in range(num_samples)])
