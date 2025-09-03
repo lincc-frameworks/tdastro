@@ -1,7 +1,7 @@
 import numpy as np
 from tdastro.astro_utils.mag_flux import flux2mag
 from tdastro.astro_utils.zeropoint import flux_electron_zeropoint, magnitude_electron_zeropoint
-from tdastro.opsim.opsim import LSSTCAM_PIXEL_SCALE, _lsstcam_dark_current, _lsstcam_readout_noise
+from tdastro.obstable.opsim import LSSTCAM_PIXEL_SCALE, _lsstcam_dark_current, _lsstcam_readout_noise
 
 
 def test_magnitude_electron_zeropoint():

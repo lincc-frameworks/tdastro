@@ -3,7 +3,7 @@ import pytest
 from tdastro.astro_utils.passbands import PassbandGroup
 from tdastro.graph_state import GraphState
 from tdastro.math_nodes.given_sampler import GivenValueList
-from tdastro.opsim.opsim import OpSim
+from tdastro.obstable.opsim import OpSim
 from tdastro.simulate import get_time_windows, simulate_lightcurves
 from tdastro.sources.basic_models import ConstantSEDModel
 

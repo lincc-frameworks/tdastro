@@ -2,8 +2,8 @@ import numpy as np
 import pandas as pd
 import pytest
 from scipy.optimize import fsolve
-from tdastro.opsim.ztf_opsim import (
-    ZTFOpsim,
+from tdastro.obstable.ztf_obstable import (
+    ZTFObsTable,
     calculate_ztf_zero_points,
     create_random_ztf_opsim,
 )
@@ -56,9 +56,9 @@ def test_calculate_ztf_zero_points():
 
 
 def test_ztf_opsim_init():
-    """Test initializing ZTFOpsim."""
+    """Test initializing ZTFObsTable."""
     opsim_table = create_random_ztf_opsim(100)._table
-    opsim = ZTFOpsim(table=opsim_table)
+    opsim = ZTFObsTable(table=opsim_table)
 
     assert "zp" in opsim
     assert "time" in opsim
@@ -75,7 +75,7 @@ def test_create_ztf_opsim_override():
     """Test that we can override the default survey values."""
     opsim_table = create_random_ztf_opsim(100)._table
 
-    opsim = ZTFOpsim(
+    opsim = ZTFObsTable(
         table=opsim_table,
         dark_current=0.1,
         gain=7.1,
@@ -110,13 +110,13 @@ def test_create_ztf_opsim_no_zp():
     # We fail if we do not have the other columns needed:
     # "maglim", "sky", "fwhm", "exptime"
     with pytest.raises(ValueError):
-        _ = ZTFOpsim(values)
+        _ = ZTFObsTable(values)
 
     values["exptime"] = 0.005 * np.ones(5)
     values["maglim"] = 20.0 * np.ones(5)
     values["scibckgnd"] = np.ones(5)
     values["fwhm"] = 2.3 * np.ones(5)
-    opsim = ZTFOpsim(values)
+    opsim = ZTFObsTable(values)
 
     assert "zp" in opsim
     assert np.all(opsim["zp"] >= 0.0)
@@ -128,7 +128,7 @@ def test_noise_calculation():
     expected_magerr = np.array([0.1])
 
     flux_nJy = np.power(10.0, -0.4 * (mag - 31.4))
-    opsim = ZTFOpsim(
+    opsim = ZTFObsTable(
         table=pd.DataFrame(
             {
                 "ra": 0.0,
