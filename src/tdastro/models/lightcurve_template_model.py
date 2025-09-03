@@ -747,7 +747,7 @@ class MultiLightcurveTemplateModel(BaseLightcurveTemplateModel):
         The passband or passband group to use for defining the lightcurve.
     weights : numpy.ndarray, optional
         A length N array indicating the relative weight from which to select
-        a source at random. If None, all sources will be weighted equally.
+        a lightcurve at random. If None, all lightcurves will be weighted equally.
     """
 
     def __init__(
@@ -768,8 +768,8 @@ class MultiLightcurveTemplateModel(BaseLightcurveTemplateModel):
 
         super().__init__(passbands, filters=list(self.all_filters), **kwargs)
 
-        source_inds = [i for i in range(len(lightcurves))]
-        self._sampler_node = GivenValueSampler(source_inds, weights=weights)
+        all_inds = [i for i in range(len(lightcurves))]
+        self._sampler_node = GivenValueSampler(all_inds, weights=weights)
         self.add_parameter("selected_lightcurve", value=self._sampler_node, allow_gradient=False)
 
         # Assemble a list of baseline values for each filter across all lightcurves.
