@@ -5,8 +5,11 @@ for different survey data, such as Rubin and ZTF."""
 import sqlite3
 from pathlib import Path
 
+import astropy.units as u
 import numpy as np
 import pandas as pd
+from astropy.coordinates import Latitude, Longitude
+from mocpy import MOC
 from scipy.spatial import KDTree
 
 
@@ -217,6 +220,37 @@ class ObsTable:
         if "filter" not in self._table.columns:
             raise KeyError("No filters column found in ObsTable.")
         return np.unique(self._table["filter"])
+
+    def build_moc(self, *, radius=None, max_depth=16):
+        """Build a Multi-Order Coverage Map from the regions in the data set.
+
+        Parameters
+        ----------
+        radius : float, optional
+            The radius to use for each image (in degrees). If not provided, the default
+            radius from the survey values will be used.
+        max_depth : int, optional
+            The maximum depth of the MOC. Default is 16.
+
+        Returns
+        -------
+        MOC
+            The Multi-Order Coverage Map constructed from the data set.
+        """
+        radius = radius if radius is not None else self.survey_values.get("radius", None)
+        if radius is None:
+            raise ValueError("Radius must be provided for MOC construction or as a default. Got None.")
+
+        longitudes = Longitude(self._table["ra"].to_list(), unit="deg")
+        latitudes = Latitude(self._table["dec"].to_list(), unit="deg")
+        moc = MOC.from_cones(
+            lon=longitudes,
+            lat=latitudes,
+            radius=radius * u.deg,
+            max_depth=max_depth,
+            union_strategy="large_cones",
+        )
+        return moc
 
     def _build_kd_tree(self):
         """Construct the KD-tree from the ObsTable."""

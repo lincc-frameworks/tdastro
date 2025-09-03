@@ -24,6 +24,7 @@ dependencies = [
     "extinction>=0.4.7",  # Needed by sncosmo
     "jax",
     "matplotlib",
+    "mocpy",
     "nested-pandas",
     "numpy>2.0",
     "pandas",
