@@ -221,7 +221,7 @@ class ObsTable:
             raise KeyError("No filters column found in ObsTable.")
         return np.unique(self._table["filter"])
 
-    def build_moc(self, *, radius=None, max_depth=16):
+    def build_moc(self, *, radius=None, max_depth=12):
         """Build a Multi-Order Coverage Map from the regions in the data set.
 
         Parameters
@@ -230,7 +230,7 @@ class ObsTable:
             The radius to use for each image (in degrees). If not provided, the default
             radius from the survey values will be used.
         max_depth : int, optional
-            The maximum depth of the MOC. Default is 16.
+            The maximum depth of the MOC. Default is 12.
 
         Returns
         -------
