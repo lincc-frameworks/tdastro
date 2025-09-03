@@ -69,7 +69,7 @@ def test_constant_sed_model_constant_dimming() -> None:
     assert np.all(values2 == 5.0)
 
 
-def test__constant_sed_constant_dimming_alt_params() -> None:
+def test_constant_sed_constant_dimming_alt_params() -> None:
     """Test that we can turn off adding parameters, but this will fail."""
     model = ConstantSEDModel(brightness=10.0, node_label="my_constant_sed_model")
     effect = ConstantDimming(flux_fraction=0.2)
