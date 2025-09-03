@@ -111,7 +111,7 @@ def test_simulate_lightcurves(test_data_dir):
 
 
 def test_simulate_single_lightcurve(test_data_dir):
-    """Test an end to end run of simulating a single lightcurves."""
+    """Test an end to end run of simulating a single lightcurve."""
     # Load the OpSim data.
     opsim_db = OpSim.from_db(test_data_dir / "opsim_small.db")
 
@@ -208,3 +208,65 @@ def test_simulate_with_time_window(test_data_dir):
         results["lightcurve"][1]["mjd"],
         np.array([10.0, 12.0, 14.0, 16.0, 18.0, 20.0, 22.0, 24.0]),
     )
+
+
+def test_simulate_multiple_surveys(test_data_dir):
+    """Test an end to end run of simulating a single lightcurve from multiple surveys."""
+    # The first survey points at two locations in the sky in the "g" and "r" bands.
+    obsdata1 = {
+        "time": [0.0, 1.0, 2.0, 3.0],
+        "ra": [0.0, 0.0, 180.0, 180.0],
+        "dec": [10.0, 10.0, -10.0, -10.0],
+        "filter": ["g", "r", "g", "r"],
+        "zp": [0.4, 0.5, 0.6, 0.7],
+        "seeing": [1.12, 1.12, 1.12, 1.12],
+        "skybrightness": [20.0, 20.0, 20.0, 20.0],
+        "exptime": [29.2, 29.2, 29.2, 29.2],
+        "nexposure": [2, 2, 2, 2],
+    }
+    obstable1 = OpSim(obsdata1)
+    passband_group1 = PassbandGroup.from_preset(
+        preset="LSST",
+        table_dir=test_data_dir / "passbands",
+        filters=["g", "r"],
+    )
+
+    # The second survey points at two locations on the sky in the "r" and "z" bands.
+    obsdata2 = {
+        "time": [0.5, 1.5, 2.5, 3.5],
+        "ra": [0.0, 90.0, 0.0, 90.0],
+        "dec": [10.0, -10.0, 10.0, -10.0],
+        "filter": ["r", "z", "r", "z"],
+        "zp": [0.0, 0.1, 0.2, 0.3],
+        "seeing": [1.12, 1.12, 1.12, 1.12],
+        "skybrightness": [20.0, 20.0, 20.0, 20.0],
+        "exptime": [29.2, 29.2, 29.2, 29.2],
+        "nexposure": [2, 2, 2, 2],
+    }
+    obstable2 = OpSim(obsdata2)
+    passband_group2 = PassbandGroup.from_preset(
+        preset="LSST",
+        table_dir=test_data_dir / "passbands",
+        filters=["r", "z"],
+    )
+
+    # Create a constant SED model with known brightnesses and RA, dec values that
+    # match the (0.0, 10.0) pointing.
+    model = ConstantSEDModel(brightness=100.0, t0=0.0, ra=0.0, dec=10.0, redshift=0.0, node_label="source")
+    results = simulate_lightcurves(
+        model,
+        1,
+        [obstable1, obstable2],
+        [passband_group1, passband_group2],
+        obstable_save_cols=["zp"],
+    )
+    assert len(results) == 1
+
+    # Check that the lightcurve was simulated correctly, including saving the zeropoint information
+    # from each ObsTable.
+    lightcurve = results["lightcurve"][0]
+    print(lightcurve)
+    assert np.allclose(lightcurve["mjd"], np.array([0.0, 1.0, 0.5, 2.5]))
+    assert np.allclose(lightcurve["zp"], np.array([0.4, 0.5, 0.0, 0.2]))
+    assert np.array_equal(lightcurve["filter"], np.array(["g", "r", "r", "r"]))
+    assert np.array_equal(lightcurve["survey_idx"], np.array([0, 0, 1, 1]))
