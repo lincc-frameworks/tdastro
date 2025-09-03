@@ -4,7 +4,7 @@ from tdastro.math_nodes.ra_dec_sampler import (
     ObsTableUniformRADECSampler,
     UniformRADEC,
 )
-from tdastro.opsim.opsim import OpSim
+from tdastro.obstable.opsim import OpSim
 
 
 def test_uniform_ra_dec():

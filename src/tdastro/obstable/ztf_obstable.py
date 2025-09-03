@@ -8,7 +8,7 @@ from astropy.time import Time
 from tdastro.astro_utils.mag_flux import mag2flux
 from tdastro.astro_utils.noise_model import poisson_bandflux_std
 from tdastro.consts import GAUSS_EFF_AREA2FWHM_SQ
-from tdastro.opsim.obs_table import ObsTable
+from tdastro.obstable.obs_table import ObsTable
 
 ZTFCAM_PIXEL_SCALE = 1.01
 """The pixel scale for the ZTF camera in arcseconds per pixel."""
@@ -89,7 +89,7 @@ def calculate_ztf_zero_points(
     return zp
 
 
-class ZTFOpsim(ObsTable):
+class ZTFObsTable(ObsTable):
     """A subclass for ZTF exposure table.
 
     Parameters
@@ -224,7 +224,7 @@ class ZTFOpsim(ObsTable):
         # Close the connection.
         con.close()
 
-        return ZTFOpsim(opsim, colmap=colmap)
+        return ZTFObsTable(opsim, colmap=colmap)
 
     def bandflux_error_point_source(self, bandflux, index):
         """Compute observational bandflux error for a point source
@@ -304,6 +304,6 @@ def create_random_ztf_opsim(num_obs, seed=None):
         "exptime": 30.0 * np.ones(num_obs),
     }
 
-    opsim = ZTFOpsim(input_data)
+    opsim = ZTFObsTable(input_data)
 
     return opsim

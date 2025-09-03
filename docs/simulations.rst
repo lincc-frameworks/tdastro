@@ -84,7 +84,7 @@ Light curves are generated with a multiple step process. First, the object's par
 to get concrete values for each parameter in the model. This combination of parameters is call the graph
 state (and stored in a ``GraphState`` object), because it represents the sampled state of the DAG.
 
-Next, the ``OpSim`` is used to determine at what times and in which bands the object will be evaluated.
+Next, the ``ObsTable`` is used to determine at what times and in which bands the object will be evaluated.
 These times and wavelengths are based into the object's ``evaluate_sed()`` function along with the graph state.
 The ``evaluate_sed()`` function handles the mechanics of the simulation, such as applying redshifts to both the
 times and wavelengths before calling the ``compute_sed()``.

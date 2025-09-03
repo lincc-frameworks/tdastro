@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
-from tdastro.opsim.obs_table import ObsTable
+from tdastro.obstable.obs_table import ObsTable
 
 
 def test_create_obs_table():
