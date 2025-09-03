@@ -178,3 +178,7 @@ def test_approximate_moc_sampler():
     assert np.all(ra[northern_mask] < 92.0)
     assert np.all(ra[~northern_mask] > 13.0)
     assert np.all(ra[~northern_mask] < 17.0)
+    assert np.all(dec[northern_mask] > 18.0)
+    assert np.all(dec[northern_mask] < 22.0)
+    assert np.all(dec[~northern_mask] > -22.0)
+    assert np.all(dec[~northern_mask] < -18.0)
