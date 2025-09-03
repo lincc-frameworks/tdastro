@@ -28,6 +28,7 @@ def test_create_obs_table():
     assert ops_data.survey_values["radius"] is None
     assert ops_data.survey_values["read_noise"] is None
     assert ops_data.survey_values["zp_per_sec"] is None
+    assert ops_data.survey_values["survey_name"] == "Unknown"
 
     # Check that we can extract the time bounds.
     t_min, t_max = ops_data.time_bounds()
@@ -49,7 +50,7 @@ def test_create_obs_table():
     with pytest.raises(KeyError):
         _ = ops_data.get_filters()
 
-    # We can create an OpSim directly from the dictionary as well.
+    # We can create an ObsTable directly from the dictionary as well.
     ops_data2 = ObsTable(pdf)
     assert len(ops_data2) == 5
     assert len(ops_data.columns) == 4
@@ -100,6 +101,21 @@ def test_create_obs_table_override():
     # We can access the filters.
     filters = ops_data.get_filters()
     assert set(filters) == {"r", "g", "i"}
+
+    # Check that we can read in the defaults from the pandas metadata.
+    pdf = pd.DataFrame(values)
+    pdf.attrs["survey_name"] = "test"
+    pdf.attrs["pixel_scale"] = 0.1
+    pdf.attrs["dark_current"] = 0.2
+    pdf.attrs["radius"] = 2.0
+    ops_data2 = ObsTable(pdf, dark_current=0.5, radius=1.0)
+
+    # Check that we use use the updated defaults, preferring the keyword arguments
+    # to the table's metadata.
+    assert ops_data2.survey_values["survey_name"] == "test"
+    assert ops_data2.survey_values["pixel_scale"] == 0.1
+    assert ops_data2.survey_values["dark_current"] == 0.5
+    assert ops_data2.survey_values["radius"] == 1.0
 
 
 def test_create_obs_table_custom_names():
@@ -241,11 +257,52 @@ def test_read_small_obs_table(opsim_small):
     assert len(ops_data) == 300
 
 
+def test_write_read_obs_table_parquet():
+    """Create a minimal observation table data frame, test that we can write it as
+    a parquet file, and test that we can correctly read it back in."""
+
+    # Create a fake obstable data frame with just time, RA, dec, and zp. Add two
+    # pieces of metadata (survey name and pixel scale).
+    values = {
+        "time": np.array([0.0, 1.0, 2.0, 3.0, 4.0]),
+        "ra": np.array([15.0, 30.0, 15.0, 0.0, 60.0]),
+        "dec": np.array([-10.0, -5.0, 0.0, 5.0, 10.0]),
+        "zp": np.ones(5),
+    }
+    ops_data = ObsTable(pd.DataFrame(values), survey_name="test", pixel_scale=0.1)
+
+    with tempfile.TemporaryDirectory() as dir_name:
+        file_path = Path(dir_name, "test_write_read_obs_table.parquet")
+
+        # The obstable does not exist until we write it.
+        assert not file_path.is_file()
+        with pytest.raises(FileNotFoundError):
+            _ = ObsTable.from_parquet(file_path)
+
+        # We can write the obstable parquet.
+        ops_data.write_parquet(file_path)
+        assert file_path.is_file()
+
+        # We can reread the obstable parquet.
+        ops_data2 = ObsTable.from_parquet(file_path)
+        assert len(ops_data2) == 5
+        assert np.allclose(values["time"], ops_data2["time"].to_numpy())
+        assert np.allclose(values["ra"], ops_data2["ra"].to_numpy())
+        assert np.allclose(values["dec"], ops_data2["dec"].to_numpy())
+        assert ops_data2.survey_values["survey_name"] == "test"
+        assert ops_data2.survey_values["pixel_scale"] == 0.1
+
+        # We cannot overwrite unless we set overwrite=True
+        with pytest.raises(FileExistsError):
+            ops_data.write_parquet(file_path, overwrite=False)
+        ops_data.write_parquet(file_path, overwrite=True)
+
+
 def test_write_read_obs_table():
     """Create a minimal observation table data frame, test that we can write it,
     and test that we can correctly read it back in."""
 
-    # Create a fake opsim data frame with just time, RA, and dec.
+    # Create a fake obstable data frame with just time, RA, and dec.
     values = {
         "time": np.array([0.0, 1.0, 2.0, 3.0, 4.0]),
         "ra": np.array([15.0, 30.0, 15.0, 0.0, 60.0]),
@@ -257,16 +314,16 @@ def test_write_read_obs_table():
     with tempfile.TemporaryDirectory() as dir_name:
         file_path = Path(dir_name, "test_write_read_obs_table.db")
 
-        # The opsim does not exist until we write it.
+        # The obstable does not exist until we write it.
         assert not file_path.is_file()
         with pytest.raises(FileNotFoundError):
             _ = ObsTable.from_db(file_path)
 
-        # We can write the opsim db.
+        # We can write the obstable db.
         ops_data.write_db(file_path)
         assert file_path.is_file()
 
-        # We can reread the opsim db.
+        # We can reread the obstable db.
         ops_data2 = ObsTable.from_db(file_path)
         assert len(ops_data2) == 5
         assert np.allclose(values["time"], ops_data2["time"].to_numpy())

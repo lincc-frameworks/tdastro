@@ -85,6 +85,7 @@ class OpSim(ObsTable):
         "radius": _lsstcam_view_radius,
         "read_noise": _lsstcam_readout_noise,
         "zp_per_sec": _lsstcam_zeropoint_per_sec_zenith,
+        "survey_name": "LSST",
     }
 
     # Class constants for the column names.
