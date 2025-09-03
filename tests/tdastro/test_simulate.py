@@ -223,6 +223,7 @@ def test_simulate_multiple_surveys(test_data_dir):
         "skybrightness": [20.0, 20.0, 20.0, 20.0],
         "exptime": [29.2, 29.2, 29.2, 29.2],
         "nexposure": [2, 2, 2, 2],
+        "custom_col": [1, 1, 1, 1],
     }
     obstable1 = OpSim(obsdata1)
     passband_group1 = PassbandGroup.from_preset(
@@ -237,7 +238,7 @@ def test_simulate_multiple_surveys(test_data_dir):
         "ra": [0.0, 90.0, 0.0, 90.0],
         "dec": [10.0, -10.0, 10.0, -10.0],
         "filter": ["r", "z", "r", "z"],
-        "zp": [0.0, 0.1, 0.2, 0.3],
+        "zp": [0.05, 0.1, 0.2, 0.3],
         "seeing": [1.12, 1.12, 1.12, 1.12],
         "skybrightness": [20.0, 20.0, 20.0, 20.0],
         "exptime": [29.2, 29.2, 29.2, 29.2],
@@ -265,8 +266,26 @@ def test_simulate_multiple_surveys(test_data_dir):
     # Check that the lightcurve was simulated correctly, including saving the zeropoint information
     # from each ObsTable.
     lightcurve = results["lightcurve"][0]
-    print(lightcurve)
     assert np.allclose(lightcurve["mjd"], np.array([0.0, 1.0, 0.5, 2.5]))
-    assert np.allclose(lightcurve["zp"], np.array([0.4, 0.5, 0.0, 0.2]))
+    assert np.allclose(lightcurve["zp"], np.array([0.4, 0.5, 0.05, 0.2]))
     assert np.array_equal(lightcurve["filter"], np.array(["g", "r", "r", "r"]))
     assert np.array_equal(lightcurve["survey_idx"], np.array([0, 0, 1, 1]))
+
+    # We fail if we pass in lists of different lengths.
+    with pytest.raises(ValueError):
+        simulate_lightcurves(
+            model,
+            1,
+            [obstable1, obstable2],
+            passband_group1,
+        )
+
+    # We fail if try to save a column that is not in every ObsTable.
+    with pytest.raises(KeyError):
+        simulate_lightcurves(
+            model,
+            1,
+            [obstable1, obstable2],
+            [passband_group1, passband_group2],
+            obstable_save_cols=["custom_col"],
+        )
