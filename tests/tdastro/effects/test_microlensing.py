@@ -61,7 +61,7 @@ def test_microlensing_bandflux() -> None:
     assert np.all(np.diff(values[5:num_times]) <= 0)
 
 
-def test_static_source_microlensing() -> None:
+def test_constant_sed_microlensing() -> None:
     """Test that we can apply microlensing to a ConstantSEDModel."""
     num_times = 50
     microlensing_t0 = 5.0

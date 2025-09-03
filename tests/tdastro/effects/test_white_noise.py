@@ -46,7 +46,7 @@ def test_white_noise_bandflux() -> None:
         _ = white_noise.apply_bandflux(values)
 
 
-def test_static_source_white_noise() -> None:
+def test_constant_sed_model_white_noise() -> None:
     """Test that we can sample and create a ConstantSEDModel object with white noise."""
     model = ConstantSEDModel(
         brightness=10.0,
@@ -79,7 +79,7 @@ def test_static_source_white_noise() -> None:
     assert np.all(values1 == values2)
 
 
-def test_static_source_white_noise_obs_frame() -> None:
+def test_constant_sed_model_white_noise_obs_frame() -> None:
     """Test that we can make the WhiteNoise an observer frame effect.
     While this does not make physical sense, it allows us to test that code path.
     """

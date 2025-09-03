@@ -1,7 +1,7 @@
-"""The base classes for all sources.
+"""The base classes for all models.
 
 The code supports two types of models: 1) SEDModels define recipes for computing SEDs
-from a source at given times and wavelengths, accounting for redshift and other effects.
+at given times and wavelengths, accounting for redshift and other effects.
 2) BandfluxModels only compute band fluxes for specific passbands instead of the SEDs. This is used for models
 that are empirically fit from observed band fluxes.
 
@@ -20,7 +20,7 @@ from tdastro.base_models import ParameterizedNode
 
 
 class BasePhysicalModel(ParameterizedNode, ABC):
-    """The abstract base class used to represent a physical model of a source. This includes
+    """The abstract base class used to represent a physical model of a source of flux. This includes
     basic attributes, such as right ascension, declination, redshift, and distance.
 
     Physical models can have fixed attributes (where you need to create a new model or use
