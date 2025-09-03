@@ -8,9 +8,9 @@ from tdastro.math_nodes.given_sampler import BinarySampler
 
 
 class Microlensing(EffectModel, CiteClass):
-    """A simple microlensing effect that can be applied to basic sources. For more
-    complex sources, such as those blended by the microlensing event, it is recommended
-    to create a new source model.
+    """A simple microlensing effect that can be applied to basic models. For more
+    complex models, such as those blended by the microlensing event, it is recommended
+    to create a new physical model.
 
     This model is a pure Paczynski/point-source point-lens (PSPL) model, without any
     additional effects. They can be added later. At the moment no values are parametrized,

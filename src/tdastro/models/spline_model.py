@@ -7,7 +7,7 @@ https://github.com/sncosmo/sncosmo/blob/v2.10.1/sncosmo/models.py
 
 from scipy.interpolate import RectBivariateSpline
 
-from tdastro.sources.physical_model import SEDModel
+from tdastro.models.physical_model import SEDModel
 from tdastro.utils.io_utils import read_grid_data
 
 

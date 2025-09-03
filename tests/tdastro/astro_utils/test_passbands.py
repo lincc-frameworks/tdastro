@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from sncosmo import Bandpass
 from tdastro.astro_utils.passbands import Passband
-from tdastro.sources.spline_model import SplineModel
+from tdastro.models.spline_model import SplineModel
 
 
 def create_lsst_passband(path, filter_name, **kwargs):

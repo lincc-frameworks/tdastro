@@ -26,11 +26,11 @@ features and models of the TDAstro package.
 
     Using Rubin OpSims in Simulations <notebooks/opsim_notebook>
     Passband Demo <notebooks/passband-demo>
-    Adding New Source Types <notebooks/adding_sources>
+    Adding New Model Types <notebooks/adding_sources>
     Adding New Effect Types <notebooks/adding_effects>
     Creating Time Varying Effects <notebooks/time_varying_effects>
-    Combining Sources (including Hosts/Sources) <notebooks/host_source_models>
-    Lightcurve Source Demo <notebooks/lightcurve_source_demo>
+    Combining Models (including Hosts/Sources) <notebooks/host_source_models>
+    Lightcurve Template Model Demo <notebooks/lightcurve_source_demo>
     Advanced Sampling Techniques <notebooks/advanced_sampling>
 
 

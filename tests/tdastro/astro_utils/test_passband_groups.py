@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from sncosmo import Bandpass
 from tdastro.astro_utils.passbands import Passband, PassbandGroup
-from tdastro.sources.spline_model import SplineModel
+from tdastro.models.spline_model import SplineModel
 
 
 def create_lsst_passband_group(passbands_dir, delta_wave=5.0, trim_quantile=None):

@@ -2,8 +2,8 @@ import numpy as np
 import pytest
 from citation_compass import find_in_citations
 from sncosmo.models import SALT2Source
-from tdastro.sources.salt2_jax import SALT2JaxModel
-from tdastro.sources.sncomso_models import SncosmoWrapperModel
+from tdastro.models.salt2_jax import SALT2JaxModel
+from tdastro.models.sncomso_models import SncosmoWrapperModel
 
 
 def test_salt2_model_parity(test_data_dir):

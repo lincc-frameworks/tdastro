@@ -3,9 +3,9 @@ import pytest
 from tdastro.astro_utils.passbands import Passband, PassbandGroup
 from tdastro.effects.basic_effects import ConstantDimming
 from tdastro.math_nodes.np_random import NumpyRandomFunc
-from tdastro.sources.basic_models import ConstantSEDModel, StepModel
-from tdastro.sources.multi_object_model import AdditiveMultiObjectModel, RandomMultiObjectModel
-from tdastro.sources.static_sed_source import StaticBandfluxModel, StaticSEDModel
+from tdastro.models.basic_models import ConstantSEDModel, StepModel
+from tdastro.models.multi_object_model import AdditiveMultiObjectModel, RandomMultiObjectModel
+from tdastro.models.static_sed_model import StaticBandfluxModel, StaticSEDModel
 
 
 def test_additive_multi_object_node() -> None:

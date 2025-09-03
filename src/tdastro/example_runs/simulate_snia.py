@@ -16,8 +16,8 @@ from tdastro.astro_utils.snia_utils import (
 from tdastro.astro_utils.unit_utils import flam_to_fnu, fnu_to_flam
 from tdastro.math_nodes.np_random import NumpyRandomFunc
 from tdastro.math_nodes.scipy_random import SamplePDF
-from tdastro.sources.sncomso_models import SncosmoWrapperModel
-from tdastro.sources.snia_host import SNIaHost
+from tdastro.models.sncomso_models import SncosmoWrapperModel
+from tdastro.models.snia_host import SNIaHost
 
 logger = logging.getLogger(__name__)
 

@@ -30,7 +30,7 @@ def get_time_windows(t0, time_window_offset):
         this is always returned as an array (even if t0 is a scalar). None returned if there is
         no end time.
     """
-    # If the source did not have a t0 or we do not have a time_window_offset,
+    # If the model did not have a t0 or we do not have a time_window_offset,
     # we cannot apply a time window.
     if t0 is None or time_window_offset is None:
         return None, None
@@ -48,7 +48,7 @@ def get_time_windows(t0, time_window_offset):
 
 
 def simulate_lightcurves(
-    source,
+    model,
     num_samples,
     obstable,
     passbands,
@@ -60,11 +60,11 @@ def simulate_lightcurves(
     rng=None,
     generate_citations=False,
 ):
-    """Generate a number of simulations of the given source.
+    """Generate a number of simulations of the given model.
 
     Parameters
     ----------
-    source : BasePhysicalModel
+    model : BasePhysicalModel
         The model to draw from. This may have its own parameters which
         will be randomly sampled with each draw.
     num_samples : int
@@ -85,7 +85,7 @@ def simulate_lightcurves(
         to save context information about how the lightcurves were generated.
         If None, no additional columns are saved.
     param_cols : list of str, optional
-        A list of source parameter columns to be saved as separate columns in
+        A list of the model's parameter columns to be saved as separate columns in
         the results (instead of just the full dictionary of parameters). These
         must be specified as strings in the node_name.param_name format.
         If None, no additional columns are saved.
@@ -103,24 +103,24 @@ def simulate_lightcurves(
     # Sample the parameter space of this model.
     if num_samples <= 0:
         raise ValueError("Invalid number of samples.")
-    sample_states = source.sample_parameters(num_samples=num_samples, rng_info=rng)
+    sample_states = model.sample_parameters(num_samples=num_samples, rng_info=rng)
 
     # Create a dictionary for the object level information, including any saved parameters.
     # Some of these are placeholders (e.g. nobs) until they can be filled in during the simulation.
-    ra = np.atleast_1d(source.get_param(sample_states, "ra"))
-    dec = np.atleast_1d(source.get_param(sample_states, "dec"))
+    ra = np.atleast_1d(model.get_param(sample_states, "ra"))
+    dec = np.atleast_1d(model.get_param(sample_states, "dec"))
     results_dict = {
         "id": [i for i in range(num_samples)],
         "ra": ra.tolist(),
         "dec": dec.tolist(),
         "nobs": [0] * num_samples,
-        "z": np.atleast_1d(source.get_param(sample_states, "redshift")).tolist(),
+        "z": np.atleast_1d(model.get_param(sample_states, "redshift")).tolist(),
         "params": [state.to_dict() for state in sample_states],
     }
     if param_cols is not None:
         for col in param_cols:
             if col not in sample_states:
-                raise KeyError(f"Parameter column {col} not found in source parameters.")
+                raise KeyError(f"Parameter column {col} not found in model parameters.")
             results_dict[col.replace(".", "_")] = np.atleast_1d(sample_states[col]).tolist()
 
     # Set up the nested array for the per-observation data, including ObsTable information.
@@ -139,7 +139,7 @@ def simulate_lightcurves(
 
     # Determine which of the of the simulated positions match ObsTable locations.
     start_times, end_times = get_time_windows(
-        source.get_param(sample_states, "t0"),
+        model.get_param(sample_states, "t0"),
         time_window_offset,
     )
     all_obs_matches = obstable.range_search(ra, dec, t_min=start_times, t_max=end_times)
@@ -149,7 +149,7 @@ def simulate_lightcurves(
     all_filters = np.asarray(obstable["filter"].values, dtype=str)
 
     for idx, state in enumerate(sample_states):
-        # Find the indices and times where the current source is seen.
+        # Find the indices and times where the current model is seen.
         obs_index = np.asarray(all_obs_matches[idx])
         if len(obs_index) == 0:
             obs_times = []
@@ -159,14 +159,14 @@ def simulate_lightcurves(
 
             # Filter to only the "interesting" indices / times for this object.
             if apply_obs_mask:
-                obs_mask = source.mask_by_time(obs_times, state)
+                obs_mask = model.mask_by_time(obs_times, state)
                 obs_index = obs_index[obs_mask]
                 obs_times = obs_times[obs_mask]
             # Extract the filters for this observation.
             obs_filters = all_filters[obs_index]
 
         # Compute the bandfluxes and errors over just the given filters.
-        bandfluxes_perfect = source.evaluate_bandfluxes(passbands, obs_times, obs_filters, state)
+        bandfluxes_perfect = model.evaluate_bandfluxes(passbands, obs_times, obs_filters, state)
         bandfluxes_error = obstable.bandflux_error_point_source(bandfluxes_perfect, obs_index)
         bandfluxes = apply_noise(bandfluxes_perfect, bandfluxes_error, rng=rng)
 

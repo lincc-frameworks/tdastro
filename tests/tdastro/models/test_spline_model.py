@@ -1,7 +1,7 @@
 import os
 
 import numpy as np
-from tdastro.sources.spline_model import SplineModel
+from tdastro.models.spline_model import SplineModel
 from tdastro.utils.wave_extrapolate import ConstantExtrapolation
 
 

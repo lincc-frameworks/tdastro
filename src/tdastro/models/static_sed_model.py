@@ -5,7 +5,7 @@ from astropy import units as u
 from citation_compass import cite_function
 
 from tdastro.math_nodes.given_sampler import GivenValueSampler
-from tdastro.sources.physical_model import BandfluxModel, SEDModel
+from tdastro.models.physical_model import BandfluxModel, SEDModel
 from tdastro.utils.io_utils import read_numpy_data
 
 
