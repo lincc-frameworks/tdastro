@@ -9,7 +9,7 @@ from tdastro.astro_utils.zeropoint import (
     _lsstcam_extinction_coeff,
     _lsstcam_zeropoint_per_sec_zenith,
 )
-from tdastro.opsim.opsim import (
+from tdastro.obstable.opsim import (
     OpSim,
     create_random_opsim,
     opsim_add_random_data,

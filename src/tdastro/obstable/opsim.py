@@ -17,7 +17,7 @@ from tdastro.astro_utils.zeropoint import (
     flux_electron_zeropoint,
 )
 from tdastro.consts import GAUSS_EFF_AREA2FWHM_SQ
-from tdastro.opsim.obs_table import ObsTable
+from tdastro.obstable.obs_table import ObsTable
 from tdastro.utils.data_download import download_data_file_if_needed
 
 LSSTCAM_PIXEL_SCALE = 0.2
