@@ -147,6 +147,7 @@ class ZTFObsTable(ObsTable):
         "pixel_scale": ZTFCAM_PIXEL_SCALE,
         "radius": _ztfcam_view_radius,
         "read_noise": _ztfcam_readout_noise,
+        "survey_name": "ZTF",
     }
 
     def __init__(self, table, colmap=None, **kwargs):
@@ -259,7 +260,7 @@ class ZTFObsTable(ObsTable):
         )
 
 
-def create_random_ztf_opsim(num_obs, seed=None):
+def create_random_stf_obstable(num_obs, seed=None):
     """Create a random OpSim pointings drawn uniformly from (RA, dec).
 
     Parameters

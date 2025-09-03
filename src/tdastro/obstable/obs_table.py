@@ -17,7 +17,8 @@ class ObsTable:
     Parameters
     ----------
     table : dict or pandas.core.frame.DataFrame
-        The table with all the survey information.
+        The table with all the survey information. Metadata can be included in the
+        "tdastro_survey_data" entry of the attributes dictionary.
     colmap : dict, optional
         A mapping of standard column names to their names in the input table.
         For example, in Rubin's OpSim we might have the column "observationStartMJD"
@@ -53,6 +54,7 @@ class ObsTable:
         "radius": None,
         "read_noise": None,
         "zp_per_sec": None,
+        "survey_name": "Unknown",
     }
 
     def __init__(
@@ -93,8 +95,14 @@ class ObsTable:
                 raise KeyError(f"Missing required column: {col}")
 
         # Save the survey values, overwriting anything that is manually specified
-        # as a keyword argument.
+        # as a keyword argument or provided in the table's metadata.
         self.survey_values = self._default_survey_values.copy()
+        if "tdastro_survey_data" in self._table.attrs:
+            metadata = self._table.attrs["tdastro_survey_data"]
+            if not isinstance(metadata, dict):
+                raise TypeError("Got unexpected type for tdastro_survey_data")
+            for key, value in metadata.items():
+                self.survey_values[key] = value
         for key, value in kwargs.items():
             self.survey_values[key] = value
 
@@ -185,6 +193,25 @@ class ObsTable:
 
         return cls(survey_data, **kwargs)
 
+    @classmethod
+    def from_parquet(cls, filename):
+        """Create an ObsTable object from a parquet file.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the parquet file to read.
+
+        Returns
+        -------
+        ObsTable
+            A table with all of the pointing data.
+        """
+        if not Path(filename).is_file():
+            raise FileNotFoundError(f"File {filename} not found.")
+        survey_data = pd.read_parquet(filename)
+        return cls(survey_data)
+
     def get_filters(self):
         """Get the unique filters in the ObsTable."""
         if "filter" not in self._table.columns:
@@ -260,6 +287,28 @@ class ObsTable:
             raise ValueError("Database write failed.") from None
 
         con.close()
+
+    def write_parquet(self, filename, *, overwrite=False):
+        """Write out the observation table as a parquet file.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the parquet file.
+        overwrite : bool
+            Overwrite the existing parquet file.
+            Default: False
+
+        Raise
+        -----
+        FileExistsError if the file already exists and overwrite is False.
+        """
+        if not overwrite and Path(filename).is_file():
+            raise FileExistsError(f"File {filename} already exists.")
+
+        # Save all the survey data as metadata.
+        self._table.attrs["tdastro_survey_data"] = self.survey_values
+        self._table.to_parquet(filename)
 
     def time_bounds(self):
         """Returns the min and max times for all observations in the ObsTable.

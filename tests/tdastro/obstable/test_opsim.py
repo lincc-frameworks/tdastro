@@ -38,6 +38,7 @@ def test_create_opsim():
     assert ops_data.survey_values["radius"] == 1.75
     assert ops_data.survey_values["read_noise"] == 8.8
     assert ops_data.survey_values["zp_per_sec"] == _lsstcam_zeropoint_per_sec_zenith
+    assert ops_data.survey_values["survey_name"] == "LSST"
 
     # Check that we can extract the time bounds.
     t_min, t_max = ops_data.time_bounds()
@@ -275,8 +276,8 @@ def test_read_small_opsim(opsim_small):
     assert len(ops_data) == 300
 
 
-def test_write_read_opsim():
-    """Create a minimal opsim data frame, test that we can write it,
+def test_write_read_opsim_db():
+    """Create a minimal opsim data frame, test that we can write it as a database table,
     and test that we can correctly read it back in."""
 
     # Create a fake opsim data frame with just time, RA, and dec.
@@ -311,6 +312,49 @@ def test_write_read_opsim():
         with pytest.raises(ValueError):
             ops_data.write_db(file_path, overwrite=False)
         ops_data.write_db(file_path, overwrite=True)
+
+
+def test_write_read_opsim_parquet():
+    """Create a minimal opsim data frame, test that we can write it as a parquet file,
+    and test that we can correctly read it back in."""
+
+    # Create a fake opsim data frame with just time, RA, and dec.
+    values = {
+        "observationStartMJD": np.array([0.0, 1.0, 2.0, 3.0, 4.0]),
+        "fieldRA": np.array([15.0, 30.0, 15.0, 0.0, 60.0]),
+        "fieldDec": np.array([-10.0, -5.0, 0.0, 5.0, 10.0]),
+        "zp_nJy": np.ones(5),
+    }
+    pdf = pd.DataFrame(values)
+    pdf.attrs["tdastro_survey_data"] = {"pixel_scale": 0.001}
+    ops_data = OpSim(pdf, radius=10.0)
+
+    with tempfile.TemporaryDirectory() as dir_name:
+        file_path = Path(dir_name, "test_write_read_opsim.parquet")
+
+        # The opsim does not exist until we write it.
+        assert not file_path.is_file()
+        with pytest.raises(FileNotFoundError):
+            _ = OpSim.from_parquet(file_path)
+
+        # We can write the opsim db.
+        ops_data.write_parquet(file_path)
+        assert file_path.is_file()
+
+        # We can reread the opsim db.
+        ops_data2 = OpSim.from_parquet(file_path)
+        assert len(ops_data2) == 5
+        assert np.allclose(values["observationStartMJD"], ops_data2["time"].to_numpy())
+        assert np.allclose(values["fieldRA"], ops_data2["ra"].to_numpy())
+        assert np.allclose(values["fieldDec"], ops_data2["dec"].to_numpy())
+        assert ops_data2.survey_values["pixel_scale"] == 0.001
+        assert ops_data2.survey_values["radius"] == 10.0
+        assert ops_data2.survey_values["survey_name"] == "LSST"
+
+        # We cannot overwrite unless we set overwrite=True
+        with pytest.raises(FileExistsError):
+            ops_data.write_parquet(file_path, overwrite=False)
+        ops_data.write_parquet(file_path, overwrite=True)
 
 
 def test_opsim_range_search():
