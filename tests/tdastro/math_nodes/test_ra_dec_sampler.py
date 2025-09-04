@@ -211,4 +211,4 @@ def test_approximate_moc_sampler_from_file():
             moc.save(file_path, format=fmt)
             moc_sampler = ApproximateMOCSampler.from_file(file_path, format=fmt)
 
-            assert moc_sampler.moc is not None
+            assert moc_sampler.healpix_list is not None
