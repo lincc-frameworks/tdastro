@@ -12,18 +12,25 @@ Introduction
 
    TDAstro simulation components
 
-The main simulation components in TDAstro include:
+TDAstro simulation function is designed to produce multiple samples from single population
+of objects and their observed light curves as determined by given survey information. The main
+step includes the following components:
 
-* A statistical simulation step where the hyperparameters of the model are drawn
-  from one or more prior distributions.
-* A model that defines the properties of the time-domain light source, which can
-  also include a host-galaxy model, and is used to generate the noise-free light curves.
+* A statistical simulation step where parameters (and hyperparameters) of the modeled phenomenon
+  are drawn from one or more prior distributions.
+* A mathematical model that defines the properties of the time-domain light source, which can
+  also include a host-galaxy model, and is used to generate the noise-free light curves (given
+  the sampled parameters).
 * ``ObsTable`` contains the survey information such as survey strategy and observing
   conditions. It is used to specify the observing times and bands.
 * A set of predefined effects, such as dust extinction and detector noise, are applied to
   the noise-free light curves to produce realistic light curves.
 * The ``PassbandGroup`` contains the filter information of the telescope and is used
   to calculate the fluxes in each band.
+
+To perform a simulation that includes different populations of objects, the user would run the core
+simulate function multiple times--once for each population. The results can then be concatenated together
+to provide a full set of observations.
 
 For an overview of the package, we recommend starting with the notebooks in the "Getting Started"
 section of the :doc:`notebooks page <notebooks>`. The :doc:`glossary <glossary>` provides definitions of
@@ -34,15 +41,21 @@ Defining a parameterized model
 -------------------------------------------------------------------------------
 
 The core idea behind TDAstro is that we want to generate light curves from parameterized models
-of physical objects. The ``BasePhysicalModel`` class defines the structure for modeling physical objects and
-is subclassed into ``SEDModel`` (for models that simulate the full spectral energy distributions) and
-``BandfluxModel`` (for models that simulate band fluxes).  New object types can be derived from either
-of these two subclasses.
+of astronomical objects/phenomena. The ``BasePhysicalModel`` class defines the structure for modeling
+physical objects and is subclassed into ``SEDModel`` (for models that simulate the full spectral energy
+distributions) and ``BandfluxModel`` (for models that simulate band fluxes). By providing a distribution of
+parameter values into the model, users can simulate an entire population of these objects. For example, they
+could use the `SALT2JaxModel` with parameterized values of `c`, `x0`, and `x1` to simulate a population of
+Type Ia supernovae. 
+
+In addition to the built-in models, the software provides wrappers to common modeling packages such as
+`sncosmo <https://sncosmo.readthedocs.io/en/stable/>`__ (see the `SncosmoModel` class).
+Users can also create their own models by subclassing either ``SEDModel`` or ``BandfluxModel``.
 
 For new SED-type models, the class needs to implement a ``compute_sed()`` function that generates the
 noise-free flux densities in the object's rest frame given information about the times, wavelengths, and
 model parameters (called graph_state). Both the times and wavelengths are converted to account for redshift
-before being passed to the ``compute_sed()`` function.
+before being passed to the ``compute_sed()`` function, so the function takes rest frame times and wavelengths.
 
 .. code-block:: python
 
@@ -56,7 +69,10 @@ A user of a particular physical model only needs to understand what parameters t
 and how they are set. A user creating a new physical model additionally needs to know how the noise-free,
 rest frame flux density values are generated from those parameters.
 
-The parameters that are defined by a hierarchical model can be visualized by a Directed Acyclic Graph (DAG).
+Parameterization
+-------------------------------------------------------------------------------
+
+The model's parameters are defined by a hierarchical model can be visualized by a Directed Acyclic Graph (DAG).
 This means that the parameters to our physical model, such as a type Ia supernova, can themselves be sampled
 based on distributions of hyperparameters. For example, a simplified SNIa model with a host component
 can have the following DAG:
@@ -80,9 +96,9 @@ define the parameter DAG.
 Generating light curves
 -------------------------------------------------------------------------------
 
-Light curves are generated with a multiple step process. First, the object's parameter DAG is sampled
-to get concrete values for each parameter in the model. This combination of parameters is call the graph
-state (and stored in a ``GraphState`` object), because it represents the sampled state of the DAG.
+Sample light curves for a population are generated with a multiple step process. First, the object's parameter
+DAG is sampled to get concrete values for each parameter in the model. This combination of parameters is call
+the graph. state (and stored in a ``GraphState`` object), because it represents the sampled state of the DAG.
 
 Next, the ``ObsTable`` is used to determine at what times and in which bands the object will be evaluated.
 These times and wavelengths are based into the object's ``evaluate_sed()`` function along with the graph state.

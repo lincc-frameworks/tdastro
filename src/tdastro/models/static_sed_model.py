@@ -67,7 +67,7 @@ class StaticSEDModel(SEDModel):
         self.add_parameter("selected_idx", value=self._sampler_node, allow_gradient=False)
 
     def __len__(self):
-        """Get the number of lightcurves."""
+        """Get the number of SED value."""
         return len(self.sed_values)
 
     @classmethod
@@ -260,7 +260,7 @@ class StaticBandfluxModel(BandfluxModel):
         self.add_parameter("selected_idx", value=self._sampler_node, allow_gradient=False)
 
     def __len__(self):
-        """Get the number of lightcurves."""
+        """Get the number of band flux values."""
         return len(self.bandflux_values)
 
     def compute_bandflux(self, times, filters, state, rng_info=None):

@@ -240,7 +240,7 @@ class TimeSuite:
             t0=0.0,
         )
 
-        # Sample the lightcurve source to ensure it works.
+        # Sample the light curve source to ensure it works.
         graph_state = lc_source.sample_parameters(num_samples=100)
         _ = lc_source.evaluate_bandfluxes(
             self.passbands,
