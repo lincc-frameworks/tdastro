@@ -24,7 +24,8 @@ time-domain simulation software with realistic effects and survey strategies.
 The main simulation components in TDAstro include:
 
 * A statistical simulation step where the hyperparameters of the model are drawn
-  from one or more prior distributions.
+  from one or more prior distributions. This can include existing packages such as
+  `pzflow <https://pzflow.readthedocs.io/en/latest/>`_ or custom distributions.
 * A model that defines the properties of the time-domain light source, which can
   also include a host-galaxy model, and is used to generate the noise-free light curves.
 * ``ObsTable`` contains the survey information such as survey strategy and observing
@@ -83,7 +84,7 @@ Since TDAstro relies on a large number of existing packages, not all of the pack
 are installed in the default configuration. For example the microlensing (`VBMicrolensing`),
 pzflow (`pzflow`), and sncosmo (`sncosmo`) packages are not included by default. If you try to
 import a module that is not installed, TDAstro will raise an `ImportError` with information on which
-packages you need to install. You will need to install these manually. You can also install all
+packages you need to install. You will need to install these manually. You can also install most
 optional dependencies with:
 
 .. tab-set::
@@ -114,7 +115,8 @@ Running TDAstro in a Jupyter Notebook
 -------------------------------------------------------------------------------
 
 Note that to run the TDAstro within a notebook, your notebook kernel will need to have TDAstro installed.
-If you are using JupyterLab, you can install the kernel with (using the Terminal program):
+If you are using JupyterLab, you can install the kernel with the following commands
+(using the Terminal program):
 
 .. code-block:: bash
 

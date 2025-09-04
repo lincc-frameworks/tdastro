@@ -84,7 +84,7 @@ def simulate_lightcurves(
         t0 specified, no time window is applied.
     obstable_save_cols : list of str, optional
         A list of ObsTable columns to be saved as part of the results. This is used
-        to save context information about how the lightcurves were generated. If the column
+        to save context information about how the light curves were generated. If the column
         is missing from one of the ObsTables, a null value such as None or NaN is used.
         If None, no additional columns are saved.
     param_cols : list of str, optional

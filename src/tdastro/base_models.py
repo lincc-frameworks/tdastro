@@ -27,7 +27,7 @@ ordering of model parameters in the graph. Y must be computed before X.
 ParameterNodes provide semantic groupings of individual parameters. For example, we may
 have a ParameterNode representing the information needed for a Type Ia supernova.
 That node's parameters would include the variables needed to evaluate the supernova's
-lightcurve. Each of these parameters might depend on parameters in other nodes, such
+light curve. Each of these parameters might depend on parameters in other nodes, such
 as those of the host galaxy.
 
 The execution graph is processed by starting at the final node, examining each

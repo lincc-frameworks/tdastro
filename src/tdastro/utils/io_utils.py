@@ -212,7 +212,7 @@ def _read_lclib_data_from_open_file(input_file):
                 current_model[col] = []
             meta["id"] = value
         elif key == "S" or key == "T":
-            # Save an observation or template to the current lightcurve.
+            # Save an observation or template to the current light curve.
             current_model["type"].append(key)  # Get the type from the key.
 
             # Get the time and magnitudes from the columns.
