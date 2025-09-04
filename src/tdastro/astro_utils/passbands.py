@@ -348,19 +348,14 @@ class PassbandGroup:
         if not success:
             raise RuntimeError(f"Failed to download Roman passband table from {table_url}.")
 
-        # The detectors are 4096 x 4096 pixels with a pixel size of 10 x 10 microns.
-        detector_area = (10e-5 * 4096) * (10e-5 * 4096)  # m^2
-
-        # Load the table, convert the wavelengths from microns to Angstroms,
-        # create Passband objects.
+        # Load the table, convert the wavelengths from microns to Angstroms, create Passband objects.
+        # The table contains effective area in m^2, but since we normalize the transmission tables,
+        # we can just use this directly.
         table = pd.read_csv(table_path, comment="#", sep=r"[\s,]+")
         waves = table["Wave"].values * 10_000  # Convert microns to Angstroms
 
         for filter_name in ["F062", "F087", "F106", "F129", "F146", "F158", "F184", "F213"]:
-            # Load the effective area from the table and convert to throughput (A_effective / A_actual)
-            effective_area = table[filter_name].values.astype(float)  # m^2
-            throughput = effective_area / detector_area
-            table_values = np.vstack([waves, throughput]).T
+            table_values = np.vstack([waves, table[filter_name].values.astype(float)]).T
             pb = Passband(table_values, "Roman", filter_name, **kwargs)
             passbands.append(pb)
         return passbands
