@@ -12,7 +12,7 @@ Introduction
 
    TDAstro simulation components
 
-TDAstro simulation function is designed to produce multiple samples from single population
+The TDAstro simulation function is designed to produce multiple samples from single population
 of objects and their observed light curves as determined by given survey information. The main
 step includes the following components:
 
@@ -72,7 +72,7 @@ rest frame flux density values are generated from those parameters.
 Parameterization
 -------------------------------------------------------------------------------
 
-The model's parameters are defined by a hierarchical model can be visualized by a Directed Acyclic Graph (DAG).
+The model's parameters are defined by a hierarchical model that can be visualized by a Directed Acyclic Graph (DAG).
 This means that the parameters to our physical model, such as a type Ia supernova, can themselves be sampled
 based on distributions of hyperparameters. For example, a simplified SNIa model with a host component
 can have the following DAG:
@@ -97,8 +97,8 @@ Generating light curves
 -------------------------------------------------------------------------------
 
 Sample light curves for a population are generated with a multiple step process. First, the object's parameter
-DAG is sampled to get concrete values for each parameter in the model. This combination of parameters is call
-the graph. state (and stored in a ``GraphState`` object), because it represents the sampled state of the DAG.
+DAG is sampled to get concrete values for each parameter in the model. This combination of parameters is called
+the graph state (and is stored in a ``GraphState`` object), because it represents the sampled state of the DAG.
 
 Next, the ``ObsTable`` is used to determine at what times and in which bands the object will be evaluated.
 These times and wavelengths are based into the object's ``evaluate_sed()`` function along with the graph state.
