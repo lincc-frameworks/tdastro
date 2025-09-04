@@ -32,6 +32,7 @@ features and models of the TDAstro package.
     Combining Models (including Hosts/Sources) <notebooks/host_source_models>
     Lightcurve Template Model Demo <notebooks/lightcurve_source_demo>
     Advanced Sampling Techniques <notebooks/advanced_sampling>
+    Simulating Multiple Surveys <notebooks/multiple_surveys>
 
 
 Citations

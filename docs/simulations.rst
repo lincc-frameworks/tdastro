@@ -150,3 +150,15 @@ with realistic cadence and noise.
    Simulated light curves of SNIa from LSST
 
 See our selection of :doc:`tutorial notebooks <notebooks>` for further examples.
+
+
+Simulating from Multiple Surveys
+-------------------------------------------------------------------------------
+
+TDAstro can simulate observations from multiple surveys in a single run by passing a list of
+``ObsTable`` and a list of ``PassbandGroup`` to the ``simulate_lightcurves()`` function.
+The parameter space is sampled once for each simulated object, so the observations in each
+survey are consistent with respect to the parameterization. The times of observation and filters
+used are determined by each survey. And the bandflux is computed using that survey's passbands.
+
+For an example see the :doc:`Simulating from Multiple Surveys notebook <notebooks/multiple_surveys>`.
