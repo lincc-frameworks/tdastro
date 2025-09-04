@@ -586,7 +586,7 @@ class BandfluxModel(BasePhysicalModel, ABC):
         apply_redshift : bool
             The new value for apply_redshift.
         """
-        raise NotImplementedError("Lightcurve models do not support apply_redshift.")
+        raise NotImplementedError("BandfluxModel does not support apply_redshift.")
 
     def add_effect(self, effect, skip_params=False):
         """Add an effect to the model.

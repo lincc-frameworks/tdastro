@@ -36,7 +36,7 @@ def test_get_time_windows():
 
 
 def test_simulate_lightcurves(test_data_dir):
-    """Test an end to end run of simulating the lightcurves."""
+    """Test an end to end run of simulating the light curves."""
     # Load the OpSim data.
     opsim_db = OpSim.from_db(test_data_dir / "opsim_small.db")
 
@@ -134,7 +134,7 @@ def test_simulate_bandfluxes(test_data_dir):
 
 
 def test_simulate_single_lightcurve(test_data_dir):
-    """Test an end to end run of simulating a single lightcurve."""
+    """Test an end to end run of simulating a single light curve."""
     # Load the OpSim data.
     opsim_db = OpSim.from_db(test_data_dir / "opsim_small.db")
 
@@ -234,7 +234,7 @@ def test_simulate_with_time_window(test_data_dir):
 
 
 def test_simulate_multiple_surveys(test_data_dir):
-    """Test an end to end run of simulating a single lightcurve from multiple surveys."""
+    """Test an end to end run of simulating a single light curve from multiple surveys."""
     # The first survey points at two locations in the sky in the "g" and "r" bands.
     obsdata1 = {
         "time": [0.0, 1.0, 2.0, 3.0],
@@ -287,7 +287,7 @@ def test_simulate_multiple_surveys(test_data_dir):
     assert len(results) == 1
     assert results["nobs"][0] == 4
 
-    # Check that the lightcurve was simulated correctly, including saving the zeropoint information
+    # Check that the light curve was simulated correctly, including saving the zeropoint information
     # from each ObsTable.
     lightcurve = results["lightcurve"][0]
     assert np.allclose(lightcurve["mjd"], np.array([0.0, 1.0, 0.5, 2.5]))
