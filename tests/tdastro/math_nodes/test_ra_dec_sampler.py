@@ -1,5 +1,9 @@
+import tempfile
+from pathlib import Path
+
 import astropy.units as u
 import numpy as np
+import pytest
 from astropy.coordinates import Latitude, Longitude, SkyCoord
 from mocpy import MOC
 from tdastro.math_nodes.ra_dec_sampler import (
@@ -182,3 +186,29 @@ def test_approximate_moc_sampler():
     assert np.all(dec[northern_mask] < 22.0)
     assert np.all(dec[~northern_mask] > -22.0)
     assert np.all(dec[~northern_mask] < -18.0)
+
+
+def test_approximate_moc_sampler_from_file():
+    """Test that we can create an ApproximateMOCSampler from a MOC file."""
+    longitudes = Longitude([15.0, 90.0], unit="deg")
+    latitudes = Latitude([-20.0, 20.0], unit="deg")
+    moc = MOC.from_cones(
+        lon=longitudes,
+        lat=latitudes,
+        radius=1.0 * u.deg,
+        max_depth=8,
+        union_strategy="large_cones",
+    )
+
+    with tempfile.TemporaryDirectory() as dir_name:
+        for fmt in ["fits", "json", "ascii"]:
+            file_path = Path(dir_name, f"test_mock.{fmt}")
+
+            # We can't load a non-existent file.
+            with pytest.raises(FileNotFoundError):
+                _ = ApproximateMOCSampler.from_file(file_path, format=fmt)
+
+            moc.save(file_path, format=fmt)
+            moc_sampler = ApproximateMOCSampler.from_file(file_path, format=fmt)
+
+            assert moc_sampler.moc is not None
