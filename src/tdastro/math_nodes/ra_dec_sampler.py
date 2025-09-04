@@ -251,8 +251,8 @@ class ApproximateMOCSampler(NumpyRandomFunc, CiteClass):
 
     Attributes
     ----------
-    moc : mocpy.MOC
-        The Multi-Order Coverage Map to use for sampling.
+    healpix_list : list of int
+        The list of healpix pixel IDs that cover the MOC at the given depth.
     depth : int
         The healpix depth to use as an approximation. Must be [2, 29].
     """
@@ -261,7 +261,7 @@ class ApproximateMOCSampler(NumpyRandomFunc, CiteClass):
         if depth < 2 or depth > 29:
             raise ValueError("Depth must be [2, 29]. Received {depth}")
         self.depth = depth
-        self.moc = moc.to_order(depth).flatten()
+        self.healpix_list = moc.to_order(depth).flatten()
 
         # Override key arguments. We create a uniform sampler function, but
         # won't need it because the subclass overloads compute().
@@ -322,7 +322,7 @@ class ApproximateMOCSampler(NumpyRandomFunc, CiteClass):
         # Choose a starting pixel ID for each sample. Then randomly traverse
         # down the healpix tree by moving to one of the children pixels until
         # we reach level=29 (approximately 4.5 * 10^18 possible locations).
-        pixel_ids = rng.choice(self.moc, size=graph_state.num_samples).astype(np.uint64)
+        pixel_ids = rng.choice(self.healpix_list, size=graph_state.num_samples).astype(np.uint64)
         start_pixel_ids29 = np.left_shift(pixel_ids, 2 * (29 - self.depth))
         offset_range = np.uint64(1) << np.uint64(2 * (29 - self.depth))
         pixel_ids29 = start_pixel_ids29 + rng.integers(
