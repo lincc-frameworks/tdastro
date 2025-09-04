@@ -190,6 +190,66 @@ def test_passband_group_init(tmp_path, passbands_dir):
         raise AssertionError("PassbandGroup should raise an error for an unknown preset")
 
 
+def test_passband_group_ztf_preset(passbands_dir):
+    """Test that we can load a PassbandGroup using the ZTF preset."""
+    pbg = PassbandGroup.from_preset(
+        preset="ZTF",
+        table_dir=passbands_dir,
+        delta_wave=5.0,
+        trim_quantile=None,
+    )
+
+    # Test that all of the filters are there
+    assert len(pbg.passbands) == 3
+    assert len(pbg) == 3
+    assert "g" in pbg
+    assert "r" in pbg
+    assert "i" in pbg
+
+
+def test_passband_group_roman_preset(passbands_dir):
+    """Test that we can load a PassbandGroup using the Roman preset."""
+    # Load the cached (older and simplified) Roman passband files from the test data directory.
+    pbg = PassbandGroup.from_preset(
+        preset="Roman",
+        table_dir=passbands_dir,
+        delta_wave=5.0,
+        trim_quantile=None,
+    )
+
+    # Test that all of the filters are there
+    assert len(pbg.passbands) == 8
+    assert len(pbg) == 8
+    assert "F062" in pbg
+    assert "F087" in pbg
+    assert "F106" in pbg
+    assert "F129" in pbg
+    assert "F158" in pbg
+    assert "F184" in pbg
+    assert "F146" in pbg
+    assert "F213" in pbg
+
+    # We can also load a subset of the filters.
+    pbg_subset = PassbandGroup.from_preset(
+        preset="Roman",
+        table_dir=passbands_dir,
+        delta_wave=5.0,
+        trim_quantile=None,
+        filters=["F062", "F106", "F158"],
+    )
+
+    # Test that the subset contains the correct filters.
+    assert len(pbg_subset.passbands) == 3
+    assert "F062" in pbg_subset
+    assert "F106" in pbg_subset
+    assert "F158" in pbg_subset
+    assert "F087" not in pbg_subset
+    assert "F129" not in pbg_subset
+    assert "F184" not in pbg_subset
+    assert "F146" not in pbg_subset
+    assert "F213" not in pbg_subset
+
+
 def test_passband_group_from_dir(tmp_path):
     """Test that we can load a PassbandGroup from a directory."""
     survey = "FAKE"
