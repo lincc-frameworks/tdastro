@@ -1,7 +1,11 @@
 """Samplers used for generating (RA, dec) coordinates."""
 
+from pathlib import Path
+
 import numpy as np
 from cdshealpix.nested import healpix_to_skycoord
+from citation_compass import CiteClass
+from mocpy import MOC
 
 from tdastro.math_nodes.given_sampler import TableSampler
 from tdastro.math_nodes.np_random import NumpyRandomFunc
@@ -233,13 +237,21 @@ class ObsTableUniformRADECSampler(NumpyRandomFunc):
         return (ra, dec)
 
 
-class ApproximateMOCSampler(NumpyRandomFunc):
+class ApproximateMOCSampler(NumpyRandomFunc, CiteClass):
     """A FunctionNode that samples RA and dec (approximately) from the coverage of
-    a Multi-Order Coverage Map.
+    a MOCPy Multi-Order Coverage Map object.
+
+    References
+    ----------
+    * MOCPY: https://github.com/cds-astro/mocpy/
+    * CDS Healpix: https://github.com/cds-astro/cds-healpix-python
+    * MOC: Pierre Fernique, Thomas Boch, Tom Donaldson, Daniel Durand , Wil O'Mullane, Martin Reinecke,
+    and Mark Taylor. MOC - HEALPix Multi-Order Coverage map Version 1.0. IVOA Recommendation 02 June 2014,
+    pages 602, Jun 2014. doi:10.5479/ADS/bib/2014ivoa.spec.0602F.
 
     Attributes
     ----------
-    moc : MOC
+    moc : mocpy.MOC
         The Multi-Order Coverage Map to use for sampling.
     depth : int
         The healpix depth to use as an approximation. Must be [2, 29].
@@ -256,6 +268,34 @@ class ApproximateMOCSampler(NumpyRandomFunc):
         func_name = "uniform"
         outputs = ["ra", "dec"]
         super().__init__(func_name, outputs=outputs, seed=seed, **kwargs)
+
+    @classmethod
+    def from_file(cls, filename, format="fits", **kwargs):
+        """Create an ApproximateMOCSampler from a MOC file.
+
+        This file can be created from a mocpy.MOC object using its save() function.
+
+        Parameters
+        ----------
+        filename : str or Path
+            The path to the MOC file. Supported formats include FITS, JSON, and ASCII.
+        format : str, optional
+            The format of the MOC file. Supported formats include 'fits', 'json', and
+            'ascii'. Default is 'fits'.
+        **kwargs : dict, optional
+            Additional keyword arguments to pass to the constructor.
+
+        Returns
+        -------
+        ApproximateMOCSampler
+            The created ApproximateMOCSampler object.
+        """
+        filename = Path(filename)
+        if not filename.is_file():
+            raise FileNotFoundError(f"MOC file not found: {filename}")
+
+        moc = MOC.load(filename, format=format)
+        return cls(moc, **kwargs)
 
     def compute(self, graph_state, rng_info=None, **kwargs):
         """Return the given values.
