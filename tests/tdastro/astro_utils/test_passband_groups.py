@@ -122,7 +122,7 @@ def test_passband_group_init(tmp_path, passbands_dir):
     try:
         _ = PassbandGroup.from_preset(preset="Unknown")
     except ValueError as e:
-        assert str(e) == "Unknown passband preset: Unknown"
+        assert str(e) == "Unknown passband preset: unknown"
     else:
         raise AssertionError("PassbandGroup should raise an error for an unknown preset")
 
@@ -185,7 +185,7 @@ def test_passband_group_init(tmp_path, passbands_dir):
     try:
         _ = PassbandGroup.from_preset(preset="Unknown")
     except ValueError as e:
-        assert str(e) == "Unknown passband preset: Unknown"
+        assert str(e) == "Unknown passband preset: unknown"
     else:
         raise AssertionError("PassbandGroup should raise an error for an unknown preset")
 

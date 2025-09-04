@@ -9,6 +9,7 @@ from typing import Literal, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import scipy.integrate
 from astropy.io.votable import parse
 from citation_compass import cite_function
@@ -243,48 +244,126 @@ class PassbandGroup:
             Additional keyword arguments to pass to the Passband constructor.
         """
         logger.info(f"Loading passbands from preset {preset}")
-        passbands = []
 
-        if preset == "LSST":
-            # Check that units are what is expected for this preset.
-            if "units" not in kwargs:
-                kwargs["units"] = "nm"
-            elif kwargs["units"] != "nm":
-                raise ValueError(
-                    "LSST passbands are expected to be in nanometers (nm). "
-                    "Please set units='nm' in the kwargs."
-                )
+        # If we do not have the base table directory, use the default.
+        table_dir = Path(table_dir) if table_dir is not None else Path(_TDASTRO_BASE_DATA_DIR, "passbands")
 
-            if table_dir is None:
-                table_dir = Path(_TDASTRO_BASE_DATA_DIR, "passbands", "LSST")
-            else:
-                table_dir = Path(table_dir) / "LSST"
-
-            for filter_name in ["u", "g", "r", "i", "z", "y"]:
-                url = (
-                    f"https://github.com/lsst/throughputs/blob/main/baseline/total_{filter_name}.dat?raw=true"
-                )
-                pb = Passband.from_file(
-                    "LSST",
-                    filter_name,
-                    table_path=Path(table_dir, f"{filter_name}.dat"),
-                    table_url=url,
-                    **kwargs,
-                )
-                passbands.append(pb)
-        elif preset == "ZTF":
+        preset = preset.lower()
+        if preset == "lsst":
+            passbands = PassbandGroup._lsst_load_preset(table_dir, **kwargs)
+        elif preset == "ztf":
+            passbands = []
             for filter_name in ["g", "r", "i"]:
                 pb = Passband.from_sncosmo("ZTF", filter_name, f"ztf{filter_name}", **kwargs)
                 passbands.append(pb)
+        elif preset == "roman":
+            passbands = PassbandGroup._roman_load_preset(table_dir, **kwargs)
         else:
             raise ValueError(f"Unknown passband preset: {preset}")
 
-        # Remove any filters that were not in the list to load.
-        if filters is not None:
-            passbands = [pb for pb in passbands if pb.filter_name in filters]
-
         # Build the actual PassbandGroup object.
         return cls(given_passbands=passbands, filters=filters, **kwargs)
+
+    @staticmethod
+    @cite_function
+    def _lsst_load_preset(table_dir, **kwargs):
+        """Load the LSST passbands from the LSST preset.
+
+        References
+        ----------
+        LSST Filters: https://github.com/lsst/throughputs
+
+        Parameters
+        ----------
+        table_dir : str or Path
+            The path to the directory in which to store cached passband tables. If the passband
+            exists in this directory, it will be loaded from there; otherwise it will be downloaded
+            and saved in that directory.
+            The full path to the tables will be {table_dir}/LSST/{filter_name}.dat.
+        **kwargs
+            Additional keyword arguments to pass to the Passband constructor.
+
+        Returns
+        -------
+        passbands : list of Passband
+            A list of Passband objects for the LSST filters.
+        """
+        passbands = []
+
+        # Check that units are what is expected for this preset.
+        if "units" not in kwargs:
+            kwargs["units"] = "nm"
+        elif kwargs["units"] != "nm":
+            raise ValueError(
+                "LSST passbands are expected to be in nanometers (nm). Please set units='nm' in the kwargs."
+            )
+
+        for filter_name in ["u", "g", "r", "i", "z", "y"]:
+            url = f"https://github.com/lsst/throughputs/blob/main/baseline/total_{filter_name}.dat?raw=true"
+            pb = Passband.from_file(
+                "LSST",
+                filter_name,
+                table_path=table_dir / "LSST" / f"{filter_name}.dat",
+                table_url=url,
+                **kwargs,
+            )
+            passbands.append(pb)
+        return passbands
+
+    @staticmethod
+    @cite_function
+    def _roman_load_preset(table_dir, **kwargs):
+        """Load the Roman passbands from the Roman preset.
+
+        References
+        ----------
+        Roman Filters: https://github.com/RomanSpaceTelescope/roman-technical-information
+
+        Parameters
+        ----------
+        table_dir : str or Path
+            The path to the directory in which to store cached passband tables. If the passband
+            exists in this directory, it will be loaded from there; otherwise it will be downloaded
+            and saved in that directory.
+            The full path to the tables will be {table_dir}/Roman/{filter_name}.dat.
+        **kwargs
+            Additional keyword arguments to pass to the Passband constructor.
+
+        Returns
+        -------
+        passbands : list of Passband
+            A list of Passband objects for the Roman filters.
+        """
+        passbands = []
+
+        force_download = kwargs.get("force_download", False)
+        table_path = table_dir / "Roman" / "roman_wfi_filters.ecsv"
+        table_url = (
+            "https://github.com/RomanSpaceTelescope/roman-technical-information/blob/main/data/"
+            "WideFieldInstrument/Imaging/EffectiveAreas/Roman_effarea_v8_SCA01_20240301.ecsv?raw=true"
+        )
+
+        # Download the table if it does not exist or if force_download is True.
+        success = download_data_file_if_needed(table_path, table_url, force_download=force_download)
+        if not success:
+            raise RuntimeError(f"Failed to download Roman passband table from {table_url}.")
+
+        # The detectors are 4096 x 4096 pixels with a pixel size of 10 x 10 microns.
+        detector_area = (10e-5 * 4096) * (10e-5 * 4096)  # m^2
+
+        # Load the table, convert the wavelengths from microns to Angstroms,
+        # create Passband objects.
+        table = pd.read_csv(table_path, comment="#", sep=r"[\s,]+")
+        waves = table["Wave"].values * 10_000  # Convert microns to Angstroms
+
+        for filter_name in ["F062", "F087", "F106", "F129", "F146", "F158", "F184", "F213"]:
+            # Load the effective area from the table and convert to throughput (A_effective / A_actual)
+            effective_area = table[filter_name].values.astype(float)  # m^2
+            throughput = effective_area / detector_area
+            table_values = np.vstack([waves, throughput]).T
+            pb = Passband(table_values, "Roman", filter_name, **kwargs)
+            passbands.append(pb)
+        return passbands
 
     @classmethod
     @cite_function
