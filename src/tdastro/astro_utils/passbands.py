@@ -336,6 +336,12 @@ class PassbandGroup:
         """
         passbands = []
 
+        # Check that units are what is expected for this preset.
+        if kwargs.get("units", "micron") != "micron":
+            raise ValueError(
+                f"Roman passbands are expected to be in microns (micron), but got {kwargs.get('units')}"
+            )
+
         force_download = kwargs.get("force_download", False)
         table_path = table_dir / "Roman" / "roman_wfi_filters.ecsv"
         table_url = (

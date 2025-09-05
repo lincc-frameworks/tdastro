@@ -249,6 +249,17 @@ def test_passband_group_roman_preset(passbands_dir):
     assert "F146" not in pbg_subset
     assert "F213" not in pbg_subset
 
+    # The load fails if we given the wrong units.
+    with pytest.raises(ValueError):
+        _ = PassbandGroup.from_preset(
+            preset="Roman",
+            table_dir=passbands_dir,
+            delta_wave=5.0,
+            trim_quantile=None,
+            units="A",
+            filters=["F062", "F106", "F158", "F999"],
+        )
+
 
 def test_passband_group_from_dir(tmp_path):
     """Test that we can load a PassbandGroup from a directory."""
