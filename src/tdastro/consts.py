@@ -43,7 +43,6 @@ CGS_FNU_UNIT_TO_NJY = (1.0 * u.erg / u.second / u.cm**2 / u.Hz).to_value(u.nJy)
 
 # Plotting constants ----------------------------------------
 
-
 lsst_filter_plot_colors = {
     "u": "purple",
     "g": "blue",
@@ -57,6 +56,14 @@ lsst_filter_plot_colors = {
     "LSST_i": "yellow",
     "LSST_z": "orange",
     "LSST_y": "red",
+    "F062": "blue",
+    "F087": "purple",
+    "F106": "green",
+    "F129": "orange",
+    "F146": "gray",
+    "F158": "orangered",
+    "F184": "magenta",
+    "F213": "red",
 }
 """The default colors for plotting to match.
 
