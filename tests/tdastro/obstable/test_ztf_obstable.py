@@ -5,7 +5,7 @@ from scipy.optimize import fsolve
 from tdastro.obstable.ztf_obstable import (
     ZTFObsTable,
     calculate_ztf_zero_points,
-    create_random_stf_obstable,
+    create_random_ztf_obstable,
 )
 
 
@@ -57,7 +57,7 @@ def test_calculate_ztf_zero_points():
 
 def test_ztf_obstable_init():
     """Test initializing ZTFObsTable."""
-    survey_data_table = create_random_stf_obstable(100)._table
+    survey_data_table = create_random_ztf_obstable(100)._table
     survey_data = ZTFObsTable(table=survey_data_table)
 
     assert "zp" in survey_data
@@ -72,9 +72,9 @@ def test_ztf_obstable_init():
     assert survey_data.survey_values["survey_name"] == "ZTF"
 
 
-def test_create_stf_obstable_override():
+def test_create_ztf_obstable_override():
     """Test that we can override the default survey values."""
-    survey_data_table = create_random_stf_obstable(100)._table
+    survey_data_table = create_random_ztf_obstable(100)._table
 
     survey_data = ZTFObsTable(
         table=survey_data_table,
@@ -93,7 +93,7 @@ def test_create_stf_obstable_override():
     assert survey_data.survey_values["read_noise"] == 5.0
 
 
-def test_create_stf_obstable_no_zp():
+def test_create_ztf_obstable_no_zp():
     """Create an survey_data without a zeropoint column."""
     dates = [
         "2020-01-01 12:00:00.000",
