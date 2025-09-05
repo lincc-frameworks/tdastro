@@ -260,7 +260,7 @@ class ZTFObsTable(ObsTable):
         )
 
 
-def create_random_stf_obstable(num_obs, seed=None):
+def create_random_ztf_obstable(num_obs, seed=None):
     """Create a random OpSim pointings drawn uniformly from (RA, dec).
 
     Parameters
