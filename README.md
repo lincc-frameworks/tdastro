@@ -27,7 +27,7 @@ The software package consists of multiple stages:
 4. Survey characteristics (such as cadence, filters, and noise).
 
 For an overview of the package, we recommend starting with introduction notebook 
-(at `notebooks/introduction.ipynb`).
+(at `docs/notebooks/introduction.ipynb`).
 
 
 ## Installation
