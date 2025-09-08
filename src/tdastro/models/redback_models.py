@@ -11,6 +11,7 @@ from citation_compass import CiteClass
 from scipy.interpolate import interp1d
 
 from tdastro.astro_utils.unit_utils import flam_to_fnu
+from tdastro.math_nodes.bilby_priors import BilbyPriorNode
 from tdastro.models.physical_model import SEDModel
 
 
@@ -44,6 +45,8 @@ class RedbackWrapperModel(SEDModel, CiteClass):
     source : str or function
         The name of the redback model function used to generate the SEDs or
         the actual function itself.
+    priors : dict, bilby.prior.PriorDict, or BilbyPriorNode, optional
+        The redback model's Bilby priors.
     parameters : dict, optional
         A dictionary of parameter setters to pass to the source function.
     **kwargs : dict, optional
@@ -57,6 +60,7 @@ class RedbackWrapperModel(SEDModel, CiteClass):
         self,
         source,
         *,
+        priors=None,
         parameters=None,
         **kwargs,
     ):
@@ -73,6 +77,15 @@ class RedbackWrapperModel(SEDModel, CiteClass):
                 )
 
         super().__init__(**kwargs)
+
+        # Add all of the items from the bilby prior node as settable parameters.
+        parameters = parameters.copy()
+        if priors is not None:
+            if not isinstance(priors, BilbyPriorNode):
+                priors = BilbyPriorNode(prior=priors)
+            for param_name in priors.outputs:
+                if param_name not in parameters:
+                    parameters[param_name] = getattr(priors, param_name)
 
         # Use the parameter dictionary to create settable parameters for the model.
         # Some of these might have already been added by the superclass's constructor,
