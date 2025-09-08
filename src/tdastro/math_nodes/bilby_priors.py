@@ -10,13 +10,13 @@ class BilbyPriorNode(FunctionNode, CiteClass):
 
     Attributes
     ----------
-    prior : bilby.prior.Prior
+    prior : bilby.prior.PriorDict
         The Bilby prior object to sample from.
 
     Parameters
     ----------
-    prior : bilby.prior.Prior
-        The Bilby prior object to sample from.
+    prior : dict or bilby.prior.PriorDict
+        A dictionary mapping the names of the parameters to their prior distributions.
     seed : int, optional
         The seed to use.
 
@@ -41,10 +41,22 @@ class BilbyPriorNode(FunctionNode, CiteClass):
         if seed is not None:
             self.set_seed(seed)
 
-        # Set the prior and the outputs.
+        # Set the prior. If the prior is provided as a dictionary, convert it to a Bilby
+        # PriorDict object.
+        if isinstance(prior, dict):
+            try:
+                from bilby.core.prior import PriorDict
+            except ImportError as err:
+                raise ImportError(
+                    "Bilby package is not installed be default. To use the bilby priors, "
+                    "please install it. For example, you can install it with `pip install bilby`."
+                ) from err
+            prior = PriorDict(prior)
         if len(prior) == 0:
             raise ValueError("The provided prior is empty.")
         self.prior = prior
+
+        # Set the outputs to be the names of the parameters in the prior.
         outputs = [param for param in prior]
         super().__init__(self._non_func, outputs=outputs, **kwargs)
 
