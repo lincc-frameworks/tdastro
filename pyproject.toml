@@ -39,6 +39,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "asv==0.6.4", # Used to compute performance benchmarks
+    "bilby",  # Used for Bayesian inference
     "fsspec[http]",  # Read OpSim file from the web with utils/make_opsim_shorten.py
     "jupyter", # Clears output from Jupyter notebooks
     "pre-commit", # Used to run checks before finalizing a git commit
@@ -54,6 +55,7 @@ dev = [
 # Install all the optional astro dependencies with `pip install '.[all]'`
 # (include the single quotes)
 all = [
+    "bilby",  # Used for Bayesian inference
     "pzflow",
     "sncosmo",
     "synphot",  # used for SED modeling tests
