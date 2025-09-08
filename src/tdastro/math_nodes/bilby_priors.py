@@ -1,0 +1,105 @@
+"""Wrapper classes for sampling from Bilby's prior module."""
+
+from citation_compass import CiteClass
+
+from tdastro.base_models import FunctionNode
+
+
+class BilbyPriorNode(FunctionNode, CiteClass):
+    """The base class for sampling from Bilby's prior module.
+
+    Attributes
+    ----------
+    prior : bilby.prior.Prior
+        The Bilby prior object to sample from.
+
+    Parameters
+    ----------
+    prior : bilby.prior.Prior
+        The Bilby prior object to sample from.
+    seed : int, optional
+        The seed to use.
+
+    References
+    ----------
+    @article{bilby_paper,
+        author = "Ashton, Gregory and others",
+        title = "{BILBY: A user-friendly Bayesian inference library for gravitational-wave astronomy}",
+        eprint = "1811.02042",
+        archivePrefix = "arXiv",
+        primaryClass = "astro-ph.IM",
+        doi = "10.3847/1538-4365/ab06fc",
+        journal = "Astrophys. J. Suppl.",
+        volume = "241",
+        number = "2",
+        pages = "27",
+        year = "2019"
+    }
+    """
+
+    def __init__(self, prior, seed=None, **kwargs):
+        if seed is not None:
+            self.set_seed(seed)
+
+        # Set the prior and the outputs.
+        if len(prior) == 0:
+            raise ValueError("The provided prior is empty.")
+        self.prior = prior
+        outputs = [param for param in prior]
+        super().__init__(self._non_func, outputs=outputs, **kwargs)
+
+    def set_seed(self, new_seed):
+        """Update the random number generator's seed to a given value.
+
+        Parameters
+        ----------
+        new_seed : int
+            The given seed
+        """
+        # Import bilby to set the seed.
+        try:
+            from bilby.core.utils import random as bibly_random
+        except ImportError as err:
+            raise ImportError(
+                "Bilby package is not installed be default. To use the bilby priors, "
+                "please install it. For example, you can install it with `pip install bilby`."
+            ) from err
+        bibly_random.seed(new_seed)
+
+    def compute(self, graph_state, rng_info=None, **kwargs):
+        """Sample from the wrapped prior.
+
+        The input arguments are taken from the current graph_state and the outputs
+        are written to graph_state.
+
+        Parameters
+        ----------
+        graph_state : GraphState
+            An object mapping graph parameters to their values. This object is modified
+            in place as it is sampled.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
+        **kwargs : dict, optional
+            Additional function arguments.
+
+        Returns
+        -------
+        results : any
+            The result of the computation. This return value is provided so that testing
+            functions can easily access the results.
+
+        Raises
+        ------
+        ValueError is func attribute is None.
+        """
+        # Sample from the Bilby prior model and extract the parameters from the dictionary.
+        param_dict = self.prior.sample(graph_state.num_samples)
+        results = []
+        for key in self.outputs:
+            values = param_dict[key]
+            if graph_state.num_samples == 1:
+                values = values[0]
+            graph_state.set(self.node_string, key, values)
+            results.append(values)
+        return results
