@@ -1,6 +1,11 @@
 """Samplers used for generating (RA, dec) coordinates."""
 
+from pathlib import Path
+
 import numpy as np
+from cdshealpix.nested import healpix_to_skycoord
+from citation_compass import CiteClass
+from mocpy import MOC
 
 from tdastro.math_nodes.given_sampler import TableSampler
 from tdastro.math_nodes.np_random import NumpyRandomFunc
@@ -219,6 +224,115 @@ class ObsTableUniformRADECSampler(NumpyRandomFunc):
             mask = np.asarray(self.data.is_observed(ra, dec, self.radius))
             num_missing = np.sum(~mask)
             iter_num += 1
+
+        # If we are generating a single sample, return floats.
+        if graph_state.num_samples == 1:
+            ra = ra[0]
+            dec = dec[0]
+
+        # Set the outputs and return the results. This takes the place of
+        # function node's _save_results() function because we know the outputs.
+        graph_state.set(self.node_string, "ra", ra)
+        graph_state.set(self.node_string, "dec", dec)
+        return (ra, dec)
+
+
+class ApproximateMOCSampler(NumpyRandomFunc, CiteClass):
+    """A FunctionNode that samples RA and dec (approximately) from the coverage of
+    a MOCPy Multi-Order Coverage Map object.
+
+    References
+    ----------
+    * MOCPY: https://github.com/cds-astro/mocpy/
+    * CDS Healpix: https://github.com/cds-astro/cds-healpix-python
+    * MOC: Pierre Fernique, Thomas Boch, Tom Donaldson, Daniel Durand , Wil O'Mullane, Martin Reinecke,
+    and Mark Taylor. MOC - HEALPix Multi-Order Coverage map Version 1.0. IVOA Recommendation 02 June 2014,
+    pages 602, Jun 2014. doi:10.5479/ADS/bib/2014ivoa.spec.0602F.
+
+    Attributes
+    ----------
+    healpix_list : list of int
+        The list of healpix pixel IDs that cover the MOC at the given depth.
+    depth : int
+        The healpix depth to use as an approximation. Must be [2, 29].
+    """
+
+    def __init__(self, moc, *, outputs=None, seed=None, depth=12, **kwargs):
+        if depth < 2 or depth > 29:
+            raise ValueError("Depth must be [2, 29]. Received {depth}")
+        self.depth = depth
+        self.healpix_list = moc.to_order(depth).flatten()
+
+        # Override key arguments. We create a uniform sampler function, but
+        # won't need it because the subclass overloads compute().
+        func_name = "uniform"
+        outputs = ["ra", "dec"]
+        super().__init__(func_name, outputs=outputs, seed=seed, **kwargs)
+
+    @classmethod
+    def from_file(cls, filename, format="fits", **kwargs):
+        """Create an ApproximateMOCSampler from a MOC file.
+
+        This file can be created from a mocpy.MOC object using its save() function.
+
+        Parameters
+        ----------
+        filename : str or Path
+            The path to the MOC file. Supported formats include FITS, JSON, and ASCII.
+        format : str, optional
+            The format of the MOC file. Supported formats include 'fits', 'json', and
+            'ascii'. Default is 'fits'.
+        **kwargs : dict, optional
+            Additional keyword arguments to pass to the constructor.
+
+        Returns
+        -------
+        ApproximateMOCSampler
+            The created ApproximateMOCSampler object.
+        """
+        filename = Path(filename)
+        if not filename.is_file():
+            raise FileNotFoundError(f"MOC file not found: {filename}")
+
+        moc = MOC.load(filename, format=format)
+        return cls(moc, **kwargs)
+
+    def compute(self, graph_state, rng_info=None, **kwargs):
+        """Return the given values.
+
+        Parameters
+        ----------
+        graph_state : GraphState
+            An object mapping graph parameters to their values. This object is modified
+            in place as it is sampled.
+        rng_info : numpy.random._generator.Generator, optional
+            A given numpy random number generator to use for this computation. If not
+            provided, the function uses the node's random number generator.
+        **kwargs : dict, optional
+            Additional function arguments.
+
+        Returns
+        -------
+        (ra, dec) : tuple of floats or np.ndarray
+            If a single sample is generated, returns a tuple of floats. Otherwise,
+            returns a tuple of np.ndarrays.
+        """
+        rng = rng_info if rng_info is not None else self._rng
+
+        # Choose a starting pixel ID for each sample. Then randomly traverse
+        # down the healpix tree by moving to one of the children pixels until
+        # we reach level=29 (approximately 4.5 * 10^18 possible locations).
+        pixel_ids = rng.choice(self.healpix_list, size=graph_state.num_samples).astype(np.uint64)
+        start_pixel_ids29 = np.left_shift(pixel_ids, 2 * (29 - self.depth))
+        offset_range = np.uint64(1) << np.uint64(2 * (29 - self.depth))
+        pixel_ids29 = start_pixel_ids29 + rng.integers(
+            offset_range, size=graph_state.num_samples, dtype=np.uint64
+        )
+
+        # Convert back the healpix centers to RA and dec.
+        coords = healpix_to_skycoord(pixel_ids29, depth=29)
+        ra = coords.ra.deg
+        dec = coords.dec.deg
 
         # If we are generating a single sample, return floats.
         if graph_state.num_samples == 1:

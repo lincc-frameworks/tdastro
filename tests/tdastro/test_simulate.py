@@ -4,6 +4,7 @@ from tdastro.astro_utils.passbands import PassbandGroup
 from tdastro.graph_state import GraphState
 from tdastro.math_nodes.given_sampler import GivenValueList
 from tdastro.models.basic_models import ConstantSEDModel
+from tdastro.models.static_sed_model import StaticBandfluxModel
 from tdastro.obstable.opsim import OpSim
 from tdastro.simulate import get_time_windows, simulate_lightcurves
 
@@ -35,7 +36,7 @@ def test_get_time_windows():
 
 
 def test_simulate_lightcurves(test_data_dir):
-    """Test an end to end run of simulating the lightcurves."""
+    """Test an end to end run of simulating the light curves."""
     # Load the OpSim data.
     opsim_db = OpSim.from_db(test_data_dir / "opsim_small.db")
 
@@ -99,19 +100,41 @@ def test_simulate_lightcurves(test_data_dir):
             param_cols=["source.unknown_parameter"],
         )
 
-    # Check that we fail if we try to save an ObsTable column that doesn't exist.
-    with pytest.raises(KeyError):
-        _ = simulate_lightcurves(
-            source2,
-            1,
-            opsim_db,
-            passband_group,
-            obstable_save_cols=["unknown_column"],
-        )
+
+def test_simulate_bandfluxes(test_data_dir):
+    """Test an end to end run of simulating a bandflux model."""
+    # Create a toy observation table with two pointings.
+    num_obs = 6
+    obsdata = {
+        "time": [0.0, 1.0, 2.0, 3.0, 4.0, 5.0],
+        "ra": [0.0, 0.0, 180.0, 0.0, 180.0, 0.0],
+        "dec": [10.0, 10.0, -10.0, 10.0, -10.0, 10.0],
+        "filter": ["g", "r", "g", "r", "z", "z"],
+        "zp": [1.0] * num_obs,
+        "seeing": [1.12] * num_obs,
+        "skybrightness": [20.0] * num_obs,
+        "exptime": [29.2] * num_obs,
+        "nexposure": [2] * num_obs,
+    }
+    obstable = OpSim(obsdata)
+
+    # Load the passband data for the griz filters only.
+    passband_group = PassbandGroup.from_preset(
+        preset="LSST",
+        table_dir=test_data_dir / "passbands",
+        filters=["g", "r", "i", "z"],
+    )
+
+    # Create a static bandflux model and simulate 2 runs.
+    model = StaticBandfluxModel({"g": 1.0, "i": 2.0, "r": 3.0, "y": 4.0, "z": 5.0}, ra=0.0, dec=10.0)
+    results = simulate_lightcurves(model, 2, obstable, passband_group)
+    assert len(results) == 2
+    assert np.allclose(results["lightcurve"][0]["flux_perfect"], [1.0, 3.0, 3.0, 5.0])
+    assert np.allclose(results["lightcurve"][1]["flux_perfect"], [1.0, 3.0, 3.0, 5.0])
 
 
 def test_simulate_single_lightcurve(test_data_dir):
-    """Test an end to end run of simulating a single lightcurves."""
+    """Test an end to end run of simulating a single light curve."""
     # Load the OpSim data.
     opsim_db = OpSim.from_db(test_data_dir / "opsim_small.db")
 
@@ -208,3 +231,89 @@ def test_simulate_with_time_window(test_data_dir):
         results["lightcurve"][1]["mjd"],
         np.array([10.0, 12.0, 14.0, 16.0, 18.0, 20.0, 22.0, 24.0]),
     )
+
+
+def test_simulate_multiple_surveys(test_data_dir):
+    """Test an end to end run of simulating a single light curve from multiple surveys."""
+    # The first survey points at two locations in the sky in the "g" and "r" bands.
+    obsdata1 = {
+        "time": [0.0, 1.0, 2.0, 3.0],
+        "ra": [0.0, 0.0, 180.0, 180.0],
+        "dec": [10.0, 10.0, -10.0, -10.0],
+        "filter": ["g", "r", "g", "r"],
+        "zp": [0.4, 0.5, 0.6, 0.7],
+        "seeing": [1.12, 1.12, 1.12, 1.12],
+        "skybrightness": [20.0, 20.0, 20.0, 20.0],
+        "exptime": [29.2, 29.2, 29.2, 29.2],
+        "nexposure": [2, 2, 2, 2],
+        "custom_col": [1, 1, 1, 1],
+    }
+    obstable1 = OpSim(obsdata1)
+    passband_group1 = PassbandGroup.from_preset(
+        preset="LSST",
+        table_dir=test_data_dir / "passbands",
+        filters=["g", "r"],
+    )
+
+    # The second survey points at two locations on the sky in the "r" and "z" bands.
+    obsdata2 = {
+        "time": [0.5, 1.5, 2.5, 3.5],
+        "ra": [0.0, 90.0, 0.0, 90.0],
+        "dec": [10.0, -10.0, 10.0, -10.0],
+        "filter": ["r", "z", "r", "z"],
+        "zp": [0.05, 0.1, 0.2, 0.3],
+        "seeing": [1.12, 1.12, 1.12, 1.12],
+        "skybrightness": [20.0, 20.0, 20.0, 20.0],
+        "exptime": [29.2, 29.2, 29.2, 29.2],
+        "nexposure": [2, 2, 2, 2],
+    }
+    obstable2 = OpSim(obsdata2)
+    passband_group2 = PassbandGroup.from_preset(
+        preset="LSST",
+        table_dir=test_data_dir / "passbands",
+        filters=["r", "z"],
+    )
+
+    # Create a constant SED model with known brightnesses and RA, dec values that
+    # match the (0.0, 10.0) pointing.
+    model = ConstantSEDModel(brightness=100.0, t0=0.0, ra=0.0, dec=10.0, redshift=0.0, node_label="source")
+    results = simulate_lightcurves(
+        model,
+        1,
+        [obstable1, obstable2],
+        [passband_group1, passband_group2],
+        obstable_save_cols=["zp", "custom_col"],
+    )
+    assert len(results) == 1
+    assert results["nobs"][0] == 4
+
+    # Check that the light curve was simulated correctly, including saving the zeropoint information
+    # from each ObsTable.
+    lightcurve = results["lightcurve"][0]
+    assert np.allclose(lightcurve["mjd"], np.array([0.0, 1.0, 0.5, 2.5]))
+    assert np.allclose(lightcurve["zp"], np.array([0.4, 0.5, 0.05, 0.2]))
+    assert np.array_equal(lightcurve["filter"], np.array(["g", "r", "r", "r"]))
+    assert np.array_equal(lightcurve["survey_idx"], np.array([0, 0, 1, 1]))
+
+    # The custom column should only exist for observations from one of the surveys.
+    assert np.all(lightcurve["custom_col"][0:2] == 1)
+    assert np.all(np.isnan(lightcurve["custom_col"][2:4]))
+
+    # We fail if we pass in lists of different lengths.
+    with pytest.raises(ValueError):
+        simulate_lightcurves(
+            model,
+            1,
+            [obstable1, obstable2],
+            passband_group1,
+        )
+
+    # We fail if we try to use a bandflux only model with multiple surveys.
+    model2 = StaticBandfluxModel({"g": 1.0, "i": 1.0, "r": 1.0, "y": 1.0, "z": 1.0})
+    with pytest.raises(ValueError):
+        simulate_lightcurves(
+            model2,
+            1,
+            [obstable1, obstable2],
+            [passband_group1, passband_group2],
+        )

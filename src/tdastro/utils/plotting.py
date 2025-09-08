@@ -7,7 +7,7 @@ import numpy as np
 def plot_lightcurves(
     fluxes, times, fluxerrs=None, filters=None, ax=None, figure=None, title=None, colormap=None, **kwargs
 ):
-    """Plot one or more lightcurves.
+    """Plot one or more light curves.
 
     Parameters
     ----------
@@ -101,14 +101,14 @@ def plot_lightcurves(
 
 
 def plot_bandflux_lightcurves(bandflux, times=None, ax=None, figure=None, title=None):
-    """Plot one or more lightcurves where each band is observed at each time.
+    """Plot one or more light curves where each band is observed at each time.
     This is primarily used for visualizing non-sampled data.
 
     Parameters
     ----------
     bandflux : numpy.ndarray or dict
-        Either a single array with the lightcurve or a dictionary mapping
-        lightcurve names to the arrays of values.
+        Either a single array with the light curve or a dictionary mapping
+        light curve names to the arrays of values.
     times : numpy.ndarray or None, optional
         A length T matrix of the times, used for setting the x axis. If not
         provided, uses equal spaced ticks. None by default.

@@ -1,5 +1,13 @@
+import tempfile
+from pathlib import Path
+
+import astropy.units as u
 import numpy as np
+import pytest
+from astropy.coordinates import Latitude, Longitude, SkyCoord
+from mocpy import MOC
 from tdastro.math_nodes.ra_dec_sampler import (
+    ApproximateMOCSampler,
     ObsTableRADECSampler,
     ObsTableUniformRADECSampler,
     UniformRADEC,
@@ -141,3 +149,66 @@ def test_opsim_uniform_ra_dec_sampler():
     northern_mask = dec > 0.0
     assert np.sum(northern_mask) > 0.4 * num_samples
     assert np.sum(northern_mask) < 0.6 * num_samples
+
+
+def test_approximate_moc_sampler():
+    """Test that we can create and sample from an ApproximateMOCSampler."""
+    longitudes = Longitude([15.0, 90.0], unit="deg")
+    latitudes = Latitude([-20.0, 20.0], unit="deg")
+    moc = MOC.from_cones(
+        lon=longitudes,
+        lat=latitudes,
+        radius=1.0 * u.deg,
+        max_depth=12,
+        union_strategy="large_cones",
+    )
+    moc_sampler = ApproximateMOCSampler(moc)
+
+    # Test we can generate a single value.
+    ra, dec = moc_sampler.generate(num_samples=1)
+    assert moc.contains_skycoords(SkyCoord(ra, dec, unit="deg"))
+
+    # Test we can generate many observations
+    num_samples = 10_000
+    ra, dec = moc_sampler.generate(num_samples=num_samples)
+    assert np.all(moc.contains_skycoords(SkyCoord(ra, dec, unit="deg")))
+
+    # We should sample roughly uniformly from the two regions.
+    northern_mask = dec > 0.0
+    assert np.sum(northern_mask) > 0.4 * num_samples
+    assert np.sum(northern_mask) < 0.6 * num_samples
+
+    assert np.all(ra[northern_mask] > 88.0)
+    assert np.all(ra[northern_mask] < 92.0)
+    assert np.all(ra[~northern_mask] > 13.0)
+    assert np.all(ra[~northern_mask] < 17.0)
+    assert np.all(dec[northern_mask] > 18.0)
+    assert np.all(dec[northern_mask] < 22.0)
+    assert np.all(dec[~northern_mask] > -22.0)
+    assert np.all(dec[~northern_mask] < -18.0)
+
+
+def test_approximate_moc_sampler_from_file():
+    """Test that we can create an ApproximateMOCSampler from a MOC file."""
+    longitudes = Longitude([15.0, 90.0], unit="deg")
+    latitudes = Latitude([-20.0, 20.0], unit="deg")
+    moc = MOC.from_cones(
+        lon=longitudes,
+        lat=latitudes,
+        radius=1.0 * u.deg,
+        max_depth=8,
+        union_strategy="large_cones",
+    )
+
+    with tempfile.TemporaryDirectory() as dir_name:
+        for fmt in ["fits", "json", "ascii"]:
+            file_path = Path(dir_name, f"test_mock.{fmt}")
+
+            # We can't load a non-existent file.
+            with pytest.raises(FileNotFoundError):
+                _ = ApproximateMOCSampler.from_file(file_path, format=fmt)
+
+            moc.save(file_path, format=fmt)
+            moc_sampler = ApproximateMOCSampler.from_file(file_path, format=fmt)
+
+            assert moc_sampler.healpix_list is not None

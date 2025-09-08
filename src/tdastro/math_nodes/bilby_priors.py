@@ -20,6 +20,13 @@ class BilbyPriorNode(FunctionNode, CiteClass):
     seed : int, optional
         The seed to use.
 
+    Note
+    ----
+    The BilbyPriorNode's `compute()` function does not use the random number generator passed to it.
+    Rather it uses Bilby's internal random number generator. You can set the seed for this using
+    the `seed` argument when initializing the node or by calling the `set_seed` method. However,
+    you cannot control the samples from this node via a simulation-wide random number generator.
+
     References
     ----------
     @article{bilby_paper,
@@ -90,8 +97,9 @@ class BilbyPriorNode(FunctionNode, CiteClass):
             An object mapping graph parameters to their values. This object is modified
             in place as it is sampled.
         rng_info : numpy.random._generator.Generator, optional
-            A given numpy random number generator to use for this computation. If not
-            provided, the function uses the node's random number generator.
+            This random number generator is not used by this node. Instead, Bilby's internal
+            random number generator is used. You can set the seed for this using the `seed`
+            argument when initializing the node or by calling the `set_seed()` method.
         **kwargs : dict, optional
             Additional function arguments.
 
