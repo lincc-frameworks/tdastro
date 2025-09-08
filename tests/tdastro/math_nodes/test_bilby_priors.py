@@ -48,8 +48,8 @@ def test_bilby_priors_single():
         b=Uniform(0, 10, "b"),
         c=Cosine(-2, 2, "c"),
     )
-    prior_dict = PriorDict(priors)
-    node = BilbyPriorNode(prior=prior_dict, seed=100, node_label="sampler")
+    # Pass the dictionary in directly to the BilbyPriorNode.
+    node = BilbyPriorNode(prior=priors, seed=100, node_label="sampler")
 
     params = node.sample_parameters(num_samples=1)
 
