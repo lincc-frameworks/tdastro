@@ -103,3 +103,34 @@ def test_poisson_flux_std_dark():
     )
 
     assert_allclose(flux_err, expected_flux_err, rtol=1e-10)
+
+
+def readout_noise_function(exptime):
+    """Readout noise function"""
+    return 10.0 * exptime
+
+
+def test_readout_noise_from_function():
+    """Test poisson_flux_std for readout noise dominated regime,
+    with readout noise given as a function of exposure times"""
+    # The results should be independent of some input parameters
+    rng = np.random.default_rng(None)
+
+    n = 100
+
+    footprint = 10 ** rng.uniform(0.0, 2.0, n)
+    exposure_time = rng.uniform(30, 100, n)
+    expected_flux_err = readout_noise_function(exptime=exposure_time)
+
+    flux_err = poisson_bandflux_std(
+        bandflux=0.0,
+        total_exposure_time=exposure_time,
+        exposure_count=1,
+        footprint=footprint,
+        sky=0.0,
+        zp=1.0,
+        readout_noise=readout_noise_function,
+        dark_current=0.0,
+    )
+
+    assert_allclose(flux_err, expected_flux_err, rtol=1e-10)
