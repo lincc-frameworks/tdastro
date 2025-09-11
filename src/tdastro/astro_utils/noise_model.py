@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 import numpy as np
 import numpy.typing as npt
 
@@ -10,7 +12,7 @@ def poisson_bandflux_std(
     footprint: npt.ArrayLike,
     sky: npt.ArrayLike,
     zp: npt.ArrayLike,
-    readout_noise: npt.ArrayLike,
+    readout_noise: npt.ArrayLike | Callable,
     dark_current: npt.ArrayLike,
 ) -> npt.ArrayLike:
     """Simulate photon noise for bandflux measurements.
@@ -34,7 +36,7 @@ def poisson_bandflux_std(
         giving a single electron during the total exposure time.
         Units are the same as the input bandflux over electron,
         e.g. nJy / electron.
-    readout_noise : array_like of float
+    readout_noise : array_like of float, or Callable
         Standard deviation of the readout electrons per pixel per exposure.
     dark_current : array_like of float
         Mean dark current electrons per pixel per unit time.
@@ -62,9 +64,13 @@ def poisson_bandflux_std(
     these noises converted to the flux units.
     """
     # Get variances, in electrons^2
+
     source_variance = bandflux / zp
     sky_variance = sky * footprint
-    readout_variance = readout_noise**2 * footprint * exposure_count
+    if callable(readout_noise):
+        readout_variance = readout_noise(total_exposure_time) ** 2
+    else:
+        readout_variance = readout_noise**2 * footprint * exposure_count
     dark_variance = dark_current * total_exposure_time * footprint
 
     total_variance = source_variance + sky_variance + readout_variance + dark_variance
