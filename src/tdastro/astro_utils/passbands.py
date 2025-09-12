@@ -357,7 +357,7 @@ class PassbandGroup:
         # Load the table, convert the wavelengths from microns to Angstroms, create Passband objects.
         # The table contains effective area in m^2, but since we normalize the transmission tables,
         # we can just use this directly.
-        table = pd.read_csv(table_path, comment="#", sep=r"[\s,]+")
+        table = pd.read_csv(table_path, comment="#", sep=r"[\s,]+", engine="python")
         waves = table["Wave"].values * 10_000  # Convert microns to Angstroms
 
         for filter_name in ["F062", "F087", "F106", "F129", "F146", "F158", "F184", "F213"]:
