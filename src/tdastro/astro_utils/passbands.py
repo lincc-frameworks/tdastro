@@ -646,6 +646,9 @@ class Passband:
     waves : np.ndarray
         The wavelengths of the transmission table in Angstroms. To be used when evaluating models
         to generate fluxes that will be passed to fluxes_to_bandflux.
+    delta_wave : float or None
+        The grid step of the wave grid, in angstroms, if the table is a uniform grid. The value is None
+        if the grid is not uniform.
     _loaded_table : np.ndarray
         A 2D array of wavelengths and transmissions. This is the table loaded from the file, and is neither
         interpolated nor normalized.
@@ -689,6 +692,7 @@ class Passband:
         self.survey = survey
         self.filter_name = filter_name
         self.full_name = f"{survey}_{filter_name}"
+        self.delta_wave = delta_wave
 
         # Perform validation of the transmission table.
         if table_values.shape[1] != 2:
@@ -1017,6 +1021,7 @@ class Passband:
         self.processed_transmission_table = self._normalize_transmission_table(trimmed_table)
 
         self.waves = self.processed_transmission_table[:, 0]
+        self.delta_wave = delta_wave
 
     def _interpolate_transmission_table(self, table: np.ndarray, delta_wave: float | None) -> np.ndarray:
         """Interpolate the transmission table to a new wave grid.
@@ -1196,7 +1201,15 @@ class Passband:
         # Calculate the bandflux as ∫ f(λ)φ_b(λ) dλ,
         # where f(λ) is the flux density and φ_b(λ) is the normalized system response
         integrand = flux_density_matrix * self.processed_transmission_table[:, 1]
-        bandfluxes = scipy.integrate.trapezoid(integrand, x=self.waves, axis=w_axis)
+        if self.delta_wave is not None:
+            # If the grid is equal spaced, we can use a faster method of computing a rectangular
+            # integration and removing half the first and last values (to make it trapezoidal).
+            first_val = np.take(integrand, 0, axis=w_axis)
+            last_val = np.take(integrand, -1, axis=w_axis)
+            bandfluxes = (np.sum(integrand, axis=w_axis) - 0.5 * (first_val + last_val)) * self.delta_wave
+        else:
+            # Do the full integration.
+            bandfluxes = scipy.integrate.trapezoid(integrand, x=self.waves, axis=w_axis)
         return bandfluxes
 
     def plot(self, ax=None, figure=None, color=None, plot_loaded=False):
