@@ -24,6 +24,17 @@ https://roman-docs.stsci.edu/roman-instruments-home/wfi-imaging-mode-user-guide/
 """
 
 _roman_zodi_level_factor = 1.5
+"""
+Factor for calculating Zodiacal light intensity.
+
+According to the WFI technical documentation:
+https://roman.gsfc.nasa.gov/science/WFI_technical.html
+
+- At high galactic latitudes, the Zodi intensity is typically ~1.5× the
+  minimum.
+- For observation into the galactic bulge, the Zodi intensity is typically 2.5-7x the minimum.
+"""
+
 
 _psf_url = "https://raw.githubusercontent.com/RomanSpaceTelescope/roman-technical-information/refs/heads/main/data/WideFieldInstrument/Imaging/PointSpreadFunctions/SummaryPSFstats_center.ecsv"
 _zp_url = "https://raw.githubusercontent.com/RomanSpaceTelescope/roman-technical-information/refs/heads/main/data/WideFieldInstrument/Imaging/ZeroPoints/Roman_zeropoints_20240301.ecsv"
@@ -45,15 +56,15 @@ def _get_roman_char():
     }
 
 
-def _get_mta_table(mat_table_path=None):
-    if mat_table_path is None:
-        mat_table_file = (
+def _get_ma_table(ma_table_path=None):
+    if ma_table_path is None:
+        ma_table_file = (
             _TDASTRO_BASE_DATA_DIR
             / "roman_characterization/roman_wfi_imaging_multiaccum_tables_with_exptime.csv"
         )
-    mat_table = pd.read_csv(mat_table_file)
+    ma_table = pd.read_csv(ma_table_file)
 
-    return mat_table
+    return ma_table
 
 
 class RomanObsTable(ObsTable):
@@ -106,11 +117,11 @@ class RomanObsTable(ObsTable):
         "zodi_level": _roman_zodi_level_factor,
     }
 
-    def __init__(self, table, colmap=None, mta_table_path=None, **kwargs):
+    def __init__(self, table, colmap=None, ma_table_path=None, **kwargs):
         colmap = self._default_colnames if colmap is None else colmap
 
         self.apt_table = table
-        self.mat_table = _get_mta_table(mta_table_path)
+        self.ma_table = _get_ma_table(ma_table_path)
         roman_char = _get_roman_char()
         self.zp_table = roman_char["zp_table"]
         self.psf_table = roman_char["psf_table"]
@@ -139,7 +150,7 @@ class RomanObsTable(ObsTable):
             self.apt_table.loc[f == self.apt_table.BANDPASS, "thermal_countrate"] = sigma_thermal
 
         for mat_number in np.unique(self.apt_table.MA_TABLE_NUMBER):
-            exptime = self.mat_table.loc[self.mat_table["MATableNumber"] == mat_number, "Exptime"].values[0]
+            exptime = self.ma_table.loc[self.ma_table["MATableNumber"] == mat_number, "Exptime"].values[0]
             self.apt_table.loc[mat_number == self.apt_table.MA_TABLE_NUMBER, "exptime"] = exptime
 
         npass = len(np.unique(self.apt_table.PASS))
@@ -221,7 +232,7 @@ class RomanObsTable(ObsTable):
         observations = self._table.iloc[index]
         observations["sky"] = self.calculate_skynoise(
             observations["exptime"],
-            1.5,
+            self.safe_get_survey_value("zodi_level"),
             observations["zodi_countrate_min"],
             observations["thermal_countrate"],
         )
