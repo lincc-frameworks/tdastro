@@ -89,7 +89,7 @@ class RomanObsTable(ObsTable):
     Attributes
     ----------
     table : pandas.core.frame.DataFrame
-        The table with all the OpSim information.
+        The table with all the observation information.
     colmap : dict
         A mapping of short column names to their names in the underlying table.
     _kd_tree : scipy.spatial.KDTree or None
