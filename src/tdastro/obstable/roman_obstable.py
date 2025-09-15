@@ -78,7 +78,7 @@ class RomanObsTable(ObsTable):
         A mapping of short column names to their names in the underlying table.
         Defaults to the Rubin OpSim column names, stored in _default_colnames.
     **kwargs : dict
-        Additional keyword arguments to pass to the OpSim constructor. This includes overrides
+        Additional keyword arguments to pass to the ObsTable constructor. This includes overrides
         for survey parameters such as:
         - dark_current : The dark current for the camera in electrons per second per pixel.
         - gain: The CCD gain (in e-/ADU).
