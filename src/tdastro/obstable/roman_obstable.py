@@ -93,7 +93,7 @@ class RomanObsTable(ObsTable):
     colmap : dict
         A mapping of short column names to their names in the underlying table.
     _kd_tree : scipy.spatial.KDTree or None
-        A kd_tree of the OpSim pointings for fast spatial queries. We use the scipy
+        A kd_tree of the ObsTable pointings for fast spatial queries. We use the scipy
         kd-tree instead of astropy's functions so we can directly control caching.
     pixel_scale : float or None, optional
         The pixel scale for the ZTF camera in arcseconds per pixel.
