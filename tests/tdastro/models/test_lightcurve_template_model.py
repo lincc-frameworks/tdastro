@@ -145,10 +145,10 @@ def test_create_lightcurve_data_from_lclib_table() -> None:
 
     # We get the baseline from the "T" type row.
     print(lc_data.baseline)
-    assert lc_data.baseline["u"] == 1.0
-    assert lc_data.baseline["g"] == 2.0
-    assert lc_data.baseline["r"] == 2.0
-    assert lc_data.baseline["i"] == 1.5
+    assert lc_data.baseline["u"] == mag2flux(1.0)
+    assert lc_data.baseline["g"] == mag2flux(2.0)
+    assert lc_data.baseline["r"] == mag2flux(2.0)
+    assert lc_data.baseline["i"] == mag2flux(1.5)
 
     # If we specify a subset of filters, only load those.
     lc_data = LightcurveData.from_lclib_table(table, filters=["u", "g"])
