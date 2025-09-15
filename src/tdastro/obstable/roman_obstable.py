@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from astropy.table import Table
+from citation_compass import cite_function
 
 from tdastro import _TDASTRO_BASE_DATA_DIR
 from tdastro.astro_utils.mag_flux import mag2flux
@@ -76,7 +77,7 @@ class RomanObsTable(ObsTable):
         The table with all the observation information.
     colmap : dict
         A mapping of short column names to their names in the underlying table.
-        Defaults to the Rubin OpSim column names, stored in _default_colnames.
+        Defaults to the Roman APT column names, stored in _default_colnames.
     **kwargs : dict
         Additional keyword arguments to pass to the ObsTable constructor. This includes overrides
         for survey parameters such as:
@@ -162,10 +163,14 @@ class RomanObsTable(ObsTable):
 
         self.apt_table["zp_nJy"] = mag2flux(self.apt_table["zp_abmag"])
 
+    @cite_function
     def readnoise_func(self, exptime):
         """
         Readout noise function for Roman.
-        Reference: Eq. 9 of Rose et al 2025.
+
+        References
+        ----------
+        Eq. 9 of Rose et al 2025 - https://ui.adsabs.harvard.edu/abs/2025ApJ...988...65R/abstract
 
         Parameters
         ----------
@@ -186,9 +191,13 @@ class RomanObsTable(ObsTable):
 
         return sigma_read
 
+    @cite_function
     def calculate_skynoise(self, exptime, zodi_scale, zodi_countrate_min, thermal_countrate):
         """Calculate sky noise.
-        Reference: Eq. 10 of Rose et al 2025.
+
+        Reference
+        ---------
+        Eq. 10 of Rose et al 2025 - https://ui.adsabs.harvard.edu/abs/2025ApJ...988...65R/abstract
 
         Parameters
         ----------
@@ -200,6 +209,7 @@ class RomanObsTable(ObsTable):
             Minimum zodiacal count rate (e-/s/pixel).
         thermal_countrate: float or npt.ArrayLike
             Thermal count rate (e-/s/pixel).
+
         Returns
         -------
         sky_variance: float or npt.ArrayLike
