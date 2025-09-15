@@ -223,7 +223,7 @@ class LightcurveData:
                         "Multiple template (background) observations found in light curves table. "
                         "The light curve will only use the first one for baseline values."
                     )
-                baseline = {filter: tmp_table[filter][0] for filter in filters}
+                baseline = {filter: mag2flux(tmp_table[filter][0]) for filter in filters}
             lightcurves_table = lightcurves_table[obs_mask]
 
         # Convert the Table to a dictionary of lightcurves.

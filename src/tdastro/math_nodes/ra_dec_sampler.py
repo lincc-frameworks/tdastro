@@ -153,7 +153,10 @@ class ObsTableUniformRADECSampler(NumpyRandomFunc):
 
     Note
     ----
-    This uses rejection sampling and can be quite slow for small coverage.
+    This uses rejection sampling where it randomly guesses an (RA, dec) then checks if that
+    point falls within the survey. If not, it repeats the process until it finds a valid point
+    or reaches `max_iterations` iterations (then returns the last sample). This sampling method
+    can be quite slow or even generate out-of-survey samples if the coverage is small.
 
     Attributes
     ----------
@@ -162,11 +165,11 @@ class ObsTableUniformRADECSampler(NumpyRandomFunc):
     radius : float
         The radius of the observations in degrees. Must be > 0.0.
         Default: 1.0
-    max_iteraions : int
+    max_iterations : int
         The maximum number of iterations to perform. Default: 1000
     """
 
-    def __init__(self, data, radius=1.0, outputs=None, seed=None, max_iteraions=1000, **kwargs):
+    def __init__(self, data, radius=1.0, outputs=None, seed=None, max_iterations=1000, **kwargs):
         if radius <= 0.0:
             raise ValueError("Invalid radius: {radius}")
         self.radius = radius
@@ -175,9 +178,9 @@ class ObsTableUniformRADECSampler(NumpyRandomFunc):
             raise ValueError("ObsTable data cannot be empty.")
         self.data = data
 
-        if max_iteraions <= 0:
-            raise ValueError("Invalid max_iteraions: {max_iteraions}")
-        self.max_iteraions = max_iteraions
+        if max_iterations <= 0:
+            raise ValueError("Invalid max_iterations: {max_iterations}")
+        self.max_iterations = max_iterations
 
         # Override key arguments. We create a uniform sampler function, but
         # won't need it because the subclass overloads compute().
@@ -215,7 +218,7 @@ class ObsTableUniformRADECSampler(NumpyRandomFunc):
         # Rejection sampling to ensure the samples are within the ObsTable coverage.
         # This can take many iterations if the coverage is small.
         iter_num = 1
-        while num_missing > 0 and iter_num < 1000:
+        while num_missing > 0 and iter_num <= self.max_iterations:
             # Generate new samples for the missing ones.
             ra[~mask] = np.degrees(rng.uniform(0.0, 2.0 * np.pi, size=num_missing))
             dec[~mask] = np.degrees(np.arcsin(rng.uniform(-1.0, 1.0, size=num_missing)))
