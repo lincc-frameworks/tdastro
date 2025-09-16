@@ -535,12 +535,15 @@ class GraphState:
 
                         # Start by expanding the result we have already seen if needed.
                         if param_name in results:
-                            full_name_existing = f"{first_seen_node[param_name]}.{param_name}"
+                            full_name_existing = GraphState.extended_param_name(
+                                first_seen_node[param_name],
+                                param_name,
+                            )
                             results[full_name_existing] = results[param_name]
                             del results[param_name]
 
                         # Add the result from the current node.
-                        full_name_current = f"{node_name}.{param_name}"
+                        full_name_current = GraphState.extended_param_name(node_name, param_name)
                         results[full_name_current] = param_value
                     else:
                         # This is the first time we have seen the node. Save it with
@@ -607,12 +610,13 @@ class GraphState:
 
 class DependencyGraph:
     """A class to hold the dependencies between parameters in a model. Used for
-    analysis, documentation, and visualization of the model structure.
+    analysis, documentation, testing, and visualization of the model structure.
+    The full parameter names are in the same form used by GraphState.
 
     Attributes
     ----------
     all_params : set
-        A set of all parameter names in the graph.
+        A set of all (full) parameter names in the graph.
     all_nodes : set
         A set of all node names in the graph.
     incoming : dict
@@ -647,7 +651,7 @@ class DependencyGraph:
             The name of the parameter to add.
         node_name : str, optional
             The name of the node holding this parameter. If provided, the full parameter
-            name will be "{node_name}.{param_name}".
+            name will be in the same form used by GraphState for storage.
             Default: None
         """
         # If a node name is provided, create the expanded parameter name.
@@ -655,7 +659,7 @@ class DependencyGraph:
         if node_name is not None:
             if node_name not in self.all_nodes:
                 self.all_nodes.add(node_name)
-            param_name = f"{node_name}.{param_name}"
+            param_name = GraphState.extended_param_name(node_name, param_name)
 
         # If we haven't seen the parameter before, add it to the graph.
         if param_name not in self.all_params:

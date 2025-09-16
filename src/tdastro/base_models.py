@@ -676,13 +676,13 @@ class ParameterizedNode:
 
         # Add each parameter to the dependency graph.
         for param_name, setter in self.setters.items():
-            full_name = f"{node_name}.{param_name}"
+            full_name = GraphState.extended_param_name(node_name, param_name)
             dependency_graph.add_parameter(param_name, node_name)
 
             # Recursively process any dependencies first, including constants.
             dep_name = None
             if setter.dependency is not None and setter.dependency != self:
-                dep_name = f"{setter.dependency.node_string}.{setter.value}"
+                dep_name = GraphState.extended_param_name(setter.dependency.node_string, setter.value)
                 setter.dependency._dependency_graph_helper(dependency_graph)
             elif setter.source_type == ParameterSource.CONSTANT:
                 dep_name = dependency_graph.add_constant(setter.value)
@@ -924,9 +924,9 @@ class FunctionNode(ParameterizedNode):
         # For each computed parameter, add the cross product of inputs to outputs.
         for param_name, setter in self.setters.items():
             if setter.source_type == ParameterSource.COMPUTE_OUTPUT:
-                out_full_name = f"{node_name}.{param_name}"
+                out_full_name = GraphState.extended_param_name(node_name, param_name)
                 for input_name in self.arg_names:
-                    input_full_name = f"{node_name}.{input_name}"
+                    input_full_name = GraphState.extended_param_name(node_name, input_name)
                     dependency_graph.add_edge(input_full_name, out_full_name)
 
     def compute(self, graph_state, rng_info=None, **kwargs):
