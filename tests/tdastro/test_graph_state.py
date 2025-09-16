@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 from astropy.table import Table
-from tdastro.graph_state import GraphState, transpose_dict_of_list
+from tdastro.graph_state import DependencyGraph, GraphState, transpose_dict_of_list
 
 
 def test_create_single_sample_graph_state():
@@ -683,6 +683,67 @@ def test_graph_state_extract_parameters():
 
     with pytest.raises(KeyError):
         _ = state.extract_parameters(["v2", "v100"])
+
+
+def test_dependency_graph():
+    """Test that we can create and access a dependency graph."""
+    dep_graph = DependencyGraph()
+    dep_graph.add_parameter("1", node_name="a")
+    dep_graph.add_parameter("2", node_name="a")
+    dep_graph.add_parameter("3", node_name="a")
+    dep_graph.add_parameter("1", node_name="b")
+    dep_graph.add_parameter("2", node_name="b")
+    dep_graph.add_parameter("3", node_name="c")
+    assert len(dep_graph) == 6
+    assert set(dep_graph.all_nodes) == {"a", "b", "c"}
+
+    # We have all the parameters, but no edges between them.
+    all_params = set(["a.1", "a.2", "a.3", "b.1", "b.2", "c.3"])
+    assert dep_graph.all_params == all_params
+    for param in all_params:
+        assert param in dep_graph
+        assert len(dep_graph.incoming[param]) == 0
+        assert len(dep_graph.outgoing[param]) == 0
+
+    # Re-adding a parameter does nothing.
+    dep_graph.add_parameter("1", node_name="a")
+    assert dep_graph.all_params == all_params
+    assert len(dep_graph) == 6
+
+    # We can add edges between nodes.
+    dep_graph.add_edge("a.1", "b.1")
+    dep_graph.add_edge("a.1", "c.3")
+    for param in all_params:
+        if param == "a.1":
+            assert dep_graph.outgoing[param] == ["b.1", "c.3"]
+        else:
+            assert len(dep_graph.outgoing[param]) == 0
+
+        if param in ["b.1", "c.3"]:
+            assert dep_graph.incoming[param] == ["a.1"]
+        else:
+            assert len(dep_graph.incoming[param]) == 0
+
+    # If we add a constant it adds a node.
+    const_name = dep_graph.add_constant(10)
+    assert const_name == "const_0=10"
+    assert const_name in dep_graph
+    assert len(dep_graph) == 7
+
+    # We can add edges from constants.
+    dep_graph.add_edge(const_name, "a.2")
+    assert dep_graph.outgoing[const_name] == ["a.2"]
+    assert dep_graph.incoming["a.2"] == [const_name]
+
+    const_name2 = dep_graph.add_constant(10)
+    assert const_name2 == "const_1=10"
+    dep_graph.add_edge(const_name2, "b.1")
+    assert dep_graph.outgoing[const_name2] == ["b.1"]
+    assert dep_graph.incoming["b.1"] == ["a.1", const_name2]
+
+    # We can't add edges between parameters that do not exist.
+    with pytest.raises(KeyError):
+        dep_graph.add_edge("a.100", "b.1")
 
 
 def test_transpose_dict_of_list():

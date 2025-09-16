@@ -71,7 +71,7 @@ def test_numpy_random_uniform_mutli_dim():
 
 def test_numpy_random_normal():
     """Test that we can generate numbers from a normal distribution."""
-    np_node = NumpyRandomFunc("normal", loc=100.0, scale=10.0, seed=100)
+    np_node = NumpyRandomFunc("normal", loc=100.0, scale=10.0, seed=100, node_label="normal1")
 
     values = np.array([np_node.generate() for _ in range(10_000)])
     assert np.abs(np.mean(values) - 100.0) < 0.5
@@ -81,6 +81,13 @@ def test_numpy_random_normal():
     np_node2 = NumpyRandomFunc("normal", loc=100.0, scale=10.0, seed=100)
     values2 = np.array([np_node2.generate() for _ in range(10_000)])
     assert np.allclose(values, values2)
+
+    # Check that we can get a dependency graph that correctly includes this node.
+    dep_graph = np_node.build_dependency_graph()
+    assert dep_graph.all_nodes == {"normal1"}
+    assert dep_graph.incoming["normal1.function_node_result"] == ["normal1.loc", "normal1.scale"]
+    assert dep_graph.outgoing["normal1.loc"] == ["normal1.function_node_result"]
+    assert dep_graph.outgoing["normal1.scale"] == ["normal1.function_node_result"]
 
 
 def test_numpy_random_given_rng():
