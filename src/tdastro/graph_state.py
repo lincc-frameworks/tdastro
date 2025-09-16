@@ -605,6 +605,98 @@ class GraphState:
         ascii.write(data_table, filename, format="ecsv", overwrite=overwrite)
 
 
+class DependencyGraph:
+    """A class to hold the dependencies between parameters in a model. Used for
+    analysis, documentation, and visualization of the model structure.
+
+    Attributes
+    ----------
+    all_params : set
+        A set of all parameter names in the graph.
+    all_nodes : set
+        A set of all node names in the graph.
+    incoming : dict
+        A dictionary mapping each parameter to the list of parameters that it depends on
+        (the incoming edges).
+    outgoing : dict
+        A dictionary mapping each parameter to the list of parameters that depend on it
+        (the outgoing edges).
+    num_constants : int
+        The number of constant parameters in the graph.
+    """
+
+    def __init__(self):
+        self.all_params = set()
+        self.all_nodes = set()
+        self.incoming = {}
+        self.outgoing = {}
+        self.num_constants = 0
+
+    def __len__(self):
+        return len(self.all_params)
+
+    def __contains__(self, full_param_name):
+        return full_param_name in self.all_params
+
+    def add_parameter(self, param_name, node_name=None):
+        """Add a parameter to the dependency graph if it is not already present.
+
+        Parameters
+        ----------
+        param_name : str
+            The name of the parameter to add.
+        node_name : str, optional
+            The name of the node holding this parameter. If provided, the full parameter
+            name will be "{node_name}.{param_name}".
+            Default: None
+        """
+        # If a node name is provided, create the expanded parameter name.
+        # Also add the node name to the set of all nodes.
+        if node_name is not None:
+            if node_name not in self.all_nodes:
+                self.all_nodes.add(node_name)
+            param_name = f"{node_name}.{param_name}"
+
+        # If we haven't seen the parameter before, add it to the graph.
+        if param_name not in self.all_params:
+            self.all_params.add(param_name)
+            self.incoming[param_name] = []
+            self.outgoing[param_name] = []
+
+    def add_constant(self, value):
+        """Add a constant parameter to the dependency graph.
+
+        Parameters
+        ----------
+        value : any
+            The value of the constant.
+
+        Returns
+        -------
+        const_name : str
+            The name of the constant parameter added to the graph.
+        """
+        const_name = f"const_{self.num_constants}={value}"
+        self.num_constants += 1
+        self.add_parameter(const_name)
+        return const_name
+
+    def add_edge(self, from_param, to_param):
+        """Add a directed edge to the dependency graph.
+
+        Parameters
+        ----------
+        from_param : str
+            The name of the parameter that the edge is coming from (the dependency).
+        to_param : str
+            The name of the parameter that the edge is going to (the dependent).
+        """
+        if from_param not in self.all_params or to_param not in self.all_params:
+            raise KeyError("Both parameters must be added to the graph before adding an edge.")
+        self.incoming[to_param].append(from_param)
+        self.outgoing[from_param].append(to_param)
+
+
 def transpose_dict_of_list(input_dict, num_elem):
     """Transpose a dictionary of iterables to a list of dictionaries.
 

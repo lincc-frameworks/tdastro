@@ -55,7 +55,7 @@ from functools import partial
 
 import numpy as np
 
-from tdastro.graph_state import GraphState
+from tdastro.graph_state import DependencyGraph, GraphState
 
 
 class ParameterSource:
@@ -652,6 +652,68 @@ class ParameterizedNode:
         self._sample_helper(results, seen_nodes, rng_info=rng_info)
         return results
 
+    def _dependency_graph_helper(self, dependency_graph):
+        """Internal recursive function to build a directed acyclic graph (DAG) representing
+        the parameters in the model and their dependencies. Each node in the graph is a parameter
+        and each edge indicates nodes that parameter depends on.
+
+        Parameters
+        ----------
+        dependency_graph : DependencyGraph
+            An object tracking the dependencies between parameters. This object is modified
+            in place to represent the current state.
+
+        Raises
+        ------
+        KeyError
+            If the sampling encounters an error with the order of dependencies.
+        """
+        # Check if we have already processed this node. The node name gets added
+        # as soon as we add any of its parameters.
+        node_name = str(self)
+        if node_name in dependency_graph.all_nodes:
+            return  # Nothing to do. We have already processed this node.
+
+        # Add each parameter to the dependency graph.
+        for param_name, setter in self.setters.items():
+            full_name = f"{node_name}.{param_name}"
+            dependency_graph.add_parameter(param_name, node_name)
+
+            # Recursively process any dependencies first, including constants.
+            dep_name = None
+            if setter.dependency is not None and setter.dependency != self:
+                dep_name = f"{setter.dependency.node_string}.{setter.value}"
+                setter.dependency._dependency_graph_helper(dependency_graph)
+            elif setter.source_type == ParameterSource.CONSTANT:
+                dep_name = dependency_graph.add_constant(setter.value)
+
+            # If we have a dependency, add an edge from the dependency to this parameter.
+            # dep_name will be None for parameters that are the result of internal computations
+            # (i.e., ParameterSource.COMPUTE_OUTPUT) which is handled in the subclass.
+            if dep_name is not None:
+                dependency_graph.add_edge(dep_name, full_name)
+
+    def build_dependency_graph(self):
+        """Build a directed acyclic graph (DAG) representing the parameters in the model
+        and their dependencies.
+
+        Returns
+        -------
+        dependency_graph : DependencyGraph
+            An object tracking the dependencies between parameters.
+        """
+        # If the graph structure has never been set, do that now.
+        if self.node_pos is None:
+            nodes = set()
+            self.set_graph_positions(seen_nodes=nodes)
+
+        # Create space for the results and set all the given_args as fixed parameters.
+        dependency_graph = DependencyGraph()
+
+        # Recursively build the dependency graph.
+        self._dependency_graph_helper(dependency_graph)
+        return dependency_graph
+
     def build_pytree(self, graph_state, partial=None):
         """Build a JAX PyTree representation of the variables in this graph.
 
@@ -841,6 +903,31 @@ class FunctionNode(ParameterizedNode):
                 )
             for i in range(len(self.outputs)):
                 graph_state.set(self.node_string, self.outputs[i], results[i])
+
+    def _dependency_graph_helper(self, dependency_graph):
+        """Internal recursive function to build a directed acyclic graph (DAG) representing
+        the parameters in the model and their dependencies.
+
+        Parameters
+        ----------
+        dependency_graph : DependencyGraph
+            An object tracking the dependencies between parameters. This object is modified
+            in place to represent the current state.
+        """
+        node_name = str(self)
+        if node_name in dependency_graph.all_nodes:
+            return  # Nothing to do. We have already processed this node.
+
+        # Handle the dependencies of the input features.
+        super()._dependency_graph_helper(dependency_graph)
+
+        # For each computed parameter, add the cross product of inputs to outputs.
+        for param_name, setter in self.setters.items():
+            if setter.source_type == ParameterSource.COMPUTE_OUTPUT:
+                out_full_name = f"{node_name}.{param_name}"
+                for input_name in self.arg_names:
+                    input_full_name = f"{node_name}.{input_name}"
+                    dependency_graph.add_edge(input_full_name, out_full_name)
 
     def compute(self, graph_state, rng_info=None, **kwargs):
         """Execute the wrapped function.
