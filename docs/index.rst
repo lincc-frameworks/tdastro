@@ -5,7 +5,8 @@
 LightCurveLynx - A fast and nimble package for realistic time-domain light curve simulations
 ========================================================================================
 
-
+**NOTE:** This project was recently renamed from TDAstro to LightCurveLynx. See the
+details for updating your code below.
 
 Time-Domain Forward-Modeling for the Rubin Era
 -------------------------------------------------------------------------------
@@ -125,6 +126,19 @@ If you are using JupyterLab, you can install the kernel with the following comma
    >> python3 -m ipykernel install --user --name=lightcurvelynx
 
 You will need to restart your notebook server to see the new kernel.
+
+Updating from TDAstro
+-------------------------------------------------------------------------------
+
+This package was recently renamed from TDAstro to LightCurveLynx. A few changes will be needed to
+update your code:
+
+   * If you use the package as a dependency (e.g. in pyproject.toml), update your requirements to use `lightcurvelynx` instead of `tdastro`.
+   * Update your import statements from `import tdastro` to `import lightcurvelynx`.
+   * If you have cloned the repository, update your remote URL to `https://github.com/lincc-frameworks/lightcurvelynx`.
+   * If you have installed from PyPI or conda-forge, uninstall `tdastro` and install `lightcurvelynx` instead.
+
+If you run into any problems or have any questions, please reach out to the team. We are happy to help!
 
 
 Acknowledgements

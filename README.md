@@ -13,6 +13,8 @@ A Fast and Nimble Package for Time Domain Astronomy
 [![Read the Docs](https://img.shields.io/readthedocs/lightcurvelynx)](https://lightcurvelynx.readthedocs.io/)
 
 
+**NOTE:** This project was recently renamed from TDAstro to LightCurveLynx. Users will need to update their import statements and dependencies to reflect the new name.
+
 ## Introduction
 
 Realistic light curve simulations are essential to many time-domain problems. 
