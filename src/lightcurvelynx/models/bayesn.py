@@ -3,7 +3,7 @@ import numpy as np
 from astropy import units as u
 from citation_compass import CiteClass
 
-from lightcurvelynx import _TDASTRO_BASE_DATA_DIR
+from lightcurvelynx import _LIGHTCURVELYNX_BASE_DATA_DIR
 from lightcurvelynx.astro_utils.unit_utils import flam_to_fnu
 from lightcurvelynx.effects.extinction import ExtinctionEffect
 from lightcurvelynx.models.physical_model import SEDModel
@@ -99,12 +99,12 @@ class BayesnModel(SEDModel, CiteClass):
         Rv=None,
         t0=0.0,
         Amplitude=1.0,
-        _M20_model_path=_TDASTRO_BASE_DATA_DIR / "bayesn-model-files/BAYESN.M20",
+        _M20_model_path=_LIGHTCURVELYNX_BASE_DATA_DIR / "bayesn-model-files/BAYESN.M20",
         W0_filename="W0.txt",
         W1_filename="W1.txt",
         l_knots_filename="l_knots.txt",
         tau_knots_filename="tau_knots.txt",
-        hsiao_model_path=_TDASTRO_BASE_DATA_DIR / "bayesn-model-files/hsiao.h5",
+        hsiao_model_path=_LIGHTCURVELYNX_BASE_DATA_DIR / "bayesn-model-files/hsiao.h5",
         **kwargs,
     ):
         super().__init__(t0=t0, **kwargs)

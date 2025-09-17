@@ -3,7 +3,7 @@ import importlib
 import numpy as np
 import pytest
 from citation_compass import find_in_citations
-from lightcurvelynx import _TDASTRO_TEST_DATA_DIR
+from lightcurvelynx import _LIGHTCURVELYNX_TEST_DATA_DIR
 from lightcurvelynx.astro_utils.dustmap import ConstantHemisphereDustMap, DustmapWrapper, SFDMap
 from lightcurvelynx.math_nodes.given_sampler import GivenValueList
 
@@ -68,7 +68,7 @@ def test_sfdmap():
     # Use data from a fake map with zero dust in the high North latitudes
     # and high dust in the South.
     dust = SFDMap(
-        _TDASTRO_TEST_DATA_DIR / "dustmaps" / "sfdmap2",
+        _LIGHTCURVELYNX_TEST_DATA_DIR / "dustmaps" / "sfdmap2",
         ra=GivenValueList([125.0, -45.0, 10.0]),
         dec=GivenValueList([60.0, -30.0, -45.0]),
         node_label="dust",
@@ -90,7 +90,7 @@ def test_sfdmap():
 
     # We fail if we try to create a SFDMap without RA and dec setters.
     with pytest.raises(ValueError):
-        _ = SFDMap(_TDASTRO_TEST_DATA_DIR / "dustmaps" / "sfdmap2")
+        _ = SFDMap(_LIGHTCURVELYNX_TEST_DATA_DIR / "dustmaps" / "sfdmap2")
 
 
 def test_dustmap_citation():

@@ -1,13 +1,13 @@
 from pathlib import Path
 
 import pytest
-from lightcurvelynx import _TDASTRO_TEST_DATA_DIR
+from lightcurvelynx import _LIGHTCURVELYNX_TEST_DATA_DIR
 
 
 @pytest.fixture
 def test_data_dir():
     """Return the base test data directory."""
-    return Path(_TDASTRO_TEST_DATA_DIR)
+    return Path(_LIGHTCURVELYNX_TEST_DATA_DIR)
 
 
 @pytest.fixture

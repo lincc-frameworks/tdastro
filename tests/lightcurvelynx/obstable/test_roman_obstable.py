@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from lightcurvelynx import _TDASTRO_TEST_DATA_DIR
+from lightcurvelynx import _LIGHTCURVELYNX_TEST_DATA_DIR
 from lightcurvelynx.obstable.roman_obstable import RomanObsTable
 
 
@@ -38,7 +38,7 @@ def test_calculate_skynoise():
     apt_table = make_random_apt_table()
     roman_obstable = RomanObsTable(
         apt_table,
-        mat_table_path=_TDASTRO_TEST_DATA_DIR
+        mat_table_path=_LIGHTCURVELYNX_TEST_DATA_DIR
         / "roman_characterization/roman_wfi_imaging_multiaccum_tables_with_exptime.csv",
     )
 
@@ -57,7 +57,7 @@ def test_noise_calculation():
     apt_table = make_random_apt_table()
     roman_obstable = RomanObsTable(
         apt_table,
-        mat_table_path=_TDASTRO_TEST_DATA_DIR
+        mat_table_path=_LIGHTCURVELYNX_TEST_DATA_DIR
         / "roman_characterization/roman_wfi_imaging_multiaccum_tables_with_exptime.csv",
     )
 

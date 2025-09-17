@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 import numpy as np
 from astropy import units as u
-from lightcurvelynx import _TDASTRO_TEST_DATA_DIR
+from lightcurvelynx import _LIGHTCURVELYNX_TEST_DATA_DIR
 from lightcurvelynx.astro_utils.unit_utils import fnu_to_flam
 from lightcurvelynx.math_nodes.np_random import NumpyRandomFunc
 from lightcurvelynx.models.sncomso_models import SncosmoWrapperModel
@@ -12,7 +12,9 @@ from lightcurvelynx.utils.wave_extrapolate import ExponentialDecay
 
 def _fake_nugent_data_path(*args, **kwargs):
     """A function for pointing to the test data directory's version of the nugent model file."""
-    return str(Path(_TDASTRO_TEST_DATA_DIR) / "fake_sncosmo" / "models" / "nugent" / "sn1a_flux.v1.2.dat")
+    return str(
+        Path(_LIGHTCURVELYNX_TEST_DATA_DIR) / "fake_sncosmo" / "models" / "nugent" / "sn1a_flux.v1.2.dat"
+    )
 
 
 def test_sncomso_models_hsiao() -> None:

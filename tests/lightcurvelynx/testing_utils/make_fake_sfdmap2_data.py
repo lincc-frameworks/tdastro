@@ -2,7 +2,7 @@
 
 import numpy as np
 from astropy.io import fits
-from lightcurvelynx import _TDASTRO_TEST_DATA_DIR
+from lightcurvelynx import _LIGHTCURVELYNX_TEST_DATA_DIR
 
 
 def main(args=None):
@@ -10,7 +10,7 @@ def main(args=None):
     print("Making fake SFD dust map data...")
 
     # Create a fake map directory
-    fake_map_dir = _TDASTRO_TEST_DATA_DIR / "dustmaps" / "sfdmap2"
+    fake_map_dir = _LIGHTCURVELYNX_TEST_DATA_DIR / "dustmaps" / "sfdmap2"
     if not fake_map_dir.exists():
         fake_map_dir.mkdir(parents=True)
 

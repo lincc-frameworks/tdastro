@@ -3,7 +3,7 @@ import pandas as pd
 from astropy.table import Table
 from citation_compass import cite_function
 
-from lightcurvelynx import _TDASTRO_BASE_DATA_DIR
+from lightcurvelynx import _LIGHTCURVELYNX_BASE_DATA_DIR
 from lightcurvelynx.astro_utils.mag_flux import mag2flux
 from lightcurvelynx.astro_utils.noise_model import poisson_bandflux_std
 from lightcurvelynx.obstable.obs_table import ObsTable
@@ -60,7 +60,7 @@ def _get_roman_char():
 def _get_ma_table(ma_table_path=None):
     if ma_table_path is None:
         ma_table_file = (
-            _TDASTRO_BASE_DATA_DIR
+            _LIGHTCURVELYNX_BASE_DATA_DIR
             / "roman_characterization/roman_wfi_imaging_multiaccum_tables_with_exptime.csv"
         )
     ma_table = pd.read_csv(ma_table_file)

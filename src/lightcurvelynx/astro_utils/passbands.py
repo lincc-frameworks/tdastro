@@ -14,7 +14,7 @@ import scipy.integrate
 from astropy.io.votable import parse
 from citation_compass import cite_function
 
-from lightcurvelynx import _TDASTRO_BASE_DATA_DIR
+from lightcurvelynx import _LIGHTCURVELYNX_BASE_DATA_DIR
 from lightcurvelynx.consts import lsst_filter_plot_colors
 from lightcurvelynx.utils.data_download import download_data_file_if_needed
 
@@ -246,7 +246,9 @@ class PassbandGroup:
         logger.info(f"Loading passbands from preset {preset}")
 
         # If we do not have the base table directory, use the default.
-        table_dir = Path(table_dir) if table_dir is not None else Path(_TDASTRO_BASE_DATA_DIR, "passbands")
+        table_dir = (
+            Path(table_dir) if table_dir is not None else Path(_LIGHTCURVELYNX_BASE_DATA_DIR, "passbands")
+        )
 
         preset = preset.lower()
         if preset == "lsst":
@@ -779,7 +781,7 @@ class Passband:
         if table_path is None:
             # If no path is given, use the default.
             table_path = Path(
-                _TDASTRO_BASE_DATA_DIR,
+                _LIGHTCURVELYNX_BASE_DATA_DIR,
                 "passbands",
                 survey,
                 f"{filter_name}.dat",
@@ -895,7 +897,7 @@ class Passband:
         survey, filter = full_filter_name.split(".")
 
         if table_dir is None:
-            table_dir = Path(_TDASTRO_BASE_DATA_DIR, "passbands", survey)
+            table_dir = Path(_LIGHTCURVELYNX_BASE_DATA_DIR, "passbands", survey)
         else:
             table_dir = Path(table_dir) / survey
         table_path = Path(table_dir, f"{filter}.xml")
