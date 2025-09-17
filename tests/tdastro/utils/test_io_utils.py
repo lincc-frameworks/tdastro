@@ -68,7 +68,7 @@ def test_read_lclib_data(test_data_dir):
     for idx, curve in enumerate(curves):
         assert len(curve) == expected_len[idx]
         assert int(curve.meta["id"]) == idx
-        assert curve.meta["RECUR_CLASS"] == "RECUR-PERIODIC"
+        assert curve.meta["RECUR_CLASS"] == "NON-RECUR"
         for key, value in expected_param[idx].items():
             assert curve.meta["PARVAL"][key] == value
 

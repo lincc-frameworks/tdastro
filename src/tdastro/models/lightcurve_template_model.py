@@ -33,20 +33,20 @@ class LightcurveData:
         A dictionary mapping filter names to a 2D array of the bandfluxes in that filter,
         where the first column is time (in days from the reference time of the light curve)
         and the second column is the bandflux (in nJy).
-    lc_t0 : float
-        The reference epoch (t0) of the input light curve. The model will be shifted
-        to the model's t0 when computing fluxes. For periodic light curves, this either
-        must be set to the first time of the light curve or left as 0.0 to automatically
-        derive the lc_t0 from the light curve.
+    lc_data_t0 : float
+        The reference epoch of the input light curve. This is the time stamp of the input
+        array that will correspond to t0 in the model. For periodic light curves, this either
+        must be set to the first time of the light curve or set as 0.0 to automatically
+        derive the lc_data_t0 from the light curve.
     period : float or None
         The period of the light curve in days. If the light curve is not periodic,
         then this value is set to None.
     min_times : dict
         A dictionary mapping filter names to the minimum time of the light curve
-        in that filter (relative to lc_t0).
+        in that filter (shifted to be relative to the reference epoch of the light curve).
     max_times : dict
         A dictionary mapping filter names to the maximum time of the light curve
-        in that filter (relative to lc_t0).
+        in that filter (shifted to be relative to the reference epoch of the light curve).
     baseline : dict
         A dictionary of baseline bandfluxes for each filter. This is only used
         for non-periodic light curves when they are not active.
@@ -59,12 +59,11 @@ class LightcurveData:
         where the first column is time and the second column is the flux density (in nJy), or
         2) a numpy array of shape (T, 3) array where the first column is time (in days), the
         second column is the bandflux (in nJy), and the third column is the filter.
-    lc_t0 : float
-        The reference epoch (t0) of the input light curve. The model will be shifted
-        to the model's t0 when computing fluxes.  For periodic light curves, this either
-        must be set to the first time of the light curve or left as 0.0 to automatically
-        derive the lc_t0 from the light curve.
-        Default: 0.0
+    lc_data_t0 : float
+        The reference epoch of the input light curve. The model will be shifted
+        to the model's lc_data_t0 when computing fluxes.  For periodic light curves, this either
+        must be set to the first time of the light curve or as 0.0 to automatically
+        derive the lc_data_t0 from the light curve.
     periodic : bool
         Whether the light curve is periodic. If True, the model will assume that
         the light curve repeats every period.
@@ -75,8 +74,8 @@ class LightcurveData:
         Default: None
     """
 
-    def __init__(self, lightcurves, lc_t0=0.0, periodic=False, baseline=None):
-        self.lc_t0 = lc_t0
+    def __init__(self, lightcurves, lc_data_t0, *, periodic=False, baseline=None):
+        self.lc_data_t0 = lc_data_t0
         self.period = None
 
         if isinstance(lightcurves, dict):
@@ -100,13 +99,13 @@ class LightcurveData:
             )
 
         # Do basic validation of the light curves and shift them so that the time
-        # at lc_t0 is mapped to 0.0.
+        # at lc_data_t0 is mapped to 0.0.
         for filter, lc in self.lightcurves.items():
             if len(lc.shape) != 2 or (lc.shape[1] != 2 and lc.shape[1] != 3):
                 raise ValueError(f"Lightcurve {filter} must have either 2 or 3 columns.")
             if not np.all(np.diff(lc[:, 0]) > 0):
                 raise ValueError(f"Lightcurve {filter}'s times are not in sorted order.")
-            lc[:, 0] -= self.lc_t0
+            lc[:, 0] -= self.lc_data_t0
 
         # Store the minimum and maximum times for each light curve. This is done after
         # validating periodicity in case we needed to adjust the light curve start times.
@@ -162,20 +161,20 @@ class LightcurveData:
             raise ValueError("The period of the light curve must be positive.")
 
         # Shift all the lightcurves so they start at 0 (to make the math easier)
-        # and record the offset as lc_t0.
+        # and record the offset as lc_data_t0.
         if not np.isclose(all_lcs[0][0, 0], 0.0):
-            if self.lc_t0 != 0.0:
+            if self.lc_data_t0 != 0.0:
                 raise ValueError(
-                    "For periodic models, lc_t0 must either be set to the first time "
-                    f"or automatically derived. Found lc_t0={self.lc_t0}."
+                    "For periodic models, lc_data_t0 must either be set to the first time "
+                    f"or automatically derived. Found lc_data_t0={self.lc_data_t0}."
                 )
 
-            self.lc_t0 = all_lcs[0][0, 0]
+            self.lc_data_t0 = all_lcs[0][0, 0]
             for lc in self.lightcurves.values():
-                lc[:, 0] -= self.lc_t0
+                lc[:, 0] -= self.lc_data_t0
 
     @classmethod
-    def from_lclib_table(cls, lightcurves_table, lc_t0=0.0, filters=None):
+    def from_lclib_table(cls, lightcurves_table, *, forced_lc_t0=None, filters=None):
         """Break up a light curves table in LCLIB format into a LightcurveData instance.
         This function expects the table to have a "time" column, an optional "type" column,
         and a column for each filter. The "type" column should use "S" for source observation
@@ -187,12 +186,11 @@ class LightcurveData:
             A table with a "time" column, optional "type" column, and a column for each filter.
             If the type column is present it should use "S" for source observation and "T"
             for template (background) observation.
-        lc_t0 : float
-            The reference epoch (t0) of the input light curve. The model will be shifted
-            to the model's t0 when computing fluxes.  For periodic light curves, this either
-            must be set to the first time of the light curve or left as 0.0 to automatically
-            derive the lc_t0 from the light curve.
-            Default: 0.0
+        forced_lc_t0 : float
+            By default we use the LCLIB convention of storing the light curves so the first time
+            corresponds to the reference epoch (lc_data_t0) of the light curve. This can be overridden
+            by providing a value for forced_lc_t0.
+            Default: None
         filters : list of str or None
             A list of filters to use for the light curves. If None, all filters will be used.
             Used to select a subset of filters.
@@ -225,6 +223,9 @@ class LightcurveData:
                     )
                 baseline = {filter: mag2flux(tmp_table[filter][0]) for filter in filters}
             lightcurves_table = lightcurves_table[obs_mask]
+
+        # Determine the reference epoch of the light curve (lc_data_t0).
+        lc_data_t0 = np.min(lightcurves_table["time"]) if forced_lc_t0 is None else forced_lc_t0
 
         # Convert the Table to a dictionary of lightcurves.
         lightcurves = {}
@@ -271,7 +272,7 @@ class LightcurveData:
                     lc = np.vstack((lc, [new_end, lc[0, 1]]))
                     lightcurves[filter] = lc
 
-        return cls(lightcurves, lc_t0=lc_t0, periodic=periodic, baseline=baseline)
+        return cls(lightcurves, lc_data_t0, periodic=periodic, baseline=baseline)
 
     def evaluate_sed(self, times, filter):
         """Get the bandflux values for a given filter at the specified times. These can
@@ -282,7 +283,7 @@ class LightcurveData:
         ----------
         times : numpy.ndarray
             A length T array of times (in days) at which to compute the SED values. These should
-            be shift to be relative to the light curve's lc_t0.
+            be shift to be relative to the light curve's lc_data_t0.
         filter : str
             The name of the filter for which to compute the SED values.
 
@@ -486,8 +487,7 @@ class BaseLightcurveTemplateModel(BandfluxModel, ABC):
         """
         params = self.get_local_params(graph_state)
 
-        # Shift the times for the model's t0 aligned with the light curve's lc_t0.
-        # The light curve times were already shifted in the constructor to be relative to lc_t0.
+        # Shift the times for the model's t0 aligned with the light curve's reference epoch.
         shifted_times = times - params["t0"]
 
         flux_density = np.zeros((len(times), len(wavelengths)))
@@ -556,8 +556,8 @@ class LightcurveTemplateModel(BaseLightcurveTemplateModel):
 
     Periodic models require that each filter's light curve is sampled at the same times
     and that the value at the end of the light curve is equal to the value at the start
-    of the light curve. The light curve epoch (lc_t0) is automatically set to the first time
-    so that the t0 parameter corresponds to the shift in phase.
+    of the light curve. The light curve epoch (lc_data_t0) is automatically set to the first
+    time so that the t0 parameter corresponds to the shift in phase.
 
     The set of passbands used to configure the model MUST be the same as used
     to generate the SED (the wavelengths must match).
@@ -589,12 +589,11 @@ class LightcurveTemplateModel(BaseLightcurveTemplateModel):
         second column is the bandflux (in nJy), and the third column is the filter.
     passbands : Passband or PassbandGroup
         The passband or passband group to use for defining the light curve.
-    lc_t0 : float
-        The reference epoch (t0) of the input light curve. The model will be shifted
-        to the model's t0 when computing fluxes.  For periodic light curves, this either
-        must be set to the first time of the light curve or left as 0.0 to automatically
-        derive the lc_t0 from the light curve.
-        Default: 0.0
+    lc_data_t0 : float
+        The reference epoch of the input light curve. This is the time stamp of the input
+        array that will correspond to t0 in the model. For periodic light curves, this either
+        must be set to the first time of the light curve or set as 0.0 to automatically
+        derive the lc_data_t0 from the light curve.
     periodic : bool
         Whether the light curve is periodic. If True, the model will assume that
         the light curve repeats every period.
@@ -609,14 +608,14 @@ class LightcurveTemplateModel(BaseLightcurveTemplateModel):
         self,
         lightcurves,
         passbands,
+        lc_data_t0,
         *,
-        lc_t0=0.0,
         periodic=False,
         baseline=None,
         **kwargs,
     ):
         # Store the light curve data, parsing out different formats if needed.
-        self.lightcurves = LightcurveData(lightcurves, lc_t0=lc_t0, periodic=periodic, baseline=baseline)
+        self.lightcurves = LightcurveData(lightcurves, lc_data_t0, periodic=periodic, baseline=baseline)
         super().__init__(passbands, filters=self.lightcurves.filters, **kwargs)
 
     def compute_sed(self, times, wavelengths, graph_state):
@@ -671,8 +670,7 @@ class LightcurveTemplateModel(BaseLightcurveTemplateModel):
             if flt not in self.lightcurves.lightcurves:
                 raise ValueError(f"Filter '{flt}' is not supported by LightcurveTemplateModel.")
 
-        # Shift the times for the model's t0 aligned with the light curve's lc_t0.
-        # The light curve times were already shifted in the constructor to be relative to lc_t0.
+        # Shift the times for the model's t0 aligned with the light curve's reference epoch.
         shifted_times = times - params["t0"]
 
         bandfluxes = np.zeros(len(times))
@@ -715,7 +713,7 @@ class MultiLightcurveTemplateModel(BaseLightcurveTemplateModel):
 
     Periodic models require that each filter's light curve is sampled at the same times
     and that the value at the end of the light curve is equal to the value at the start
-    of the light curve. The light curve epoch (lc_t0) is automatically set to the first time
+    of the light curve. The light curve epoch is automatically set to the first time
     so that the t0 parameter corresponds to the shift in phase.
 
     The set of passbands used to configure the model MUST be the same as used
@@ -788,7 +786,7 @@ class MultiLightcurveTemplateModel(BaseLightcurveTemplateModel):
         return len(self.lightcurves)
 
     @classmethod
-    def from_lclib_file(cls, lightcurves_file, passbands, lc_t0=0.0, filters=None, **kwargs):
+    def from_lclib_file(cls, lightcurves_file, passbands, *, forced_lc_t0=None, filters=None, **kwargs):
         """Create a MultiLightcurveTemplateModel from a light curves file in LCLIB format.
 
         Parameters
@@ -797,12 +795,11 @@ class MultiLightcurveTemplateModel(BaseLightcurveTemplateModel):
             The path to the light curves file in LCLIB format.
         passbands : Passband or PassbandGroup
             The passband or passband group to use for defining the light curve.
-        lc_t0 : float
-            The reference epoch (t0) of the input light curve. The model will be shifted
-            to the model's t0 when computing fluxes.  For periodic light curves, this either
-            must be set to the first time of the light curve or left as 0.0 to automatically
-            derive the lc_t0 from the light curve.
-            Default: 0.0
+        forced_lc_t0 : float or ndarray, optional
+            By default we use the LCLIB convention of storing the light curves so the first time
+            corresponds to the reference epoch (lc_data_t0) of the light curve. This can be overridden
+            by providing a value for forced_lc_t0.
+            Default: None
         filters : list of str, optional
             A list of filters to use for the light curves. If None, all filters will be used.
             Used to select a subset of filters that match the survey to simulate.
@@ -821,9 +818,19 @@ class MultiLightcurveTemplateModel(BaseLightcurveTemplateModel):
         if lightcurve_tables is None or len(lightcurve_tables) == 0:
             raise ValueError(f"Could not read light curves from file: {lightcurves_file}")
 
+        if forced_lc_t0 is None:
+            forced_lc_t0 = np.full(len(lightcurve_tables), None)
+        elif np.isscalar(forced_lc_t0):
+            forced_lc_t0 = np.full(len(lightcurve_tables), forced_lc_t0)
+        elif len(forced_lc_t0) != len(lightcurve_tables):
+            raise ValueError(
+                "If provided as an array, forced_lc_t0 must have the same "
+                "length as the number of light curves."
+            )
+
         lightcurves = []
-        for table in lightcurve_tables:
-            lc_data = LightcurveData.from_lclib_table(table, lc_t0=lc_t0, filters=filters)
+        for table, lc_t0 in zip(lightcurve_tables, forced_lc_t0, strict=False):
+            lc_data = LightcurveData.from_lclib_table(table, forced_lc_t0=lc_t0, filters=filters)
             lightcurves.append(lc_data)
 
         return cls(lightcurves, passbands, **kwargs)
@@ -884,8 +891,7 @@ class MultiLightcurveTemplateModel(BaseLightcurveTemplateModel):
             if flt not in lc.lightcurves:
                 raise ValueError(f"Filter '{flt}' is not supported by LightcurveTemplateModel {model_ind}.")
 
-        # Shift the times for the model's t0 aligned with the light curve's lc_t0.
-        # The light curve times were already shifted in the constructor to be relative to lc_t0.
+        # Shift the times for the model's t0 aligned with the light curve's reference epoch.
         shifted_times = times - params["t0"]
 
         bandfluxes = np.zeros(len(times))
