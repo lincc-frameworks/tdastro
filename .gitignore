@@ -150,5 +150,5 @@ _html/
 .initialize_new_project.sh
 
 # Default cached location for data files
-src/tdastro/astro_utils/passbands/*
+src/lightcurvelynx/astro_utils/passbands/*
 data/*

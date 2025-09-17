@@ -15,7 +15,7 @@ Glossary
 
 **Node**: Nodes are the Python objects within the simulation that generate or use parameters. A node might represent a physical object that we are simulating, such as a Type Ia supernova with input parameters x0, x1, and c, or it might represent the statistical distributions for parameters, such as a Gaussian distribution for sampling an object's  redshift (z). It is easiest to think of nodes as machines for generating portions of the simulation data. Nodes are implemented as subclasses of the ``ParameterizedNode`` class.
 
-**node_label**: The node label is a unique identifier for each ``ParameterizedNode`` that allows the simulation (and the user) to track which Python object (and thus which part of the simulation) is using a particular parameter value. All parameters are indexed by a combination of node label and parameter name so that multiple ``ParameterizedNode`` objects can use the same parameter name without inadvertently overwriting each other's values. If a node label is not specified, TDAstro automatically assigns one.
+**node_label**: The node label is a unique identifier for each ``ParameterizedNode`` that allows the simulation (and the user) to track which Python object (and thus which part of the simulation) is using a particular parameter value. All parameters are indexed by a combination of node label and parameter name so that multiple ``ParameterizedNode`` objects can use the same parameter name without inadvertently overwriting each other's values. If a node label is not specified, LightCurveLynx automatically assigns one.
 
 **Observer Frame**: The reference frame of the observer. Observations in the observer frame account for effects such as redshift.
 

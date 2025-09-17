@@ -1,4 +1,4 @@
-"""Benchmarks for core TDAstro functionality.
+"""Benchmarks for core LightCurveLynx functionality.
 
 To manually run the benchmarks use: asv run
 
@@ -9,22 +9,22 @@ from pathlib import Path
 
 import numpy as np
 from astropy import units as u
-from tdastro.astro_utils.passbands import PassbandGroup
-from tdastro.astro_utils.snia_utils import DistModFromRedshift, HostmassX1Func, X0FromDistMod
-from tdastro.astro_utils.unit_utils import fnu_to_flam
-from tdastro.base_models import FunctionNode
-from tdastro.effects.white_noise import WhiteNoise
-from tdastro.math_nodes.np_random import NumpyRandomFunc
-from tdastro.models.basic_models import ConstantSEDModel, LinearWavelengthModel, StepModel
-from tdastro.models.lightcurve_template_model import LightcurveTemplateModel
-from tdastro.models.multi_object_model import AdditiveMultiObjectModel
-from tdastro.models.sncomso_models import SncosmoWrapperModel
-from tdastro.models.static_sed_model import StaticSEDModel
+from lightcurvelynx.astro_utils.passbands import PassbandGroup
+from lightcurvelynx.astro_utils.snia_utils import DistModFromRedshift, HostmassX1Func, X0FromDistMod
+from lightcurvelynx.astro_utils.unit_utils import fnu_to_flam
+from lightcurvelynx.base_models import FunctionNode
+from lightcurvelynx.effects.white_noise import WhiteNoise
+from lightcurvelynx.math_nodes.np_random import NumpyRandomFunc
+from lightcurvelynx.models.basic_models import ConstantSEDModel, LinearWavelengthModel, StepModel
+from lightcurvelynx.models.lightcurve_template_model import LightcurveTemplateModel
+from lightcurvelynx.models.multi_object_model import AdditiveMultiObjectModel
+from lightcurvelynx.models.sncomso_models import SncosmoWrapperModel
+from lightcurvelynx.models.static_sed_model import StaticSEDModel
 
 # ASV runs from copy of the project (benchmarks/env/....). So we load the
 # data files based off the current file location instead.
 _PROJECT_BASE_DIR = Path(__file__).parent.parent
-_TEST_DATA_DIR = _PROJECT_BASE_DIR / "tests" / "tdastro" / "data"
+_TEST_DATA_DIR = _PROJECT_BASE_DIR / "tests" / "lightcurvelynx" / "data"
 
 
 def _load_test_passbands():
