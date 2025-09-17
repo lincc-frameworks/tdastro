@@ -234,7 +234,7 @@ class TimeSuite:
         lc_source = LightcurveTemplateModel(
             lightcurves,
             self.passbands,
-            lc_t0=0.0,
+            lc_data_t0=0.0,
             periodic=True,
             baseline=None,
             t0=0.0,
