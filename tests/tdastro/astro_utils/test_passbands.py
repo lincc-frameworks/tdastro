@@ -67,6 +67,7 @@ def test_passband_manual_create(tmp_path):
     assert test_pb.survey == "test"
     assert test_pb.filter_name == "u"
     assert test_pb.full_name == "test_u"
+    assert test_pb.delta_wave == pytest.approx(5.0)
     np.testing.assert_allclose(test_pb._loaded_table, transmission_table)
 
     # We can create an load a table in nm as well. It will auto-convert to Angstroms.
@@ -75,7 +76,13 @@ def test_passband_manual_create(tmp_path):
     assert test_pb2.survey == "test"
     assert test_pb2.filter_name == "g"
     assert test_pb2.full_name == "test_g"
+    assert test_pb2.delta_wave == pytest.approx(5.0)
     np.testing.assert_allclose(test_pb2._loaded_table, transmission_table)
+
+    # If the grid is not regular, delta_wave is None.
+    transmission3 = np.array([[4000, 0.5], [4040, 0.6], [4090, 0.7]])
+    test_pb3 = Passband(transmission3, survey="test", filter_name="g", delta_wave=None)
+    assert test_pb3.delta_wave is None
 
     # We raise an error if the data is not sorted.
     with pytest.raises(ValueError):
@@ -430,6 +437,7 @@ def test_passband_fluxes_to_bandflux(passbands_dir, tmp_path):
     """Test the fluxes_to_bandflux method of the Passband class."""
     transmission_table = "100 0.5\n200 0.75\n300 0.25\n"
     a_band = create_toy_passband(tmp_path, transmission_table, delta_wave=100, trim_quantile=None)
+    assert a_band.delta_wave == pytest.approx(100.0)
 
     # Define some mock flux values and calculate our expected bandflux
     flux = np.array(
@@ -445,8 +453,15 @@ def test_passband_fluxes_to_bandflux(passbands_dir, tmp_path):
     bandflux = a_band.fluxes_to_bandflux(flux)
     np.testing.assert_allclose(bandflux, expected_bandflux)
 
-    # Test with a different set of fluxes, regridding the transmission table
-    a_band.process_transmission_table(delta_wave=50, trim_quantile=None)
+    # We can query a 3-d array (multiple samples of fluxes) and get the correct results per-sample.
+    flux4 = np.array([0.0 * flux, 1.0 * flux, 2.0 * flux, 3.0 * flux])
+    bandflux4 = a_band.fluxes_to_bandflux(flux4)
+    for i in range(4):
+        np.testing.assert_allclose(bandflux4[i], i * expected_bandflux)
+
+    # We create a new passband with a finer grid to test the integration at more steps.
+    a_band = create_toy_passband(tmp_path, transmission_table, delta_wave=50, trim_quantile=None)
+    assert a_band.delta_wave == pytest.approx(50.0)
     flux = np.array(
         [
             [100.0, 12.0, 1.0, 0.5, 0.25],
@@ -460,7 +475,8 @@ def test_passband_fluxes_to_bandflux(passbands_dir, tmp_path):
     )
     bandflux = a_band.fluxes_to_bandflux(flux)
     expected_bandflux = np.trapezoid(
-        flux * a_band.processed_transmission_table[:, 1], x=a_band.processed_transmission_table[:, 0]
+        flux * a_band.processed_transmission_table[:, 1],
+        x=a_band.processed_transmission_table[:, 0],
     )
     np.testing.assert_allclose(bandflux, expected_bandflux)
 
