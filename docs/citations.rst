@@ -1,14 +1,14 @@
 Citations
 ===============================================================================
 
-TDAstro relies on numerous open source packages to perform the computation. In addition to
-TDAstro itself (citation information coming soon), please make sure to cite the packages
+LightCurveLynx relies on numerous open source packages to perform the computation. In addition to
+LightCurveLynx itself (citation information coming soon), please make sure to cite the packages
 that your study uses.
 
 Base Libraries
 -------------------------------------------------------------------------------
 
-The following libraries are used by most TDAstro runs:
+The following libraries are used by most LightCurveLynx runs:
 
 * `astropy <https://www.astropy.org/>`_
 * `nested-pandas <https://nested-pandas.readthedocs.io/en/latest/>`_
@@ -26,12 +26,12 @@ Some runs may also use:
 Models, Effects, and Parameters
 -------------------------------------------------------------------------------
 
-TDAstro builds on a large collection of open source astronomy software for models and
+LightCurveLynx builds on a large collection of open source astronomy software for models and
 effects, each of which may have its own citation requirements and dependencies. Which models,
-effects, and parameters used will vary from simulation to simulation. TDAstro includes
+effects, and parameters used will vary from simulation to simulation. LightCurveLynx includes
 citation information in class and function docstrings to help users identify relevant citations.
 
-As an example, consider the dust extinction effect. TDAstro supports a variety of external dustmaps
+As an example, consider the dust extinction effect. LightCurveLynx supports a variety of external dustmaps
 libraries, but was primarily designed to work with the `dustmaps <https://github.com/gregreen/dustmaps>`_
 package (Green 2018). The dust extinction is computed via the ExtinctionEffect which used the
 `dust_extinction <https://github.com/karllark/dust_extinction>`_ package (Gordon 2024). In addition,
@@ -42,9 +42,9 @@ more information on the available dustmaps and their citations.
 Citation-Compass
 -------------------------------------------------------------------------------
 
-TDAstro also uses the LINCC Frameworks `citation_compass` package to track (specifically annotated)
+LightCurveLynx also uses the LINCC Frameworks `citation_compass` package to track (specifically annotated)
 citations encountered during your simulations. Since Citation-Compass requires explicit annotations, it
-will include packages used by TDAstro (such as dustmaps), but not the references on which they depend
+will include packages used by LightCurveLynx (such as dustmaps), but not the references on which they depend
 (such as the dustmaps themselves).
 
 For more information on how to use this package, please refer to the :doc:`citations notebook <notebooks/citations>`.

@@ -4,15 +4,15 @@ Simulations
 Introduction
 -------------------------------------------------------------------------------
 
-.. figure:: _static/tdastro-intro.png
+.. figure:: _static/lightcurvelynx-intro.png
    :class: no-scaled-link
    :scale: 80 %
    :align: center
-   :alt: TDAstro simulation components
+   :alt: LightCurveLynx simulation components
 
-   TDAstro simulation components
+   LightCurveLynx simulation components
 
-The TDAstro simulation function is designed to produce multiple samples from single population
+The LightCurveLynx simulation function is designed to produce multiple samples from single population
 of objects and their observed light curves as determined by given survey information. The main
 step includes the following components:
 
@@ -40,7 +40,7 @@ key terms, such as *GraphState*, *Node*, *Parameter*, *ParameterizedNode*, *Base
 Defining a parameterized model
 -------------------------------------------------------------------------------
 
-The core idea behind TDAstro is that we want to generate light curves from parameterized models
+The core idea behind LightCurveLynx is that we want to generate light curves from parameterized models
 of astronomical objects/phenomena. The ``BasePhysicalModel`` class defines the structure for modeling
 physical objects and is subclassed into ``SEDModel`` (for models that simulate the full spectral energy
 distributions) and ``BandfluxModel`` (for models that simulate band fluxes). By providing a distribution of
@@ -86,7 +86,7 @@ can have the following DAG:
    An example DAG for a SNIa model
 
 In this example, the parameter ``c`` is drawn from a predefined distribution, while the parameter ``x1``
-is drawn from a distribution that is itself parameterized by the ``host_mass`` parameter. TDAstro handles
+is drawn from a distribution that is itself parameterized by the ``host_mass`` parameter. LightCurveLynx handles
 the sequential processing of the graph so that all parameters are consistently sampled for each object.
 
 See the :doc:`Introduction notebook<notebooks/introduction>` for details on how to
@@ -144,7 +144,7 @@ fit light curves, such as those from LCLIB. Since we do not have the underlying 
 so we can only work with them at the band flux level. See the
 :doc:`lightcurve template model <notebooks/lightcurve_source_demo>` for an example of this type of model.
 
-**Note** that most models in TDAstro operate at the SED level and we *strongly* encourage new models to
+**Note** that most models in LightCurveLynx operate at the SED level and we *strongly* encourage new models to
 produce SEDs where possible. Working at the finer grained level allows more comprehensive and accurate
 simulations, such as accounting for wavelength and time compression due to redshift. The models that generate
 band fluxes directly will not account for all of these factors.
@@ -171,7 +171,7 @@ See our selection of :doc:`tutorial notebooks <notebooks>` for further examples.
 Simulating from Multiple Surveys
 -------------------------------------------------------------------------------
 
-TDAstro can simulate observations from multiple surveys in a single run by passing a list of
+LightCurveLynx can simulate observations from multiple surveys in a single run by passing a list of
 ``ObsTable`` and a list of ``PassbandGroup`` to the ``simulate_lightcurves()`` function.
 The parameter space is sampled once for each simulated object, so the observations in each
 survey are consistent with respect to the parameterization. The times of observation and filters

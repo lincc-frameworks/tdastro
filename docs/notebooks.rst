@@ -5,7 +5,7 @@ Getting Started
 -----------------------------------------------------------------------------------------
 
 We recommend that new users start with the following notebooks to get a basic understanding
-of the TDAstro package and how to use it.
+of the LightCurveLynx package and how to use it.
 
 .. toctree::
     :maxdepth: 1
@@ -19,7 +19,7 @@ Technical Details
 -----------------------------------------------------------------------------------------
 
 The following notebooks provide more in-depth technical deep dives into specific 
-features and models of the TDAstro package.
+features and models of the LightCurveLynx package.
 
 .. toctree::
     :maxdepth: 1
@@ -39,7 +39,7 @@ Citations
 -----------------------------------------------------------------------------------------
 
 The following note provides an overview of how to use the `citation_compass` package to
-track citations in your TDAstro simulations.
+track citations in your LightCurveLynx simulations.
 
 .. toctree::
     :maxdepth: 1
@@ -50,7 +50,7 @@ track citations in your TDAstro simulations.
 Example Simulations
 -----------------------------------------------------------------------------------------
 
-The following notebooks provide example simulations using the TDAstro package.
+The following notebooks provide example simulations using the LightCurveLynx package.
 
 .. toctree::
     :maxdepth: 1
@@ -62,8 +62,8 @@ The following notebooks provide example simulations using the TDAstro package.
     Synphot-based Models <notebooks/pre_executed/synphot_example>
 
 
-Running TDAstro in a Jupyter Notebook
+Running LightCurveLynx in a Jupyter Notebook
 -----------------------------------------------------------------------------------------
 
-For instructions on how to add the TDAstro kernel to your Jupyter Notebook environment, see the
+For instructions on how to add the LightCurveLynx kernel to your Jupyter Notebook environment, see the
 :doc:`index page <index>`.

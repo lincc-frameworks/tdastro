@@ -1,11 +1,11 @@
-Contributing to TDAstro
+Contributing to LightCurveLynx
 ===============================================================================
 
 The code
 --------------------------------------------------------------------------------
 
-The TDAstro code is hosted on GitHub at
-`https://github.com/lincc-frameworks/tdastro <https://github.com/lincc-frameworks/tdastro>`_.
+The LightCurveLynx code is hosted on GitHub at
+`https://github.com/lincc-frameworks/lightcurvelynx <https://github.com/lincc-frameworks/lightcurvelynx>`_.
 
 
 Find (or make) a new GitHub issue
@@ -35,8 +35,8 @@ virtual environment such as `venv`:
 
 .. code-block:: bash
 
-   >> python3 -m venv ~/envs/tdastro
-   >> source ~/envs/tdastro/bin/activate
+   >> python3 -m venv ~/envs/lightcurvelynx
+   >> source ~/envs/lightcurvelynx/bin/activate
 
 
 Once you have created a new environment, you can install this project for local

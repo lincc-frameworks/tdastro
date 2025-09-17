@@ -1,27 +1,29 @@
 
-.. tdastro documentation main file.
+.. lightcurvelynx documentation main file.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
-
-TDAstro
+LightCurveLynx - A fast and nimble package for realistic time-domain light curve simulations
 ========================================================================================
+
+**NOTE:** This project was recently renamed from TDAstro to LightCurveLynx. See the
+details for updating your code below.
 
 Time-Domain Forward-Modeling for the Rubin Era
 -------------------------------------------------------------------------------
 
 Realistic light curve simulations are essential to many time-domain problems. 
 Simulations are needed to evaluate observing strategy, characterize biases, 
-and test pipelines. TDAstro aims to provide a flexible, scalable, and user-friendly
+and test pipelines. LightCurveLynx aims to provide a flexible, scalable, and user-friendly
 time-domain simulation software with realistic effects and survey strategies.
 
-.. figure:: _static/tdastro-intro.png
+.. figure:: _static/lightcurvelynx-intro.png
    :class: no-scaled-link
    :scale: 80 %
    :align: center
-   :alt: TDAstro simulation components
+   :alt: LightCurveLynx simulation components
 
 
-The main simulation components in TDAstro include:
+The main simulation components in LightCurveLynx include:
 
 * A statistical simulation step where the hyperparameters of the model are drawn
   from one or more prior distributions. This can include existing packages such as
@@ -35,7 +37,7 @@ The main simulation components in TDAstro include:
 * The ``PassbandGroup`` contains the filter information of the telescope and is used
   to calculate the fluxes in each band.
 
-TDAstro can generate numerous random realizations of the parameters for the physical model 
+LightCurveLynx can generate numerous random realizations of the parameters for the physical model 
 (``SEDModel`` or ``BandfluxModel``), and then apply the effects to these realizations. The ``ObsTable``
 component is used to produce realistic light curves using the above components.  See the
 :doc:`simulations <simulations>` page for a more detailed description of the process.
@@ -45,13 +47,13 @@ section of the :doc:`notebooks page <notebooks>`. The :doc:`glossary <glossary>`
 key terms, such as *GraphState*, *Node*, *Parameter*, *ParameterizedNode*, *BasePhysicalModel*,
 *BandfluxModel*, and *SEDModel*.
 
-The `full source code <https://github.com/lincc-frameworks/tdastro>`_ is available on GitHub.
+The `full source code <https://github.com/lincc-frameworks/lightcurvelynx>`_ is available on GitHub.
 
 
 Getting Started
 -------------------------------------------------------------------------------
 
-You can install TDAstro from PyPI with pip or from conda-forge with conda. We recommend using a dedicated environment.
+You can install LightCurveLynx from PyPI with pip or from conda-forge with conda. We recommend using a dedicated environment.
 
 .. tab-set::
    :sync-group: packagemanager
@@ -62,11 +64,11 @@ You can install TDAstro from PyPI with pip or from conda-forge with conda. We re
       .. code-block:: bash
 
          # Create a virtual environment
-         python3 -m venv ~/envs/tdastro
+         python3 -m venv ~/envs/lightcurvelynx
          # Activate it
-         source ~/envs/tdastro/bin/activate
+         source ~/envs/lightcurvelynx/bin/activate
          # Install from PyPI
-         python -m pip install tdastro
+         python -m pip install lightcurvelynx
 
    .. tab-item:: conda
       :sync: conda
@@ -74,16 +76,16 @@ You can install TDAstro from PyPI with pip or from conda-forge with conda. We re
       .. code-block:: bash
 
          # Create a virtual environment
-         conda create -p tdastro python=3.12
+         conda create -p lightcurvelynx python=3.12
          # Activate it
-         conda activate tdastro
+         conda activate lightcurvelynx
          # Install from conda-forge channel
-         conda install conda-forge::tdastro
+         conda install conda-forge::lightcurvelynx
 
-Since TDAstro relies on a large number of existing packages, not all of the packages
+Since LightCurveLynx relies on a large number of existing packages, not all of the packages
 are installed in the default configuration. For example the microlensing (`VBMicrolensing`),
 pzflow (`pzflow`), and sncosmo (`sncosmo`) packages are not included by default. If you try to
-import a module that is not installed, TDAstro will raise an `ImportError` with information on which
+import a module that is not installed, LightCurveLynx will raise an `ImportError` with information on which
 packages you need to install. You will need to install these manually. You can also install most
 optional dependencies with:
 
@@ -95,35 +97,48 @@ optional dependencies with:
 
       .. code-block:: bash
 
-         python -m pip install 'tdastro[all]'
+         python -m pip install 'lightcurvelynx[all]'
 
    .. tab-item:: conda
       :sync: conda
 
       .. code-block:: bash
 
-         conda install conda-forge::tdastro conda-forge::pzflow conda-forge::sncosmo
+         conda install conda-forge::lightcurvelynx conda-forge::pzflow conda-forge::sncosmo
 
 See our selection of :doc:`tutorial notebooks <notebooks>` for usage examples.
 We recommend starting with the :doc:`introduction notebook <notebooks/introduction>`
 to get a high level overview.
 
-If you are interested in installing from `source <https://github.com/lincc-frameworks/tdastro>`_,
+If you are interested in installing from `source <https://github.com/lincc-frameworks/lightcurvelynx>`_,
 or contributing to the package, see the :doc:`contribution guide <contributing>`.
 
-Running TDAstro in a Jupyter Notebook
+Running LightCurveLynx in a Jupyter Notebook
 -------------------------------------------------------------------------------
 
-Note that to run the TDAstro within a notebook, your notebook kernel will need to have TDAstro installed.
+Note that to run the LightCurveLynx within a notebook, your notebook kernel will need to have LightCurveLynx installed.
 If you are using JupyterLab, you can install the kernel with the following commands
 (using the Terminal program):
 
 .. code-block:: bash
 
    >> python3 -m pip install ipykernel
-   >> python3 -m ipykernel install --user --name=tdastro
+   >> python3 -m ipykernel install --user --name=lightcurvelynx
 
 You will need to restart your notebook server to see the new kernel.
+
+Updating from TDAstro
+-------------------------------------------------------------------------------
+
+This package was recently renamed from TDAstro to LightCurveLynx. A few changes will be needed to
+update your code:
+
+   * If you use the package as a dependency (e.g. in pyproject.toml), update your requirements to use `lightcurvelynx` instead of `tdastro`.
+   * Update your import statements from `import tdastro` to `import lightcurvelynx`.
+   * If you have cloned the repository, update your remote URL to `https://github.com/lincc-frameworks/lightcurvelynx`.
+   * If you have installed from PyPI or conda-forge, uninstall `tdastro` and install `lightcurvelynx` instead.
+
+If you run into any problems or have any questions, please reach out to the team. We are happy to help!
 
 
 Acknowledgements
