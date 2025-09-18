@@ -86,24 +86,6 @@ class RomanObsTable(ObsTable):
         - pixel_scale: The pixel scale for the camera in arcseconds per pixel.
         - radius: The angular radius of the observations (in degrees).
         - read_noise: The standard deviation of the count of readout electrons per pixel.
-
-    Attributes
-    ----------
-    table : pandas.core.frame.DataFrame
-        The table with all the observation information.
-    colmap : dict
-        A mapping of short column names to their names in the underlying table.
-    _kd_tree : scipy.spatial.KDTree or None
-        A kd_tree of the ObsTable pointings for fast spatial queries. We use the scipy
-        kd-tree instead of astropy's functions so we can directly control caching.
-    pixel_scale : float or None, optional
-        The pixel scale for the ZTF camera in arcseconds per pixel.
-    read_noise : float or None, optional
-        The readout noise for the ZTF camera in electrons per pixel.
-    dark_current : float or None, optional
-        The dark current for the ZTF camera in electrons per second per pixel.
-    radius : float
-        The angular radius of the observations (in degrees).
     """
 
     # Default column names for the ZTF survey data.
@@ -232,7 +214,7 @@ class RomanObsTable(ObsTable):
         bandflux : array_like of float
             Band bandflux of the point source in nJy.
         index : array_like of int
-            The index of the observation in the OpSim table.
+            The index of the observation in the table.
 
         Returns
         -------
