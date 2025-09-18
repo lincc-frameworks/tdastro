@@ -32,6 +32,11 @@ def plot_lightcurves(
         A dictionary that provides mapping between filters and the colors to be plotted.
     **kwargs : dict
         Optional parameters to pass to the plotting function
+
+    Returns
+    -------
+    ax : matplotlib.pyplot.Axes
+        The axes containing the plot.
     """
     # If no axes were given create them using either the given figure or
     # a newly created one (if no figure is given).
@@ -99,6 +104,8 @@ def plot_lightcurves(
     if len(unique_filters) > 1:
         ax.legend()
 
+    return ax
+
 
 def plot_bandflux_lightcurves(bandflux, times=None, ax=None, figure=None, title=None):
     """Plot one or more light curves where each band is observed at each time.
@@ -118,6 +125,11 @@ def plot_bandflux_lightcurves(bandflux, times=None, ax=None, figure=None, title=
         Figure, None by default.
     title : str or None, optional
         Title of the plot. None by default.
+
+    Returns
+    -------
+    ax : matplotlib.pyplot.Axes
+        The axes containing the plot.
     """
     # If no axes were given create them using either the given figure or
     # a newly created one (if no figure is given).
@@ -144,6 +156,8 @@ def plot_bandflux_lightcurves(bandflux, times=None, ax=None, figure=None, title=
     if len(bandflux) > 1:
         ax.legend()
 
+    return ax
+
 
 def plot_flux_spectrogram(flux_density, times=None, wavelengths=None, ax=None, figure=None, title=None):
     """Plot a spectrogram to visualize the fluxes.
@@ -165,6 +179,11 @@ def plot_flux_spectrogram(flux_density, times=None, wavelengths=None, ax=None, f
         Figure, None by default.
     title : str or None, optional
         Title of the plot. None by default.
+
+    Returns
+    -------
+    ax : matplotlib.pyplot.Axes
+        The axes containing the plot.
     """
     # If no axes were given create them using either the given figure or
     # a newly created one (if no figure is given).
@@ -192,3 +211,5 @@ def plot_flux_spectrogram(flux_density, times=None, wavelengths=None, ax=None, f
     for (j, i), label in np.ndenumerate(flux_density.T):
         if i % 2 == 1 and j % 40 == 20:
             ax.text(i, j, round(label, 1), ha="center", va="center", size=8)
+
+    return ax
