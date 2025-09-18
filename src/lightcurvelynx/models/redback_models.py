@@ -5,6 +5,7 @@ https://redback.readthedocs.io/en/latest/
 """
 
 import math
+import numpy as np
 
 import astropy.units as uu
 from citation_compass import CiteClass
@@ -189,19 +190,20 @@ class RedbackWrapperModel(SEDModel, CiteClass):
             t0 = 0.0
         shifted_times = times - t0
 
-        # Redback takes the wavelengths in Angstroms and produces spectra in
-        # erg / cm^2 / s / Angstrom.  The spectra is oversampled in time, so we
-        # will need to interpolate it at the times of interest.
+        # Call the source function to get the RedbackTimeSeriesSource object.
         rb_result = self.source(
             shifted_times,
-            lambda_array=wavelengths,
-            output_format="spectra",
+            output_format="sncosmo_source",
             **fn_args,
         )
-        spline = interp1d(rb_result.time, rb_result.spectra, axis=0, kind="linear", fill_value=0.0)
-        model_flam = spline(shifted_times)
 
-        # Convert to fnu in nJy.
+        # sncosmo gives an error if the wavelengths are out of bounds, so we need to use
+        # extrapolation if the wavelengths are out of bounds.
+        if np.any(wavelengths < rb_result.minwave()) or np.any(wavelengths > rb_result.maxwave()):
+            return self.compute_sed_with_extrapolation(times, wavelengths, graph_state, **kwargs)
+
+        # Query the model and convert the output to nJy.
+        model_flam = rb_result.get_flux_density(shifted_times, wavelengths)
         model_fnu = flam_to_fnu(
             model_flam,
             wavelengths,

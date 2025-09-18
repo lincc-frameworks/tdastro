@@ -1,142 +1,149 @@
 """Test the RedbackWrapperModel."""
 
-from collections import namedtuple
-
-import astropy.units as uu
 import numpy as np
 import pytest
-from lightcurvelynx.astro_utils.unit_utils import fnu_to_flam
 from lightcurvelynx.math_nodes.given_sampler import GivenValueList
 from lightcurvelynx.models.redback_models import RedbackWrapperModel
 
 
-def toy_redback_model(times, lambda_array, t_start, slope, **kwargs):
-    """A function simulating a toy redback model that produces known outputs.
-    Uses a function that is linearly increasing in time for t=0 to 100.
+class ToySNModel:
+    """A toy model that mimics the data structure of a RedbackTimeSeriesSource,
+    but we can control.
 
-    f(t, w) = { log(w) + (t-t_start) * slope    if t >= t_start
-              { log(w)                          if t < t_start
-    Parameters
+    Attributes
     ----------
-    times : np.ndarray
-        This is not used by the model, which (consistent with other redback models queried
-        for spectra) evaluates a predefined set of times.
-    lambda_array : np.ndarray
-        The wavelength values to use for the model (in nm).
-    t_start : float
-        The time offset to apply to the model. This is when the linear ramp starts.
-    slope : float
-        The increasing slope with time.
-    **kwargs : dict
-        Additional keyword arguments to pass to the model function.
-
-    Returns
-    -------
-    A named tuple representing the modeled spectra of the data. The tuple has the
-    following members:
-    time : a T length array with the times at which the spectrum is evaluated
-    lambdas : a W length array with the wavelengths (in nm) at which the spectrum is evaluated
-    spectrum : a T x W sized matrix representing the modeled spectrum (in erg / cm^2 / s / Angstrom)
+    self.height : float
+        The height of the toy model peak.
+    self.width : float
+        The width of the toy model peak.
     """
-    times_to_use = np.arange(0, 20)
-    slope_addition = np.clip(times_to_use - t_start, 0, None) * slope
-    spectra = lambda_array[np.newaxis, :] + slope_addition[:, np.newaxis]
 
-    output = namedtuple("output", ["time", "lambdas", "spectra"])(
-        time=times_to_use, lambdas=lambda_array, spectra=spectra
-    )
-    return output
+    def __init__(self, height, width):
+        self.height = height
+        self.width = width
+
+    def minwave(self):
+        """Get the minimum wavelength of the model."""
+        return 0.0
+
+    def maxwave(self):
+        """Get the maximum wavelength of the model."""
+        return np.inf
+
+    def get_flux_density(self, times, wavelengths):
+        """A toy flux function that depends on time and wave.
+        Peaks at t=0 and decreases with wave.
+
+        Parameters
+        ----------
+        times : numpy.ndarray
+            A length T array of rest frame timestamps.
+        wavelengths : numpy.ndarray
+            A length N array of wavelengths (in angstroms).
+
+        Returns
+        -------
+        flux_density : numpy.ndarray
+            A length T x N matrix of SED values (in nJy).
+        """
+        lightcurve = self.height * np.exp(-(times**2) / (self.width**2))
+        flux_density = lightcurve[:, np.newaxis] * (1000.0 / wavelengths[np.newaxis, :])
+        return flux_density
+
+
+def _toy_redback_model(times, height, width, **kwargs):
+    """Create and return the toy model."""
+    return ToySNModel(height, width)
 
 
 def test_redback_models_toy() -> None:
-    """Test that we can create and evaluate a toy model."""
+    """Test that we can create and evaluate a simple model."""
+    # Define static parameters.
+    t0 = 64350.0
     parameters = {
-        "t_start": 5.0,
-        "slope": 2.0,
-        "redshift": 0.0,
+        "height": 1000.0,
+        "width": 10.0,
     }
-    model = RedbackWrapperModel(toy_redback_model, parameters=parameters, node_label="toy")
-    assert np.isinf(model.maxwave())
-    assert model.minwave() == 0.0
-    assert set(model.source_param_names) == {"t_start", "slope", "redshift"}
+
+    # Create the model.
+    model = RedbackWrapperModel(
+        _toy_redback_model,
+        parameters=parameters,  # Set ALL the redback model parameters
+        ra=0.0,  # Set other parameters
+        dec=-10.0,
+        t0=t0,
+        node_label="source",
+    )
+    assert set(model.source_param_names) == {"height", "width"}
 
     state = model.sample_parameters()
-    assert state["toy"]["t_start"] == 5.0
-    assert state["toy"]["slope"] == 2.0
+    assert state["source"]["height"] == 1000.0
+    assert state["source"]["width"] == 10.0
+    assert state["source"]["t0"] == 64350.0
 
-    times = np.array([1.0, 5.0, 6.5, 10.0])
+    times = np.array([-10.0, 0.5, 10.0]) + t0
     waves_ang = np.array([1000.0, 2000.0])
     fluxes = model.evaluate_sed(times, waves_ang, graph_state=state)
 
-    expected_flam = np.array(
-        [
-            [1000.0, 2000.0],
-            [1000.0, 2000.0],
-            [1003.0, 2003.0],
-            [1010.0, 2010.0],
-        ]
+    # Check that the fluxes spike around t0.
+    assert fluxes.shape == (3, 2)
+    assert np.all(fluxes[0, :] < fluxes[1, :])
+    assert np.all(fluxes[1, :] > fluxes[2, :])
+
+    # Check that the fluxes are different at different wavelengths.
+    assert np.all(fluxes[:, 0] != fluxes[:, 1])
+
+
+def test_redback_models_fail_toy() -> None:
+    """Test that we can create, but fail to evaluate a model if we don't have the parameters we need."""
+    # Create a model with a missing parameter.
+    t0 = 64350.0
+    model = RedbackWrapperModel(
+        _toy_redback_model,
+        parameters={"height": 1000.0},  # Missing "width"
+        t0=t0,
+        node_label="source",
     )
-
-    # We need to convert the output back to flam to check them.
-    output_flam = fnu_to_flam(
-        fluxes,
-        waves_ang,
-        wave_unit=uu.AA,
-        flam_unit=uu.erg / uu.second / uu.cm**2 / uu.AA,
-        fnu_unit=uu.nJy,
-    )
-    assert np.allclose(output_flam, expected_flam)
-
-
-def test_redback_models_toy_fail() -> None:
-    """Test that we can create, but fail to evaluate a toy model if we don't have the parameters we need."""
-    parameters = {
-        "slope": 2.0,
-        "redshift": 0.0,
-    }
-    model = RedbackWrapperModel(toy_redback_model, parameters=parameters, node_label="toy")
+    assert set(model.source_param_names) == {"height"}
 
     state = model.sample_parameters()
-    assert state["toy"]["slope"] == 2.0
-
     times = np.array([1.0, 5.0, 6.5, 10.0])
     waves_ang = np.array([1000.0, 2000.0])
     with pytest.raises(TypeError):
         _ = model.evaluate_sed(times, waves_ang, graph_state=state)
 
     # Fail if we give it the same parameter in two different ways (repeat redshift).
-    parameters["t_start"] = 1.0  # Fix missing paramater
     with pytest.raises(ValueError):
-        _ = RedbackWrapperModel(toy_redback_model, parameters=parameters, redshift=0.1, node_label="toy")
+        _ = RedbackWrapperModel(
+            "one_component_kilonova_model",
+            parameters={"height": 1000.0, "width": 10.0, "redshift": 0.05},
+            redshift=0.1,
+            node_label="toy",
+        )
 
 
-def test_redback_models_toy_chained() -> None:
-    """Test that we can create and evaluate a toy model with chained parameters."""
+def test_redback_models_chained_toy() -> None:
+    """Test that we can create and evaluate a model with chained parameters."""
+    t0 = 64350.0
     parameters = {
-        "t_start": GivenValueList([0.0, 2.0, 4.0]),
-        "slope": 2.0,
-        "redshift": 0.0,
+        "height": GivenValueList([500.0, 1000.0, 1500.0]),
+        "width": 10.0,
     }
-    model = RedbackWrapperModel(toy_redback_model, parameters=parameters, node_label="toy")
+
+    # Create the model.
+    model = RedbackWrapperModel(
+        _toy_redback_model,
+        parameters=parameters,  # Set ALL the redback model parameters
+        t0=t0,
+        node_label="source",
+    )
+    assert set(model.source_param_names) == {"height", "width"}
 
     state = model.sample_parameters(num_samples=3)
-    times = np.array([0.0, 1.0, 5.0, 6.5, 10.0])
+    times = np.array([t0 + 0.5])
     waves_ang = np.array([1000.0])
     fluxes = model.evaluate_sed(times, waves_ang, graph_state=state)
 
-    # Each sample has the starting time of the ramp starting later.
-    expected_flam = [
-        np.array([1000.0, 1002.0, 1010.0, 1013.0, 1020.0]),
-        np.array([1000.0, 1000.0, 1006.0, 1009.0, 1016.0]),
-        np.array([1000.0, 1000.0, 1002.0, 1005.0, 1012.0]),
-    ]
-
-    for idx in range(3):
-        output_flam = fnu_to_flam(
-            fluxes[idx, :],
-            waves_ang,
-            wave_unit=uu.AA,
-            flam_unit=uu.erg / uu.second / uu.cm**2 / uu.AA,
-            fnu_unit=uu.nJy,
-        )
-        assert np.allclose(output_flam[:, 0], expected_flam[idx])
+    # The returned fluxes should all be different since height is changing.
+    assert fluxes.shape == (3, 1, 1)
+    assert len(np.unique(fluxes)) == 3
