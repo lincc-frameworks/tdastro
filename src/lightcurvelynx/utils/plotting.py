@@ -32,7 +32,7 @@ def plot_lightcurves(
         A dictionary that provides mapping between filters and the colors to be plotted.
     **kwargs : dict
         Optional parameters to pass to the plotting function
-    
+
     Returns
     -------
     ax : matplotlib.pyplot.Axes
