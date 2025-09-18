@@ -198,7 +198,7 @@ class RedbackWrapperModel(SEDModel, CiteClass):
             output_format="spectra",
             **fn_args,
         )
-        spline = interp1d(rb_result.time, rb_result.spectra, axis=0, kind="linear", fill_value="extrapolate")
+        spline = interp1d(rb_result.time, rb_result.spectra, axis=0, kind="linear", fill_value=0.0)
         model_flam = spline(shifted_times)
 
         # Convert to fnu in nJy.
