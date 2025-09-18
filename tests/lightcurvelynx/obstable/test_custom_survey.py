@@ -1,10 +1,6 @@
-import tempfile
-from pathlib import Path
-
 import numpy as np
 import pandas as pd
 import pytest
-from lightcurvelynx.astro_utils.mag_flux import mag2flux
 
 from lightcurvelynx.obstable.custom_survey_table import CustomSurveyTable
 
@@ -74,9 +70,14 @@ def test_create_custom_survey_table_given():
     band_flux_err = survey_data.bandflux_error_point_source(np.ones(6), inds)
     assert np.allclose(band_flux_err, [0.1, 0.2, 0.1, 0.2, 0.1, 0.2])
 
-    # We fail if a filter in the table is not in the dictionary.
+    # We fail if a filter in the table is not in the dictionary or the
+    # dictionary has invalid values.
     with pytest.raises(ValueError):
         _ = CustomSurveyTable(pdf, fluxerr={"r": 0.1, "i": 0.2})
+    with pytest.raises(TypeError):
+        _ = CustomSurveyTable(pdf, fluxerr={"r": 0.1, "g": [0.2, 0.3]})
+    with pytest.raises(ValueError):
+        _ = CustomSurveyTable(pdf, fluxerr={"r": -0.1, "g": 0.2})
 
 
 def _calling_fun(bandflux, table):
@@ -124,3 +125,24 @@ def test_create_custom_survey_table_callable():
         inds,
     )
     assert np.allclose(band_flux_err, [1.1, 2.3, 1.4, 2.6])
+
+
+def test_create_custom_survey_table_invalid():
+    """Create a minimal CustomSurveyTable object with given noise data."""
+    values = {
+        "ra": np.array([15.0, 30.0, 15.0, 0.0, 60.0, 45.0]),
+        "dec": np.array([-10.0, -5.0, 0.0, 5.0, 10.0, 15.0]),
+        "filter": np.array(["r", "g", "r", "g", "r", "g"]),
+        "noise": np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6]),
+    }
+    pdf = pd.DataFrame(values)
+
+    # Time column is missing.
+    with pytest.raises(KeyError):
+        _ = CustomSurveyTable(pdf, fluxerr=1.0)
+
+    values["time"] = np.array([0.0, 1.0, 2.0, 3.0, 4.0, 5.0])
+
+    # Invalid fluxerr option (no support for pandas dataframe).
+    with pytest.raises(TypeError):
+        _ = CustomSurveyTable(pd.DataFrame(values), fluxerr=pdf)

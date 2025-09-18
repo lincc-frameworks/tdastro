@@ -49,7 +49,7 @@ class CustomSurveyTable(ObsTable):
             # (with constant values per filter).
             if isinstance(fluxerr, list):
                 fluxerr = np.array(fluxerr)
-            elif isinstance(fluxerr, float):
+            elif isinstance(fluxerr, float) or isinstance(fluxerr, int):
                 fluxerr = np.full(len(self._table), fluxerr)
             elif fluxerr is None:
                 fluxerr = np.zeros(len(self._table))
@@ -63,8 +63,9 @@ class CustomSurveyTable(ObsTable):
                 fluxerr_array = np.zeros(len(self._table))
                 for filt, err in fluxerr.items():
                     if not isinstance(err, (float, int)):
-                        raise ValueError(
-                            "When providing a dictionary of flux errors, the values must be constants (float or int)."
+                        raise TypeError(
+                            "When providing a dictionary of flux errors, the values must be "
+                            f"constants (float or int). Found {type(err)} for filter {filt}."
                         )
                     fluxerr_array[self._table["filter"] == filt] = err
                 fluxerr = fluxerr_array
@@ -77,7 +78,10 @@ class CustomSurveyTable(ObsTable):
                 if np.any(fluxerr < 0.0):
                     raise ValueError("Flux error must be non-negative.")
             else:
-                raise ValueError("fluxerr must be a callable, np.array, float, str, list, or None.")
+                raise TypeError(
+                    "fluxerr must be a callable, np.array, float, str, list, or None. "
+                    f"Found type = {type(fluxerr)}."
+                )
         self.fluxerr = fluxerr
 
     def bandflux_error_point_source(self, bandflux, index):
