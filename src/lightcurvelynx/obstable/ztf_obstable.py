@@ -95,36 +95,18 @@ class ZTFObsTable(ObsTable):
     Parameters
     ----------
     table : dict or pandas.core.frame.DataFrame
-        The table with all the OpSim information.
+        The table with all the observation information.
     colmap : dict
         A mapping of short column names to their names in the underlying table.
-        Defaults to the Rubin OpSim column names, stored in _default_colnames.
+        Defaults to the ZTF column names, stored in _default_colnames.
     **kwargs : dict
-        Additional keyword arguments to pass to the OpSim constructor. This includes overrides
+        Additional keyword arguments to pass to the ObsTable constructor. This includes overrides
         for survey parameters such as:
         - dark_current : The dark current for the camera in electrons per second per pixel.
         - gain: The CCD gain (in e-/ADU).
         - pixel_scale: The pixel scale for the camera in arcseconds per pixel.
         - radius: The angular radius of the observations (in degrees).
         - read_noise: The standard deviation of the count of readout electrons per pixel.
-
-    Attributes
-    ----------
-    table : pandas.core.frame.DataFrame
-        The table with all the OpSim information.
-    colmap : dict
-        A mapping of short column names to their names in the underlying table.
-    _kd_tree : scipy.spatial.KDTree or None
-        A kd_tree of the OpSim pointings for fast spatial queries. We use the scipy
-        kd-tree instead of astropy's functions so we can directly control caching.
-    pixel_scale : float or None, optional
-        The pixel scale for the ZTF camera in arcseconds per pixel.
-    read_noise : float or None, optional
-        The readout noise for the ZTF camera in electrons per pixel.
-    dark_current : float or None, optional
-        The dark current for the ZTF camera in electrons per second per pixel.
-    radius : float
-        The angular radius of the observations (in degrees).
     """
 
     # Default column names for the ZTF survey data.
@@ -163,11 +145,11 @@ class ZTFObsTable(ObsTable):
         super().__init__(table, colmap=colmap, **kwargs)
 
     def _assign_zero_points(self):
-        """Assign instrumental zero points in ADU to the OpSim tables."""
+        """Assign instrumental zero points in ADU to the ObsTable."""
         cols = self._table.columns.tolist()
         if not ("maglim" in cols and "sky" in cols and "fwhm" in cols and "exptime" in cols):
             raise ValueError(
-                "OpSim does not include the columns needed to derive zero point "
+                "ObsTable does not include the columns needed to derive zero point "
                 "information. Required columns: maglim, sky, fwhm and exptime."
             )
 
@@ -186,12 +168,12 @@ class ZTFObsTable(ObsTable):
 
     @classmethod
     def from_db(cls, filename, sql_query="SELECT * from exposures", colmap=None):
-        """Create an OpSim object from the data in an opsim db file.
+        """Create an ObsTable object from the data in a db file.
 
         Parameters
         ----------
         filename : str
-            The name of the opsim db file.
+            The name of the db file.
         sql_query : str
             The SQL query to use when loading the table.
             Default: "SELECT * FROM observations"
@@ -201,7 +183,7 @@ class ZTFObsTable(ObsTable):
 
         Returns
         -------
-        opsim : OpSim
+        obstable : ZTFObsTable
             A table with all of the pointing data.
 
         Raise
@@ -213,19 +195,19 @@ class ZTFObsTable(ObsTable):
             colmap = cls._default_colnames
 
         if not Path(filename).is_file():
-            raise FileNotFoundError(f"opsim file {filename} not found.")
+            raise FileNotFoundError(f"ObsTable file {filename} not found.")
         con = sqlite3.connect(f"file:{filename}?mode=ro", uri=True)
 
         # Read the table.
         try:
-            opsim = pd.read_sql_query(sql_query, con)
+            obstable = pd.read_sql_query(sql_query, con)
         except Exception:
-            raise ValueError("Opsim database read failed.") from None
+            raise ValueError("ObsTable database read failed.") from None
 
         # Close the connection.
         con.close()
 
-        return ZTFObsTable(opsim, colmap=colmap)
+        return ZTFObsTable(obstable, colmap=colmap)
 
     def bandflux_error_point_source(self, bandflux, index):
         """Compute observational bandflux error for a point source
@@ -235,7 +217,7 @@ class ZTFObsTable(ObsTable):
         bandflux : array_like of float
             Band bandflux of the point source in nJy.
         index : array_like of int
-            The index of the observation in the OpSim table.
+            The index of the observation in the table.
 
         Returns
         -------
@@ -261,12 +243,12 @@ class ZTFObsTable(ObsTable):
 
 
 def create_random_ztf_obstable(num_obs, seed=None):
-    """Create a random OpSim pointings drawn uniformly from (RA, dec).
+    """Create a random ObsTable pointings drawn uniformly from (RA, dec).
 
     Parameters
     ----------
     num_obs : int
-        The size of the OpSim to generate.
+        The size of the ObsTable to generate.
     seed : int
         The seed to used for random number generation. If None then
         uses a default random number generator.
@@ -274,8 +256,8 @@ def create_random_ztf_obstable(num_obs, seed=None):
 
     Returns
     -------
-    opsim_data : OpSim
-        The OpSim data structure.
+    obstable : ZTFObsTable
+        The ObsTable data structure.
     seed : int, optional
         The seed for the random number generator.
     """
@@ -305,6 +287,6 @@ def create_random_ztf_obstable(num_obs, seed=None):
         "exptime": 30.0 * np.ones(num_obs),
     }
 
-    opsim = ZTFObsTable(input_data)
+    obstable = ZTFObsTable(input_data)
 
-    return opsim
+    return obstable
