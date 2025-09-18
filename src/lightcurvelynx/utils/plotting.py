@@ -32,6 +32,11 @@ def plot_lightcurves(
         A dictionary that provides mapping between filters and the colors to be plotted.
     **kwargs : dict
         Optional parameters to pass to the plotting function
+    
+    Returns
+    -------
+    ax : matplotlib.pyplot.Axes
+        The axes containing the plot.
     """
     # If no axes were given create them using either the given figure or
     # a newly created one (if no figure is given).
@@ -98,6 +103,8 @@ def plot_lightcurves(
     # Only include a legend if there are at least two curves.
     if len(unique_filters) > 1:
         ax.legend()
+
+    return ax
 
 
 def plot_bandflux_lightcurves(bandflux, times=None, ax=None, figure=None, title=None):
