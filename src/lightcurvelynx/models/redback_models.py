@@ -163,7 +163,7 @@ class RedbackWrapperModel(SEDModel, CiteClass):
         Parameters
         ----------
         times : numpy.ndarray
-            A length T array of rest frame timestamps.
+            A length T array of rest frame timestamps (MJD).
         wavelengths : numpy.ndarray, optional
             A length N array of wavelengths (in angstroms).
         graph_state : GraphState
@@ -190,14 +190,17 @@ class RedbackWrapperModel(SEDModel, CiteClass):
         shifted_times = times - t0
 
         # Call the source function to get the RedbackTimeSeriesSource object.
+        # We create this object with each call, because it depends on the parameters (fn_args).
         rb_result = self.source(
             shifted_times,
             output_format="sncosmo_source",
             **fn_args,
         )
 
-        # sncosmo gives an error if the wavelengths are out of bounds, so we need to use
-        # extrapolation if the wavelengths are out of bounds.
+        # The sncosmo-type source gives an error if the wavelengths are out of bounds, so we
+        # need to use extrapolation if the wavelengths are out of bounds. The function
+        # compute_sed_with_extrapolation() will trim the input wavelengths to be within the model's bounds
+        # and call this function again. So the second call passes this bounds check and does not recurse.
         if np.any(wavelengths < rb_result.minwave()) or np.any(wavelengths > rb_result.maxwave()):
             return self.compute_sed_with_extrapolation(times, wavelengths, graph_state, **kwargs)
 
