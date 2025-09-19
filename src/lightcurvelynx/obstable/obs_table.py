@@ -27,6 +27,9 @@ class ObsTable:
         For example, in Rubin's OpSim we might have the column "observationStartMJD"
         which maps to "time". In that case we would have an entry with key="time"
         and value="observationStartMJD".
+    footprint : SurveyFootprint, optional
+        The footprint object for the survey. If None, no footprint filtering is done.
+        Default is None.
     **kwargs : dict
         Additional keyword arguments to pass to the constructor. This can include
         overrides of any of the survey values.
@@ -45,6 +48,9 @@ class ObsTable:
     _kd_tree : scipy.spatial.KDTree or None
         A kd_tree of the survey pointings for fast spatial queries. We use the scipy
         kd-tree instead of astropy's functions so we can directly control caching.
+    _footprint : SurveyFootprint or None
+        The footprint object for the survey. If None, no footprint filtering is done.
+        Default is None.
     """
 
     _required_columns = ["ra", "dec", "time"]
@@ -65,8 +71,11 @@ class ObsTable:
         table,
         *,
         colmap=None,
+        footprint=None,
         **kwargs,
     ):
+        self._footprint = footprint
+
         # Create a copy of the table.
         if isinstance(table, dict):
             self._table = pd.DataFrame(table)
@@ -135,6 +144,10 @@ class ObsTable:
         if key in self._inv_colmap and self._inv_colmap[key] in self._table.columns:
             return True
         return False
+
+    def clear_footprint(self):
+        """Turn off the footprint filtering."""
+        self._footprint = None
 
     def safe_get_survey_value(self, key):
         """Get a survey value by key, checking that it is not None.
@@ -399,7 +412,6 @@ class ObsTable:
         radius=None,
         t_min=None,
         t_max=None,
-        use_footprint=False,
     ):
         """Check if the query point(s) fall within the field of view of any
         pointing in the ObsTable.
@@ -418,10 +430,6 @@ class ObsTable:
         t_max : float or None, optional
             The maximum time (in MJD) for the observations to consider.
             If None, no time filtering is applied.
-        use_footprint : bool, optional
-            If True, only consider pointings that fall within the survey footprint.
-            This is more expensive, but more accurate.
-            Default: False
 
         Returns
         -------
@@ -436,7 +444,6 @@ class ObsTable:
             radius=radius,
             t_min=t_min,
             t_max=t_max,
-            use_footprint=use_footprint,
         )
         if np.isscalar(query_ra):
             return len(inds) > 0
@@ -450,7 +457,6 @@ class ObsTable:
         *,
         t_min=None,
         t_max=None,
-        use_footprint=False,
     ):
         """Return the indices of the pointings that fall within the field
         of view of the query point(s).
@@ -470,9 +476,6 @@ class ObsTable:
         t_max : float, numpy.ndarray or None, optional
             The maximum time (in MJD) for the observations to consider.
             If None, no time filtering is applied.
-        use_footprint : bool, optional
-            If True, only consider pointings that fall within the survey footprint.
-            This is more expensive, but more accurate.
 
         Returns
         -------
@@ -537,9 +540,28 @@ class ObsTable:
                 time_mask = (times[subinds] >= t_min[idx]) & (times[subinds] <= t_max[idx])
                 inds[idx] = np.asarray(subinds)[time_mask]
 
-        # Do a filtering step based on the survey's footprint.
-        if use_footprint:
-            pass
+        # Do a filtering step based on the survey's footprint. We do this after the range search,
+        # because it is more expensive (but also more accurate).
+        if self._footprint is not None:
+            # Extract the RA and dec of the pointings for later use.
+            all_ra = self._table["ra"].to_numpy()
+            all_dec = self._table["dec"].to_numpy()
+            all_rot = None if "rotation" not in self._table.columns else self._table["rotation"].to_numpy()
+
+            for idx, subinds in enumerate(inds):
+                num_matches = len(subinds)
+                if num_matches == 0:
+                    continue  # Nothing to filter.
+
+                match_rot = None if all_rot is None else all_rot[subinds]
+                mask = self._footprint.contains(
+                    np.full(num_matches, query_ra[idx]),  # The RA coordinate of this query
+                    np.full(num_matches, query_dec[idx]),  # The dec coordinate of this query
+                    all_ra[subinds],  # The RA coordinates of the matching pointings
+                    all_dec[subinds],  # The dec coordinates of the matching pointings
+                    rotation=match_rot,  # The rotation of the matching pointings (if available)
+                )
+                inds[idx] = np.asarray(subinds)[mask]
 
         # If the query was a scalar, we return a single list of indices.
         if is_scalar:

@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from astropy.coordinates import SkyCoord
+from lightcurvelynx.astro_utils.survey_footprint import CircularFootprint
 from lightcurvelynx.obstable.obs_table import ObsTable
 
 
@@ -406,6 +407,41 @@ def test_obs_table_range_search():
         _ = ops_data.range_search([1.0, 2.3], [4.5, 6.7, 8.9], radius=0.5)
     with pytest.raises(ValueError):
         _ = ops_data.range_search([1.0, 2.3], [4.5, None], radius=0.5)
+
+
+def test_obs_table_range_search_footprint():
+    """Test that we can extract the time, ra, and dec from an obs table data frame
+    with a footprint."""
+    # Create a fake obs table data frame with just time, RA, and dec.
+    values = {
+        "time": np.array([0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0]),
+        "ra": np.array([15.0, 15.0, 15.01, 15.0, 25.0, 24.99, 60.0, 5.0]),
+        "dec": np.array([-10.0, 10.0, 10.01, 9.99, 10.0, 9.99, -5.0, -1.0]),
+        "zp": np.ones(8),
+    }
+    # Add a circular footprint with radius 0.5 deg.
+    footprint = CircularFootprint(0.5)
+    ops_data = ObsTable(values, footprint=footprint)
+
+    # Test single queries. Despite the given radius, we only find points within the footprint.
+    assert set(ops_data.range_search(15.0, 10.0, radius=2.0)) == set([1, 2, 3])
+    assert set(ops_data.range_search(25.0, 10.0, radius=2.0)) == set([4, 5])
+    assert set(ops_data.range_search(15.0, 10.0, radius=100.0)) == set([1, 2, 3])
+    assert set(ops_data.range_search(15.0, 10.0, radius=1e-6)) == set([1])
+    assert set(ops_data.range_search(15.02, 10.0, radius=1e-6)) == set()
+
+    # Test a batched queries and that the footprint is applied to all of them.
+    query_ra = np.array([15.0, 25.0, 15.0])
+    query_dec = np.array([10.0, 10.0, 5.0])
+    neighbors = ops_data.range_search(query_ra, query_dec, radius=10.0)
+    assert len(neighbors) == 3
+    assert set(neighbors[0]) == set([1, 2, 3])
+    assert set(neighbors[1]) == set([4, 5])
+    assert set(neighbors[2]) == set()
+
+    # We can shut off the footprint to save time and use the approximate radius.
+    ops_data.clear_footprint()
+    assert set(ops_data.range_search(15.0, 10.0, radius=100.0)) == set([0, 1, 2, 3, 4, 5, 6, 7])
 
 
 def test_obs_table_get_observations():
