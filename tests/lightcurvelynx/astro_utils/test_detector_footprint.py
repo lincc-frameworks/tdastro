@@ -2,8 +2,8 @@ import numpy as np
 import pytest
 from lightcurvelynx.astro_utils.detector_footprint import (
     CircularFootprint,
-    RectangularFootprint,
     DetectorFootprint,
+    RectangularFootprint,
 )
 
 
