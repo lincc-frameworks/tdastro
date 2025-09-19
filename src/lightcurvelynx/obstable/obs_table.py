@@ -27,9 +27,9 @@ class ObsTable:
         For example, in Rubin's OpSim we might have the column "observationStartMJD"
         which maps to "time". In that case we would have an entry with key="time"
         and value="observationStartMJD".
-    footprint : SurveyFootprint, optional
-        The footprint object for the survey. If None, no footprint filtering is done.
-        Default is None.
+    footprint : DetectorFootprint, optional
+        The footprint object for the instrument's detector. If None, no footprint
+        filtering is done. Default is None.
     **kwargs : dict
         Additional keyword arguments to pass to the constructor. This can include
         overrides of any of the survey values.
@@ -48,9 +48,9 @@ class ObsTable:
     _kd_tree : scipy.spatial.KDTree or None
         A kd_tree of the survey pointings for fast spatial queries. We use the scipy
         kd-tree instead of astropy's functions so we can directly control caching.
-    _footprint : SurveyFootprint or None
-        The footprint object for the survey. If None, no footprint filtering is done.
-        Default is None.
+    _footprint : DetectorFootprint, optional
+        The footprint object for the instrument's detector. If None, no footprint
+        filtering is done. Default is None.
     """
 
     _required_columns = ["ra", "dec", "time"]
@@ -540,7 +540,7 @@ class ObsTable:
                 time_mask = (times[subinds] >= t_min[idx]) & (times[subinds] <= t_max[idx])
                 inds[idx] = np.asarray(subinds)[time_mask]
 
-        # Do a filtering step based on the survey's footprint. We do this after the range search,
+        # Do a filtering step based on the detectors's footprint. We do this after the range search,
         # because it is more expensive (but also more accurate).
         if self._footprint is not None:
             # Extract the RA and dec of the pointings for later use.

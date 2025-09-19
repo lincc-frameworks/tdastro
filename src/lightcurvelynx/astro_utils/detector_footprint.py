@@ -1,11 +1,11 @@
-"""A class for representing survey footprints."""
+"""A class for representing the detector footprints."""
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 
-class SurveyFootprint:
-    """A base class for representing survey footprints. This class is a No-Op and
+class DetectorFootprint:
+    """A base class for representing detector footprints. This class is a No-Op and
     does not implement any filtering.
     """
 
@@ -218,13 +218,13 @@ class SurveyFootprint:
             ax.scatter(point_ra[isin], point_dec[isin], color="green", marker="o", label="Inside Footprint")
             ax.legend()
 
-        ax.set_title("Survey Footprint")
+        ax.set_title("Detector Footprint")
         ax.axis("equal")
         return ax
 
 
-class CircularFootprint(SurveyFootprint):
-    """A circular survey footprint defined by a radius.
+class CircularFootprint(DetectorFootprint):
+    """A circular detector footprint defined by a radius.
 
     Attributes
     ----------
@@ -290,8 +290,8 @@ class CircularFootprint(SurveyFootprint):
         ax.set_ylim((center_dec - 2 * radius, center_dec + 2 * radius))
 
 
-class RectangularFootprint(SurveyFootprint):
-    """A rectangular survey footprint defined by minimum and maximum
+class RectangularFootprint(DetectorFootprint):
+    """A rectangular detector footprint defined by minimum and maximum
     right ascension and declination.
 
     Attributes

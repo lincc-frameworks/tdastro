@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from astropy.coordinates import SkyCoord
-from lightcurvelynx.astro_utils.survey_footprint import CircularFootprint
+from lightcurvelynx.astro_utils.detector_footprint import CircularFootprint
 from lightcurvelynx.obstable.obs_table import ObsTable
 
 

@@ -1,15 +1,15 @@
 import numpy as np
 import pytest
-from lightcurvelynx.astro_utils.survey_footprint import (
+from lightcurvelynx.astro_utils.detector_footprint import (
     CircularFootprint,
     RectangularFootprint,
-    SurveyFootprint,
+    DetectorFootprint,
 )
 
 
-def test_survey_footprint_base_class():
-    """Test the base SurveyFootprint class."""
-    fp = SurveyFootprint()
+def test_detector_footprint_base_class():
+    """Test the base DetectorFootprint class."""
+    fp = DetectorFootprint()
 
     ra = np.array([90.0, 91.0, 92.0])
     dec = np.array([-10.0, -11.0, -10.0])
