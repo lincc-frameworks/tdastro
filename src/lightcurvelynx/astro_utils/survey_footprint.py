@@ -1,13 +1,14 @@
 """A class for representing survey footprints."""
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 class SurveyFootprint:
     """A base class for representing survey footprints. This class is a No-Op and
     does not implement any filtering.
     """
+
     def __init__(self, **kwargs):
         pass
 
@@ -107,10 +108,10 @@ class SurveyFootprint:
         """
         # Convert all inputs to numpy arrays for uniform processing and perform validation.
         scalar_data = np.isscalar(ra)
-        ra = np.asarray(ra)
-        dec = np.asarray(dec)
-        center_ra = np.asarray(center_ra)
-        center_dec = np.asarray(center_dec)
+        ra = np.atleast_1d(ra)
+        dec = np.atleast_1d(dec)
+        center_ra = np.atleast_1d(center_ra)
+        center_dec = np.atleast_1d(center_dec)
         if ra.shape != dec.shape:
             raise ValueError("ra and dec must have the same shape.")
         if center_ra.shape != ra.shape:
@@ -120,7 +121,7 @@ class SurveyFootprint:
 
         # Rotation is optional, but if provided, it must match the shape of ra and dec.
         if rotation is not None:
-            rotation = np.asarray(rotation)
+            rotation = np.atleast_1d(rotation)
             if rotation.shape != ra.shape:
                 print(rotation.shape)
                 print(ra.shape)
@@ -155,17 +156,17 @@ class SurveyFootprint:
         pass
 
     def plot(
-            self,
-            *,
-            ax=None,
-            figure=None,
-            center_ra=0,
-            center_dec=0,
-            rotation=0,
-            point_ra=None,
-            point_dec=None,
-            **kwargs,
-        ):
+        self,
+        *,
+        ax=None,
+        figure=None,
+        center_ra=0,
+        center_dec=0,
+        rotation=0,
+        point_ra=None,
+        point_dec=None,
+        **kwargs,
+    ):
         """Plot the footprint using matplotlib and an optional set of points to overlay.
 
         Parameters
@@ -213,13 +214,80 @@ class SurveyFootprint:
                 rotation = np.full(np.shape(point_ra), rotation)
 
             isin = self.contains(point_ra, point_dec, center_ra, center_dec, rotation=rotation)
-            ax.scatter(point_ra[~isin], point_dec[~isin], color='red', marker='x', label='Outside Footprint')
-            ax.scatter(point_ra[isin], point_dec[isin], color='green', marker='o', label='Inside Footprint')
+            ax.scatter(point_ra[~isin], point_dec[~isin], color="red", marker="x", label="Outside Footprint")
+            ax.scatter(point_ra[isin], point_dec[isin], color="green", marker="o", label="Inside Footprint")
             ax.legend()
 
         ax.set_title("Survey Footprint")
         ax.axis("equal")
         return ax
+
+
+class CircularFootprint(SurveyFootprint):
+    """A circular survey footprint defined by a radius.
+
+    Attributes
+    ----------
+    radius_rad : float
+        Radius of the circle in radians.
+
+    Parameters
+    ----------
+    radius : float
+        Radius of the circle in degrees.
+    """
+
+    def __init__(self, radius):
+        if radius <= 0:
+            raise ValueError("Radius must be positive.")
+        self.radius_rad = np.radians(radius)
+
+    def _contains(self, d_x, d_y):
+        """Check that given points, represented by distance in radians from the center
+        (accounting for rotation if specified), are within the footprint.
+
+        Parameters
+        ----------
+        d_x : np.ndarray
+            Distance in rotated x coordinate from the center of the detector in radians.
+        d_y : np.ndarray
+            Distance in rotated y coordinate from the center of the detector in radians.
+
+        Returns
+        -------
+        np.ndarray
+            True if the point is within the footprint, False otherwise.
+        """
+        return (d_x**2 + d_y**2) <= self.radius_rad**2
+
+    def plot_bounds(self, ax, center_ra=0, center_dec=0, rotation=0, **kwargs):
+        """Plot the bounds of the footprint on the given axes.
+
+        Parameters
+        ----------
+        ax : matplotlib.pyplot.Axes
+            Axes to plot on.
+        center_ra : float, optional
+            Center right ascension of the detector in degrees. Default is 0.
+        center_dec : float, optional
+            Center declination of the detector in degrees. Default is 0.
+        rotation : np.ndarray, optional
+            Not used for circular footprints, but included for interface consistency.
+            Default is 0.
+        **kwargs : dict
+            Optional parameters to pass to the plotting function
+        """
+        radius = np.degrees(self.radius_rad)
+        circle = plt.Circle(
+            (center_ra, center_dec),
+            radius,
+            color="k",
+            fill=False,
+            **kwargs,
+        )
+        ax.add_artist(circle)
+        ax.set_xlim((center_ra - 2 * radius, center_ra + 2 * radius))
+        ax.set_ylim((center_dec - 2 * radius, center_dec + 2 * radius))
 
 
 class RectangularFootprint(SurveyFootprint):
@@ -244,6 +312,7 @@ class RectangularFootprint(SurveyFootprint):
     width : float
         Width of the rectangle in degrees.
     """
+
     def __init__(self, width, height):
         if width <= 0 or height <= 0:
             raise ValueError("Width and height must be positive.")
@@ -311,4 +380,3 @@ class RectangularFootprint(SurveyFootprint):
 
         # Plot the rectangle.
         ax.plot(corners_ra, corners_dec, color="k", **kwargs)
- 
