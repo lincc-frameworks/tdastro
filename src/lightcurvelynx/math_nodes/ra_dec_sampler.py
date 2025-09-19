@@ -224,7 +224,7 @@ class ObsTableUniformRADECSampler(NumpyRandomFunc):
             dec[~mask] = np.degrees(np.arcsin(rng.uniform(-1.0, 1.0, size=num_missing)))
 
             # Check if the samples are within the ObsTable coverage.
-            mask = np.asarray(self.data.is_observed(ra, dec, self.radius))
+            mask = np.asarray(self.data.is_observed(ra, dec, radius=self.radius))
             num_missing = np.sum(~mask)
             iter_num += 1
 
