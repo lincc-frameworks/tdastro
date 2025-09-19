@@ -5,11 +5,10 @@ https://redback.readthedocs.io/en/latest/
 """
 
 import math
-import numpy as np
 
 import astropy.units as uu
+import numpy as np
 from citation_compass import CiteClass
-from scipy.interpolate import interp1d
 
 from lightcurvelynx.astro_utils.unit_utils import flam_to_fnu
 from lightcurvelynx.math_nodes.bilby_priors import BilbyPriorNode
