@@ -1,6 +1,8 @@
 Glossary
 ========================================================================================
 
+**Bandflux**: A flux density averaged over passband transmission, in nJy. It is given by this equation (we always assume "photon counter" detector): :math:`\frac{\int_0^\infty F_\nu(\lambda) T(\lambda) \mathrm{d}\lambda/\lambda}{\int_0^\infty T(\lambda) \mathrm{d}\lambda/\lambda}`, where :math:`\lambda` is the wavelength, :math:`F_\nu(\lambda)` is the source flux density, and :math:`T(\lambda)` is the passband transmission.
+
 **BandfluxModel**: A ``BandfluxModel`` is a subclass of the ``BasePhysicalModel`` class that represents broadband photometry in specific bands (band-fluxes), such as the g-band or r-band (instead of a full spectral energy distribution).
 
 **BasePhysicalModel**: ``BasePhysicalModel`` is a superclass for all nodes that represent physical phenomena that produce flux. ``BasePhysicalModel`` itself is a subclass of the ``ParameterizedNode``.
@@ -35,4 +37,8 @@ Glossary
 
 **Rest Frame**: The reference frame of the astronomical phenomenon being simulated. Observations in the rest frame do not account for effects like dust extinction or redshift, because they are local to the phenomenon.
 
+**SED**: Spectral energy distribution. In `LightCurveLynx`, this term refers to the distribution of flux density over wavelengths, :math:`F_\nu(\lambda)`. Flux density is in nJy, and wavelength is in angstroms.
+
 **SEDModel**: ``SEDModel`` is a subclass of the ``BasePhysicalModel`` class that specifically represents flux density of a physical source as a function of time and wavelength.
+
+**Wavelength**: Photon wavelength, in angstroms.
