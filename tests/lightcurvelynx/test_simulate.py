@@ -90,15 +90,26 @@ def test_simulate_lightcurves(test_data_dir):
     assert np.allclose(state["source.dec"], opsim_db["dec"].values[0:5])
 
     # Check that we fail if we try to save a parameter column that doesn't exist.
-    source2 = ConstantSEDModel(brightness=10.0, t0=0.0, ra=1.0, dec=-1.0, redshift=0.0, node_label="source2")
-    with pytest.raises(KeyError):
+    # And that the error gives the existing options.
+    source2 = ConstantSEDModel(
+        brightness=10.0,
+        t0=0.0,
+        ra=1.0,
+        dec=-1.0,
+        redshift=0.0,
+        node_label="source2",
+    )
+    with pytest.raises(KeyError) as excinfo:
         _ = simulate_lightcurves(
             source2,
             1,
             opsim_db,
             passband_group,
-            param_cols=["source.unknown_parameter"],
+            param_cols=["source2.unknown_parameter"],
         )
+    assert "Available parameters are:" in str(excinfo.value)
+    assert "source2.ra" in str(excinfo.value)
+    assert "source2.dec" in str(excinfo.value)
 
 
 def test_simulate_bandfluxes(test_data_dir):

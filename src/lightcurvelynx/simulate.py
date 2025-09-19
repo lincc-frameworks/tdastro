@@ -141,7 +141,10 @@ def simulate_lightcurves(
     if param_cols is not None:
         for col in param_cols:
             if col not in sample_states:
-                raise KeyError(f"Parameter column {col} not found in model parameters.")
+                raise KeyError(
+                    f"Parameter column {col} not found in model parameters. "
+                    f"Available parameters are: {sample_states.get_all_params_names()}."
+                )
             results_dict[col.replace(".", "_")] = np.atleast_1d(sample_states[col]).tolist()
 
     # Set up the nested array for the per-observation data, including ObsTable information.
