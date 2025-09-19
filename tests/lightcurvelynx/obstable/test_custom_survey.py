@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 import pytest
-
 from lightcurvelynx.obstable.custom_survey_table import CustomSurveyTable
 
 
