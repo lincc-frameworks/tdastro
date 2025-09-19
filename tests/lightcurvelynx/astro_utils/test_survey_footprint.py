@@ -1,6 +1,5 @@
 import numpy as np
 import pytest
-
 from lightcurvelynx.astro_utils.survey_footprint import (
     CircularFootprint,
     RectangularFootprint,
