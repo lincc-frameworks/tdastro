@@ -41,5 +41,5 @@ def test_redshift_dist_func_node():
 
     # Test that we can generate multiple samples.
     state = node.sample_parameters(num_samples=10)
-    assert np.all(13.0 * 1e12 < node.get_param(state, "function_node_result"))
+    assert np.all(node.get_param(state, "function_node_result") > 13.0 * 1e12)
     assert np.all(node.get_param(state, "function_node_result") < 16.0 * 1e12)
