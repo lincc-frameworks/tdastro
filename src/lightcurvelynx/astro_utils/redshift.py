@@ -1,5 +1,7 @@
 """Utility functions for handling redshift and cosmological calculations."""
 
+from functools import partial
+
 import astropy.cosmology.units as cu
 from astropy import units as u
 
@@ -96,10 +98,15 @@ class RedshiftDistFunc(FunctionNode):
     """
 
     def __init__(self, redshift, cosmology, **kwargs):
+        # Create a partial function with the cosmology fixed. We do this
+        # so that cosmology is not added as a node parameter.
+        func = partial(redshift_to_distance, cosmology=cosmology)
+        func.__name__ = "redshift_to_distance"
+        func.__doc__ = redshift_to_distance.__doc__
+
         # Call the super class's constructor with the needed information.
         super().__init__(
-            func=redshift_to_distance,
+            func=func,
             redshift=redshift,
-            cosmology=cosmology,
             **kwargs,
         )
