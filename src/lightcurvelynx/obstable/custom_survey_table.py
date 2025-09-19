@@ -49,7 +49,7 @@ class CustomSurveyTable(ObsTable):
             # (with constant values per filter).
             if isinstance(fluxerr, list):
                 fluxerr = np.array(fluxerr)
-            elif isinstance(fluxerr, float) or isinstance(fluxerr, int):
+            elif isinstance(fluxerr, float | int):
                 fluxerr = np.full(len(self._table), fluxerr)
             elif fluxerr is None:
                 fluxerr = np.zeros(len(self._table))
@@ -62,7 +62,7 @@ class CustomSurveyTable(ObsTable):
 
                 fluxerr_array = np.zeros(len(self._table))
                 for filt, err in fluxerr.items():
-                    if not isinstance(err, (float, int)):
+                    if not isinstance(err, float | int):
                         raise TypeError(
                             "When providing a dictionary of flux errors, the values must be "
                             f"constants (float or int). Found {type(err)} for filter {filt}."
