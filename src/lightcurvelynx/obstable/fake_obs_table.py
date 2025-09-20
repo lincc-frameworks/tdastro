@@ -5,12 +5,16 @@ from lightcurvelynx.consts import GAUSS_EFF_AREA2FWHM_SQ
 from lightcurvelynx.obstable.obs_table import ObsTable
 
 
-class FakeSurveyTable(ObsTable):
-    """A subclass for a (simplified) fake survey. The user must provide the following values
+class FakeObsTable(ObsTable):
+    """A subclass for a (simplified) fake survey. The user must provide the provide a constant
+    flux error to use or enough information to compute the poisson_bandflux_std noise model.
+    To compute the flux error, the user must provide the following values
     either in the table or as keyword arguments to the constructor:
     - fwhm : The full-width at half-maximum of the PSF in pixels.
     - sky_background : The sky background in the units of electrons / pixel^2.
     - zp_per_band : A dictionary mapping filter names to their instrumental zero points in nJy
+    Defaults are set for other parameters (e.g. exptime, nexposure, read_noise, dark_current), which
+    the user can override with keyword arguments to the constructor.
 
     Parameters
     ----------
@@ -32,11 +36,11 @@ class FakeSurveyTable(ObsTable):
         for survey parameters such as:
         - dark_current : The dark current for the camera in electrons per second per pixel (default=0.0).
         - exptime: The exposure time for the camera in seconds (default=30).
-        - fwhm: The full-width at half-maximum of the PSF in pixels (default=None).
+        - fwhm (if not in table): The full-width at half-maximum of the PSF in pixels (default=None).
         - nexposure: The number of exposures per observation (default=1).
         - radius: The angular radius of the observations in degrees (default=None).
         - read_noise: The read noise for the camera in electrons (default=0.0).
-        - sky_background: The sky background in the units of electrons / pixel^2 (default=None).
+        - sky_background (if not in table) in the units of electrons / pixel^2 (default=None).
         - survey_name: The name of the survey (default="FAKE_SURVEY").
     """
 
@@ -47,8 +51,8 @@ class FakeSurveyTable(ObsTable):
         "fwhm": None,  # pixels
         "nexposure": 1,  # exposures
         "radius": None,  # degrees
-        "read_noise": 0,
-        "sky_background": None,
+        "read_noise": 0,  # electrons
+        "sky_background": None,  # electrons / pixel^2
         "survey_name": "FAKE_SURVEY",
     }
 
@@ -64,11 +68,11 @@ class FakeSurveyTable(ObsTable):
                 self.const_flux_error = {fil: const_flux_error for fil in all_filters}
 
             # Check that every filter occurs in the dictionary with a non-negative value.
-            if set(self.const_flux_error.keys()) != set(all_filters):
-                raise ValueError(
-                    "The filters in `const_flux_error` must match the filters in the table. "
-                    f"Got const_flux_error={self.const_flux_error.keys()} and table={all_filters}."
-                )
+            for fil in all_filters:
+                if fil not in self.const_flux_error:
+                    raise ValueError(
+                        "`const_flux_error` must include all the filters in the table. Missing '{fil}'."
+                    )
             for fil, val in self.const_flux_error.items():
                 if val < 0:
                     raise ValueError(f"Constant flux error for band {fil} must be non-negative. Got {val}.")

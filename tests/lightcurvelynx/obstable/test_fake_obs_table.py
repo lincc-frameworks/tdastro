@@ -1,11 +1,11 @@
 import numpy as np
 import pandas as pd
 import pytest
-from lightcurvelynx.obstable.fake_survey_table import FakeSurveyTable
+from lightcurvelynx.obstable.fake_obs_table import FakeObsTable
 
 
-def test_create_fake_survey_table_defaults():
-    """Create a minimal FakeSurveyTable object with given defaults."""
+def test_create_fake_obs_table_consts():
+    """Create a minimal FakeObsTable object with given defaults."""
     values = {
         "time": np.array([0.0, 1.0, 2.0, 3.0, 4.0]),
         "ra": np.array([15.0, 30.0, 15.0, 0.0, 60.0]),
@@ -15,7 +15,7 @@ def test_create_fake_survey_table_defaults():
     pdf = pd.DataFrame(values)
 
     zp_per_band = {"g": 26.0, "r": 27.0, "i": 28.0}
-    ops_data = FakeSurveyTable(pdf, zp_per_band=zp_per_band, fwhm=2.0, sky_background=100.0)
+    ops_data = FakeObsTable(pdf, zp_per_band=zp_per_band, fwhm=2.0, sky_background=100.0)
     assert len(ops_data) == 5
 
     # We use the defaults when we do not provide values in the table.
@@ -46,7 +46,7 @@ def test_create_fake_survey_table_defaults():
     assert len(np.unique(flux_error)) > 1  # Not all the same
 
     # We can override the defaults.
-    ops_data = FakeSurveyTable(
+    ops_data = FakeObsTable(
         pdf,
         zp_per_band=zp_per_band,
         exptime=60.0,
@@ -88,7 +88,7 @@ def test_create_fake_survey_table_defaults():
     assert np.any(flux_error2 != flux_error)  # Different from before
 
 
-def test_create_fake_survey_table():
+def test_create_fake_obs_table_non_consts():
     """Test that if we specify values in columns, we use those instead of the defaults."""
     values = {
         "time": np.array([0.0, 1.0, 2.0, 3.0, 4.0]),
@@ -104,7 +104,7 @@ def test_create_fake_survey_table():
     pdf = pd.DataFrame(values)
 
     zp_per_band = {"g": 26.0, "r": 27.0, "i": 28.0}
-    ops_data = FakeSurveyTable(pdf, zp_per_band=zp_per_band, fwhm=2.0, sky_background=100.0)
+    ops_data = FakeObsTable(pdf, zp_per_band=zp_per_band, fwhm=2.0, sky_background=100.0)
     assert len(ops_data) == 5
     assert np.allclose(ops_data["ra"], values["ra"])
     assert np.allclose(ops_data["dec"], values["dec"])
@@ -126,7 +126,7 @@ def test_create_fake_survey_table():
     assert len(np.unique(flux_error)) > 1  # Not all the same
 
 
-def test_create_fake_survey_table_cols_fail():
+def test_create_fake_obs_table_cols_fail():
     """Test that we raise errors when we do not provide required values."""
     values = {
         "time": np.array([0.0, 1.0, 2.0, 3.0, 4.0]),
@@ -139,26 +139,26 @@ def test_create_fake_survey_table_cols_fail():
     # Missing fwhm.
     zp_per_band = {"g": 26.0, "r": 27.0, "i": 28.0}
     with pytest.raises(ValueError):
-        _ = FakeSurveyTable(pdf, zp_per_band=zp_per_band, sky_background=100.0)
+        _ = FakeObsTable(pdf, zp_per_band=zp_per_band, sky_background=100.0)
 
     # Missing sky_background.
     with pytest.raises(ValueError):
-        _ = FakeSurveyTable(pdf, zp_per_band=zp_per_band, fwhm=2.0)
+        _ = FakeObsTable(pdf, zp_per_band=zp_per_band, fwhm=2.0)
 
     # Missing or invalid exptime.
     with pytest.raises(ValueError):
-        _ = FakeSurveyTable(pdf, zp_per_band=zp_per_band, fwhm=2.0, sky_background=100.0, exptime=None)
+        _ = FakeObsTable(pdf, zp_per_band=zp_per_band, fwhm=2.0, sky_background=100.0, exptime=None)
     with pytest.raises(ValueError):
-        _ = FakeSurveyTable(pdf, zp_per_band=zp_per_band, fwhm=2.0, sky_background=100.0, exptime=-10.0)
+        _ = FakeObsTable(pdf, zp_per_band=zp_per_band, fwhm=2.0, sky_background=100.0, exptime=-10.0)
 
     # Missing or invalid nexposure.
     with pytest.raises(ValueError):
-        _ = FakeSurveyTable(pdf, zp_per_band=zp_per_band, fwhm=2.0, sky_background=100.0, nexposure=None)
+        _ = FakeObsTable(pdf, zp_per_band=zp_per_band, fwhm=2.0, sky_background=100.0, nexposure=None)
     with pytest.raises(ValueError):
-        _ = FakeSurveyTable(pdf, zp_per_band=zp_per_band, fwhm=2.0, sky_background=100.0, nexposure=-1)
+        _ = FakeObsTable(pdf, zp_per_band=zp_per_band, fwhm=2.0, sky_background=100.0, nexposure=-1)
 
 
-def test_create_fake_survey_table_zp_fail():
+def test_create_fake_obs_table_zp_fail():
     """Test that we raise errors when we do not provide required values."""
     values = {
         "time": np.array([0.0, 1.0, 2.0, 3.0, 4.0]),
@@ -170,7 +170,7 @@ def test_create_fake_survey_table_zp_fail():
     # No filters from which to computer zp.
     zp_per_band = {"g": 26.0, "r": 27.0, "i": 28.0}
     with pytest.raises(ValueError):
-        _ = FakeSurveyTable(pdf, zp_per_band=zp_per_band, fwhm=2.0, sky_background=100.0)
+        _ = FakeObsTable(pdf, zp_per_band=zp_per_band, fwhm=2.0, sky_background=100.0)
 
     # Mismatched filters.
     values["filter"] = np.array(["r", "g", "r", "i", "z"])
@@ -178,10 +178,10 @@ def test_create_fake_survey_table_zp_fail():
 
     zp_per_band = {"g": 26.0, "r": 27.0}
     with pytest.raises(ValueError):
-        _ = FakeSurveyTable(pdf, zp_per_band=zp_per_band, fwhm=2.0, sky_background=100.0)
+        _ = FakeObsTable(pdf, zp_per_band=zp_per_band, fwhm=2.0, sky_background=100.0)
 
 
-def test_create_fake_survey_table_const_flux_error():
+def test_create_fake_obs_table_const_flux_error():
     """Test that we can provide a constant flux error."""
     values = {
         "time": np.array([0.0, 1.0, 2.0, 3.0, 4.0]),
@@ -196,7 +196,7 @@ def test_create_fake_survey_table_const_flux_error():
 
     # We can construct the table even without providing fwhm, sky_background, exptime, or nexposure,
     # since we do not need them to compute noise.
-    ops_data = FakeSurveyTable(pdf, zp_per_band=zp_per_band, const_flux_error=const_flux_error)
+    ops_data = FakeObsTable(pdf, zp_per_band=zp_per_band, const_flux_error=const_flux_error)
     assert len(ops_data) == 5
 
     flux_error = ops_data.bandflux_error_point_source(
@@ -207,7 +207,7 @@ def test_create_fake_survey_table_const_flux_error():
 
     # We can also use a dictionary to provide per-band constant flux errors.
     const_flux_error = {"g": 3.0, "r": 4.0}
-    ops_data = FakeSurveyTable(pdf, zp_per_band=zp_per_band, const_flux_error=const_flux_error)
+    ops_data = FakeObsTable(pdf, zp_per_band=zp_per_band, const_flux_error=const_flux_error)
     assert len(ops_data) == 5
 
     flux_error = ops_data.bandflux_error_point_source(
