@@ -36,6 +36,15 @@ def test_create_fake_survey_table_defaults():
     assert ops_data.survey_values["read_noise"] == 0
     assert ops_data.survey_values["survey_name"] == "FAKE_SURVEY"
 
+    # We can compute noise.
+    flux_error = ops_data.bandflux_error_point_source(
+        np.array([100.0, 200.0, 300.0, 400.0, 500.0]),  # Fluxes in nJy
+        np.arange(5),  # Indices of the observations
+    )
+    assert len(flux_error) == 5
+    assert np.all(flux_error > 0)
+    assert len(np.unique(flux_error)) > 1  # Not all the same
+
     # We can override the defaults.
     ops_data = FakeSurveyTable(
         pdf,
@@ -68,6 +77,16 @@ def test_create_fake_survey_table_defaults():
     assert ops_data.survey_values["read_noise"] == 5.0
     assert ops_data.survey_values["survey_name"] == "MY_SURVEY"
 
+    # We can compute noise.
+    flux_error2 = ops_data.bandflux_error_point_source(
+        np.array([100.0, 200.0, 300.0, 400.0, 500.0]),  # Fluxes in nJy
+        np.arange(5),  # Indices of the observations
+    )
+    assert len(flux_error2) == 5
+    assert np.all(flux_error2 > 0)
+    assert len(np.unique(flux_error2)) > 1  # Not all the same
+    assert np.any(flux_error2 != flux_error)  # Different from before
+
 
 def test_create_fake_survey_table():
     """Test that if we specify values in columns, we use those instead of the defaults."""
@@ -96,6 +115,15 @@ def test_create_fake_survey_table():
     assert np.allclose(ops_data["exptime"], values["exptime"])
     assert np.allclose(ops_data["nexposure"], values["nexposure"])
     assert np.allclose(ops_data["zp"], values["zp"])
+
+    # We can compute noise.
+    flux_error = ops_data.bandflux_error_point_source(
+        np.array([100.0, 200.0, 300.0, 400.0, 500.0]),  # Fluxes in nJy
+        np.arange(5),  # Indices of the observations
+    )
+    assert len(flux_error) == 5
+    assert np.all(flux_error > 0)
+    assert len(np.unique(flux_error)) > 1  # Not all the same
 
 
 def test_create_fake_survey_table_cols_fail():
@@ -151,3 +179,39 @@ def test_create_fake_survey_table_zp_fail():
     zp_per_band = {"g": 26.0, "r": 27.0}
     with pytest.raises(ValueError):
         _ = FakeSurveyTable(pdf, zp_per_band=zp_per_band, fwhm=2.0, sky_background=100.0)
+
+
+def test_create_fake_survey_table_const_flux_error():
+    """Test that we can provide a constant flux error."""
+    values = {
+        "time": np.array([0.0, 1.0, 2.0, 3.0, 4.0]),
+        "ra": np.array([15.0, 30.0, 15.0, 0.0, 60.0]),
+        "dec": np.array([-10.0, -5.0, 0.0, 5.0, 10.0]),
+        "filter": np.array(["r", "g", "r", "r", "g"]),
+    }
+    pdf = pd.DataFrame(values)
+
+    zp_per_band = {"g": 26.0, "r": 27.0, "i": 28.0}
+    const_flux_error = 5.0  # nJy
+
+    # We can construct the table even without providing fwhm, sky_background, exptime, or nexposure,
+    # since we do not need them to compute noise.
+    ops_data = FakeSurveyTable(pdf, zp_per_band=zp_per_band, const_flux_error=const_flux_error)
+    assert len(ops_data) == 5
+
+    flux_error = ops_data.bandflux_error_point_source(
+        np.array([100.0, 200.0, 300.0, 400.0, 500.0]),  # Fluxes in nJy
+        np.arange(5),  # Indices of the observations
+    )
+    assert np.allclose(flux_error, const_flux_error)
+
+    # We can also use a dictionary to provide per-band constant flux errors.
+    const_flux_error = {"g": 3.0, "r": 4.0}
+    ops_data = FakeSurveyTable(pdf, zp_per_band=zp_per_band, const_flux_error=const_flux_error)
+    assert len(ops_data) == 5
+
+    flux_error = ops_data.bandflux_error_point_source(
+        np.array([100.0, 200.0, 300.0, 400.0, 500.0]),  # Fluxes in nJy
+        np.arange(5),  # Indices of the observations
+    )
+    assert np.allclose(flux_error, [4.0, 3.0, 4.0, 4.0, 3.0])

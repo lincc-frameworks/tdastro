@@ -23,6 +23,10 @@ class FakeSurveyTable(ObsTable):
         A dictionary mapping filter names to their instrumental zero points in nJy.
         The filters provided must match those in the table. This is required if the
         table does not have a zero point column.
+    const_flux_error : float or dict, optional
+        If provided, use this constant flux error (in nJy) for all observations (overriding
+        the normal noise compuation). If a dictionary is provided, it should map filter names
+        to constant flux errors per-band. This should only be used for testing purposes.
     **kwargs : dict
         Additional keyword arguments to pass to the ObsTable constructor. This includes overrides
         for survey parameters such as:
@@ -48,16 +52,33 @@ class FakeSurveyTable(ObsTable):
         "survey_name": "FAKE_SURVEY",
     }
 
-    def __init__(self, table, *, colmap=None, zp_per_band=None, **kwargs):
+    def __init__(self, table, *, colmap=None, zp_per_band=None, const_flux_error=None, **kwargs):
         self.zp_per_band = zp_per_band
+        self.const_flux_error = const_flux_error
         super().__init__(table, colmap=colmap, **kwargs)
 
-        # If the table does not contain the required columns (fwhm, sky_background,
-        # exptime, nexposure), create a constant column from the survey values.
-        self._assign_constant_if_needed("exptime", check_positive=True)
-        self._assign_constant_if_needed("nexposure", check_positive=True)
-        self._assign_constant_if_needed("fwhm", check_positive=True)
-        self._assign_constant_if_needed("sky_background", check_positive=False)
+        if const_flux_error is not None:
+            all_filters = self._table["filter"].unique()
+            # Convert a constant into a per-band dictionary.
+            if isinstance(const_flux_error, int | float):
+                self.const_flux_error = {fil: const_flux_error for fil in all_filters}
+
+            # Check that every filter occurs in the dictionary with a non-negative value.
+            if set(self.const_flux_error.keys()) != set(all_filters):
+                raise ValueError(
+                    "The filters in `const_flux_error` must match the filters in the table. "
+                    f"Got const_flux_error={self.const_flux_error.keys()} and table={all_filters}."
+                )
+            for fil, val in self.const_flux_error.items():
+                if val < 0:
+                    raise ValueError(f"Constant flux error for band {fil} must be non-negative. Got {val}.")
+        else:
+            # Make sure we have the required columns (fwhm, sky_background, exptime, nexposure) to
+            # compute the flux error. If any are missing, assign a constant column from the survey values.
+            self._assign_constant_if_needed("exptime", check_positive=True)
+            self._assign_constant_if_needed("nexposure", check_positive=True)
+            self._assign_constant_if_needed("fwhm", check_positive=True)
+            self._assign_constant_if_needed("sky_background", check_positive=False)
 
     def _assign_constant_if_needed(self, colname, check_positive=True):
         """Assign a constant column to the table if it does not already have one.
@@ -94,12 +115,10 @@ class FakeSurveyTable(ObsTable):
                 "Must provide a `filter` column to FakeSurveyTable without a column of zero points."
             )
 
-        # Check that the keys of the dictionary match the filters in the table.
-        if set(self.zp_per_band.keys()) != set(self._table["filter"].unique()):
-            raise ValueError(
-                "The keys of `zp_per_band` must match the filters in the table. "
-                f"Got zp_per_band={self.zp_per_band.keys()} and table={self._table['filter'].unique()}."
-            )
+        # Check that we have a zero point for every filter in the table.
+        for fil in self._table["filter"].unique():
+            if fil not in self.zp_per_band:
+                raise ValueError(f"Must provide a zero point for filter {fil} in `zp_per_band`.")
 
         # Create a column of zero points, setting all values based on the filter column.
         zp_col = np.zeros(len(self._table), dtype=float)
@@ -124,10 +143,15 @@ class FakeSurveyTable(ObsTable):
         flux_err : array_like of float
             Simulated bandflux noise in nJy.
         """
-        observations = self._table.iloc[index]
+        # If we have a constant flux error, use that.
+        if self.const_flux_error is not None:
+            filters = self._table["filter"].iloc[index]
+            return np.array([self.const_flux_error[fil] for fil in filters])
 
+        # Otherwise compute the flux error using the poisson_bandflux_std noise model.
         # We insert most the needed columns during construction, so we
         # can look up most of the values needed for the noise model.
+        observations = self._table.iloc[index]
         footprint = GAUSS_EFF_AREA2FWHM_SQ * (observations["fwhm"]) ** 2
         return poisson_bandflux_std(
             bandflux,
