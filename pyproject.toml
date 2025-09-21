@@ -29,6 +29,7 @@ dependencies = [
     "numpy>=2.0",
     "pandas",
     "pooch",
+    "regions",
     "scipy",
 ]
 
