@@ -85,14 +85,18 @@ class ObsTableRADECSampler(TableSampler):
     data : ObsTable
         The ObsTable object to use for sampling.
     radius : float
-        The radius of the observations in degrees. Use 0.0 to just sample
-        the centers of the images. Default: 0.0
+        The radius of the the field of view of the observations in degrees. Use 0.0 to just sample
+        the centers of the images. Default: None
     in_order : bool
         Return the given data in order of the rows (True). If False, performs
         random sampling with replacement. Default: False
     """
 
-    def __init__(self, data, radius=0.0, in_order=False, **kwargs):
+    def __init__(self, data, radius=None, in_order=False, **kwargs):
+        if radius is None:
+            radius = data.survey_values.get("radius", None)
+            if radius is None:
+                raise ValueError("ObsTable has no radius. Must provide radius.")
         if radius < 0.0:
             raise ValueError("Invalid radius: {radius}")
         self.radius = radius
@@ -163,15 +167,34 @@ class ObsTableUniformRADECSampler(NumpyRandomFunc):
     data : ObsTable
         The ObsTable object to use for sampling.
     radius : float
-        The radius of the observations in degrees. Must be > 0.0.
-        Default: 1.0
+        The radius of the field of view of the observations in degrees.
     max_iterations : int
         The maximum number of iterations to perform. Default: 1000
+
+    Parameters
+    ----------
+    data : ObsTable
+        The ObsTable object to use for sampling.
+    radius : float, optional
+        The search radius around the center of the pointing. If None, uses the
+        value from the ObsTable.
+    outputs : list of str, optional
+        The list of output names. Default: ["ra", "dec"]
+    seed : int, optional
+        The random seed to use for the internal random number generator. Default: None
+    max_iterations : int, optional
+        The maximum number of iterations to perform. Default: 1000
+    **kwargs : dict, optional
+        Additional keyword arguments to pass to the parent class constructor.
     """
 
-    def __init__(self, data, radius=1.0, outputs=None, seed=None, max_iterations=1000, **kwargs):
+    def __init__(self, data, *, radius=None, outputs=None, seed=None, max_iterations=1000, **kwargs):
+        if radius is None:
+            radius = data.survey_values.get("radius", None)
+            if radius is None:
+                raise ValueError("ObsTable has no radius. Must provide radius.")
         if radius <= 0.0:
-            raise ValueError("Invalid radius: {radius}")
+            raise ValueError(f"Invalid override_radius: {radius}")
         self.radius = radius
 
         if len(data) == 0:
