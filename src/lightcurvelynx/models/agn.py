@@ -92,6 +92,9 @@ class AGN(SEDModel):
         The black hole mass in solar masses.
     edd_ratio: float
         Eddington ratio
+    node_label : str, optional
+        The label for the node in the model graph.
+        Default: None
     seed : int, optional
         The seed to use for the random number generator.
         Default: None
@@ -99,8 +102,10 @@ class AGN(SEDModel):
         Additional keyword arguments.
     """
 
-    def __init__(self, t0, blackhole_mass, edd_ratio, seed=None, **kwargs):
-        super().__init__(t0=t0, **kwargs)
+    def __init__(self, t0, blackhole_mass, edd_ratio, node_label=None, seed=None, **kwargs):
+        # We manually specify "node_label" as a parameter so it does not get
+        # passed to the functions nodes below as part of kwargs.
+        super().__init__(t0=t0, node_label=node_label, **kwargs)
 
         if "redshift" not in kwargs:
             raise ValueError("'redshift' parameter is required for the AGN model.")
