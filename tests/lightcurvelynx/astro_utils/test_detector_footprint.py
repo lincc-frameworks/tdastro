@@ -128,6 +128,18 @@ def test_rectangular_footprint():
     assert not fp.contains(0.7, -0.7, 0, 0.0, rotation=0.0)
     assert fp.contains(0.7, -0.7, 0, 0.0, rotation=45.0)
 
+    # Try some points around the rectangles border when the rectangle is
+    # is centered at different locations to ensure we scale RA correctly.
+    for c_ra, c_dec in [(45.0, 20), (60.0, -30.0), (20.0, 60.0), (-30.0, -75.0)]:
+        center = SkyCoord(ra=c_ra, dec=c_dec, unit="deg", frame="icrs")
+        for dec_offset in [-0.51, -0.49, 0.49, 0.51]:
+            for ra_offset in [-1.01, -0.99, 0.99, 1.01]:
+                # Shift by DEC then RA.
+                query_pt = center.directional_offset_by(0.0 * u.deg, dec_offset * u.deg)
+                query_pt = query_pt.directional_offset_by(90 * u.deg, ra_offset * u.deg)
+                expected = abs(ra_offset) < 1.0 and abs(dec_offset) < 0.5
+                assert fp.contains(query_pt.ra.deg, query_pt.dec.deg, c_ra, c_dec) == expected
+
     # We fail to create a footprint if it is not centered on (0,0).
     center = PixCoord(x=100.0, y=0.0)
     offset_region = RectanglePixelRegion(center=center, width=2.0, height=10.0, angle=0.0 * u.deg)
