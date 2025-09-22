@@ -6,13 +6,15 @@ from lightcurvelynx.obstable.obs_table import ObsTable
 
 
 class FakeObsTable(ObsTable):
-    """A subclass for a (simplified) fake survey. The user must provide the provide a constant
+    """A subclass for a (simplified) fake survey. The user must provide a constant
     flux error to use or enough information to compute the poisson_bandflux_std noise model.
     To compute the flux error, the user must provide the following values
     either in the table or as keyword arguments to the constructor:
-    - fwhm : The full-width at half-maximum of the PSF in pixels.
-    - sky_background : The sky background in the units of electrons / pixel^2.
-    - zp_per_band : A dictionary mapping filter names to their instrumental zero points in nJy
+    - fwhm : The full-width at half-maximum of the PSFs in pixels.
+    - sky_background : The sky backgrounds  in the units of electrons / pixel^2.
+    - zp_per_band : Instrumental zero points in nJy
+    Each of these three parameters is specified as a dictionary mapping filter names to values.
+
     Defaults are set for other parameters (e.g. exptime, nexposure, read_noise, dark_current), which
     the user can override with keyword arguments to the constructor.
 
@@ -38,7 +40,7 @@ class FakeObsTable(ObsTable):
         - exptime: The exposure time for the camera in seconds (default=30).
         - fwhm (if not in table): The full-width at half-maximum of the PSF in pixels (default=None).
         - nexposure: The number of exposures per observation (default=1).
-        - radius: The angular radius of the observations in degrees (default=None).
+        - radius: The angular radius of the field of view of the observations in degrees (default=None).
         - read_noise: The read noise for the camera in electrons (default=0.0).
         - sky_background (if not in table) in the units of electrons / pixel^2 (default=None).
         - survey_name: The name of the survey (default="FAKE_SURVEY").
@@ -62,13 +64,12 @@ class FakeObsTable(ObsTable):
         super().__init__(table, colmap=colmap, **kwargs)
 
         if const_flux_error is not None:
-            all_filters = self._table["filter"].unique()
             # Convert a constant into a per-band dictionary.
             if isinstance(const_flux_error, int | float):
-                self.const_flux_error = {fil: const_flux_error for fil in all_filters}
+                self.const_flux_error = {fil: const_flux_error for fil in self.filters}
 
             # Check that every filter occurs in the dictionary with a non-negative value.
-            for fil in all_filters:
+            for fil in self.filters:
                 if fil not in self.const_flux_error:
                     raise ValueError(
                         "`const_flux_error` must include all the filters in the table. Missing '{fil}'."
@@ -96,13 +97,28 @@ class FakeObsTable(ObsTable):
         """
         if colname in self._table.columns:
             return  # Already have a column.
-        if self.survey_values.get(colname) is not None:
-            value = self.survey_values[colname]
-            if check_positive and value <= 0:
-                raise ValueError(f"`{colname}` must be positive.")
-            self.add_column(colname, np.full(len(self._table), value))
-        else:
-            raise ValueError(f"Must provide valid `{colname}` for FakeSurveyTable.")
+
+        # Check that we have the value to add.
+        if self.survey_values.get(colname) is None:
+            raise ValueError(f"Must provide a `{colname}` column or a survey value for FakeSurveyTable.")
+        value = self.survey_values[colname]
+
+        # If the value is a single number, convert it to a dictionary with the same value for all bands.
+        if isinstance(value, int | float):
+            value = {fil: value for fil in self.filters}
+
+        # Fill in the information for each filter.
+        col_vals = np.zeros(len(self._table), dtype=float)
+        for fil in self.filters:
+            if fil not in value:
+                raise ValueError(f"`{colname}` must include all the filters in the table. Missing '{fil}'.")
+            if not isinstance(value[fil], int | float):
+                raise ValueError(f"`{colname}` must map filter names to numeric values.")
+            if check_positive and value[fil] <= 0:
+                raise ValueError(f"`{colname}` values must be positive. Got {value[fil]} for filter {fil}.")
+            mask = self._table["filter"] == fil
+            col_vals[mask] = value[fil]
+        self.add_column(colname, col_vals)
 
     def _assign_zero_points(self):
         """Assign instrumental zero points in nJy to the ObsTable. In this fake
@@ -120,7 +136,7 @@ class FakeObsTable(ObsTable):
             )
 
         # Check that we have a zero point for every filter in the table.
-        for fil in self._table["filter"].unique():
+        for fil in self.filters:
             if fil not in self.zp_per_band:
                 raise ValueError(f"Must provide a zero point for filter {fil} in `zp_per_band`.")
 

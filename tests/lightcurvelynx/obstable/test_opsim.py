@@ -63,8 +63,7 @@ def test_create_opsim():
     assert np.allclose(ops_data["observationStartMJD"], values["observationStartMJD"])
 
     # Without a filters column we cannot access the filters.
-    with pytest.raises(KeyError):
-        _ = ops_data.get_filters()
+    assert len(ops_data.filters) == 0
 
     # We can create an OpSim directly from the dictionary as well.
     ops_data2 = OpSim(pdf)
@@ -115,8 +114,7 @@ def test_create_opsim_override():
     }
 
     # We can access the filters.
-    filters = ops_data.get_filters()
-    assert set(filters) == {"r", "g", "i"}
+    assert set(ops_data.filters) == {"r", "g", "i"}
 
 
 def test_create_opsim_override_fail():

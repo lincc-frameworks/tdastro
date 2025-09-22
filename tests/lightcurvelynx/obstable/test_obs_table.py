@@ -48,8 +48,7 @@ def test_create_obs_table():
     assert np.allclose(ops_data["time"], values["time"])
 
     # Without a filters column we cannot access the filters.
-    with pytest.raises(KeyError):
-        _ = ops_data.get_filters()
+    assert len(ops_data.filters) == 0
 
     # We can create an ObsTable directly from the dictionary as well.
     ops_data2 = ObsTable(pdf)
@@ -100,8 +99,7 @@ def test_create_obs_table_override():
     }
 
     # We can access the filters.
-    filters = ops_data.get_filters()
-    assert set(filters) == {"r", "g", "i"}
+    assert set(ops_data.filters) == {"r", "g", "i"}
 
     # Check that we can read in the defaults from the pandas metadata.
     pdf = pd.DataFrame(values)

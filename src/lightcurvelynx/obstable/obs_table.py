@@ -36,6 +36,8 @@ class ObsTable:
     survey_values : dict, optional
         A mapping for constant values for the survey used in various computations, such
         as readout noise and dark current.
+    filters : np.ndarray
+        The unique filters in the survey table (if provided).
     _table : pandas.core.frame.DataFrame
         The table with all the observation information mapped to standard column names.
     _colmap : dict
@@ -108,6 +110,8 @@ class ObsTable:
                 self.survey_values[key] = value
         for key, value in kwargs.items():
             self.survey_values[key] = value
+
+        self.filters = np.unique(self._table["filter"]) if "filter" in self._table.columns else np.array([])
 
         # If we are not given zero point data, try to derive it from the other columns.
         if "zp" not in self:
@@ -214,12 +218,6 @@ class ObsTable:
             raise FileNotFoundError(f"File {filename} not found.")
         survey_data = pd.read_parquet(filename)
         return cls(survey_data)
-
-    def get_filters(self):
-        """Get the unique filters in the ObsTable."""
-        if "filter" not in self._table.columns:
-            raise KeyError("No filters column found in ObsTable.")
-        return np.unique(self._table["filter"])
 
     def build_moc(self, *, radius=None, max_depth=10):
         """Build a Multi-Order Coverage Map from the regions in the data set.
