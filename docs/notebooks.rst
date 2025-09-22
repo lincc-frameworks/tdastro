@@ -57,6 +57,7 @@ The following notebooks provide example simulations using the LightCurveLynx pac
 
     Microlensing Effect Example <notebooks/pre_executed/microlensing>
     PLAsTiCC SNIa <notebooks/pre_executed/plasticc_snia>
+    AGN Damped Random Walk Model <notebooks/pre_executed/agn>
     PZFlow Source Demo <notebooks/pre_executed/using_pzflow>
     Resampling LCLIB <notebooks/pre_executed/lclib_example>
     Synphot-based Models <notebooks/pre_executed/synphot_example>
