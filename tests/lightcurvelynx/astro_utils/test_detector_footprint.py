@@ -1,8 +1,9 @@
 import numpy as np
+import pytest
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 from lightcurvelynx.astro_utils.detector_footprint import DetectorFootprint
-from regions import CirclePixelRegion, CircleSkyRegion
+from regions import CirclePixelRegion, CircleSkyRegion, PixCoord, RectanglePixelRegion
 
 
 def test_rotate_to_center():
@@ -69,7 +70,66 @@ def test_create_detector_footprint():
     expected = np.array([True, True, False, False, False, False, True])
     assert np.array_equal(result, expected)
 
+    # We can pass a vector of center positions as well.  Everything matches up.
+    result = fp.contains(ra, dec, center_ra=ra, center_dec=dec)
+    assert np.all(result)
+
     # We can try a circular region that is offset from the center.
     result = fp.contains(ra + 45.0, dec - 10.0, center_ra=45.0, center_dec=-10.0)
     expected = np.array([True, True, False, False, False, False, True])
     assert np.array_equal(result, expected)
+
+    # We have an error if the array shapes are not compatible.
+    with pytest.raises(ValueError):
+        fp.contains(ra, dec, center_ra=np.array([0.0, 1.0]), center_dec=0.0)
+    with pytest.raises(ValueError):
+        fp.contains(ra, dec, center_ra=0.0, center_dec=np.array([0.0, 1.0]))
+    with pytest.raises(ValueError):
+        fp.contains(ra, dec, center_ra=0.0, center_dec=0.0, rotation=np.array([0.0, 1.0]))
+    with pytest.raises(ValueError):
+        fp.contains(ra, np.array([0.0, 1.0]), center_ra=0.0, center_dec=0.0)
+
+    # We fail to create a footprint if the region if we do not pass in either wcs or pixel scale.
+    with pytest.raises(ValueError):
+        _ = DetectorFootprint(circle_region)
+
+
+def test_rectangular_footprint():
+    """Test the RectangularFootprint class."""
+    width = 2.0
+    height = 1.0
+    fp = DetectorFootprint.from_rect(width=width, height=height, pixel_scale=0.01)
+
+    ra = np.array([90.0, 91.0, 90.5, 91.5, 92.0, 90.5, 90.0])
+    center_ra = np.array([90.0, 90.0, 90.0, 90.0, 92.0, 93.0, 90.0])
+    dec = np.array([-10.0, -13.0, -10.0, -10.0, -8.0, -10.25, -9.25])
+    center_dec = np.array([-10.0, -10.0, -10.0, -10.0, -8.0, -10.0, -10.0])
+
+    # Test contains without rotation.
+    contained = fp.contains(ra, dec, center_ra, center_dec)
+    assert np.all(contained == np.array([True, False, True, False, True, False, False]))
+
+    # Test contains with rotation. The last point should now be contained.
+    rotation = np.full(ra.shape, 90.0)
+    contained = fp.contains(ra, dec, center_ra, center_dec, rotation=rotation)
+    assert np.all(contained == np.array([True, False, True, False, True, False, True]))
+
+    # We can query scalars as well.
+    assert fp.contains(90.5, -10.25, 90.0, -10.0)
+    assert not fp.contains(91.5, -10.25, 90.0, -10.0)
+    assert fp.contains(89.75, -9.75, 90.0, -10.0)
+    assert not fp.contains(89.75, -9.25, 90.0, -10.0)
+
+    assert not fp.contains(91.5, -10.25, 90.0, -10.0, rotation=45.0)
+    assert fp.contains(89.75, -9.75, 90.0, -10.0, rotation=-45.0)
+    assert not fp.contains(89.75, -9.25, 90.0, -10.0, rotation=-45.0)
+
+    # Test a 45 degree rotation.
+    assert not fp.contains(0.7, -0.7, 0, 0.0, rotation=0.0)
+    assert fp.contains(0.7, -0.7, 0, 0.0, rotation=45.0)
+
+    # We fail to create a footprint if it is not centered on (0,0).
+    center = PixCoord(x=100.0, y=0.0)
+    offset_region = RectanglePixelRegion(center=center, width=2.0, height=10.0, angle=0.0 * u.deg)
+    with pytest.raises(ValueError):
+        DetectorFootprint(offset_region, pixel_scale=0.01)

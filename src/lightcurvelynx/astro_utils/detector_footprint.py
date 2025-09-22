@@ -45,6 +45,12 @@ class DetectorFootprint:
         if isinstance(self.region, SkyRegion):
             self.region = self.region.to_pixel(self.wcs)
 
+        # The bounding box must contain the origin (0,0) since the footprint is defined
+        # relative to the center of the detector.
+        bbox = self.region.bounding_box
+        if not (bbox.ixmin <= 0 <= bbox.ixmax and bbox.iymin <= 0 <= bbox.iymax):
+            raise ValueError("The bounding box of the region must contain the origin (0,0).")
+
     @classmethod
     def from_rect(cls, width, height, wcs=None, pixel_scale=None, **kwargs):
         """Create a rectangular footprint.
@@ -176,6 +182,34 @@ class DetectorFootprint:
             True if the point is within the footprint, False otherwise.
         """
         scalar_data = np.isscalar(ra)
+
+        # Make all inputs into arrays and confirm they have the same shape.
+        ra = np.atleast_1d(ra)
+        dec = np.atleast_1d(dec)
+        if ra.shape != dec.shape:
+            raise ValueError("ra and dec must have the same shape.")
+
+        center_ra = np.atleast_1d(center_ra)
+        center_dec = np.atleast_1d(center_dec)
+        if center_ra.shape != ra.shape:
+            if center_ra.shape != (1,):
+                raise ValueError("center_ra must have the same shape as ra and dec.")
+            else:
+                center_ra = np.full(ra.shape, center_ra[0])
+        if center_dec.shape != dec.shape:
+            if center_dec.shape != (1,):
+                raise ValueError("center_dec must have the same shape as ra and dec.")
+            else:
+                center_dec = np.full(dec.shape, center_dec[0])
+
+        # Rotation is optional, but if provided, it must match the shape of ra and dec.
+        if rotation is not None:
+            rotation = np.atleast_1d(rotation)
+            if rotation.shape != ra.shape:
+                if rotation.shape != (1,):
+                    raise ValueError("rotation must have the same shape as ra and dec.")
+                else:
+                    rotation = np.full(ra.shape, rotation[0])
 
         # Rotate the points to be relative to the center and convert to pixel coordinates.
         pixel_x, pixel_y = self.sky_to_pixel(ra, dec, center_ra, center_dec, rotation=rotation)
