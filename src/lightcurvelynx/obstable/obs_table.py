@@ -161,7 +161,6 @@ class ObsTable:
         """Create a setter for radius."""
         if new_val <= 0:
             raise ValueError(f"Invalid radius: {new_val}")
-        print("Setter called")
         self.survey_values["radius"] = new_val
 
     @property
