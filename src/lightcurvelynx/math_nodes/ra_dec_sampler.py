@@ -85,7 +85,7 @@ class ObsTableRADECSampler(TableSampler):
     data : ObsTable
         The ObsTable object to use for sampling.
     radius : float
-        The radius of the observations in degrees. Use 0.0 to just sample
+        The radius of the the field of view of the observations in degrees. Use 0.0 to just sample
         the centers of the images. Default: None
     in_order : bool
         Return the given data in order of the rows (True). If False, performs
@@ -167,7 +167,7 @@ class ObsTableUniformRADECSampler(NumpyRandomFunc):
     data : ObsTable
         The ObsTable object to use for sampling.
     radius : float
-        The radius of the observations in degrees.
+        The radius of the field of view of the observations in degrees.
     max_iterations : int
         The maximum number of iterations to perform. Default: 1000
 
