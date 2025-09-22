@@ -152,6 +152,19 @@ class ObsTable:
         return value
 
     @property
+    def radius(self):
+        """Return the radius if it exists."""
+        return self.survey_values.get("radius", None)
+
+    @radius.setter
+    def radius(self, new_val):
+        """Create a setter for radius."""
+        if new_val <= 0:
+            raise ValueError(f"Invalid radius: {new_val}")
+        print("Setter called")
+        self.survey_values["radius"] = new_val
+
+    @property
     def columns(self):
         """Get the column names."""
         return self._table.columns
