@@ -391,7 +391,7 @@ class ObsTable:
 
         return self
 
-    def is_observed(self, query_ra, query_dec, radius=None, t_min=None, t_max=None):
+    def is_observed(self, query_ra, query_dec, *, radius=None, t_min=None, t_max=None):
         """Check if the query point(s) fall within the field of view of any
         pointing in the ObsTable.
 
@@ -417,12 +417,12 @@ class ObsTable:
             whether the query point is observed or a list of bools for an array
             of query points.
         """
-        inds = self.range_search(query_ra, query_dec, radius, t_min=t_min, t_max=t_max)
+        inds = self.range_search(query_ra, query_dec, radius=radius, t_min=t_min, t_max=t_max)
         if np.isscalar(query_ra):
             return len(inds) > 0
         return [len(entry) > 0 for entry in inds]
 
-    def range_search(self, query_ra, query_dec, radius=None, t_min=None, t_max=None):
+    def range_search(self, query_ra, query_dec, *, radius=None, t_min=None, t_max=None):
         """Return the indices of the pointings that fall within the field
         of view of the query point(s).
 
@@ -510,7 +510,7 @@ class ObsTable:
             inds = inds[0]
         return inds
 
-    def get_observations(self, query_ra, query_dec, radius=None, t_min=None, t_max=None, cols=None):
+    def get_observations(self, query_ra, query_dec, *, radius=None, t_min=None, t_max=None, cols=None):
         """Return the observation information when the query point falls within
         the field of view of a pointing in the ObsTable.
 
@@ -538,7 +538,7 @@ class ObsTable:
         results : dict
             A dictionary mapping the given column name to a numpy array of values.
         """
-        neighbors = self.range_search(query_ra, query_dec, radius, t_min=t_min, t_max=t_max)
+        neighbors = self.range_search(query_ra, query_dec, radius=radius, t_min=t_min, t_max=t_max)
 
         results = {}
         if cols is None:
