@@ -81,7 +81,8 @@ def test_opsim_ra_dec_sampler():
     ops_data = OpSim(values)
     assert len(ops_data) == 5
 
-    sampler_node = ObsTableRADECSampler(ops_data, in_order=True)
+    sampler_node = ObsTableRADECSampler(ops_data, radius=0.0, in_order=True)
+    assert sampler_node.radius == 0.0
 
     # Test we can generate a single value.
     (ra, dec, time) = sampler_node.generate(num_samples=1)
@@ -96,7 +97,7 @@ def test_opsim_ra_dec_sampler():
     assert np.allclose(time, [1.0, 2.0])
 
     # Do randomized sampling.
-    sampler_node2 = ObsTableRADECSampler(ops_data, in_order=False, seed=100, node_label="sampler")
+    sampler_node2 = ObsTableRADECSampler(ops_data, in_order=False, radius=0.0, seed=100, node_label="sampler")
     state = sampler_node2.sample_parameters(num_samples=5000)
 
     # Check that the samples are uniform and consistent.
@@ -120,6 +121,16 @@ def test_opsim_ra_dec_sampler():
     assert np.allclose(state["sampler"]["ra"], values["fieldRA"][int_times], atol=0.2)
     assert np.allclose(state["sampler"]["dec"], values["fieldDec"][int_times], atol=0.2)
 
+    # We fail if no radius is provided by the OpSim or the parameters
+    ops_data = OpSim(values, radius=None)
+    with pytest.raises(ValueError):
+        _ = ObsTableRADECSampler(ops_data)
+
+    # But we can use the OpSim's radius if that is provided.
+    ops_data = OpSim(values, radius=1.0)
+    sampler_node = ObsTableRADECSampler(ops_data)
+    assert sampler_node.radius == 1.0
+
 
 def test_opsim_uniform_ra_dec_sampler():
     """Test that we can sample uniformly from am OpSim object."""
@@ -135,6 +146,7 @@ def test_opsim_uniform_ra_dec_sampler():
 
     # Use a very large radius so we do not reject too many samples.
     sampler_node = ObsTableUniformRADECSampler(ops_data, radius=70.0, seed=100, node_label="sampler")
+    assert sampler_node.radius == 70.0
 
     # Test we can generate a single value.
     ra, dec = sampler_node.generate(num_samples=1)
@@ -149,6 +161,16 @@ def test_opsim_uniform_ra_dec_sampler():
     northern_mask = dec > 0.0
     assert np.sum(northern_mask) > 0.4 * num_samples
     assert np.sum(northern_mask) < 0.6 * num_samples
+
+    # We fail if neither the OpSim or the sampler have a radius
+    ops_data = OpSim(values, radius=None)
+    with pytest.raises(ValueError):
+        _ = ObsTableUniformRADECSampler(ops_data)
+
+    # But we succeed if the OpSim has a radius.
+    ops_data = OpSim(values, radius=10.0)
+    sampler_node = ObsTableUniformRADECSampler(ops_data)
+    assert sampler_node.radius == 10.0
 
 
 def test_approximate_moc_sampler():

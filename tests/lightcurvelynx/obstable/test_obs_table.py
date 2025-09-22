@@ -120,6 +120,17 @@ def test_create_obs_table_override():
     assert ops_data2.survey_values["dark_current"] == 0.5
     assert ops_data2.survey_values["radius"] == 1.0
 
+    # We can use the radius to get and set the property.
+    assert ops_data2.radius == 1.0
+    ops_data2.radius = 5.0
+    assert ops_data2.survey_values["radius"] == 5.0
+
+    # If we delete the radius survey value, we get None and can reset it.
+    del ops_data2.survey_values["radius"]
+    assert ops_data2.radius is None
+    ops_data2.radius = 5.0
+    assert ops_data2.survey_values["radius"] == 5.0
+
 
 def test_create_obs_table_custom_names():
     """Create a minimal ObsTable object from alternate column names."""
