@@ -153,6 +153,7 @@ def test_create_agn():
         redshift=1.0,
         edd_ratio=0.9,
         cosmology="Planck18",
+        node_label="AGN_0",
     )
     state = agn_node.sample_parameters(num_samples=10_000)
 
