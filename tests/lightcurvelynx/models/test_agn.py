@@ -104,17 +104,21 @@ def test_agn_compute_temp_at_r_0():
 def test_compute_structure_function_at_inf():
     """Test that we can compute the structure function at infinity."""
     # This is a change detection test to make sure the results match previous code.
-    sf_inf = AGN.compute_structure_function_at_inf(np.array([1000.0, 2000.0, 3000.0, 4000.0]))
-    expected = np.array([8.83866626e-05, 6.34152002e-05, 5.22210566e-05, 4.54988060e-05])
+    sf_inf4000 = AGN.compute_sf_inf_4000aa()
+    sf_inf = AGN.compute_structure_function_at_inf(
+        sf_inf4000, np.array([1000.0, 2000.0, 3000.0, 4000.0]) * 1e-8
+    )
+    expected = np.array([0.02772937, 0.05545874, 0.08318811, 0.11091748])
     assert np.allclose(sf_inf, expected)
 
 
-def test_compute_tau_v_drw():
+def test_compute_tau():
     """Test that we can compute the DRW tau."""
     # This is a change detection test to make sure the results match previous code.
-    tau_v = AGN.compute_tau_v_drw(np.array([1000.0, 2000.0, 3000.0, 4000.0]))
-    expected = np.array([4546.21322992, 5114.75576753, 5479.74582924, 5754.39937337])
-    assert np.allclose(tau_v, expected)
+    tau_4000 = AGN.compute_tau_4000aa()
+    tau = AGN.compute_tau(tau_4000, np.array([1000.0, 2000.0, 3000.0, 4000.0]) * 1e-8)
+    expected = np.array([146.19752104, 292.39504207, 438.59256311, 584.79008414])
+    assert np.allclose(tau, expected)
 
 
 def test_sample_damped_random_walk():
@@ -142,29 +146,31 @@ def test_sample_damped_random_walk():
 def test_create_agn():
     """Test that we can create an AGN object and the derived parameters are correct."""
     # Select the black hole mass uniformly between 1e9 and 2e9 solar masses.
-    bh_mass_sampler = NumpyRandomFunc("uniform", low=1e9 * M_SUN_G, high=2e9 * M_SUN_G, seed=100)
+    bh_mass_sampler = NumpyRandomFunc("uniform", low=1e9, high=2e9, seed=100)
     agn_node = AGN(
         t0=0.0,
         blackhole_mass=bh_mass_sampler,
+        redshift=1.0,
         edd_ratio=0.9,
-        node_label="AGN",
+        cosmology="Planck18",
+        node_label="AGN_0",
     )
     state = agn_node.sample_parameters(num_samples=10_000)
 
     # Check that the parameters are within the expected ranges.
-    bh_masses = state["AGN"]["blackhole_mass"]
-    assert np.all(bh_masses >= 1e9 * M_SUN_G)
-    assert np.all(bh_masses <= 2e9 * M_SUN_G)
+    bh_masses = state["AGN_0"]["blackhole_mass"]
+    assert np.all(bh_masses >= 1e9)
+    assert np.all(bh_masses <= 2e9)
     assert np.unique(bh_masses).size > 1_000
 
-    assert np.allclose(state["AGN"]["critical_accretion_rate"], 1.4e18 * bh_masses / M_SUN_G)
+    assert np.allclose(state["AGN_0"]["critical_accretion_rate"], 1.4e18 * bh_masses)
     assert np.allclose(
-        state["AGN"]["blackhole_accretion_rate"], 0.9 * state["AGN"]["critical_accretion_rate"]
+        state["AGN_0"]["blackhole_accretion_rate"], 0.9 * state["AGN_0"]["critical_accretion_rate"]
     )
     assert np.allclose(
-        state["AGN"]["bolometric_luminosity"], AGN.compute_bolometric_luminosity(0.9, bh_masses)
+        state["AGN_0"]["bolometric_luminosity"], AGN.compute_bolometric_luminosity(0.9, bh_masses * M_SUN_G)
     )
-    assert np.allclose(state["AGN"]["mag_i"], AGN.compute_mag_i(state["AGN"]["bolometric_luminosity"]))
+    assert np.allclose(state["AGN_0"]["mag_i"], AGN.compute_mag_i(state["AGN_0"]["bolometric_luminosity"]))
 
     # Check that we can sample from the AGN.
     single_state = agn_node.sample_parameters(num_samples=1)
@@ -173,4 +179,4 @@ def test_create_agn():
 
     fluxes = agn_node.compute_sed(times, wavelengths, single_state)
     assert fluxes.shape == (5, 4)
-    assert np.all(fluxes >= 0.0)
+    assert np.all(fluxes > 0.0)

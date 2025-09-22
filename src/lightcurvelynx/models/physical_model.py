@@ -50,6 +50,8 @@ class BasePhysicalModel(ParameterizedNode, ABC):
         The object's luminosity distance (in pc). If no value is provided and
         a cosmology parameter is given, the model will try to derive from
         the redshift and the cosmology.
+    node_label : str, optional
+        The label for the node in the model graph.
     seed : int, optional
         The seed for a random number generator.
     **kwargs : dict, optional
@@ -58,15 +60,17 @@ class BasePhysicalModel(ParameterizedNode, ABC):
 
     def __init__(
         self,
+        *,
         ra=None,
         dec=None,
         redshift=None,
         t0=None,
         distance=None,
+        node_label=None,
         seed=None,
         **kwargs,
     ):
-        super().__init__(**kwargs)
+        super().__init__(node_label=node_label, **kwargs)
 
         # Set the parameters for the model.
         self.add_parameter("ra", ra, allow_gradient=False)

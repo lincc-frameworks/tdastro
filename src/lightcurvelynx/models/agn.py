@@ -12,7 +12,7 @@ from citation_compass import cite_function
 from scipy import integrate
 
 from lightcurvelynx.base_models import FunctionNode
-from lightcurvelynx.consts import M_SUN_G
+from lightcurvelynx.consts import ANGSTROM_TO_CM, CGS_FNU_UNIT_TO_NJY, M_SUN_G, PARSEC_TO_CM
 from lightcurvelynx.math_nodes.np_random import NumpyRandomFunc
 from lightcurvelynx.models.physical_model import SEDModel
 
@@ -72,7 +72,7 @@ class AGN(SEDModel):
     Parameterized values include:
       * accretion_rate - The accretion rate (ME_dot) at Eddington luminosity in g/s.
       * blackhole_accretion_rate - The accretion rate of the black hole in g/s.
-      * blackhole_mass - The black hole mass in g.
+      * blackhole_mass - The black hole mass in solar mass.
       * edd_ratio - The Eddington ratio.
       * dec - The object's declination in degrees. [from BasePhysicalModel]
       * distance - The object's luminosity distance in pc. [from BasePhysicalModel]
@@ -89,9 +89,12 @@ class AGN(SEDModel):
     t0 : float
         initial time moment in days.
     blackhole_mass : float
-        The black hole mass in g.
+        The black hole mass in solar masses.
     edd_ratio: float
         Eddington ratio
+    node_label : str, optional
+        The label for the node in the model graph.
+        Default: None
     seed : int, optional
         The seed to use for the random number generator.
         Default: None
@@ -99,19 +102,35 @@ class AGN(SEDModel):
         Additional keyword arguments.
     """
 
-    def __init__(self, t0, blackhole_mass, edd_ratio, seed=None, **kwargs):
-        super().__init__(t0=t0, **kwargs)
+    def __init__(self, t0, blackhole_mass, edd_ratio, node_label=None, seed=None, **kwargs):
+        # We manually specify "node_label" as a parameter so it does not get
+        # passed to the functions nodes below as part of kwargs.
+        super().__init__(t0=t0, node_label=node_label, **kwargs)
+
+        if "redshift" not in kwargs:
+            raise ValueError("'redshift' parameter is required for the AGN model.")
+
+        if "cosmology" not in kwargs and "distance" not in kwargs:
+            raise ValueError(
+                "At least one of 'cosmology' (str or astropy.cosmology object) or 'distance' (in pc) "
+                "parameters must be provided."
+            )
 
         # Add the parameters for the AGN. t0 already set in BasePhysicalModel.
         self.add_parameter("blackhole_mass", blackhole_mass, **kwargs)
         self.add_parameter("edd_ratio", edd_ratio, **kwargs)
-        self.add_parameter("inclination", NumpyRandomFunc("uniform", low=0, high=np.pi / 2.0), **kwargs)
+        self.add_parameter("inclination_rad", NumpyRandomFunc("uniform", low=0, high=np.pi / 2.0), **kwargs)
 
         # Add the derived parameters using FunctionNodes built from the object's static methods.
         # Each of these will be computed for each sample value of the input parameters.
         self.add_parameter(
+            "blackhole_mass_gram",
+            FunctionNode(lambda m_sun: m_sun * M_SUN_G, m_sun=self.blackhole_mass),
+            **kwargs,
+        )
+        self.add_parameter(
             "critical_accretion_rate",
-            FunctionNode(self.compute_critical_accretion_rate, blackhole_mass=self.blackhole_mass),
+            FunctionNode(self.compute_critical_accretion_rate, blackhole_mass=self.blackhole_mass_gram),
             **kwargs,
         )
         self.add_parameter(
@@ -128,7 +147,7 @@ class AGN(SEDModel):
             FunctionNode(
                 self.compute_bolometric_luminosity,
                 edd_ratio=self.edd_ratio,  # Pull from sampled ratio
-                blackhole_mass=self.blackhole_mass,  # Pull from the sampled mass
+                blackhole_mass=self.blackhole_mass_gram,  # Pull from the sampled mass
             ),
             **kwargs,
         )
@@ -139,6 +158,22 @@ class AGN(SEDModel):
                 bolometric_luminosity=self.bolometric_luminosity,  # Pull from computed value.
             ),
             **kwargs,
+        )
+        self.add_parameter(
+            "sf_inf_4000aa",
+            FunctionNode(
+                self.compute_sf_inf_4000aa,
+                mag_i=self.mag_i,
+                blackhole_mass=self.blackhole_mass_gram,
+            ),
+        )
+        self.add_parameter(
+            "tau_4000aa",
+            FunctionNode(
+                self.compute_tau_4000aa,
+                mag_i=self.mag_i,
+                blackhole_mass=self.blackhole_mass_gram,
+            ),
         )
 
         # Set the random number generator for this object.
@@ -204,7 +239,7 @@ class AGN(SEDModel):
 
     @staticmethod
     @cite_function
-    def compute_sed_standard_disk(Mdot, nu, rin, i, d, M):
+    def compute_sed_standard_disk(*, Mdot, nu, rin_to_rg, i, d, M):
         """Compute the flux based on a standard disk model.
 
         References
@@ -212,16 +247,18 @@ class AGN(SEDModel):
         Lipunova, G., Malanchev, K., Shakura, N. (2018)
         https://doi.org/10.1007/978-3-319-93009-1_1
 
+        All inputs are in CGS.
+
         Parameters
         ----------
         Mdot : float or np.ndarray
             The accretion rate at the previous time step.
         nu : float or np.ndarray
             The frequency.
-        rin : float or np.ndarray
-            The inner radius of the accretion disk.
+        rin_to_rg : float or np.ndarray
+            The inner radius of the accretion disk to gravitation radius ratio.
         i : float or np.ndarray
-            The inclination.
+            The inclination in radians.
         d : float or np.ndarray
             The distance.
         M : float or np.ndarray
@@ -235,8 +272,17 @@ class AGN(SEDModel):
         # Compute the initial radius of the ring (r_0) and the effective temperature at r_0 (T_0).
         # Lipunova, G., Malanchev, K., Shakura, N. (2018). Page 33 for the main equation
         # DOI https://doi.org/10.1007/978-3-319-93009-1_1
+        rin = constants.G.cgs.value * M / constants.c.cgs.value**2 * rin_to_rg
         r_0 = AGN.compute_r_0(rin)
         T_0 = AGN.compute_temp_at_r_0(M, Mdot, rin)
+
+        h = constants.h.cgs.value
+        k_B = constants.k_B.cgs.value
+        c = constants.c.cgs.value
+        # Set minimum x_in value for numerical stability
+        x_in = np.maximum(h * nu / (k_B * T_0) * (rin / r_0) ** (3 / 4), 1e-6)
+        # Set outer radius to infinity for now
+        x_out = np.inf
 
         # large x in exponetial causes overflow, but 1/inf is zero.
         with np.errstate(over="ignore"):
@@ -244,11 +290,8 @@ class AGN(SEDModel):
             def _fun_integr(x):
                 return (x ** (5 / 3)) / np.expm1(x)
 
-            integ, _ = integrate.quad(_fun_integr, 1e-6, np.inf)
+            integ, _ = np.vectorize(lambda x_in, x_out: integrate.quad(_fun_integr, x_in, x_out))(x_in, x_out)
 
-        h = constants.h.cgs.value
-        k_B = constants.k_B.cgs.value
-        c = constants.c.cgs.value
         return (
             (16 * np.pi)
             / (3 * d**2)
@@ -259,7 +302,7 @@ class AGN(SEDModel):
             / (c**2)
             * (r_0**2)
             * integ
-        )
+        ) * CGS_FNU_UNIT_TO_NJY
 
     @staticmethod
     @cite_function
@@ -304,14 +347,14 @@ class AGN(SEDModel):
         r_0 : float
             The initial radius of the ring.
         """
-        # Adapted from Lipunova, G., Malanchev, K., Shakura, N. (2018). Page 33 for the main equation
+        # Adapted from Lipunova, G., Malanchev, K., Shakura, N. (2018). Page 31
         # DOI https://doi.org/10.1007/978-3-319-93009-1_1
         return (7 / 6) ** 2 * r_in
 
     @staticmethod
     @cite_function
-    def compute_structure_function_at_inf(wavelength, mag_i=-23, blackhole_mass=1e9 * M_SUN_G):
-        """Compute the structure function at infinity time in magnitude.
+    def compute_structure_function_at_inf(sf_inf_4000aa, wavelength):
+        """Adjust the structure function at infinity time for given wavelengths
 
         References
         ----------
@@ -319,8 +362,29 @@ class AGN(SEDModel):
 
         Parameters
         ----------
+        sf_inf_4000aa : float
+            The structure function at infinity time for 4000 angstroms
         wavelength : np.ndarray
-            A length W array with the frequencies in Hz.
+            A length W array with wavelength in cm.
+
+        Returns
+        -------
+        result : np.ndarray
+            A length W array with structure function at infinity time in magnitude.
+        """
+        return sf_inf_4000aa * 10 ** (-0.479) * wavelength / 4000e-8
+
+    @staticmethod
+    @cite_function
+    def compute_sf_inf_4000aa(mag_i=-23, blackhole_mass=1e9 * M_SUN_G):
+        """Compute the structure function at infinity time in magnitude, for 4000 A
+
+        References
+        ----------
+        Suberlak et al. 2021 - DOI 10.3847/1538-4357/abc698
+
+        Parameters
+        ----------
         mag_i : float, optional
             The i band magnitude.
             Default: -23
@@ -331,21 +395,17 @@ class AGN(SEDModel):
         Returns
         -------
         result : np.ndarray
-            A length W array with structure function at infinity time in magnitude.
+            A length W array with structure function at infinity time
+            in magnitude for 4000 angstroms.
         """
         # Equation and parameters for A=-0.51, B=-0.479, C=0.13, and D=0.18
         #  adopted from Suberlak et al. 2021: DOI 10.3847/1538-4357/abc698
-        return 10 ** (
-            -0.51
-            - 0.479 * np.log10(wavelength / (4000e-8))
-            + 0.13 * (mag_i + 23)
-            + 0.18 * np.log10(blackhole_mass / (1e9 * M_SUN_G))
-        )
+        return 10 ** (-0.476 + 0.118 * (mag_i + 23) + 0.118 * np.log10(blackhole_mass / (1e9 * M_SUN_G)))
 
     @staticmethod
     @cite_function
-    def compute_tau_v_drw(wavelength, mag_i=-23, blackhole_mass=1e9 * M_SUN_G):
-        """Compute the timescale (tau_v) for the DRW model.
+    def compute_tau_4000aa(mag_i=-23, blackhole_mass=1e9 * M_SUN_G):
+        """Compute the timescale (tau_v) at 4000 angstroms.
 
         References
         ----------
@@ -353,8 +413,6 @@ class AGN(SEDModel):
 
         Parameters
         ----------
-        wavelength : np.ndarray
-            A length W array with the frequenc in Hz.
         mag_i : float, optional
             The i band magnitude.
             Default: -23
@@ -365,16 +423,29 @@ class AGN(SEDModel):
         Returns
         -------
         tau_v : np.ndarray
-            A length W array with the timescale in s for each wavelength.
+            A length W array with the timescale for 4000 angstroms.
         """
         # Equation and parameters for A=2.4, B=0.17, C=0.03, and D=0.21 adopted
         # from Suberlak et al. 2021: DOI 10.3847/1538-4357/abc698
-        return 10 ** (
-            2.4
-            + 0.17 * np.log10(wavelength / (4000e-8))
-            + 0.03 * (mag_i + 23)
-            + 0.21 * np.log10(blackhole_mass / (1e9 * M_SUN_G))
-        )
+        return 10 ** (2.597 + 0.035 * (mag_i + 23) + 0.141 * np.log10(blackhole_mass / (1e9 * M_SUN_G)))
+
+    @staticmethod
+    @cite_function
+    def compute_tau(tau_4000aa, wavelength):
+        """Adjust the timescale (tau_v) for given wavelengths
+
+        References
+        ----------
+        Suberlak et al. 2021 - DOI 10.3847/1538-4357/abc698
+
+        Parameters
+        ----------
+        tau_4000aa : float
+            The timescale for 4000 angstroms.
+        wavelength : np.ndarray
+            A length W array with wavelength in cm.
+        """
+        return tau_4000aa * 10**0.17 * wavelength / 4000e-8
 
     @staticmethod
     @cite_function
@@ -401,7 +472,7 @@ class AGN(SEDModel):
         T_0 : float
             The effective temperature at r0.
         """
-        # Lipunova, G., Malanchev, K., Shakura, N. (2018). Page 33 for the main equation
+        # Lipunova, G., Malanchev, K., Shakura, N. (2018). Page 31
         # DOI https://doi.org/10.1007/978-3-319-93009-1_1
         sigma_sb = constants.sigma_sb.cgs.value
         G = constants.G.cgs.value
@@ -427,22 +498,23 @@ class AGN(SEDModel):
             A length T x N matrix of SED values (in nJy).
         """
         params = self.get_local_params(graph_state)
+        waves_cm = wavelengths * ANGSTROM_TO_CM
+        nu = constants.c.cgs.value / waves_cm
+        bh_mass_g = params["blackhole_mass_gram"]
 
         # Compute the parameters for these wavelengths.
-        tau_v = self.compute_tau_v_drw(wavelengths, params["mag_i"], params["blackhole_mass"])
-        sf_inf = self.compute_structure_function_at_inf(
-            wavelengths, params["mag_i"], params["blackhole_mass"]
-        )
+        tau_v = self.compute_tau(params["tau_4000aa"], waves_cm)
+        sf_inf = self.compute_structure_function_at_inf(params["sf_inf_4000aa"], waves_cm)
 
         # Compute the average flux of a standard disk model. Use a factor of 2 (two sides
         # of the disk) to get the total flux.
-        fnu_average = 2.0 * self.compute_sed_standard_disk(
-            params["blackhole_accretion_rate"],
-            constants.c.cgs.value / wavelengths,  # nu
-            1,  # rin
-            params["inclination"],  # i
-            1.0,  # d
-            params["blackhole_mass"],
+        fnu_average = self.compute_sed_standard_disk(
+            Mdot=params["blackhole_accretion_rate"],  # g/s
+            nu=nu,  # Hz
+            rin_to_rg=6.0,  # rin / rg, no rotation for now
+            i=params["inclination_rad"],  # radians
+            d=params["distance"] * PARSEC_TO_CM,  # cm
+            M=bh_mass_g,  # g
         )
 
         # Run the damped random walk.
