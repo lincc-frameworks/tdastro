@@ -2,6 +2,7 @@
 
 import numpy as np
 import pytest
+from citation_compass import find_in_citations
 from lightcurvelynx.math_nodes.given_sampler import GivenValueList
 from lightcurvelynx.models.redback_models import RedbackWrapperModel
 
@@ -56,6 +57,10 @@ def _toy_redback_model(times, height, width, **kwargs):
     return ToySNModel(height, width)
 
 
+# Fake the appending of a citation to the model function.
+_toy_redback_model.citation = "TEST_CITATION_2025"
+
+
 def test_redback_models_toy() -> None:
     """Test that we can create and evaluate a simple model."""
     # Define static parameters.
@@ -92,6 +97,16 @@ def test_redback_models_toy() -> None:
 
     # Check that the fluxes are different at different wavelengths.
     assert np.all(fluxes[:, 0] != fluxes[:, 1])
+
+    # Check that we can recover the citations
+    rb_citations = find_in_citations("RedbackWrapperModel")
+    assert len(rb_citations) >= 1
+    for citation in rb_citations:
+        assert "https://ui.adsabs.harvard.edu/abs/2024MNRAS.531.1203S/abstract" in citation
+    rb_model_citations = find_in_citations("redback model")
+    assert len(rb_model_citations) >= 1
+    for citation in rb_model_citations:
+        assert "TEST_CITATION_2025" in citation
 
 
 def test_redback_models_fail_toy() -> None:
