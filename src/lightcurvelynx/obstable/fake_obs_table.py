@@ -9,11 +9,8 @@ class FakeObsTable(ObsTable):
     """A subclass for a (simplified) fake survey. The user must provide a constant
     flux error to use or enough information to compute the poisson_bandflux_std noise model.
     To compute the flux error, the user must provide the following values
-    either in the table or as keyword arguments to the constructor:
-    - fwhm_px : The full-width at half-maximum of the PSFs in pixels.
-    - sky : The sky backgrounds  in the units of electrons / pixel^2.
-    - zp_per_band : Instrumental zero points in nJy
-    Each of these three parameters is specified as a dictionary mapping filter names to values.
+    either in the table or as keyword arguments to the constructor 1) sky, 2) zp_per_band,
+    and 3) either a) fwhm_px or b) footprint.
 
     Defaults are set for other parameters (e.g. exptime, nexposure, read_noise, dark_current), which
     the user can override with keyword arguments to the constructor.
@@ -33,17 +30,30 @@ class FakeObsTable(ObsTable):
         If provided, use this constant flux error (in nJy) for all observations (overriding
         the normal noise compuation). If a dictionary is provided, it should map filter names
         to constant flux errors per-band. This should only be used for testing purposes.
+    dark_current : float, optional
+        The dark current for the camera in electrons per second per pixel (default=0.0).
+    exptime : float, optional
+        The exposure time for the camera in seconds, used for dark current calculation only
+        (default=30).
+    footprint : float, optional
+        The effective footprint of the PSF in pixels.
+    fwhm_px : float or dict, optional
+        The full-width at half-maximum of the PSF in pixels. If a dictionary is provided,
+        it should map filter names to fwhm values. This is only needed if `footprint` is not provided
+        and `const_flux_error` is not provided (default=None).
+    nexposure : int, optional
+        The number of exposures per observation (default=1).
+    radius : float, optional
+        The angular radius of the field of view of the observations in degrees (default=None).
+    read_noise : float, optional
+        The read noise for the camera in electrons (default=0.0).
+    sky : float or dict, optional
+        The sky background in the units of electrons / pixel^2. If a dictionary is provided,
+        it should map filter names to sky values. This is only needed if `const_flux_error`
+        is not provided (default=None).
     **kwargs : dict
         Additional keyword arguments to pass to the ObsTable constructor. This includes overrides
         for survey parameters such as:
-        - dark_current : The dark current for the camera in electrons per second per pixel (default=0.0).
-        - exptime: The exposure time for the camera in seconds, used for dark current calculation only
-          (default=30).
-        - fwhm_px (if not in table): The full-width at half-maximum of the PSF in pixels (default=None).
-        - nexposure: The number of exposures per observation (default=1).
-        - radius: The angular radius of the field of view of the observations in degrees (default=None).
-        - read_noise: The read noise for the camera in electrons (default=0.0).
-        - sky (if not in table) in the units of electrons / pixel^2 (default=None).
         - survey_name: The name of the survey (default="FAKE_SURVEY").
     """
 
@@ -59,10 +69,40 @@ class FakeObsTable(ObsTable):
         "survey_name": "FAKE_SURVEY",
     }
 
-    def __init__(self, table, *, colmap=None, zp_per_band=None, const_flux_error=None, **kwargs):
+    def __init__(
+        self,
+        table,
+        *,
+        colmap=None,
+        zp_per_band=None,
+        const_flux_error=None,
+        dark_current=0,
+        exptime=30,
+        footprint=None,
+        fwhm_px=None,
+        nexposure=1,
+        radius=None,
+        read_noise=0,
+        sky=None,
+        **kwargs,
+    ):
         self.zp_per_band = zp_per_band
         self.const_flux_error = const_flux_error
-        super().__init__(table, colmap=colmap, **kwargs)
+
+        # Pass along all the survey parameters to the parent class.
+        super().__init__(
+            table,
+            colmap=colmap,
+            dark_current=dark_current,
+            exptime=exptime,
+            footprint=footprint,
+            fwhm_px=fwhm_px,
+            nexposure=nexposure,
+            radius=radius,
+            read_noise=read_noise,
+            sky=sky,
+            **kwargs,
+        )
 
         if const_flux_error is not None:
             # Convert a constant into a per-band dictionary.
@@ -81,45 +121,17 @@ class FakeObsTable(ObsTable):
         else:
             # Make sure we have the required columns (fwhm_px, sky, exptime, nexposure) to
             # compute the flux error. If any are missing, assign a constant column from the survey values.
-            self._assign_constant_if_needed("exptime", check_positive=True)
-            self._assign_constant_if_needed("nexposure", check_positive=True)
-            self._assign_constant_if_needed("fwhm_px", check_positive=True)
-            self._assign_constant_if_needed("sky", check_positive=False)
-
-    def _assign_constant_if_needed(self, colname, check_positive=True):
-        """Assign a constant column to the table if it does not already have one.
-
-        Parameters
-        ----------
-        colname : str
-            The name of the column to assign.
-        check_positive : bool, optional
-            If True, check that the value is positive before assigning it. Default is True.
-        """
-        if colname in self._table.columns:
-            return  # Already have a column.
-
-        # Check that we have the value to add.
-        if self.survey_values.get(colname) is None:
-            raise ValueError(f"Must provide a `{colname}` column or a survey value for FakeSurveyTable.")
-        value = self.survey_values[colname]
-
-        # If the value is a single number, convert it to a dictionary with the same value for all bands.
-        if isinstance(value, int | float):
-            value = {fil: value for fil in self.filters}
-
-        # Fill in the information for each filter.
-        col_vals = np.zeros(len(self._table), dtype=float)
-        for fil in self.filters:
-            if fil not in value:
-                raise ValueError(f"`{colname}` must include all the filters in the table. Missing '{fil}'.")
-            if not isinstance(value[fil], int | float):
-                raise ValueError(f"`{colname}` must map filter names to numeric values.")
-            if check_positive and value[fil] <= 0:
-                raise ValueError(f"`{colname}` values must be positive. Got {value[fil]} for filter {fil}.")
-            mask = self._table["filter"] == fil
-            col_vals[mask] = value[fil]
-        self.add_column(colname, col_vals)
+            if not self._assign_constant_if_needed("exptime", check_positive=True):
+                raise ValueError("Must provide `exptime` to FakeSurveyTable.")
+            if not self._assign_constant_if_needed("nexposure", check_positive=True):
+                raise ValueError("Must provide `nexposure` to FakeSurveyTable.")
+            if not self._assign_constant_if_needed("footprint", check_positive=True):
+                if not self._assign_constant_if_needed("fwhm_px", check_positive=True):
+                    raise ValueError("Must provide either `footprint` or `fwhm_px` to FakeSurveyTable.")
+                footprint = GAUSS_EFF_AREA2FWHM_SQ * (self._table["fwhm_px"]) ** 2
+                self.add_column("footprint", footprint)
+            if not self._assign_constant_if_needed("sky", check_positive=False):
+                raise ValueError("Must provide `sky` to FakeSurveyTable.")
 
     def _assign_zero_points(self):
         """Assign instrumental zero points in nJy to the ObsTable. In this fake
@@ -173,7 +185,8 @@ class FakeObsTable(ObsTable):
         # We insert most the needed columns during construction, so we
         # can look up most of the values needed for the noise model.
         observations = self._table.iloc[index]
-        footprint = GAUSS_EFF_AREA2FWHM_SQ * (observations["fwhm_px"]) ** 2
+        footprint = observations["footprint"]
+
         return poisson_bandflux_std(
             bandflux,
             total_exposure_time=observations["exptime"],
