@@ -163,7 +163,6 @@ class ObsTable:
             return True
         return False
 
-
     def clear_footprint(self):
         """Clear the footprint, so no footprint filtering is done."""
         self._footprint = None
