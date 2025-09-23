@@ -65,7 +65,8 @@ def results_augment_lightcurves(results, *, min_snr=0.0):
     # Compute the signal-to-noise ratio (SNR) for each lightcurve entry and whether
     # each entry would be a detection based on the min_snr threshold.
     results[f"{prefix}snr"] = flux / fluxerr
-    results[f"{prefix}detection"] = results[f"{prefix}snr"] > min_snr
+    if min_snr > 0:
+        results[f"{prefix}detection"] = results[f"{prefix}snr"] > min_snr
 
     # Compute the magnitude and magnitude error for each lightcurve entry.
     results[f"{prefix}mag"] = flux2mag(flux)
