@@ -544,7 +544,7 @@ class ObsTable:
                 time_mask = (times[subinds] >= t_min[idx]) & (times[subinds] <= t_max[idx])
                 inds[idx] = np.asarray(subinds)[time_mask]
 
-        # Do a filtering step based on the detectors's footprint. We do this after the range search,
+        # Do a filtering step based on the detector's footprint. We do this after the range search,
         # because it is more expensive (but also more accurate).
         if self._footprint is not None:
             # Extract the RA and dec of the pointings for later use.

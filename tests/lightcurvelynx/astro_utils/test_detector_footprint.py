@@ -89,7 +89,7 @@ def test_create_detector_footprint():
     with pytest.raises(ValueError):
         fp.contains(ra, np.array([0.0, 1.0]), center_ra=0.0, center_dec=0.0)
 
-    # We fail to create a footprint if the region if we do not pass in either wcs or pixel scale.
+    # We fail to create a footprint if we do not pass in either wcs or pixel scale.
     with pytest.raises(ValueError):
         _ = DetectorFootprint(circle_region)
 
