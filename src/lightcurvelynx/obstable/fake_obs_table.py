@@ -10,8 +10,8 @@ class FakeObsTable(ObsTable):
     flux error to use or enough information to compute the poisson_bandflux_std noise model.
     To compute the flux error, the user must provide the following values
     either in the table or as keyword arguments to the constructor:
-    - fwhm : The full-width at half-maximum of the PSFs in pixels.
-    - sky_background : The sky backgrounds  in the units of electrons / pixel^2.
+    - fwhm_px : The full-width at half-maximum of the PSFs in pixels.
+    - sky : The sky backgrounds  in the units of electrons / pixel^2.
     - zp_per_band : Instrumental zero points in nJy
     Each of these three parameters is specified as a dictionary mapping filter names to values.
 
@@ -26,9 +26,9 @@ class FakeObsTable(ObsTable):
     colmap : dict, optional
         A mapping of standard column names to their names in the input table.
     zp_per_band : dict
-        A dictionary mapping filter names to their instrumental zero points in nJy.
-        The filters provided must match those in the table. This is required if the
-        table does not have a zero point column.
+        A dictionary mapping filter names to their instrumental zero points (flux in nJy
+        corresponding to 1 electron per exposure). The filters provided must match those
+        in the table. This is required if the table does not have a zero point column.
     const_flux_error : float or dict, optional
         If provided, use this constant flux error (in nJy) for all observations (overriding
         the normal noise compuation). If a dictionary is provided, it should map filter names
@@ -37,12 +37,13 @@ class FakeObsTable(ObsTable):
         Additional keyword arguments to pass to the ObsTable constructor. This includes overrides
         for survey parameters such as:
         - dark_current : The dark current for the camera in electrons per second per pixel (default=0.0).
-        - exptime: The exposure time for the camera in seconds (default=30).
-        - fwhm (if not in table): The full-width at half-maximum of the PSF in pixels (default=None).
+        - exptime: The exposure time for the camera in seconds, used for dark current calculation only
+          (default=30).
+        - fwhm_px (if not in table): The full-width at half-maximum of the PSF in pixels (default=None).
         - nexposure: The number of exposures per observation (default=1).
         - radius: The angular radius of the field of view of the observations in degrees (default=None).
         - read_noise: The read noise for the camera in electrons (default=0.0).
-        - sky_background (if not in table) in the units of electrons / pixel^2 (default=None).
+        - sky (if not in table) in the units of electrons / pixel^2 (default=None).
         - survey_name: The name of the survey (default="FAKE_SURVEY").
     """
 
@@ -50,11 +51,11 @@ class FakeObsTable(ObsTable):
     _default_survey_values = {
         "dark_current": 0,
         "exptime": 30,  # seconds
-        "fwhm": None,  # pixels
+        "fwhm_px": None,  # pixels
         "nexposure": 1,  # exposures
         "radius": None,  # degrees
         "read_noise": 0,  # electrons
-        "sky_background": None,  # electrons / pixel^2
+        "sky": None,  # electrons / pixel^2
         "survey_name": "FAKE_SURVEY",
     }
 
@@ -78,12 +79,12 @@ class FakeObsTable(ObsTable):
                 if val < 0:
                     raise ValueError(f"Constant flux error for band {fil} must be non-negative. Got {val}.")
         else:
-            # Make sure we have the required columns (fwhm, sky_background, exptime, nexposure) to
+            # Make sure we have the required columns (fwhm_px, sky, exptime, nexposure) to
             # compute the flux error. If any are missing, assign a constant column from the survey values.
             self._assign_constant_if_needed("exptime", check_positive=True)
             self._assign_constant_if_needed("nexposure", check_positive=True)
-            self._assign_constant_if_needed("fwhm", check_positive=True)
-            self._assign_constant_if_needed("sky_background", check_positive=False)
+            self._assign_constant_if_needed("fwhm_px", check_positive=True)
+            self._assign_constant_if_needed("sky", check_positive=False)
 
     def _assign_constant_if_needed(self, colname, check_positive=True):
         """Assign a constant column to the table if it does not already have one.
@@ -172,13 +173,13 @@ class FakeObsTable(ObsTable):
         # We insert most the needed columns during construction, so we
         # can look up most of the values needed for the noise model.
         observations = self._table.iloc[index]
-        footprint = GAUSS_EFF_AREA2FWHM_SQ * (observations["fwhm"]) ** 2
+        footprint = GAUSS_EFF_AREA2FWHM_SQ * (observations["fwhm_px"]) ** 2
         return poisson_bandflux_std(
             bandflux,
             total_exposure_time=observations["exptime"],
             exposure_count=observations["nexposure"],
             footprint=footprint,
-            sky=observations["sky_background"],
+            sky=observations["sky"],
             zp=observations["zp"],
             readout_noise=self.safe_get_survey_value("read_noise"),
             dark_current=self.safe_get_survey_value("dark_current"),
