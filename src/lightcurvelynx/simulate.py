@@ -235,3 +235,45 @@ def simulate_lightcurves(
         cc.print_used_citations()
 
     return results
+
+
+def compute_noise_free_lightcurves(
+    model,
+    times,
+    graph_state,
+    passbands,
+):
+    """Compute the noise-free light curves for a given model and observation times.
+
+    This function simulates the light curves without adding any noise, allowing
+    for the analysis of the underlying model behavior.
+
+    Parameters
+    ----------
+    model : BasePhysicalModel
+        The model to draw from. This may have its own parameters which
+        will be randomly sampled with each draw.
+    times : np.ndarray
+        The times at which to evaluate the light curve (in MJD).
+    graph_state : GraphState
+        The state of the graph for the simulation. Must be a single state
+        (num_samples=1).
+    passbands : PassbandGroup
+        The passbands to use for generating the bandfluxes.
+
+    Returns
+    -------
+    lightcurves : dict
+        A dictionary mapping each filter name to the corresponding array of bandfluxes (in nJy),
+        with an additional key "times" for the times (in MJD).
+    """
+    if graph_state.num_samples != 1:
+        raise ValueError("graph_state must have num_samples=1 for noise-free light curves.")
+
+    # Compute the light curve without noise for each time in each filter.
+    lightcurves = {"times": times}
+    for filter in passbands.filters:
+        filters_array = np.full(len(times), filter)
+        bandfluxes = model.evaluate_bandfluxes(passbands, times, filters_array, graph_state)
+        lightcurves[filter] = bandfluxes
+    return lightcurves
