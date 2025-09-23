@@ -30,7 +30,8 @@ class ObsTable:
         For example, in Rubin's OpSim we might have the column "observationStartMJD"
         which maps to "time". In that case we would have an entry with key="time"
         and value="observationStartMJD".
-    footprint : astropy.regions.SkyRegion, Astropy.regions.PixelRegion, or DetectorFootprint, optional
+    detector_footprint : astropy.regions.SkyRegion, Astropy.regions.PixelRegion, or
+        DetectorFootprint, optional
         The footprint object for the instrument's detector. If None, no footprint
         filtering is done. Default is None.
     wcs : astropy.wcs.WCS, optional
@@ -56,7 +57,7 @@ class ObsTable:
     _kd_tree : scipy.spatial.KDTree or None
         A kd_tree of the survey pointings for fast spatial queries. We use the scipy
         kd-tree instead of astropy's functions so we can directly control caching.
-    _footprint : DetectorFootprint, optional
+    _detector_footprint : DetectorFootprint, optional
         The footprint object for the instrument's detector. If None, no footprint
         filtering is done. Default is None.
     _wacs : astropy.wcs.WCS, optional
@@ -81,7 +82,7 @@ class ObsTable:
         table,
         *,
         colmap=None,
-        footprint=None,
+        detector_footprint=None,
         wcs=None,
         **kwargs,
     ):
@@ -139,10 +140,10 @@ class ObsTable:
 
         # Create the footprint if one is provided.
         self._wcs = wcs
-        if isinstance(footprint, Region):
+        if isinstance(detector_footprint, Region):
             pixel_scale = self.survey_values.get("pixel_scale", None)
-            footprint = DetectorFootprint(footprint, wcs=wcs, pixel_scale=pixel_scale)
-        self._footprint = footprint
+            detector_footprint = DetectorFootprint(detector_footprint, wcs=wcs, pixel_scale=pixel_scale)
+        self._detector_footprint = detector_footprint
 
     def __len__(self):
         return len(self._table)
@@ -163,9 +164,9 @@ class ObsTable:
             return True
         return False
 
-    def clear_footprint(self):
-        """Clear the footprint, so no footprint filtering is done."""
-        self._footprint = None
+    def clear_detector_footprint(self):
+        """Clear the detector footprint, so no footprint filtering is done."""
+        self._detector_footprint = None
 
     def _assign_constant_if_needed(self, colname, check_positive=True):
         """Assign a constant column to the table if it does not already have one.
@@ -586,7 +587,7 @@ class ObsTable:
 
         # Do a filtering step based on the detector's footprint. We do this after the range search,
         # because it is more expensive (but also more accurate).
-        if self._footprint is not None:
+        if self._detector_footprint is not None:
             # Extract the RA and dec of the pointings for later use.
             all_ra = self._table["ra"].to_numpy()
             all_dec = self._table["dec"].to_numpy()
@@ -598,7 +599,7 @@ class ObsTable:
                     continue  # Nothing to filter.
 
                 match_rot = None if all_rot is None else all_rot[subinds]
-                mask = self._footprint.contains(
+                mask = self._detector_footprint.contains(
                     np.full(num_matches, query_ra[idx]),  # The RA coordinate of this query
                     np.full(num_matches, query_dec[idx]),  # The dec coordinate of this query
                     all_ra[subinds],  # The RA coordinates of the pointings (detector positions)
