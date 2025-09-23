@@ -63,8 +63,7 @@ def test_create_opsim():
     assert np.allclose(ops_data["observationStartMJD"], values["observationStartMJD"])
 
     # Without a filters column we cannot access the filters.
-    with pytest.raises(KeyError):
-        _ = ops_data.get_filters()
+    assert len(ops_data.filters) == 0
 
     # We can create an OpSim directly from the dictionary as well.
     ops_data2 = OpSim(pdf)
@@ -115,8 +114,7 @@ def test_create_opsim_override():
     }
 
     # We can access the filters.
-    filters = ops_data.get_filters()
-    assert set(filters) == {"r", "g", "i"}
+    assert set(ops_data.filters) == {"r", "g", "i"}
 
 
 def test_create_opsim_override_fail():
@@ -369,32 +367,32 @@ def test_opsim_range_search():
     ops_data = OpSim(values)
 
     # Test single queries.
-    assert set(ops_data.range_search(15.0, 10.0, 0.5)) == set([1, 2, 3])
-    assert set(ops_data.range_search(25.0, 10.0, 0.5)) == set([4, 5])
-    assert set(ops_data.range_search(15.0, 10.0, 100.0)) == set([0, 1, 2, 3, 4, 5, 6, 7])
-    assert set(ops_data.range_search(15.0, 10.0, 1e-6)) == set([1])
-    assert set(ops_data.range_search(15.02, 10.0, 1e-6)) == set()
+    assert set(ops_data.range_search(15.0, 10.0, radius=0.5)) == set([1, 2, 3])
+    assert set(ops_data.range_search(25.0, 10.0, radius=0.5)) == set([4, 5])
+    assert set(ops_data.range_search(15.0, 10.0, radius=100.0)) == set([0, 1, 2, 3, 4, 5, 6, 7])
+    assert set(ops_data.range_search(15.0, 10.0, radius=1e-6)) == set([1])
+    assert set(ops_data.range_search(15.02, 10.0, radius=1e-6)) == set()
 
     # Test that we can filter by time.
-    assert set(ops_data.range_search(15.0, 10.0, 0.5, t_min=1.0, t_max=3.0)) == set([1, 2, 3])
-    assert set(ops_data.range_search(15.0, 10.0, 0.5, t_min=2.0, t_max=4.0)) == set([2, 3])
-    assert set(ops_data.range_search(15.0, 10.0, 0.5, t_min=0.0, t_max=1.0)) == set([1])
-    assert set(ops_data.range_search(15.0, 10.0, 0.5, t_min=4.0, t_max=5.0)) == set()
+    assert set(ops_data.range_search(15.0, 10.0, radius=0.5, t_min=1.0, t_max=3.0)) == set([1, 2, 3])
+    assert set(ops_data.range_search(15.0, 10.0, radius=0.5, t_min=2.0, t_max=4.0)) == set([2, 3])
+    assert set(ops_data.range_search(15.0, 10.0, radius=0.5, t_min=0.0, t_max=1.0)) == set([1])
+    assert set(ops_data.range_search(15.0, 10.0, radius=0.5, t_min=4.0, t_max=5.0)) == set()
 
     # With no radius provided, it should default to 1.75.
     assert set(ops_data.range_search(15.0, 10.0)) == set([1, 2, 3])
     assert set(ops_data.range_search(25.0, 10.0)) == set([4, 5])
 
     # Test is_observed() with single queries.
-    assert ops_data.is_observed(15.0, 10.0, 0.5)
-    assert not ops_data.is_observed(15.02, 10.0, 1e-6)
-    assert ops_data.is_observed(15.0, 10.0, 0.5, t_min=1.0, t_max=3.0)
-    assert not ops_data.is_observed(15.0, 10.0, 0.5, t_min=40.0, t_max=50.0)
+    assert ops_data.is_observed(15.0, 10.0, radius=0.5)
+    assert not ops_data.is_observed(15.02, 10.0, radius=1e-6)
+    assert ops_data.is_observed(15.0, 10.0, radius=0.5, t_min=1.0, t_max=3.0)
+    assert not ops_data.is_observed(15.0, 10.0, radius=0.5, t_min=40.0, t_max=50.0)
 
     # Test a batched query.
     query_ra = np.array([15.0, 25.0, 15.0])
     query_dec = np.array([10.0, 10.0, 5.0])
-    neighbors = ops_data.range_search(query_ra, query_dec, 0.5)
+    neighbors = ops_data.range_search(query_ra, query_dec, radius=0.5)
     assert len(neighbors) == 3
     assert set(neighbors[0]) == set([1, 2, 3])
     assert set(neighbors[1]) == set([4, 5])
@@ -403,7 +401,7 @@ def test_opsim_range_search():
     # Do the same query with time filtering.
     t_min = np.array([0.0, 5.0, 0.0])
     t_max = np.array([2.0, 11.0, 1.0])
-    neighbors = ops_data.range_search(query_ra, query_dec, 0.5, t_min=t_min, t_max=t_max)
+    neighbors = ops_data.range_search(query_ra, query_dec, radius=0.5, t_min=t_min, t_max=t_max)
     assert len(neighbors) == 3
     assert set(neighbors[0]) == set([1, 2])
     assert set(neighbors[1]) == set([5])
@@ -411,19 +409,19 @@ def test_opsim_range_search():
 
     # Test is_observed() with batched queries.
     assert np.array_equal(
-        ops_data.is_observed(query_ra, query_dec, 0.5),
+        ops_data.is_observed(query_ra, query_dec, radius=0.5),
         np.array([True, True, False]),
     )
 
     # Test that we fail if bad query arrays are provided.
     with pytest.raises(ValueError):
-        _ = ops_data.range_search(None, None, 0.5)
+        _ = ops_data.range_search(None, None, radius=0.5)
     with pytest.raises(ValueError):
-        _ = ops_data.range_search([1.0, 2.3], 4.5, 0.5)
+        _ = ops_data.range_search([1.0, 2.3], 4.5, radius=0.5)
     with pytest.raises(ValueError):
-        _ = ops_data.range_search([1.0, 2.3], [4.5, 6.7, 8.9], 0.5)
+        _ = ops_data.range_search([1.0, 2.3], [4.5, 6.7, 8.9], radius=0.5)
     with pytest.raises(ValueError):
-        _ = ops_data.range_search([1.0, 2.3], [4.5, None], 0.5)
+        _ = ops_data.range_search([1.0, 2.3], [4.5, None], radius=0.5)
 
 
 def test_opsim_get_observations():
@@ -438,35 +436,35 @@ def test_opsim_get_observations():
     ops_data = OpSim(values)
 
     # Test basic queries (all columns).
-    obs = ops_data.get_observations(15.0, 10.0, 0.5)
+    obs = ops_data.get_observations(15.0, 10.0, radius=0.5)
     assert len(obs) == 4
     assert np.allclose(obs["time"], [1.0, 2.0, 3.0])
 
-    obs = ops_data.get_observations(25.0, 10.0, 0.5)
+    obs = ops_data.get_observations(25.0, 10.0, radius=0.5)
     assert np.allclose(obs["time"], [4.0, 5.0])
 
-    obs = ops_data.get_observations(15.0, 10.0, 100.0)
+    obs = ops_data.get_observations(15.0, 10.0, radius=100.0)
     assert np.allclose(obs["time"], [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0])
 
-    obs = ops_data.get_observations(15.0, 10.0, 1e-6)
+    obs = ops_data.get_observations(15.0, 10.0, radius=1e-6)
     assert np.allclose(obs["time"], [1.0])
 
-    obs = ops_data.get_observations(15.02, 10.0, 1e-6)
+    obs = ops_data.get_observations(15.02, 10.0, radius=1e-6)
     assert len(obs["time"]) == 0
 
     # Test we can get a subset of columns.
-    obs = ops_data.get_observations(15.0, 10.0, 0.5, cols=["time", "zp"])
+    obs = ops_data.get_observations(15.0, 10.0, radius=0.5, cols=["time", "zp"])
     assert len(obs) == 2
     assert np.allclose(obs["time"], [1.0, 2.0, 3.0])
 
     # Test we can use the colmap names.
-    obs = ops_data.get_observations(15.0, 10.0, 0.5, cols=["time", "ra"])
+    obs = ops_data.get_observations(15.0, 10.0, radius=0.5, cols=["time", "ra"])
     assert len(obs) == 2
     assert np.allclose(obs["time"], [1.0, 2.0, 3.0])
 
     # Test we fail with an unrecognized column name.
     with pytest.raises(KeyError):
-        _ = ops_data.get_observations(15.0, 10.0, 0.5, cols=["time", "custom_col"])
+        _ = ops_data.get_observations(15.0, 10.0, radius=0.5, cols=["time", "custom_col"])
 
 
 def test_opsim_docstring():

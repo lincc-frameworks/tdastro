@@ -45,6 +45,8 @@ class ObsTable:
     survey_values : dict, optional
         A mapping for constant values for the survey used in various computations, such
         as readout noise and dark current.
+    filters : np.ndarray
+        The unique filters in the survey table (if provided).
     _table : pandas.core.frame.DataFrame
         The table with all the observation information mapped to standard column names.
     _colmap : dict
@@ -125,6 +127,8 @@ class ObsTable:
         for key, value in kwargs.items():
             self.survey_values[key] = value
 
+        self.filters = np.unique(self._table["filter"]) if "filter" in self._table.columns else np.array([])
+
         # If we are not given zero point data, try to derive it from the other columns.
         if "zp" not in self:
             self._assign_zero_points()
@@ -159,9 +163,52 @@ class ObsTable:
             return True
         return False
 
+
     def clear_footprint(self):
         """Clear the footprint, so no footprint filtering is done."""
         self._footprint = None
+
+    def _assign_constant_if_needed(self, colname, check_positive=True):
+        """Assign a constant column to the table if it does not already have one.
+
+        Parameters
+        ----------
+        colname : str
+            The name of the column to assign.
+        check_positive : bool, optional
+            If True, check that the value is positive before assigning it. Default is True.
+
+        Returns
+        -------
+        bool
+            True if the column was added or already exists. False otherwise.
+        """
+        if colname in self._table.columns:
+            return True  # Already have a column.
+
+        # Check that we have the value to add.
+        if self.survey_values.get(colname) is None:
+            return False
+        value = self.survey_values[colname]
+
+        # If the value is a single number, convert it to a dictionary with the same value for all bands.
+        if isinstance(value, int | float):
+            value = {fil: value for fil in self.filters}
+
+        # Fill in the information for each filter.
+        col_vals = np.zeros(len(self._table), dtype=float)
+        for fil in self.filters:
+            if fil not in value:
+                raise ValueError(f"`{colname}` must include all the filters in the table. Missing '{fil}'.")
+            if not isinstance(value[fil], int | float):
+                raise ValueError(f"`{colname}` must map filter names to numeric values.")
+            if check_positive and value[fil] <= 0:
+                raise ValueError(f"`{colname}` values must be positive. Got {value[fil]} for filter {fil}.")
+            mask = self._table["filter"] == fil
+            col_vals[mask] = value[fil]
+        self.add_column(colname, col_vals)
+
+        return True
 
     def safe_get_survey_value(self, key):
         """Get a survey value by key, checking that it is not None.
@@ -253,12 +300,6 @@ class ObsTable:
             raise FileNotFoundError(f"File {filename} not found.")
         survey_data = pd.read_parquet(filename)
         return cls(survey_data)
-
-    def get_filters(self):
-        """Get the unique filters in the ObsTable."""
-        if "filter" not in self._table.columns:
-            raise KeyError("No filters column found in ObsTable.")
-        return np.unique(self._table["filter"])
 
     def build_moc(self, *, radius=None, max_depth=10):
         """Build a Multi-Order Coverage Map from the regions in the data set.
@@ -430,7 +471,7 @@ class ObsTable:
 
         return self
 
-    def is_observed(self, query_ra, query_dec, radius=None, t_min=None, t_max=None):
+    def is_observed(self, query_ra, query_dec, *, radius=None, t_min=None, t_max=None):
         """Check if the query point(s) fall within the field of view of any
         pointing in the ObsTable.
 
@@ -456,12 +497,12 @@ class ObsTable:
             whether the query point is observed or a list of bools for an array
             of query points.
         """
-        inds = self.range_search(query_ra, query_dec, radius, t_min=t_min, t_max=t_max)
+        inds = self.range_search(query_ra, query_dec, radius=radius, t_min=t_min, t_max=t_max)
         if np.isscalar(query_ra):
             return len(inds) > 0
         return [len(entry) > 0 for entry in inds]
 
-    def range_search(self, query_ra, query_dec, radius=None, t_min=None, t_max=None):
+    def range_search(self, query_ra, query_dec, *, radius=None, t_min=None, t_max=None):
         """Return the indices of the pointings that fall within the field
         of view of the query point(s).
 
@@ -572,7 +613,7 @@ class ObsTable:
             inds = inds[0]
         return inds
 
-    def get_observations(self, query_ra, query_dec, radius=None, t_min=None, t_max=None, cols=None):
+    def get_observations(self, query_ra, query_dec, *, radius=None, t_min=None, t_max=None, cols=None):
         """Return the observation information when the query point falls within
         the field of view of a pointing in the ObsTable.
 
@@ -600,7 +641,7 @@ class ObsTable:
         results : dict
             A dictionary mapping the given column name to a numpy array of values.
         """
-        neighbors = self.range_search(query_ra, query_dec, radius, t_min=t_min, t_max=t_max)
+        neighbors = self.range_search(query_ra, query_dec, radius=radius, t_min=t_min, t_max=t_max)
 
         results = {}
         if cols is None:

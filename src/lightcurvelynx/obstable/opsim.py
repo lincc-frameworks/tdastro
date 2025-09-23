@@ -294,7 +294,7 @@ def oversample_opsim(
 
     """
     ra, dec = pointing
-    observations = opsim._table.iloc[opsim.range_search(ra, dec, search_radius)]
+    observations = opsim._table.iloc[opsim.range_search(ra, dec, radius=search_radius)]
     if len(observations) == 0:
         raise ValueError("No observations found for the given pointing.")
 

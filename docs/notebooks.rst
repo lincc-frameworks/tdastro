@@ -62,6 +62,7 @@ The following notebooks provide example simulations using the LightCurveLynx pac
     PZFlow Source Demo <notebooks/pre_executed/using_pzflow>
     Resampling LCLIB <notebooks/pre_executed/lclib_example>
     Synphot-based Models <notebooks/pre_executed/synphot_example>
+    Redback Models <notebooks/pre_executed/redback_example>
 
 
 Running LightCurveLynx in a Jupyter Notebook
