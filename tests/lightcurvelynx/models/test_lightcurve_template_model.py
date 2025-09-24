@@ -67,6 +67,20 @@ def test_create_lightcurve_data_from_dict() -> None:
     with pytest.raises(ValueError):
         _ = LightcurveData(lightcurves, lc_data_t0=0.0, periodic=True)
 
+    # Check that we can specify the light curves in magnitudes.
+    lc_data3 = LightcurveData(
+        lightcurves,
+        lc_data_t0=0.0,
+        is_magnitudes=True,
+        baseline={"u": 0.1, "g": 0.2, "r": 0.3},
+    )
+    assert len(lc_data3) == 3
+    assert lc_data3.filters == ["u", "g", "r"]
+    for filt in ["u", "g", "r"]:
+        assert np.allclose(lc_data3.lightcurves[filt][:, 0], lightcurves[filt][:, 0])
+        assert np.allclose(lc_data3.lightcurves[filt][:, 1], mag2flux(lightcurves[filt][:, 1]))
+    assert lc_data3.baseline == {"u": mag2flux(0.1), "g": mag2flux(0.2), "r": mag2flux(0.3)}
+
 
 def test_create_lightcurve_data_periodic_from_dict() -> None:
     """Test that we can create a periodic LightcurveData object from a dict."""
