@@ -358,9 +358,9 @@ def test_compute_noise_free_lightcurves_single(test_data_dir):
         model,
         graph_state,
         passband_group,
-        -40.0,  # rest_frame_phase_min = 40 days before t0
-        60.0,  # rest_frame_phase_max = 60 days after t0
-        1.0,  # rest_frame_phase_step = 1 day
+        rest_frame_phase_min=-40.0,  # 40 days before t0
+        rest_frame_phase_max=60.0,  # 60 days after t0
+        rest_frame_phase_step=1.0,  # 1 sample per day
     )
     rest_phase = np.arange(-40.0, 60.0, 1.0)
     obs_times = rest_phase + 10.0
@@ -404,9 +404,9 @@ def test_compute_noise_free_lightcurves_multiple(test_data_dir):
         model,
         graph_state,
         passband_group,
-        -40.0,  # rest_frame_phase_min = 40 days before t0
-        60.0,  # rest_frame_phase_max = 60 days after t0
-        1.0,  # rest_frame_phase_step = 1 day
+        rest_frame_phase_min=-40.0,  # 40 days before t0
+        rest_frame_phase_max=60.0,  # 60 days after t0
+        rest_frame_phase_step=1.0,  # 1 sample per day
     )
     assert len(lightcurves) == 4
 

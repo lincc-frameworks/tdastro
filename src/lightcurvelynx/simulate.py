@@ -241,9 +241,10 @@ def compute_single_noise_free_lightcurve(
     model,
     graph_state,
     passbands,
-    rest_frame_phase_min,
-    rest_frame_phase_max,
-    rest_frame_phase_step,
+    *,
+    rest_frame_phase_min=-50.0,
+    rest_frame_phase_max=50.0,
+    rest_frame_phase_step=2.0,
 ):
     """Compute the noise-free light curve for a single object.
 
@@ -258,12 +259,18 @@ def compute_single_noise_free_lightcurve(
         (num_samples=1).
     passbands : PassbandGroup
         The passbands to use for generating the bandfluxes.
-    rest_frame_phase_min : float
+    rest_frame_phase_min : float or np.ndarray
         The minimum rest-frame phase (in days) at which to evaluate the light curve.
-    rest_frame_phase_max : float
+        If an array is given, it must match the number of samples in graph_state.
+        Default is -50.0 days.
+    rest_frame_phase_max : float or np.ndarray
         The maximum rest-frame phase (in days) at which to evaluate the light curve.
-    rest_frame_phase_step : float
+        If an array is given, it must match the number of samples in graph_state.
+        Default is 50.0 days.
+    rest_frame_phase_step : float or np.ndarray
         The step size (in days) between rest-frame phases at which to evaluate the light curve.
+        If an array is given, it must match the number of samples in graph_state.
+        Default is 2.0 days.
 
     Returns
     -------
@@ -300,9 +307,10 @@ def compute_noise_free_lightcurves(
     model,
     graph_state,
     passbands,
-    rest_frame_phase_min,
-    rest_frame_phase_max,
-    rest_frame_phase_step,
+    *,
+    rest_frame_phase_min=-50.0,
+    rest_frame_phase_max=50.0,
+    rest_frame_phase_step=2.0,
 ):
     """Compute the noise-free light curves for a given model and one more more states
     at given times (in either MJD or rest-frame phase).
@@ -321,12 +329,15 @@ def compute_noise_free_lightcurves(
     rest_frame_phase_min : float or np.ndarray
         The minimum rest-frame phase (in days) at which to evaluate the light curve.
         If an array is given, it must match the number of samples in graph_state.
+        Default is -50.0 days.
     rest_frame_phase_max : float or np.ndarray
         The maximum rest-frame phase (in days) at which to evaluate the light curve.
         If an array is given, it must match the number of samples in graph_state.
+        Default is 50.0 days.
     rest_frame_phase_step : float or np.ndarray
         The step size (in days) between rest-frame phases at which to evaluate the light curve.
         If an array is given, it must match the number of samples in graph_state.
+        Default is 2.0 days.
 
     Returns
     -------
@@ -366,9 +377,9 @@ def compute_noise_free_lightcurves(
             model,
             state_i,
             passbands,
-            rest_frame_phase_min[idx],
-            rest_frame_phase_max[idx],
-            rest_frame_phase_step[idx],
+            rest_frame_phase_min=rest_frame_phase_min[idx],
+            rest_frame_phase_max=rest_frame_phase_max[idx],
+            rest_frame_phase_step=rest_frame_phase_step[idx],
         )
 
         # Append the light curve data onto the nested dictionary.
