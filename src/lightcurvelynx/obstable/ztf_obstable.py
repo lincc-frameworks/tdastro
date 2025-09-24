@@ -137,10 +137,10 @@ class ZTFObsTable(ObsTable):
 
         # Make a copy of the table data with the obsdate converted to the MJD and
         # save in time.
-        if "obsdate" in table and "time" not in table:
+        if "obsdate" in table and "obsmjd" not in table:
             table = table.copy()
             t = Time(list(table["obsdate"]), format="iso", scale="utc")
-            table["time"] = t.mjd
+            table["obsmjd"] = t.mjd
 
         super().__init__(table, colmap=colmap, **kwargs)
 
