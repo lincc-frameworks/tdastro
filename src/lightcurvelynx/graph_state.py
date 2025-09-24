@@ -173,6 +173,27 @@ class GraphState:
         else:
             raise KeyError(f"Unknown GraphState key: {key}")
 
+    def copy(self):
+        """Create a deep copy of the GraphState.
+
+        Returns
+        -------
+        GraphState
+            The copied GraphState.
+        """
+        new_state = GraphState(num_samples=self.num_samples)
+        new_state.num_parameters = self.num_parameters
+        for node_name, node_vars in self.states.items():
+            new_state.states[node_name] = {}
+            for var_name, var_value in node_vars.items():
+                if self.num_samples == 1:
+                    new_state.states[node_name][var_name] = var_value
+                else:
+                    new_state.states[node_name][var_name] = var_value.copy()
+        for node_name, fixed_vars in self.fixed_vars.items():
+            new_state.fixed_vars[node_name] = fixed_vars.copy()
+        return new_state
+
     @staticmethod
     def extended_param_name(node_name, param_name):
         """A helper function to create the full parameter name.
