@@ -27,12 +27,15 @@ class LightcurveData:
     """A class to hold data for a single model light curve (set of fluxes over time for
     each filter).
 
+    Data can be passed in as fluxes (in nJy) or AB magnitudes (if magnitudes_in=True), but
+    is always stored internally as fluxes.
+
     Attributes
     ----------
     lightcurves : dict
         A dictionary mapping filter names to a 2D array of the bandfluxes in that filter,
-        where the first column is time (in days from the reference time of the light curve)
-        and the second column is the bandflux (in nJy).
+        where the first column is time (in days from the reference time of the light curve),
+        the second column is the bandflux (in nJy), and an optional third column is fluxerror.
     lc_data_t0 : float
         The reference epoch of the input light curve. This is the time stamp of the input
         array that will correspond to t0 in the model. For periodic light curves, this either
@@ -48,7 +51,7 @@ class LightcurveData:
         A dictionary mapping filter names to the maximum time of the light curve
         in that filter (shifted to be relative to the reference epoch of the light curve).
     baseline : dict
-        A dictionary of baseline bandfluxes for each filter. This is only used
+        A dictionary of baseline bandfluxes for each filter (in nJy). This is only used
         for non-periodic light curves when they are not active.
 
     Parameters
@@ -56,9 +59,10 @@ class LightcurveData:
     lightcurves : dict or numpy.ndarray
         The light curves can be passed as either:
         1) a dictionary mapping filter names to a (T, 2) array of the bandfluxes in that filter
-        where the first column is time and the second column is the flux density (in nJy), or
+        where the first column is time and the second column is the light curve values, or
         2) a numpy array of shape (T, 3) array where the first column is time (in days), the
-        second column is the bandflux (in nJy), and the third column is the filter.
+        second column is the light curve values, and the third column is the filter.
+        The light curve values can be either fluxes (in nJy) or AB magnitudes (if magnitudes_in=True).
     lc_data_t0 : float
         The reference epoch of the input light curve. The model will be shifted
         to the model's lc_data_t0 when computing fluxes.  For periodic light curves, this either
@@ -68,13 +72,23 @@ class LightcurveData:
         Whether the light curve is periodic. If True, the model will assume that
         the light curve repeats every period.
         Default: False
+    magnitudes_in : bool
+        Whether the input light curves are in AB magnitudes (True) or fluxes (False).
     baseline : dict or None
-        A dictionary of baseline bandfluxes for each filter. This is only used
+        A dictionary of baseline bandfluxes or AB magnitudes for each filter. This is only used
         for non-periodic light curves when they are not active.
         Default: None
     """
 
-    def __init__(self, lightcurves, lc_data_t0, *, periodic=False, baseline=None):
+    def __init__(
+        self,
+        lightcurves,
+        lc_data_t0,
+        *,
+        periodic=False,
+        magnitudes_in=False,
+        baseline=None,
+    ):
         self.lc_data_t0 = lc_data_t0
         self.period = None
 
@@ -99,13 +113,21 @@ class LightcurveData:
             )
 
         # Do basic validation of the light curves and shift them so that the time
-        # at lc_data_t0 is mapped to 0.0.
+        # at lc_data_t0 is mapped to 0.0. Convert from AB magnitudes to fluxes if needed.
         for filter, lc in self.lightcurves.items():
             if len(lc.shape) != 2 or (lc.shape[1] != 2 and lc.shape[1] != 3):
                 raise ValueError(f"Lightcurve {filter} must have either 2 or 3 columns.")
+            if lc.shape[1] == 3:
+                lc = lc[:, :2]  # Drop the error column if present.
             if not np.all(np.diff(lc[:, 0]) > 0):
                 raise ValueError(f"Lightcurve {filter}'s times are not in sorted order.")
+
+            # Shift the light curve times to be relative to lc_data_t0.
             lc[:, 0] -= self.lc_data_t0
+
+            # Convert from magnitudes to fluxes if needed.
+            if magnitudes_in:
+                lc[:, 1] = mag2flux(lc[:, 1])
 
         # Store the minimum and maximum times for each light curve. This is done after
         # validating periodicity in case we needed to adjust the light curve start times.
@@ -124,6 +146,11 @@ class LightcurveData:
                 if filter not in baseline:
                     raise ValueError(f"Baseline value for filter {filter} is missing.")
             self.baseline = baseline
+
+        # Convert the baseline from magnitudes to fluxes if needed.
+        if magnitudes_in:
+            for filter in self.baseline:
+                self.baseline[filter] = mag2flux(self.baseline[filter])
 
     def __len__(self):
         """Get the number of light curves."""
