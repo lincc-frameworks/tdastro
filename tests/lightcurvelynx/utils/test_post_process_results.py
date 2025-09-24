@@ -9,6 +9,34 @@ from lightcurvelynx.utils.post_process_results import (
 from nested_pandas import NestedFrame
 
 
+def _allclose(a, b, rtol=1e-05, atol=1e-08):
+    """Helper function to compare two arrays, treating NaNs and Nones as equal.
+
+    Parameters
+    ----------
+    a : array-like
+        First array to compare.
+    b : array-like
+        Second array to compare.
+    rtol : float, optional
+        Relative tolerance. Default is 1e-5.
+    atol : float, optional
+        Absolute tolerance. Default is 1e-8.
+    """
+    a = np.asarray(a)
+    b = np.asarray(b)
+
+    # Check whether the same entries are None.
+    a_valid = a is not None
+    b_valid = b is not None
+    if not np.array_equal(a_valid, b_valid):
+        return False
+
+    a_float = a[a_valid].astype(float)
+    b_float = b[b_valid].astype(float)
+    return np.allclose(a_float, b_float, rtol=rtol, atol=atol, equal_nan=True)
+
+
 def test_results_drop_empty():
     """Test the results_drop_empty function."""
     # Create a NestedFrame with some empty lightcurves.
@@ -85,9 +113,9 @@ def test_results_augment_lightcurves():
 
     # Check the SNR and detection markings.
     assert "snr" in aug_results["lightcurve"].nest.fields
-    assert np.allclose(aug_results["lightcurve.snr"][0].values, [10.0, 12.0])
-    assert np.allclose(aug_results["lightcurve.snr"][1].values, [0.1, 0.01])
-    assert np.allclose(aug_results["lightcurve.snr"][2].values, [2.5, 6.0])
+    assert _allclose(aug_results["lightcurve.snr"][0].values, [10.0, 12.0])
+    assert _allclose(aug_results["lightcurve.snr"][1].values, [0.1, 0.01])
+    assert _allclose(aug_results["lightcurve.snr"][2].values, [2.5, 6.0])
 
     assert "detection" in aug_results["lightcurve"].nest.fields
     assert aug_results["lightcurve.detection"][0].tolist() == [True, True]
@@ -96,13 +124,13 @@ def test_results_augment_lightcurves():
 
     # Check the AB magnitudes and magnitude errors.
     assert "mag" in aug_results["lightcurve"].nest.fields
-    assert np.allclose(aug_results["lightcurve.mag"][0].values, [flux2mag(10.0), flux2mag(12.0)])
-    assert np.allclose(aug_results["lightcurve.mag"][1].values, [flux2mag(0.1), flux2mag(0.2)])
-    assert np.allclose(aug_results["lightcurve.mag"][2].values, [flux2mag(5.0), flux2mag(6.0)])
+    assert _allclose(aug_results["lightcurve.mag"][0].values, [flux2mag(10.0), flux2mag(12.0)])
+    assert _allclose(aug_results["lightcurve.mag"][1].values, [flux2mag(0.1), flux2mag(0.2)])
+    assert _allclose(aug_results["lightcurve.mag"][2].values, [flux2mag(5.0), flux2mag(6.0)])
 
     assert "magerr" in aug_results["lightcurve"].nest.fields
     for i in range(3):
-        assert np.allclose(
+        assert _allclose(
             aug_results["lightcurve.magerr"][i].values,
             (2.5 / np.log(10)) * 1.0 / aug_results["lightcurve.snr"][i].values,
         )
@@ -112,8 +140,8 @@ def test_results_augment_lightcurves_single():
     """Test the results_augment_lightcurves function with a non-nested frame."""
     # Create a DataFrame with a lightcurve.
     source_data = {
-        "mjd": [59000, 59001, 59002, 59003, 59004, 59005],
-        "flux": [10.0, 12.0, 0.1, 0.2, 5.0, 6.0],
+        "mjd": [59000, 59001, 59002, 59003, 59004, 59005, 59006],
+        "flux": [10.0, 12.0, 0.1, 0.2, 5.0, 6.0, -1.0],
     }
     results = pd.DataFrame(data=source_data)
 
@@ -122,7 +150,7 @@ def test_results_augment_lightcurves_single():
         results_augment_lightcurves(results, min_snr=5)
 
     # Create a nested DataFrame with lightcurves, some of which are empty.
-    results["fluxerr"] = [1.0, 1.0, 1.0, 20.0, 2.0, 1.0]
+    results["fluxerr"] = [1.0, 1.0, 1.0, 20.0, 2.0, 1.0, 1.0]
 
     # Add the nested DataFrame to the results.
     assert "snr" not in results.columns
@@ -138,10 +166,10 @@ def test_results_augment_lightcurves_single():
     assert "detection" in results.columns
     assert "mag" in results.columns
     assert "magerr" in results.columns
-    assert np.allclose(results["snr"].values, [10.0, 12.0, 0.1, 0.01, 2.5, 6.0])
-    assert np.array_equal(results["detection"].values, [True, True, False, False, False, True])
-    assert np.allclose(
+    assert _allclose(results["snr"].values, [10.0, 12.0, 0.1, 0.01, 2.5, 6.0, -1.0])
+    assert np.array_equal(results["detection"].values, [True, True, False, False, False, True, False])
+    assert _allclose(
         results["mag"].values,
-        [flux2mag(10.0), flux2mag(12.0), flux2mag(0.1), flux2mag(0.2), flux2mag(5.0), flux2mag(6.0)],
+        [flux2mag(10.0), flux2mag(12.0), flux2mag(0.1), flux2mag(0.2), flux2mag(5.0), flux2mag(6.0), None],
     )
-    assert np.allclose(results["magerr"].values, (2.5 / np.log(10)) * (1.0 / results["snr"].values))
+    assert _allclose(results["magerr"].values[:6], (2.5 / np.log(10)) * (1.0 / results["snr"].values[:6]))

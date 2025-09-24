@@ -38,7 +38,7 @@ def results_augment_lightcurves(results, *, min_snr=0.0):
     results : pandas.DataFrame or nested_pandas.NestedFrame
         The DataFrame containing lightcurve data.
     min_snr : float, optional
-        Minimum SNR required to mark an entry as a detection, by default 0.0
+        Minimum SNR required to mark an entry as a detection. Default is 0.0.
 
     Returns
     -------
@@ -64,12 +64,16 @@ def results_augment_lightcurves(results, *, min_snr=0.0):
 
     # Compute the signal-to-noise ratio (SNR) for each lightcurve entry and whether
     # each entry would be a detection based on the min_snr threshold.
-    results[f"{prefix}snr"] = flux / fluxerr
-    if min_snr > 0:
-        results[f"{prefix}detection"] = results[f"{prefix}snr"] > min_snr
+    snr = [f_val / f_err if f_err > 0 else None for f_val, f_err in zip(flux, fluxerr, strict=False)]
+    results[f"{prefix}snr"] = snr
+    results[f"{prefix}detection"] = [(x is not None and x >= min_snr) for x in snr]
 
     # Compute the magnitude and magnitude error for each lightcurve entry.
-    results[f"{prefix}mag"] = flux2mag(flux)
-    results[f"{prefix}magerr"] = (2.5 / np.log(10)) * (fluxerr / flux)
+    results[f"{prefix}mag"] = [flux2mag(f_val) if f_val > 0 else None for f_val in flux]
+    magerr = [
+        (2.5 / np.log(10)) * (f_err / f_val) if f_val > 0 else None
+        for f_val, f_err in zip(flux, fluxerr, strict=False)
+    ]
+    results[f"{prefix}magerr"] = magerr
 
     return results
