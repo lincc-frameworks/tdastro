@@ -2,6 +2,7 @@
 columns and filtering on those columns."""
 
 import numpy as np
+import numpy.ma as ma
 from nested_pandas import NestedFrame
 
 from lightcurvelynx.astro_utils.mag_flux import flux2mag
@@ -42,7 +43,7 @@ def lightcurve_compute_snr(flux, fluxerr):
     fluxerr = np.asarray(fluxerr)
     valid_mask = (flux > 0) & (fluxerr > 0)
 
-    result = np.full(flux.shape, None)
+    result = ma.masked_all(flux.shape)
     result[valid_mask] = flux[valid_mask] / fluxerr[valid_mask]
     return result
 
@@ -66,10 +67,10 @@ def lightcurve_compute_mag(flux, fluxerr):
     fluxerr = np.asarray(fluxerr)
     valid_mask = (flux > 0) & (fluxerr > 0)
 
-    mag = np.full(flux.shape, None)
+    mag = ma.masked_all(flux.shape)
     mag[valid_mask] = flux2mag(flux[valid_mask])
 
-    magerr = np.full(flux.shape, None)
+    magerr = ma.masked_all(flux.shape)
     magerr[valid_mask] = (2.5 / np.log(10)) * (fluxerr[valid_mask] / flux[valid_mask])
 
     return mag, magerr
@@ -101,7 +102,7 @@ def augment_single_lightcurve(results, *, min_snr=0.0, t0=None):
 
     snr = lightcurve_compute_snr(flux, fluxerr)
     results["snr"] = snr
-    results["detection"] = [(x is not None and x >= min_snr) for x in snr]
+    results["detection"] = [(x is not ma.masked and x >= min_snr) for x in snr]
 
     mag, magerr = lightcurve_compute_mag(flux, fluxerr)
     results["mag"] = mag

@@ -26,12 +26,12 @@ def _allclose(a, b, rtol=1e-05, atol=1e-08):
     atol : float, optional
         Absolute tolerance. Default is 1e-8.
     """
-    a = np.asarray(a)
-    b = np.asarray(b)
+    a = np.ma.asarray(a)
+    b = np.ma.asarray(b)
 
     # Check whether the same entries are None.
-    a_valid = a is not None
-    b_valid = b is not None
+    a_valid = (a is not None) & (a is not np.ma.masked)
+    b_valid = (b is not None) & (b is not np.ma.masked)
     if not np.array_equal(a_valid, b_valid):
         return False
 
