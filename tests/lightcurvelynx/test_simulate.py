@@ -3,10 +3,15 @@ import pytest
 from lightcurvelynx.astro_utils.passbands import PassbandGroup
 from lightcurvelynx.graph_state import GraphState
 from lightcurvelynx.math_nodes.given_sampler import GivenValueList
-from lightcurvelynx.models.basic_models import ConstantSEDModel
+from lightcurvelynx.models.basic_models import ConstantSEDModel, StepModel
 from lightcurvelynx.models.static_sed_model import StaticBandfluxModel
 from lightcurvelynx.obstable.opsim import OpSim
-from lightcurvelynx.simulate import get_time_windows, simulate_lightcurves
+from lightcurvelynx.simulate import (
+    compute_noise_free_lightcurves,
+    compute_single_noise_free_lightcurve,
+    get_time_windows,
+    simulate_lightcurves,
+)
 
 
 def test_get_time_windows():
@@ -93,6 +98,12 @@ def test_simulate_lightcurves(test_data_dir):
     assert state.num_samples == 5
     assert np.allclose(state["source.ra"], opsim_db["ra"].values[0:5])
     assert np.allclose(state["source.dec"], opsim_db["dec"].values[0:5])
+
+    # Check that we can extract a single GraphState from the results.
+    single_state = GraphState.from_dict(results["params"][2])
+    assert single_state.num_samples == 1
+    assert single_state["source.ra"] == opsim_db["ra"].values[2]
+    assert single_state["source.dec"] == opsim_db["dec"].values[2]
 
     # Check that we fail if we try to save a parameter column that doesn't exist.
     # And that the error gives the existing options.
@@ -333,3 +344,88 @@ def test_simulate_multiple_surveys(test_data_dir):
             [obstable1, obstable2],
             [passband_group1, passband_group2],
         )
+
+
+def test_compute_noise_free_lightcurves_single(test_data_dir):
+    """Test computing noise free light curves for a set of times and filters."""
+    # Load the passband data for the griz filters only.
+    passband_group = PassbandGroup.from_preset(
+        preset="LSST",
+        table_dir=test_data_dir / "passbands",
+        filters=["g", "r", "i", "z"],
+    )
+
+    # Create a step model that changes brightness at t=10.0
+    model = StepModel(brightness=100.0, t0=10.0, t1=30.0, node_label="source")
+    graph_state = model.sample_parameters(num_samples=1)
+
+    lightcurves = compute_single_noise_free_lightcurve(
+        model,
+        graph_state,
+        passband_group,
+        rest_frame_phase_min=-40.0,  # 40 days before t0
+        rest_frame_phase_max=60.0,  # 60 days after t0
+        rest_frame_phase_step=1.0,  # 1 sample per day
+    )
+    rest_phase = np.arange(-40.0, 60.0, 1.0)
+    obs_times = rest_phase + 10.0
+    assert np.array_equal(lightcurves["times"], obs_times)
+    assert np.array_equal(lightcurves["rest_phase"], rest_phase)
+
+    mask = (obs_times >= 10.0) & (obs_times <= 30.0)
+    for filter in ["g", "r", "i", "z"]:
+        assert filter in lightcurves
+        bandfluxes = lightcurves[filter]
+        assert len(bandfluxes) == len(obs_times)
+        assert np.allclose(bandfluxes[~mask], 0.0)
+        assert np.allclose(bandfluxes[mask], 100.0)
+
+
+def test_compute_noise_free_lightcurves_multiple(test_data_dir):
+    """Test computing noise free light curves for a set of times and filters
+    and multiple sample states"""
+    # Load the passband data for the griz filters only.
+    passband_group = PassbandGroup.from_preset(
+        preset="LSST",
+        table_dir=test_data_dir / "passbands",
+        filters=["g", "r", "i", "z"],
+    )
+
+    # Create a step model that changes brightness at t0
+    start_times = [10.0, 15.0, 20.0, 25.0]
+    end_times = [30.0, 30.0, 40.0, 40.0]
+    model = StepModel(
+        brightness=100.0,
+        t0=GivenValueList(start_times),
+        t1=GivenValueList(end_times),
+        ra=0.0,
+        dec=0.0,
+        redshift=0.0,
+        node_label="source",
+    )
+    graph_state = model.sample_parameters(num_samples=4)
+
+    lightcurves = compute_noise_free_lightcurves(
+        model,
+        graph_state,
+        passband_group,
+        rest_frame_phase_min=-40.0,  # 40 days before t0
+        rest_frame_phase_max=60.0,  # 60 days after t0
+        rest_frame_phase_step=1.0,  # 1 sample per day
+    )
+    assert len(lightcurves) == 4
+
+    rest_phase = np.arange(-40.0, 60.0, 1.0)
+    for idx in range(4):
+        assert lightcurves["id"][idx] == idx
+        lc_df = lightcurves["lightcurve"][idx]
+        assert np.array_equal(lc_df["rest_phase"], rest_phase)
+        assert np.array_equal(lc_df["times"], rest_phase + start_times[idx])
+
+        mask = (lc_df["times"] >= start_times[idx]) & (lc_df["times"] <= end_times[idx])
+        for filter in ["g", "r", "i", "z"]:
+            assert filter in lc_df
+            bandfluxes = lc_df[filter]
+            assert len(bandfluxes) == len(lc_df["times"])
+            assert np.allclose(bandfluxes[~mask], 0.0)
+            assert np.allclose(bandfluxes[mask], 100.0)

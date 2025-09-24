@@ -5,7 +5,17 @@ import numpy as np
 
 
 def plot_lightcurves(
-    fluxes, times, fluxerrs=None, filters=None, ax=None, figure=None, title=None, colormap=None, **kwargs
+    fluxes,
+    times,
+    *,
+    fluxerrs=None,
+    filters=None,
+    underlying_model=None,
+    ax=None,
+    figure=None,
+    title=None,
+    colormap=None,
+    **kwargs,
 ):
     """Plot one or more light curves.
 
@@ -22,6 +32,10 @@ def plot_lightcurves(
     filters : numpy.ndarray or None, optional
         A length T matrix of filter names. If not provided all points are
         treated as coming from the same filter. None by default.
+    underlying_model: dict or None, optional
+        A dictionary mapping filter names to the noise free light curves for this model.
+        If provided, these curves will be plotted as lines behind the data points.
+        None by default.
     ax : matplotlib.pyplot.Axes or None, optional
         Axes, None by default.
     figure : matplotlib.pyplot.Figure or None
@@ -74,12 +88,23 @@ def plot_lightcurves(
     for filter in unique_filters:
         filter_mask = filters == filter
 
+        # Plot the underlying model if it is provided.
+        if underlying_model is not None and filter in underlying_model:
+            ax.plot(
+                underlying_model["times"],
+                underlying_model[filter],
+                linestyle="-",
+                color=colormap[filter],
+                alpha=0.5,
+                label=f"Model {filter}",
+            )
+
         if fluxerrs is None:
             ax.plot(
                 times[filter_mask],
                 fluxes[filter_mask],
                 marker="o",
-                label=filter,
+                label=f"Sample {filter}",
                 color=colormap[filter],
                 **kwargs,
             )
@@ -89,7 +114,7 @@ def plot_lightcurves(
                 fluxes[filter_mask],
                 yerr=fluxerrs[filter_mask],
                 fmt="o",
-                label=filter,
+                label=f"Sample {filter}",
                 color=colormap[filter],
                 **kwargs,
             )

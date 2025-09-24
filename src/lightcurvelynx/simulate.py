@@ -236,3 +236,160 @@ def simulate_lightcurves(
         cc.print_used_citations()
 
     return results
+
+
+def compute_single_noise_free_lightcurve(
+    model,
+    graph_state,
+    passbands,
+    *,
+    rest_frame_phase_min=-50.0,
+    rest_frame_phase_max=50.0,
+    rest_frame_phase_step=2.0,
+):
+    """Compute the noise-free light curve for a single object.
+
+    This is a helper function for compute_noise_free_lightcurves.
+
+    Parameters
+    ----------
+    model : BasePhysicalModel
+        The model object to use for generating the light curves.
+    graph_state : GraphState
+        The state of the graph for the simulation. Must be a single state
+        (num_samples=1).
+    passbands : PassbandGroup
+        The passbands to use for generating the bandfluxes.
+    rest_frame_phase_min : float or np.ndarray
+        The minimum rest-frame phase (in days) at which to evaluate the light curve.
+        If an array is given, it must match the number of samples in graph_state.
+        Default is -50.0 days.
+    rest_frame_phase_max : float or np.ndarray
+        The maximum rest-frame phase (in days) at which to evaluate the light curve.
+        If an array is given, it must match the number of samples in graph_state.
+        Default is 50.0 days.
+    rest_frame_phase_step : float or np.ndarray
+        The step size (in days) between rest-frame phases at which to evaluate the light curve.
+        If an array is given, it must match the number of samples in graph_state.
+        Default is 2.0 days.
+
+    Returns
+    -------
+    lightcurves : dict
+        A dictionary mapping each filter name to the corresponding array of bandfluxes (in nJy),
+        with an additional keys "times" (in MJD) and "rest_phase" (in days relative to t0).
+    """
+    if graph_state.num_samples != 1:
+        raise ValueError("graph_state must have num_samples=1.")
+
+    # Generate the rest-frame times at which to evaluate the light curve.
+    rest_phase = np.arange(rest_frame_phase_min, rest_frame_phase_max, step=rest_frame_phase_step)
+    times = rest_phase.copy()
+
+    # Compute the observed-frame times (MJD) if needed.
+    redshift = model.get_param(graph_state, "redshift")
+    if redshift is not None and redshift > 0:
+        times = times * (1 + redshift)
+
+    t0 = model.get_param(graph_state, "t0")
+    if t0 is not None:
+        times += t0
+
+    # Compute the light curve without noise for each time in each filter.
+    lightcurves = {"times": times, "rest_phase": rest_phase}
+    for filter in passbands.filters:
+        filters_array = np.full(len(times), filter)
+        bandfluxes = model.evaluate_bandfluxes(passbands, times, filters_array, graph_state)
+        lightcurves[filter] = bandfluxes
+    return lightcurves
+
+
+def compute_noise_free_lightcurves(
+    model,
+    graph_state,
+    passbands,
+    *,
+    rest_frame_phase_min=-50.0,
+    rest_frame_phase_max=50.0,
+    rest_frame_phase_step=2.0,
+):
+    """Compute the noise-free light curves for a given model and one more more states
+    at given times (in either MJD or rest-frame phase).
+
+    This function simulates the light curves without adding any noise, allowing
+    for the analysis of the underlying model behavior.
+
+    Parameters
+    ----------
+    model : BasePhysicalModel
+        The model object to use for generating the light curves.
+    graph_state : GraphState
+        The state of the graph for the simulation.
+    passbands : PassbandGroup
+        The passbands to use for generating the bandfluxes.
+    rest_frame_phase_min : float or np.ndarray
+        The minimum rest-frame phase (in days) at which to evaluate the light curve.
+        If an array is given, it must match the number of samples in graph_state.
+        Default is -50.0 days.
+    rest_frame_phase_max : float or np.ndarray
+        The maximum rest-frame phase (in days) at which to evaluate the light curve.
+        If an array is given, it must match the number of samples in graph_state.
+        Default is 50.0 days.
+    rest_frame_phase_step : float or np.ndarray
+        The step size (in days) between rest-frame phases at which to evaluate the light curve.
+        If an array is given, it must match the number of samples in graph_state.
+        Default is 2.0 days.
+
+    Returns
+    -------
+    lightcurves : nested_pandas.NestedFrame
+        A NestedFrame with a row for each object that contains a "lightcurve" column
+        with a dictionary mapping each filter name to the corresponding array of
+        bandfluxes (in nJy), with an additional nested columns "times" (in MJD) and
+        "rest_phase" (in days relative to t0).
+    """
+    # Expand any scalar inputs to arrays.
+    num_samples = graph_state.num_samples
+    if np.isscalar(rest_frame_phase_min):
+        rest_frame_phase_min = np.full(num_samples, rest_frame_phase_min)
+    if np.isscalar(rest_frame_phase_max):
+        rest_frame_phase_max = np.full(num_samples, rest_frame_phase_max)
+    if np.isscalar(rest_frame_phase_step):
+        rest_frame_phase_step = np.full(num_samples, rest_frame_phase_step)
+
+    # Set up the per-model dictionary.
+    results_dict = {
+        "id": np.arange(num_samples).tolist(),
+        "ra": np.atleast_1d(model.get_param(graph_state, "ra")).tolist(),
+        "dec": np.atleast_1d(model.get_param(graph_state, "dec")).tolist(),
+        "z": np.atleast_1d(model.get_param(graph_state, "redshift")).tolist(),
+    }
+
+    # Set up the nested dictionary with the light curve information.
+    all_filters = passbands.filters
+    nested_index = []
+    nested_dict = {"times": [], "rest_phase": []}
+    for filter in all_filters:
+        nested_dict[filter] = []
+
+    # Compute each light curve.
+    for idx, state_i in enumerate(graph_state):
+        lc = compute_single_noise_free_lightcurve(
+            model,
+            state_i,
+            passbands,
+            rest_frame_phase_min=rest_frame_phase_min[idx],
+            rest_frame_phase_max=rest_frame_phase_max[idx],
+            rest_frame_phase_step=rest_frame_phase_step[idx],
+        )
+
+        # Append the light curve data onto the nested dictionary.
+        for key in nested_dict:
+            nested_dict[key].extend(list(lc[key]))
+        nested_index.extend([idx] * len(lc["times"]))
+
+    # Create the nested results frame.
+    results = NestedFrame(data=results_dict, index=[i for i in range(num_samples)])
+    nested_frame = pd.DataFrame(data=nested_dict, index=nested_index)
+    results = results.add_nested(nested_frame, "lightcurve")
+    return results
