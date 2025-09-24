@@ -8,6 +8,7 @@ from lightcurvelynx.models.static_sed_model import StaticBandfluxModel
 from lightcurvelynx.obstable.opsim import OpSim
 from lightcurvelynx.simulate import (
     compute_noise_free_lightcurves,
+    compute_single_noise_free_lightcurve,
     get_time_windows,
     simulate_lightcurves,
 )
@@ -350,36 +351,27 @@ def test_compute_noise_free_lightcurves_single(test_data_dir):
     )
 
     # Create a step model that changes brightness at t=10.0
-    times = np.arange(50.0)
     model = StepModel(brightness=100.0, t0=10.0, t1=30.0, node_label="source")
     graph_state = model.sample_parameters(num_samples=1)
 
-    lightcurves = compute_noise_free_lightcurves(model, times, graph_state, passband_group)
-    assert np.array_equal(lightcurves["times"], times)
-
-    mask = (times >= 10.0) & (times <= 30.0)
-    for filter in ["g", "r", "i", "z"]:
-        assert filter in lightcurves
-        bandfluxes = lightcurves[filter]
-        assert len(bandfluxes) == len(times)
-        assert np.allclose(bandfluxes[~mask], 0.0)
-        assert np.allclose(bandfluxes[mask], 100.0)
-
-    # Is we use rest-frame phase, we shift by t0.
-    lightcurves = compute_noise_free_lightcurves(
+    lightcurves = compute_single_noise_free_lightcurve(
         model,
-        times,
         graph_state,
         passband_group,
-        rest_frame_phase=True,
+        -40.0,  # rest_frame_phase_min = 40 days before t0
+        60.0,  # rest_frame_phase_max = 60 days after t0
+        1.0,  # rest_frame_phase_step = 1 day
     )
-    assert np.array_equal(lightcurves["times"], times + 10.0)  # shifted by t0
+    rest_phase = np.arange(-40.0, 60.0, 1.0)
+    obs_times = rest_phase + 10.0
+    assert np.array_equal(lightcurves["times"], obs_times)
+    assert np.array_equal(lightcurves["rest_phase"], rest_phase)
 
-    mask = (lightcurves["times"] >= 10.0) & (lightcurves["times"] <= 30.0)
+    mask = (obs_times >= 10.0) & (obs_times <= 30.0)
     for filter in ["g", "r", "i", "z"]:
         assert filter in lightcurves
         bandfluxes = lightcurves[filter]
-        assert len(bandfluxes) == len(times)
+        assert len(bandfluxes) == len(obs_times)
         assert np.allclose(bandfluxes[~mask], 0.0)
         assert np.allclose(bandfluxes[mask], 100.0)
 
@@ -395,48 +387,40 @@ def test_compute_noise_free_lightcurves_multiple(test_data_dir):
     )
 
     # Create a step model that changes brightness at t0
-    times = np.arange(50.0)
     start_times = [10.0, 15.0, 20.0, 25.0]
     end_times = [30.0, 30.0, 40.0, 40.0]
     model = StepModel(
         brightness=100.0,
         t0=GivenValueList(start_times),
         t1=GivenValueList(end_times),
+        ra=0.0,
+        dec=0.0,
+        redshift=0.0,
         node_label="source",
     )
     graph_state = model.sample_parameters(num_samples=4)
 
-    lightcurves = compute_noise_free_lightcurves(model, times, graph_state, passband_group)
-    assert len(lightcurves) == 4
-
-    for lc_idx, lc_dict in enumerate(lightcurves):
-        assert np.array_equal(lc_dict["times"], times)
-
-        mask = (times >= start_times[lc_idx]) & (times <= end_times[lc_idx])
-        for filter in ["g", "r", "i", "z"]:
-            assert filter in lc_dict
-            bandfluxes = lc_dict[filter]
-            assert len(bandfluxes) == len(times)
-            assert np.allclose(bandfluxes[~mask], 0.0)
-            assert np.allclose(bandfluxes[mask], 100.0)
-
-    # Test with rest-frame phase.
     lightcurves = compute_noise_free_lightcurves(
         model,
-        times,
         graph_state,
         passband_group,
-        rest_frame_phase=True,
+        -40.0,  # rest_frame_phase_min = 40 days before t0
+        60.0,  # rest_frame_phase_max = 60 days after t0
+        1.0,  # rest_frame_phase_step = 1 day
     )
     assert len(lightcurves) == 4
 
-    for lc_idx, lc_dict in enumerate(lightcurves):
-        assert np.array_equal(lc_dict["times"], times + start_times[lc_idx])  # shifted by t0
+    rest_phase = np.arange(-40.0, 60.0, 1.0)
+    for idx in range(4):
+        assert lightcurves["id"][idx] == idx
+        lc_df = lightcurves["lightcurve"][idx]
+        assert np.array_equal(lc_df["rest_phase"], rest_phase)
+        assert np.array_equal(lc_df["times"], rest_phase + start_times[idx])
 
-        mask = (lc_dict["times"] >= start_times[lc_idx]) & (lc_dict["times"] <= end_times[lc_idx])
+        mask = (lc_df["times"] >= start_times[idx]) & (lc_df["times"] <= end_times[idx])
         for filter in ["g", "r", "i", "z"]:
-            assert filter in lc_dict
-            bandfluxes = lc_dict[filter]
-            assert len(bandfluxes) == len(times)
+            assert filter in lc_df
+            bandfluxes = lc_df[filter]
+            assert len(bandfluxes) == len(lc_df["times"])
             assert np.allclose(bandfluxes[~mask], 0.0)
             assert np.allclose(bandfluxes[mask], 100.0)
