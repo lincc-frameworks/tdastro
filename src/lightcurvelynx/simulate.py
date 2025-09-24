@@ -135,6 +135,7 @@ def simulate_lightcurves(
         "ra": ra.tolist(),
         "dec": dec.tolist(),
         "nobs": [0] * num_samples,
+        "t0": np.atleast_1d(model.get_param(sample_states, "t0")).tolist(),
         "z": np.atleast_1d(model.get_param(sample_states, "redshift")).tolist(),
         "params": [state.to_dict() for state in sample_states],
     }

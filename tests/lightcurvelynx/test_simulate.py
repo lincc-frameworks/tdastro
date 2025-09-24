@@ -69,6 +69,11 @@ def test_simulate_lightcurves(test_data_dir):
     )
     assert len(results) == 5
     assert np.all(results["nobs"].values >= 1)
+    assert np.allclose(results["ra"].values, opsim_db["ra"].values[0:5])
+    assert np.allclose(results["dec"].values, opsim_db["dec"].values[0:5])
+    assert np.allclose(results["z"].values, 0.0)
+    assert np.allclose(results["t0"].values, 0.0)
+
     for idx in range(5):
         num_obs = results["nobs"][idx]
         assert len(results.loc[idx]["lightcurve"]["flux"]) == num_obs
