@@ -9,7 +9,7 @@ def poisson_bandflux_std(
     *,
     total_exposure_time: npt.ArrayLike,
     exposure_count: npt.ArrayLike,
-    footprint: npt.ArrayLike,
+    psf_footprint: npt.ArrayLike,
     sky: npt.ArrayLike,
     zp: npt.ArrayLike,
     readout_noise: npt.ArrayLike | Callable,
@@ -29,7 +29,7 @@ def poisson_bandflux_std(
     sky : array_like of float
         Sky background per unit angular area,
         in the units of electrons / pixel^2.
-    footprint : array_like of float
+    psf_footprint : array_like of float
         Point spread function effective area, in pixel^2.
     zp : array_like of float
         Zero point bandflux for the observation, i.e. bandflux
@@ -66,12 +66,12 @@ def poisson_bandflux_std(
     # Get variances, in electrons^2
 
     source_variance = bandflux / zp
-    sky_variance = sky * footprint
+    sky_variance = sky * psf_footprint
     if callable(readout_noise):
         readout_variance = readout_noise(total_exposure_time) ** 2
     else:
-        readout_variance = readout_noise**2 * footprint * exposure_count
-    dark_variance = dark_current * total_exposure_time * footprint
+        readout_variance = readout_noise**2 * psf_footprint * exposure_count
+    dark_variance = dark_current * total_exposure_time * psf_footprint
 
     total_variance = source_variance + sky_variance + readout_variance + dark_variance
 

@@ -234,7 +234,7 @@ class ZTFObsTable(ObsTable):
             bandflux,  # nJy
             total_exposure_time=observations["exptime"],
             exposure_count=1,
-            footprint=footprint,
+            psf_footprint=footprint,
             sky=observations["sky"] * self.safe_get_survey_value("gain"),  # e-/pixel^2
             zp=observations["zp"],  # nJy
             readout_noise=self.safe_get_survey_value("read_noise"),  # e-/pixel

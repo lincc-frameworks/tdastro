@@ -15,7 +15,7 @@ def test_poisson_flux_std_flux():
         bandflux=flux,
         total_exposure_time=rng.uniform(),
         exposure_count=rng.integers(1, 100),
-        footprint=rng.uniform(),
+        psf_footprint=rng.uniform(),
         sky=0.0,
         zp=1.0,
         readout_noise=0.0,
@@ -34,14 +34,14 @@ def test_poisson_flux_std_sky():
 
     zp = 10.0
     sky = 10 ** rng.uniform(-2.0, 2.0, n)
-    footprint = 10 ** rng.uniform(0.0, 2.0, n)
-    expected_flux_err = np.sqrt(sky * footprint) * zp
+    psf_footprint = 10 ** rng.uniform(0.0, 2.0, n)
+    expected_flux_err = np.sqrt(sky * psf_footprint) * zp
 
     flux_err = poisson_bandflux_std(
         bandflux=0.0,
         total_exposure_time=rng.uniform(),
         exposure_count=rng.integers(1, 100),
-        footprint=footprint,
+        psf_footprint=psf_footprint,
         sky=sky,
         zp=zp,
         readout_noise=0.0,
@@ -59,15 +59,15 @@ def test_poisson_flux_std_readout():
     n = 100
 
     readout_noise = 10 ** rng.uniform(-2.0, 2.0, n)
-    footprint = 10 ** rng.uniform(0.0, 2.0, n)
+    psf_footprint = 10 ** rng.uniform(0.0, 2.0, n)
     exposure_count = rng.integers(1, 100, n)
-    expected_flux_err = readout_noise * np.sqrt(footprint) * np.sqrt(exposure_count)
+    expected_flux_err = readout_noise * np.sqrt(psf_footprint) * np.sqrt(exposure_count)
 
     flux_err = poisson_bandflux_std(
         bandflux=0.0,
         total_exposure_time=rng.uniform(),
         exposure_count=exposure_count,
-        footprint=footprint,
+        psf_footprint=psf_footprint,
         sky=0.0,
         zp=1.0,
         readout_noise=readout_noise,
@@ -86,16 +86,16 @@ def test_poisson_flux_std_dark():
 
     dark_current = 10 ** rng.uniform(-2.0, 2.0, n)
     total_exposure_time = rng.uniform(1.0, 3.0, n)
-    footprint = 10 ** rng.uniform(0.0, 2.0, n)
+    psf_footprint = 10 ** rng.uniform(0.0, 2.0, n)
 
-    dark_current_total = dark_current * total_exposure_time * footprint
+    dark_current_total = dark_current * total_exposure_time * psf_footprint
     expected_flux_err = np.sqrt(dark_current_total)
 
     flux_err = poisson_bandflux_std(
         bandflux=0.0,
         total_exposure_time=total_exposure_time,
         exposure_count=rng.integers(1, 100, n),
-        footprint=footprint,
+        psf_footprint=psf_footprint,
         sky=0.0,
         zp=1.0,
         readout_noise=0.0,
@@ -118,7 +118,7 @@ def test_readout_noise_from_function():
 
     n = 100
 
-    footprint = 10 ** rng.uniform(0.0, 2.0, n)
+    psf_footprint = 10 ** rng.uniform(0.0, 2.0, n)
     exposure_time = rng.uniform(30, 100, n)
     expected_flux_err = readout_noise_function(exptime=exposure_time)
 
@@ -126,7 +126,7 @@ def test_readout_noise_from_function():
         bandflux=0.0,
         total_exposure_time=exposure_time,
         exposure_count=1,
-        footprint=footprint,
+        psf_footprint=psf_footprint,
         sky=0.0,
         zp=1.0,
         readout_noise=readout_noise_function,

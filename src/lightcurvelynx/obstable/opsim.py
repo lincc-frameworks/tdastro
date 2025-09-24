@@ -166,7 +166,7 @@ class OpSim(ObsTable):
         # https://smtn-002.lsst.io/v/OPSIM-1171/index.html
         # We need it in pixel^2
         pixel_scale = self.safe_get_survey_value("pixel_scale")
-        footprint = GAUSS_EFF_AREA2FWHM_SQ * (observations["seeing"] / pixel_scale) ** 2
+        psf_footprint = GAUSS_EFF_AREA2FWHM_SQ * (observations["seeing"] / pixel_scale) ** 2
         zp = observations["zp"]
 
         # Table value is in mag/arcsec^2
@@ -178,7 +178,7 @@ class OpSim(ObsTable):
             bandflux,
             total_exposure_time=observations["exptime"],
             exposure_count=observations["nexposure"],
-            footprint=footprint,
+            psf_footprint=psf_footprint,
             sky=sky,
             zp=zp,
             readout_noise=self.safe_get_survey_value("read_noise"),

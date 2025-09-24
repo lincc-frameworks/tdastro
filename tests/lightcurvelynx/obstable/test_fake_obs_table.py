@@ -31,7 +31,7 @@ def test_create_fake_obs_table_consts():
     assert np.allclose(ops_data["zp"], [27.0, 26.0, 27.0, 28.0, 26.0])
 
     # Derived from fwhm_px.
-    assert np.allclose(ops_data["footprint"], [GAUSS_EFF_AREA2FWHM_SQ * (2.0) ** 2] * 5)
+    assert np.allclose(ops_data["psf_footprint"], [GAUSS_EFF_AREA2FWHM_SQ * (2.0) ** 2] * 5)
 
     assert ops_data.survey_values["dark_current"] == 0
     assert ops_data.survey_values["nexposure"] == 1
@@ -49,9 +49,9 @@ def test_create_fake_obs_table_consts():
     assert np.all(flux_error > 0)
     assert len(np.unique(flux_error)) > 1  # Not all the same
 
-    # If we give footprint, we use that instead of fwhm_px.
-    ops_data = FakeObsTable(pdf, zp_per_band=zp_per_band, fwhm_px=2.0, footprint=1.0, sky=100.0)
-    assert np.allclose(ops_data["footprint"], [1.0] * 5)
+    # If we give psf_footprint, we use that instead of fwhm_px.
+    ops_data = FakeObsTable(pdf, zp_per_band=zp_per_band, fwhm_px=2.0, psf_footprint=1.0, sky=100.0)
+    assert np.allclose(ops_data["psf_footprint"], [1.0] * 5)
 
     # We can override the defaults, using dictionaries of values for fwhm_px and sky.
     ops_data = FakeObsTable(
