@@ -1,6 +1,14 @@
+import astropy.units as u
 import numpy as np
 import pytest
-from lightcurvelynx.astro_utils.snia_utils import DistModFromRedshift, HostmassX1Distr, HostmassX1Func
+from astropy.coordinates import SkyCoord
+from astropy.cosmology import FlatLambdaCDM
+from lightcurvelynx.astro_utils.snia_utils import (
+    DistModFromRedshift,
+    HostmassX1Distr,
+    HostmassX1Func,
+    SNCoordGivenPhysicalSep,
+)
 from lightcurvelynx.math_nodes.np_random import NumpyRandomFunc
 from scipy.stats import norm
 
@@ -114,3 +122,34 @@ def test_dist_mod_from_redshift():
         DistModFromRedshift(redshift=0.3, H0=rand_node, Omega_m=0.3)
     with pytest.raises(ValueError):
         DistModFromRedshift(redshift=0.3, H0=73.0, Omega_m=rand_node)
+
+
+def test_sn_coord_given_physical_separation():
+    """Test correct sn coor is returned."""
+
+    host_ra = 0.0
+    host_dec = 0.0
+    physical_sep_kpc = 1.0
+    redshift = 0.5
+    H0 = 70.0
+    Omega_m = 0.3
+
+    sncoord = SNCoordGivenPhysicalSep(
+        host_ra, host_dec, physical_sep_kpc, redshift, H0=H0, Omega_m=Omega_m, node_label="sncoord"
+    )
+    state = sncoord.sample_parameters()
+    sn_ra = state["sncoord.ra"][0]
+    sn_dec = state["sncoord.dec"][0]
+    # calculate physical separation from host coord, sn coor, and redshift
+    host = SkyCoord(host_ra * u.deg, host_dec * u.deg)
+    sn = SkyCoord(sn_ra * u.deg, sn_dec * u.deg)
+
+    sep = host.separation(sn)
+
+    cosmo = FlatLambdaCDM(H0=H0, Om0=Omega_m)
+
+    DA = cosmo.angular_diameter_distance(redshift).to(u.kpc).value
+
+    calculated_physical_sep = sep.to(u.rad).value * DA
+
+    assert np.isclose(calculated_physical_sep, physical_sep_kpc)
