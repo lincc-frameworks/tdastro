@@ -27,6 +27,9 @@ class LightcurveData:
     """A class to hold data for a single model light curve (set of fluxes over time for
     each filter).
 
+    Data can be passed in as fluxes (in nJy) or AB magnitudes (if magnitudes_in=True), but
+    is always stored internally as fluxes.
+
     Attributes
     ----------
     lightcurves : dict
@@ -59,7 +62,7 @@ class LightcurveData:
         where the first column is time and the second column is the light curve values, or
         2) a numpy array of shape (T, 3) array where the first column is time (in days), the
         second column is the light curve values, and the third column is the filter.
-        The light curve values can be either fluxes (in nJy) or AB magnitudes (if is_magnitudes=True).
+        The light curve values can be either fluxes (in nJy) or AB magnitudes (if magnitudes_in=True).
     lc_data_t0 : float
         The reference epoch of the input light curve. The model will be shifted
         to the model's lc_data_t0 when computing fluxes.  For periodic light curves, this either
@@ -69,7 +72,7 @@ class LightcurveData:
         Whether the light curve is periodic. If True, the model will assume that
         the light curve repeats every period.
         Default: False
-    is_magnitudes : bool
+    magnitudes_in : bool
         Whether the input light curves are in AB magnitudes (True) or fluxes (False).
     baseline : dict or None
         A dictionary of baseline bandfluxes or AB magnitudes for each filter. This is only used
@@ -83,7 +86,7 @@ class LightcurveData:
         lc_data_t0,
         *,
         periodic=False,
-        is_magnitudes=False,
+        magnitudes_in=False,
         baseline=None,
     ):
         self.lc_data_t0 = lc_data_t0
@@ -123,7 +126,7 @@ class LightcurveData:
             lc[:, 0] -= self.lc_data_t0
 
             # Convert from magnitudes to fluxes if needed.
-            if is_magnitudes:
+            if magnitudes_in:
                 lc[:, 1] = mag2flux(lc[:, 1])
 
         # Store the minimum and maximum times for each light curve. This is done after
@@ -143,7 +146,9 @@ class LightcurveData:
                 if filter not in baseline:
                     raise ValueError(f"Baseline value for filter {filter} is missing.")
             self.baseline = baseline
-        if is_magnitudes:
+
+        # Convert the baseline from magnitudes to fluxes if needed.
+        if magnitudes_in:
             for filter in self.baseline:
                 self.baseline[filter] = mag2flux(self.baseline[filter])
 

@@ -71,7 +71,7 @@ def test_create_lightcurve_data_from_dict() -> None:
     lc_data3 = LightcurveData(
         lightcurves,
         lc_data_t0=0.0,
-        is_magnitudes=True,
+        magnitudes_in=True,
         baseline={"u": 0.1, "g": 0.2, "r": 0.3},
     )
     assert len(lc_data3) == 3
