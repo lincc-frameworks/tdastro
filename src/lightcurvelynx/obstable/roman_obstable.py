@@ -233,7 +233,7 @@ class RomanObsTable(ObsTable):
             bandflux,  # nJy
             total_exposure_time=observations["exptime"],
             exposure_count=1,
-            footprint=observations["N_Eff_Pix"],
+            psf_footprint=observations["N_Eff_Pix"],
             sky=observations["sky"],
             zp=observations["zp"] / observations["exptime"],  # (nJy/s * s)^-1
             readout_noise=self.readnoise_func,  # e-/pixel

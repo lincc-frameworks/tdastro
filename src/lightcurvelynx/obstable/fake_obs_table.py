@@ -10,7 +10,7 @@ class FakeObsTable(ObsTable):
     flux error to use or enough information to compute the poisson_bandflux_std noise model.
     To compute the flux error, the user must provide the following values
     either in the table or as keyword arguments to the constructor 1) sky, 2) zp_per_band,
-    and 3) either a) fwhm_px or b) footprint.
+    and 3) either a) fwhm_px or b) psf_footprint.
 
     Defaults are set for other parameters (e.g. exptime, nexposure, read_noise, dark_current), which
     the user can override with keyword arguments to the constructor.
@@ -35,11 +35,11 @@ class FakeObsTable(ObsTable):
     exptime : float, optional
         The exposure time for the camera in seconds, used for dark current calculation only
         (default=30).
-    footprint : float, optional
-        The effective footprint of the PSF in pixels.
+    psf_footprint : float, optional
+        The effective psf_footprint of the PSF in pixels.
     fwhm_px : float or dict, optional
         The full-width at half-maximum of the PSF in pixels. If a dictionary is provided,
-        it should map filter names to fwhm values. This is only needed if `footprint` is not provided
+        it should map filter names to fwhm values. This is only needed if `psf_footprint` is not provided
         and `const_flux_error` is not provided (default=None).
     nexposure : int, optional
         The number of exposures per observation (default=1).
@@ -78,7 +78,7 @@ class FakeObsTable(ObsTable):
         const_flux_error=None,
         dark_current=0,
         exptime=30,
-        footprint=None,
+        psf_footprint=None,
         fwhm_px=None,
         nexposure=1,
         radius=None,
@@ -95,7 +95,7 @@ class FakeObsTable(ObsTable):
             colmap=colmap,
             dark_current=dark_current,
             exptime=exptime,
-            footprint=footprint,
+            psf_footprint=psf_footprint,
             fwhm_px=fwhm_px,
             nexposure=nexposure,
             radius=radius,
@@ -125,11 +125,11 @@ class FakeObsTable(ObsTable):
                 raise ValueError("Must provide `exptime` to FakeSurveyTable.")
             if not self._assign_constant_if_needed("nexposure", check_positive=True):
                 raise ValueError("Must provide `nexposure` to FakeSurveyTable.")
-            if not self._assign_constant_if_needed("footprint", check_positive=True):
+            if not self._assign_constant_if_needed("psf_footprint", check_positive=True):
                 if not self._assign_constant_if_needed("fwhm_px", check_positive=True):
-                    raise ValueError("Must provide either `footprint` or `fwhm_px` to FakeSurveyTable.")
-                footprint = GAUSS_EFF_AREA2FWHM_SQ * (self._table["fwhm_px"]) ** 2
-                self.add_column("footprint", footprint)
+                    raise ValueError("Must provide either `psf_footprint` or `fwhm_px` to FakeSurveyTable.")
+                psf_footprint = GAUSS_EFF_AREA2FWHM_SQ * (self._table["fwhm_px"]) ** 2
+                self.add_column("psf_footprint", psf_footprint)
             if not self._assign_constant_if_needed("sky", check_positive=False):
                 raise ValueError("Must provide `sky` to FakeSurveyTable.")
 
@@ -185,13 +185,13 @@ class FakeObsTable(ObsTable):
         # We insert most the needed columns during construction, so we
         # can look up most of the values needed for the noise model.
         observations = self._table.iloc[index]
-        footprint = observations["footprint"]
+        psf_footprint = observations["psf_footprint"]
 
         return poisson_bandflux_std(
             bandflux,
             total_exposure_time=observations["exptime"],
             exposure_count=observations["nexposure"],
-            footprint=footprint,
+            psf_footprint=psf_footprint,
             sky=observations["sky"],
             zp=observations["zp"],
             readout_noise=self.safe_get_survey_value("read_noise"),
