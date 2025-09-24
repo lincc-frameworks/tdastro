@@ -237,16 +237,17 @@ def simulate_lightcurves(
     return results
 
 
-def compute_noise_free_lightcurves(
+def _compute_noise_free_lightcurve(
     model,
     times,
     graph_state,
     passbands,
+    *,
+    rest_frame_phase=False,
 ):
-    """Compute the noise-free light curves for a given model and observation times.
+    """Compute the noise-free light curve for a single object.
 
-    This function simulates the light curves without adding any noise, allowing
-    for the analysis of the underlying model behavior.
+    This is a helper function for compute_noise_free_lightcurves.
 
     Parameters
     ----------
@@ -260,6 +261,9 @@ def compute_noise_free_lightcurves(
         (num_samples=1).
     passbands : PassbandGroup
         The passbands to use for generating the bandfluxes.
+    rest_frame_phase : bool, optional
+        If True, treat the times as the rest-frame phase (i.e., time since t0 in the
+        rest frame of the object). If False, treat the times as observed-frame MJD.
 
     Returns
     -------
@@ -268,7 +272,19 @@ def compute_noise_free_lightcurves(
         with an additional key "times" for the times (in MJD).
     """
     if graph_state.num_samples != 1:
-        raise ValueError("graph_state must have num_samples=1 for noise-free light curves.")
+        raise ValueError("graph_state must have num_samples=1.")
+
+    # If we are given rest-frame phase, convert to observed-frame MJD.
+    if rest_frame_phase:
+        t0 = model.get_param(graph_state, "t0")
+        if t0 is None:
+            t0 = 0.0
+
+        redshift = model.get_param(graph_state, "redshift")
+        if redshift is None:
+            redshift = 0.0
+
+        times = times * (1 + redshift) + t0
 
     # Compute the light curve without noise for each time in each filter.
     lightcurves = {"times": times}
@@ -276,4 +292,62 @@ def compute_noise_free_lightcurves(
         filters_array = np.full(len(times), filter)
         bandfluxes = model.evaluate_bandfluxes(passbands, times, filters_array, graph_state)
         lightcurves[filter] = bandfluxes
+    return lightcurves
+
+
+def compute_noise_free_lightcurves(
+    model,
+    times,
+    graph_state,
+    passbands,
+    *,
+    rest_frame_phase=False,
+):
+    """Compute the noise-free light curves for a given model and one more more states
+    at given times (in either MJD or rest-frame phase).
+
+    This function simulates the light curves without adding any noise, allowing
+    for the analysis of the underlying model behavior.
+
+    Parameters
+    ----------
+    model : BasePhysicalModel
+        The model to draw from. This may have its own parameters which
+        will be randomly sampled with each draw.
+    times : np.ndarray
+        The times at which to evaluate the light curve (in MJD).
+    graph_state : GraphState
+        The state of the graph for the simulation.
+    passbands : PassbandGroup
+        The passbands to use for generating the bandfluxes.
+    rest_frame_phase : bool, optional
+        If True, treat the times as the rest-frame phase (i.e., time since t0 in the
+        rest frame of the object). If False, treat the times as observed-frame MJD.
+
+    Returns
+    -------
+    lightcurves : dict or list of dict
+        If graph_state has num_samples=1, a single dictionary mapping each filter name to the
+        corresponding array of bandfluxes (in nJy), with an additional key "times" for the times (in MJD).
+        If graph_state has num_samples>1, a list of such dictionaries, one for each state.
+    """
+    if graph_state.num_samples == 1:
+        return _compute_noise_free_lightcurve(
+            model,
+            times,
+            graph_state,
+            passbands,
+            rest_frame_phase=rest_frame_phase,
+        )
+
+    lightcurves = []
+    for state_i in graph_state:
+        lc = _compute_noise_free_lightcurve(
+            model,
+            times,
+            state_i,
+            passbands,
+            rest_frame_phase=rest_frame_phase,
+        )
+        lightcurves.append(lc)
     return lightcurves

@@ -340,7 +340,7 @@ def test_simulate_multiple_surveys(test_data_dir):
         )
 
 
-def test_compute_noise_free_lightcurves(test_data_dir):
+def test_compute_noise_free_lightcurves_single(test_data_dir):
     """Test computing noise free light curves for a set of times and filters."""
     # Load the passband data for the griz filters only.
     passband_group = PassbandGroup.from_preset(
@@ -355,7 +355,7 @@ def test_compute_noise_free_lightcurves(test_data_dir):
     graph_state = model.sample_parameters(num_samples=1)
 
     lightcurves = compute_noise_free_lightcurves(model, times, graph_state, passband_group)
-    assert lightcurves["times"] is times
+    assert np.array_equal(lightcurves["times"], times)
 
     mask = (times >= 10.0) & (times <= 30.0)
     for filter in ["g", "r", "i", "z"]:
@@ -364,3 +364,79 @@ def test_compute_noise_free_lightcurves(test_data_dir):
         assert len(bandfluxes) == len(times)
         assert np.allclose(bandfluxes[~mask], 0.0)
         assert np.allclose(bandfluxes[mask], 100.0)
+
+    # Is we use rest-frame phase, we shift by t0.
+    lightcurves = compute_noise_free_lightcurves(
+        model,
+        times,
+        graph_state,
+        passband_group,
+        rest_frame_phase=True,
+    )
+    assert np.array_equal(lightcurves["times"], times + 10.0)  # shifted by t0
+
+    mask = (lightcurves["times"] >= 10.0) & (lightcurves["times"] <= 30.0)
+    for filter in ["g", "r", "i", "z"]:
+        assert filter in lightcurves
+        bandfluxes = lightcurves[filter]
+        assert len(bandfluxes) == len(times)
+        assert np.allclose(bandfluxes[~mask], 0.0)
+        assert np.allclose(bandfluxes[mask], 100.0)
+
+
+def test_compute_noise_free_lightcurves_multiple(test_data_dir):
+    """Test computing noise free light curves for a set of times and filters
+    and multiple sample states"""
+    # Load the passband data for the griz filters only.
+    passband_group = PassbandGroup.from_preset(
+        preset="LSST",
+        table_dir=test_data_dir / "passbands",
+        filters=["g", "r", "i", "z"],
+    )
+
+    # Create a step model that changes brightness at t0
+    times = np.arange(50.0)
+    start_times = [10.0, 15.0, 20.0, 25.0]
+    end_times = [30.0, 30.0, 40.0, 40.0]
+    model = StepModel(
+        brightness=100.0,
+        t0=GivenValueList(start_times),
+        t1=GivenValueList(end_times),
+        node_label="source",
+    )
+    graph_state = model.sample_parameters(num_samples=4)
+
+    lightcurves = compute_noise_free_lightcurves(model, times, graph_state, passband_group)
+    assert len(lightcurves) == 4
+
+    for lc_idx, lc_dict in enumerate(lightcurves):
+        assert np.array_equal(lc_dict["times"], times)
+
+        mask = (times >= start_times[lc_idx]) & (times <= end_times[lc_idx])
+        for filter in ["g", "r", "i", "z"]:
+            assert filter in lc_dict
+            bandfluxes = lc_dict[filter]
+            assert len(bandfluxes) == len(times)
+            assert np.allclose(bandfluxes[~mask], 0.0)
+            assert np.allclose(bandfluxes[mask], 100.0)
+
+    # Test with rest-frame phase.
+    lightcurves = compute_noise_free_lightcurves(
+        model,
+        times,
+        graph_state,
+        passband_group,
+        rest_frame_phase=True,
+    )
+    assert len(lightcurves) == 4
+
+    for lc_idx, lc_dict in enumerate(lightcurves):
+        assert np.array_equal(lc_dict["times"], times + start_times[lc_idx])  # shifted by t0
+
+        mask = (lc_dict["times"] >= start_times[lc_idx]) & (lc_dict["times"] <= end_times[lc_idx])
+        for filter in ["g", "r", "i", "z"]:
+            assert filter in lc_dict
+            bandfluxes = lc_dict[filter]
+            assert len(bandfluxes) == len(times)
+            assert np.allclose(bandfluxes[~mask], 0.0)
+            assert np.allclose(bandfluxes[mask], 100.0)
