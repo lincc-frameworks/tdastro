@@ -33,6 +33,7 @@ features and models of the LightCurveLynx package.
     Lightcurve Template Model Demo <notebooks/lightcurve_source_demo>
     Advanced Sampling Techniques <notebooks/advanced_sampling>
     Simulating Multiple Surveys <notebooks/multiple_surveys>
+    Detector Footprints <notebooks/detector_footprint>
 
 
 Citations

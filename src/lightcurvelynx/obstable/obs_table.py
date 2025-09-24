@@ -10,7 +10,10 @@ import numpy as np
 import pandas as pd
 from astropy.coordinates import Latitude, Longitude
 from mocpy import MOC
+from regions import Region
 from scipy.spatial import KDTree
+
+from lightcurvelynx.astro_utils.detector_footprint import DetectorFootprint
 
 
 class ObsTable:
@@ -27,6 +30,13 @@ class ObsTable:
         For example, in Rubin's OpSim we might have the column "observationStartMJD"
         which maps to "time". In that case we would have an entry with key="time"
         and value="observationStartMJD".
+    detector_footprint : astropy.regions.SkyRegion, Astropy.regions.PixelRegion, or
+        DetectorFootprint, optional
+        The footprint object for the instrument's detector. If None, no footprint
+        filtering is done. Default is None.
+    wcs : astropy.wcs.WCS, optional
+        The WCS for the footprint. Either this or pixel_scale must be provided if
+        a footprint is provided as a Astropy region.
     **kwargs : dict
         Additional keyword arguments to pass to the constructor. This can include
         overrides of any of the survey values.
@@ -36,6 +46,8 @@ class ObsTable:
     survey_values : dict, optional
         A mapping for constant values for the survey used in various computations, such
         as readout noise and dark current.
+    filters : np.ndarray
+        The unique filters in the survey table (if provided).
     _table : pandas.core.frame.DataFrame
         The table with all the observation information mapped to standard column names.
     _colmap : dict
@@ -45,6 +57,11 @@ class ObsTable:
     _kd_tree : scipy.spatial.KDTree or None
         A kd_tree of the survey pointings for fast spatial queries. We use the scipy
         kd-tree instead of astropy's functions so we can directly control caching.
+    _detector_footprint : DetectorFootprint, optional
+        The footprint object for the instrument's detector. If None, no footprint
+        filtering is done. Default is None.
+    _wacs : astropy.wcs.WCS, optional
+        The WCS for the footprint.
     """
 
     _required_columns = ["ra", "dec", "time"]
@@ -65,6 +82,8 @@ class ObsTable:
         table,
         *,
         colmap=None,
+        detector_footprint=None,
+        wcs=None,
         **kwargs,
     ):
         # Create a copy of the table.
@@ -109,6 +128,8 @@ class ObsTable:
         for key, value in kwargs.items():
             self.survey_values[key] = value
 
+        self.filters = np.unique(self._table["filter"]) if "filter" in self._table.columns else np.array([])
+
         # If we are not given zero point data, try to derive it from the other columns.
         if "zp" not in self:
             self._assign_zero_points()
@@ -116,6 +137,13 @@ class ObsTable:
         # Build the kd-tree.
         self._kd_tree = None
         self._build_kd_tree()
+
+        # Create the footprint if one is provided.
+        self._wcs = wcs
+        if isinstance(detector_footprint, Region):
+            pixel_scale = self.survey_values.get("pixel_scale", None)
+            detector_footprint = DetectorFootprint(detector_footprint, wcs=wcs, pixel_scale=pixel_scale)
+        self._detector_footprint = detector_footprint
 
     def __len__(self):
         return len(self._table)
@@ -135,6 +163,52 @@ class ObsTable:
         if key in self._inv_colmap and self._inv_colmap[key] in self._table.columns:
             return True
         return False
+
+    def clear_detector_footprint(self):
+        """Clear the detector footprint, so no footprint filtering is done."""
+        self._detector_footprint = None
+
+    def _assign_constant_if_needed(self, colname, check_positive=True):
+        """Assign a constant column to the table if it does not already have one.
+
+        Parameters
+        ----------
+        colname : str
+            The name of the column to assign.
+        check_positive : bool, optional
+            If True, check that the value is positive before assigning it. Default is True.
+
+        Returns
+        -------
+        bool
+            True if the column was added or already exists. False otherwise.
+        """
+        if colname in self._table.columns:
+            return True  # Already have a column.
+
+        # Check that we have the value to add.
+        if self.survey_values.get(colname) is None:
+            return False
+        value = self.survey_values[colname]
+
+        # If the value is a single number, convert it to a dictionary with the same value for all bands.
+        if isinstance(value, int | float):
+            value = {fil: value for fil in self.filters}
+
+        # Fill in the information for each filter.
+        col_vals = np.zeros(len(self._table), dtype=float)
+        for fil in self.filters:
+            if fil not in value:
+                raise ValueError(f"`{colname}` must include all the filters in the table. Missing '{fil}'.")
+            if not isinstance(value[fil], int | float):
+                raise ValueError(f"`{colname}` must map filter names to numeric values.")
+            if check_positive and value[fil] <= 0:
+                raise ValueError(f"`{colname}` values must be positive. Got {value[fil]} for filter {fil}.")
+            mask = self._table["filter"] == fil
+            col_vals[mask] = value[fil]
+        self.add_column(colname, col_vals)
+
+        return True
 
     def safe_get_survey_value(self, key):
         """Get a survey value by key, checking that it is not None.
@@ -226,12 +300,6 @@ class ObsTable:
             raise FileNotFoundError(f"File {filename} not found.")
         survey_data = pd.read_parquet(filename)
         return cls(survey_data)
-
-    def get_filters(self):
-        """Get the unique filters in the ObsTable."""
-        if "filter" not in self._table.columns:
-            raise KeyError("No filters column found in ObsTable.")
-        return np.unique(self._table["filter"])
 
     def build_moc(self, *, radius=None, max_depth=10):
         """Build a Multi-Order Coverage Map from the regions in the data set.
@@ -516,6 +584,29 @@ class ObsTable:
                     continue
                 time_mask = (times[subinds] >= t_min[idx]) & (times[subinds] <= t_max[idx])
                 inds[idx] = np.asarray(subinds)[time_mask]
+
+        # Do a filtering step based on the detector's footprint. We do this after the range search,
+        # because it is more expensive (but also more accurate).
+        if self._detector_footprint is not None:
+            # Extract the RA and dec of the pointings for later use.
+            all_ra = self._table["ra"].to_numpy()
+            all_dec = self._table["dec"].to_numpy()
+            all_rot = None if "rotation" not in self._table.columns else self._table["rotation"].to_numpy()
+
+            for idx, subinds in enumerate(inds):
+                num_matches = len(subinds)
+                if num_matches == 0:
+                    continue  # Nothing to filter.
+
+                match_rot = None if all_rot is None else all_rot[subinds]
+                mask = self._detector_footprint.contains(
+                    np.full(num_matches, query_ra[idx]),  # The RA coordinate of this query
+                    np.full(num_matches, query_dec[idx]),  # The dec coordinate of this query
+                    all_ra[subinds],  # The RA coordinates of the pointings (detector positions)
+                    all_dec[subinds],  # The dec coordinates of the pointings (detector positions)
+                    rotation=match_rot,  # The detector rotation angles (if available)
+                )
+                inds[idx] = np.asarray(subinds)[mask]
 
         # If the query was a scalar, we return a single list of indices.
         if is_scalar:

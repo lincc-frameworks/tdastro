@@ -8,7 +8,7 @@ import math
 
 import astropy.units as uu
 import numpy as np
-from citation_compass import CiteClass
+from citation_compass import CiteClass, cite_inline
 
 from lightcurvelynx.astro_utils.unit_utils import flam_to_fnu
 from lightcurvelynx.math_nodes.bilby_priors import BilbyPriorNode
@@ -114,6 +114,10 @@ class RedbackWrapperModel(SEDModel, CiteClass):
         else:
             self.source_name = source.__name__
             self.source = source
+
+        # Check if the model has a citation parameter we should include.
+        if hasattr(self.source, "citation"):
+            cite_inline("redback model", self.source.citation)
 
         # Redback models already handle redshift, so we do not want to double apply it.
         self.apply_redshift = False
