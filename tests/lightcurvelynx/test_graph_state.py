@@ -263,6 +263,50 @@ def test_create_single_graph_state_from_nested_dict():
         _ = GraphState.from_dict(input, num_samples=2)
 
 
+def test_graph_state_copy():
+    """Test that we can deep copy a GraphState."""
+    state = GraphState()
+    state.set("a", "v1", 1.0)
+    state.set("a", "v2", 2.0)
+    state.set("b", "v1", 3.0)
+
+    state2 = state.copy()
+    state2.set("a", "v1", 10.0)
+    state2.set("a", "v2", 20.0)
+    state2.set("b", "v1", 30.0)
+
+    # State 1 is unchanged
+    assert state["a"]["v1"] == 1.0
+    assert state["a"]["v2"] == 2.0
+    assert state["b"]["v1"] == 3.0
+
+    # State 2 has the new values.
+    assert state2["a"]["v1"] == 10.0
+    assert state2["a"]["v2"] == 20.0
+    assert state2["b"]["v1"] == 30.0
+
+    # Test with arrays.
+    state = GraphState(3)
+    state.set("a", "v1", np.array([1.0, 2.0, 3.0]))
+    state.set("a", "v2", np.array([2.0, 3.0, 4.0]))
+    state.set("b", "v1", np.array([3.0, 4.0, 5.0]))
+
+    state2 = state.copy()
+    state2["a.v1"][1] = 10.0
+    state2["a.v2"][0] = 20.0
+    state2["b.v1"][2] = 30.0
+
+    # State 1 is unchanged
+    assert np.array_equal(state["a"]["v1"], [1.0, 2.0, 3.0])
+    assert np.array_equal(state["a"]["v2"], [2.0, 3.0, 4.0])
+    assert np.array_equal(state["b"]["v1"], [3.0, 4.0, 5.0])
+
+    # State 2 has the new values.
+    assert np.array_equal(state2["a"]["v1"], [1.0, 10.0, 3.0])
+    assert np.array_equal(state2["a"]["v2"], [20.0, 3.0, 4.0])
+    assert np.array_equal(state2["b"]["v1"], [3.0, 4.0, 30.0])
+
+
 def test_create_single_graph_state_from_list():
     """Test that we can create a single GraphState from a list of states."""
     state1 = GraphState(num_samples=1)
