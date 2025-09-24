@@ -1,5 +1,7 @@
+import astropy.units as u
 import numpy as np
 import scipy.integrate as integrate
+from astropy.coordinates import SkyCoord
 from astropy.cosmology import FlatLambdaCDM
 from scipy.stats import norm
 from scipy.stats.sampling import NumericalInversePolynomial
@@ -322,3 +324,97 @@ class DistModFromRedshift(FunctionNode):
             The distance modulus (in mag)
         """
         return self.cosmo.distmod(redshift).value
+
+
+class SNCoordGivenPhysicalSep(FunctionNode):
+    """A class for gernerating SN Coordinates given host coordinates and physical separations.
+
+    Parameters
+    ----------
+    host_ra : function or constant
+        Host galaxy RA in degree.
+    host_dec : function or constant
+        Host galaxy DEC in degree.
+    physical_sep_kpc : function or constant
+        The physical separation between host and SN in kpc.
+    redshift : function or constant
+        The function or constant providing the redshift value.
+    H0 : constant
+        The Hubble constant.
+    Omega_m : constant
+        The matter density Omega_m.
+    **kwargs : dict, optional
+        Any additional keyword arguments.
+    """
+
+    def __init__(self, host_ra, host_dec, physical_sep_kpc, redshift, H0=73.0, Omega_m=0.3, **kwargs):
+        # Create the cosmology once for this node.
+        if not isinstance(H0, float) or not isinstance(Omega_m, float):
+            raise ValueError("H0 and Omega_m must be constants.")
+        self.cosmo = FlatLambdaCDM(H0=H0, Om0=Omega_m)
+
+        # Call the super class's constructor with the needed information.
+        super().__init__(
+            func=self._sn_coord,
+            host_ra=host_ra,
+            host_dec=host_dec,
+            physical_sep_kpc=physical_sep_kpc,
+            redshift=redshift,
+            outputs=["ra", "dec"],
+            **kwargs,
+        )
+
+    def _host_sn_angular_separation(self, physical_sep_kpc, redshift):
+        """
+        Function for calculating host-sn angular separation.
+
+        Parameters
+        ----------
+        physical_sep_kpc : float or numpy.ndarray
+            The physical host-sn separation(s) in kpc.
+        redshift: float or numpy.ndarray
+            The redshift value(s).
+
+        Returns
+        -------
+        angular_sep_arcsec : float or numpy.ndarray
+            The angular host-sn separation(s) in arc seconds.
+        """
+
+        angular_diameter_distance = self.cosmo.angular_diameter_distance(redshift)
+        angular_sep_rad = (physical_sep_kpc * u.kpc / angular_diameter_distance) * u.rad
+
+        return angular_sep_rad
+
+    def _sn_coord(self, host_ra, host_dec, physical_sep_kpc, redshift):
+        """
+        Function to generate SN coordinates given the host coordinates and angular separation.
+
+        Parameters
+        ----------
+        host_ra : float or numpy.ndarray
+            Host galaxy RA values (in degrees).
+        host_dec : float or numpy.ndarray
+            Host galaxy DEC values (in degrees).
+        physical_sep_kpc : float or numpy.ndarray
+            The physical host-sn separation(s) in kpc.
+        redshift : float or numpy.ndarray
+            The redshift to convert physical separation to angular separation.
+
+        Returns
+        -------
+        ra : float or numpy.ndarray
+            SN RA values (in degrees).
+        dec : float or numpy.ndarray
+            SN DEC values (in degrees).
+        """
+
+        self.angular_sep_rad = self._host_sn_angular_separation(physical_sep_kpc, redshift)
+        center = SkyCoord(host_ra * u.deg, host_dec * u.deg, frame="icrs")
+        rand_pa = 2 * np.pi * np.random.random(center.size) * u.rad  # random position angle
+
+        sn_coord = center.directional_offset_by(rand_pa, self.angular_sep_rad)
+        ra = sn_coord.ra.deg
+        dec = sn_coord.dec.deg
+
+        return ra, dec
