@@ -13,6 +13,7 @@ from citation_compass import CiteClass, cite_inline
 from lightcurvelynx.astro_utils.unit_utils import flam_to_fnu
 from lightcurvelynx.math_nodes.bilby_priors import BilbyPriorNode
 from lightcurvelynx.models.physical_model import SEDModel
+from lightcurvelynx.utils.post_process_results import augment_single_lightcurve
 
 
 class RedbackWrapperModel(SEDModel, CiteClass):
@@ -218,3 +219,73 @@ class RedbackWrapperModel(SEDModel, CiteClass):
             fnu_unit=uu.nJy,
         )
         return model_fnu
+
+
+def redback_transient_from_lightcurve(
+    lightcurve,
+    *,
+    name="light_curve_lynx_object",
+    survey_name="",
+    t0=None,
+    filter_invalids=True,
+):
+    """Create a redback Transient model from the light curve simulated by LightCurveLynx.
+
+    Parameters
+    ----------
+    lightcurve : pandas.DataFrame
+        The table of light curve data, such as time, filter, flux, flux_err, etc.
+    name : str or function
+        The name of the transient.
+    survey_name : str, optional
+        The name of the survey that generated the lightcurve. This is appended to the
+        filter names.
+    t0 : float, optional
+        The t0 of the zero phase, date. This must be provided if the lightcurve
+        does not already have the relative time information.
+    filter_invalids : bool, optional
+        If True, filter out any rows with invalid data (NaNs or Infs).
+
+    Returns
+    -------
+    model : redback.transient.transient.Transient
+        A Transient model representing the light curve data.
+    """
+    try:
+        from redback.transient.transient import Transient
+    except ImportError as err:
+        raise ImportError(
+            "redback package is not installed be default. To create redback models, "
+            "please install redback. For example, you can install it with "
+            "`pip install redback`."
+        ) from err
+
+    # If we don't have the augmented columns (like magg, magerr, and time_rel), add them.
+    if "mag" not in lightcurve.columns:
+        if t0 is None:
+            raise ValueError(
+                "If the lightcurve does not already have the relative time column, "
+                "you must provide t0 to compute it."
+            )
+        lightcurve = lightcurve.copy()
+        augment_single_lightcurve(lightcurve, t0=t0)
+
+    # Filter out any invalid data points, such as NaNs. These can arise in the magnitude
+    # and magnitude error columns if the flux is negative or zero.
+    if filter_invalids:
+        valid_mask = np.isfinite(lightcurve["mag"]) & np.isfinite(lightcurve["magerr"])
+        lightcurve = lightcurve[valid_mask]
+
+    model = Transient(
+        name=name,
+        data_mode="magnitude",
+        time=lightcurve["time_rel"].values,
+        time_err=None,
+        time_mjd=lightcurve["mjd"].values,
+        magnitude=lightcurve["mag"].values,
+        magnitude_err=lightcurve["magerr"].values,
+        bands=[f"{survey_name}{b}" for b in lightcurve["filter"]],
+        active_bands="all",
+        optical_data=True,
+    )
+    return model
