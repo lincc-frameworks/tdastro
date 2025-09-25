@@ -140,3 +140,64 @@ flux_electron_zeropoint.__doc__ = f"""Flux (nJy) producing 1 electron.
     ndarray of float
         Flux (nJy) per electron.
     """
+
+
+def calculate_zp_from_maglim(
+    maglim=None,
+    sky=None,
+    fwhm=None,
+    gain=None,
+    readnoise=None,
+    darkcurrent=None,
+    exptime=None,
+    nexposure=1,
+):
+    """Calculate zero points based on the 5-sigma mag limit.
+
+    snr = flux/fluxerr
+    fluxerr = sqrt(flux + sky*npix*gain + readnoise**2*nexposure*npix + darkcurrent*npix*exptime*nexposure)
+    5 = flux/fluxerr
+    25 = flux**2/(flux + sky*npix*Gain + readnoise**2*nexposure*npix + darkcurrent*npix*exptime*nexposure)
+    flux**2 - 25*flux -25*( sky*npix*Gain
+                            + readnoise**2*nexposure*npix
+                            + darkcurrent*npix*exptime*nexposure)
+                        = 0
+    flux = 12.5 + 0.5*sqrt(625
+                            + 100( sky*npix*Gain
+                            + readnoise**2*nexposure*npix
+                            + darkcurrent*npix*exptime*nexposure) )
+    zp = 2.5log(flux) + maglim
+
+    Parameters
+    ----------
+    maglim : float or ndarray
+        Five-sigma magnitude limit.
+    sky : float or ndarry
+        Sky background in ADU/pixel.
+    fwhm : float or ndarray
+        PSF in pixels.
+    gain : float or ndarray; default is _ztfcam_ccd_gain
+        CCD gain.
+    readnoise : float or ndarray; default is _ztfcam_readout_noise
+        Read noise (in e-/pixel).
+    darkcurrent : float or ndarray; default is _ztfcam_dark_current
+        Dark current (in e-/pixel/second).
+    exptime : float or ndarray
+        Exposure time (in seconds).
+    nexposure : int or ndarray
+        Number of exposure.
+
+    Returns
+    -------
+    zp: float or ndarray
+        Instrument zero point (that converts 1 e- to magnitude).
+    """
+    npix = 2.266 * fwhm**2  # = 4 * pi * sigma**2 = pi/2/ln2 * FWHM**2
+    flux_at_5sigma_limit = 12.5 + 2.5 * np.sqrt(
+        25.0
+        + 4.0
+        * (sky * npix * gain + readnoise**2 * nexposure * npix + darkcurrent * npix * exptime * nexposure)
+    )
+    zp = 2.5 * np.log10(flux_at_5sigma_limit) + maglim
+
+    return zp
