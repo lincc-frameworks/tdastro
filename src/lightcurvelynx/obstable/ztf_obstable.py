@@ -242,7 +242,7 @@ class ZTFObsTable(ObsTable):
         )
 
 
-def create_random_ztf_obstable(num_obs, seed=None):
+def create_random_ztf_obs_data(num_obs, seed=None):
     """Create a random ObsTable pointings drawn uniformly from (RA, dec).
 
     Parameters
@@ -256,10 +256,8 @@ def create_random_ztf_obstable(num_obs, seed=None):
 
     Returns
     -------
-    obstable : ZTFObsTable
-        The ObsTable data structure.
-    seed : int, optional
-        The seed for the random number generator.
+    obstable : pd.DataFrame
+        The data for the ObsTable.
     """
     if num_obs <= 0:
         raise ValueError("Number of observations must be greater than zero.")
@@ -286,7 +284,4 @@ def create_random_ztf_obstable(num_obs, seed=None):
         "filter": filter,
         "exptime": 30.0 * np.ones(num_obs),
     }
-
-    obstable = ZTFObsTable(input_data)
-
-    return obstable
+    return pd.DataFrame(input_data)
