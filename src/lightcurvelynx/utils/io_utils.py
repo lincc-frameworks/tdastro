@@ -3,7 +3,10 @@ import logging
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 from astropy.table import Table
+
+from lightcurvelynx.utils.post_process_results import augment_single_lightcurve
 
 
 def read_numpy_data(file_path):
@@ -271,3 +274,57 @@ def read_lclib_data(input_file):
         raise ValueError(f"Unsupported file format: {suffix}.")
 
     return curves
+
+
+def write_lightcurve_to_redback_obs(lightcurve, output_file, *, t0=None, survey_name="", overwrite=False):
+    """Write a light curve to a Redback-compatible observation file.
+
+    Parameters
+    ----------
+    lightcurve : pandas.DataFrame
+        A Pandas DataFrame representing the light curve to write.
+    output_file : str or Path
+        The path to the output file.
+    survey_name : str, optional
+        The name of the survey (e.g., 'LSST'). If provided, it will be appended to
+        the filter names.
+        Default: None
+    overwrite : bool, optional
+        Whether to overwrite the output file if it already exists.
+        Default: False
+    t0 : float, optional
+        The reference time (MJD) for the light curve. If the light curve does not
+        already have augmented columns (e.g., 'mag'), this parameter must be provided
+        to compute them.
+        Default: None
+    """
+    output_file = Path(output_file)
+    if output_file.is_file() and not overwrite:
+        raise FileExistsError(f"File {output_file} already exists. Use overwrite=True to overwrite it.")
+
+    # If we do not have the magnitude column, augment the (a copy of the) light curve to add it.
+    if "mag" not in lightcurve.columns:
+        if t0 is None:
+            raise ValueError("t0 must be provided if the light curve does not have augmented columns.")
+        lightcurve = lightcurve.copy()
+        augment_single_lightcurve(lightcurve, t0=t0)
+    print(lightcurve)
+
+    out_dict = {
+        "time": lightcurve["mjd"].values,
+        "magnitude": lightcurve["mag"].values,
+        "e_magnitude": lightcurve["magerr"].values,
+        "band": [f"{survey_name}{b}" for b in lightcurve["filter"]],  # Append survey name
+        "system": ["AB" for _ in lightcurve["filter"]],  # Constant system
+        "flux_density(mjy)": lightcurve["flux"].values * 1e-6,  # nJy to mJy
+        "flux_density_error": lightcurve["fluxerr"].values * 1e-6,  # nJy to mJy
+        "time (days)": lightcurve["time_rel"].to_numpy(),
+        "detected": lightcurve["detection"].to_numpy().astype(int),
+        "flux(erg/cm2/s)": np.zeros(len(lightcurve)),  # Placeholder column
+        "flux_error": np.zeros(len(lightcurve)),  # Placeholder column
+        "flux_limit": np.zeros(len(lightcurve)),  # Placeholder column
+    }
+    out_df = pd.DataFrame(out_dict)
+    print(out_df)
+
+    out_df.to_csv(output_file)
