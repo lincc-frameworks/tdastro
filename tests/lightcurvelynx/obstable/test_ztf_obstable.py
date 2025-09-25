@@ -1,12 +1,12 @@
 import numpy as np
 import pandas as pd
 import pytest
-from lightcurvelynx.obstable.ztf_obstable import ZTFObsTable, create_random_ztf_obstable
+from lightcurvelynx.obstable.ztf_obstable import ZTFObsTable, create_random_ztf_obs_data
 
 
 def test_ztf_obstable_init():
     """Test initializing ZTFObsTable."""
-    survey_data_table = create_random_ztf_obstable(100)._table
+    survey_data_table = create_random_ztf_obs_data(100)
     survey_data = ZTFObsTable(table=survey_data_table)
 
     assert "zp" in survey_data
@@ -23,7 +23,7 @@ def test_ztf_obstable_init():
 
 def test_create_ztf_obstable_override():
     """Test that we can override the default survey values."""
-    survey_data_table = create_random_ztf_obstable(100)._table
+    survey_data_table = create_random_ztf_obs_data(100)
 
     survey_data = ZTFObsTable(
         table=survey_data_table,
