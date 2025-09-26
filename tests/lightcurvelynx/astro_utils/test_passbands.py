@@ -480,6 +480,10 @@ def test_passband_fluxes_to_bandflux(passbands_dir, tmp_path):
     )
     np.testing.assert_allclose(bandflux, expected_bandflux)
 
+    # Test that we get a slightly higher estimate with rectangular integration.
+    bandflux_rect = a_band.fluxes_to_bandflux(flux, rect_integration=True)
+    assert np.all(bandflux_rect >= bandflux)
+
     # Test we raise an error if the fluxes are not the right shape
     with pytest.raises(ValueError):
         a_band.fluxes_to_bandflux(np.array([[1.0, 2.0], [3.0, 4.0]]))

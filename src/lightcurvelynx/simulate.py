@@ -60,6 +60,7 @@ def simulate_lightcurves(
     time_window_offset=None,
     rng=None,
     generate_citations=False,
+    rect_integration=False,
 ):
     """Generate a number of simulations of the given model and information
     from one or more surveys.
@@ -97,6 +98,9 @@ def simulate_lightcurves(
         provided, the function uses the node's random number generator.
     generate_citations : bool, optional
         If True, generate citations for the simulation and output them.
+    rect_integration : bool, optional
+        If True, use rectangular integration when computing bandfluxes to match
+        sncosmo. Default is False, which uses trapezoidal integration.
 
     Returns
     -------

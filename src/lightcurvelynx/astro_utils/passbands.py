@@ -548,7 +548,12 @@ class PassbandGroup:
 
         self._update_internal_data()
 
-    def fluxes_to_bandflux(self, flux_density_matrix: np.ndarray, filter: str) -> np.ndarray:
+    def fluxes_to_bandflux(
+        self,
+        flux_density_matrix: np.ndarray,
+        filter: str,
+        rect_integration: bool = False,
+    ) -> np.ndarray:
         """Calculate bandfluxes for a single passband in the group.
 
         Parameters
@@ -558,6 +563,9 @@ class PassbandGroup:
             columns are wavelengths.
         filter : str
             The name of the filter to evaluate.
+        rect_integration : bool, optional
+            If True, use rectangular integration instead of trapezoidal integration to match
+            sncosmo. Default is False.
 
         Returns
         -------
@@ -579,11 +587,15 @@ class PassbandGroup:
                 "This should have been calculated in PassbandGroup._update_internal_data."
             )
         single_band_fluxes = flux_density_matrix[:, wave_indices]
-        bandflux = passband.fluxes_to_bandflux(single_band_fluxes)
+        bandflux = passband.fluxes_to_bandflux(single_band_fluxes, rect_integration=rect_integration)
 
         return bandflux
 
-    def fluxes_to_bandfluxes(self, flux_density_matrix: np.ndarray) -> np.ndarray:
+    def fluxes_to_bandfluxes(
+        self,
+        flux_density_matrix: np.ndarray,
+        rect_integration: bool = False,
+    ):
         """Calculate bandfluxes for all passbands in the group.
 
         Parameters
@@ -591,6 +603,9 @@ class PassbandGroup:
         flux_density_matrix : np.ndarray
             A 2D array of flux densities where of shape T x W where the rows are times and
             columns are wavelengths.
+        rect_integration : bool, optional
+            If True, use rectangular integration instead of trapezoidal integration to match
+            sncosmo. Default is False.
 
         Returns
         -------
@@ -610,7 +625,11 @@ class PassbandGroup:
         # Compute the bandfluxes for each passband.
         bandfluxes = {}
         for full_name in self.passbands:
-            bandfluxes[full_name] = self.fluxes_to_bandflux(flux_density_matrix, full_name)
+            bandfluxes[full_name] = self.fluxes_to_bandflux(
+                flux_density_matrix,
+                full_name,
+                rect_integration=rect_integration,
+            )
         return bandfluxes
 
     def plot(self, ax=None, figure=None):
@@ -1154,6 +1173,7 @@ class Passband:
     def fluxes_to_bandflux(
         self,
         flux_density_matrix: np.ndarray,
+        rect_integration: bool = False,
     ) -> np.ndarray:
         """Calculate the bandflux for a given set of flux densities.
 
@@ -1170,6 +1190,9 @@ class Passband:
             A 2D or 3D array of flux densities. If the array is 2D it contains a single sample where
             the rows are the T times and columns are M wavelengths in Angstroms. If the array is 3D
             it contains S samples and the values are indexed as (sample_num, time, wavelength).
+        rect_integration : bool
+            If True, use rectangular integration instead of trapezoidal integration to match
+            sncosmo. Default is False.
 
         Returns
         -------
@@ -1206,10 +1229,16 @@ class Passband:
         if self.delta_wave is not None:
             # If the grid is equal spaced, we can use a faster method of computing a rectangular
             # integration and removing half the first and last values (to make it trapezoidal).
-            first_val = np.take(integrand, 0, axis=w_axis)
-            last_val = np.take(integrand, -1, axis=w_axis)
-            bandfluxes = (np.sum(integrand, axis=w_axis) - 0.5 * (first_val + last_val)) * self.delta_wave
+            if rect_integration:
+                bandfluxes = np.sum(integrand, axis=w_axis) * self.delta_wave
+            else:
+                first_val = np.take(integrand, 0, axis=w_axis)
+                last_val = np.take(integrand, -1, axis=w_axis)
+                bandfluxes = (np.sum(integrand, axis=w_axis) - 0.5 * (first_val + last_val)) * self.delta_wave
         else:
+            if rect_integration:
+                raise ValueError("Rectangular integration requires a uniform wave grid.")
+
             # Do the full integration.
             bandfluxes = scipy.integrate.trapezoid(integrand, x=self.waves, axis=w_axis)
         return bandfluxes
